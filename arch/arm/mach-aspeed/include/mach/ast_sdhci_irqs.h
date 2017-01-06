@@ -23,7 +23,9 @@
 
 #define ARCH_NR_SDHCI 					(2)
 
-#define IRQ_SDHCI_SLOT0					(IRQ_SDHCI_CHAIN_START + 0)
-#define IRQ_SDHCI_SLOT1					(IRQ_SDHCI_CHAIN_START + 1)
+#define SDHCI0_SLOT_NUM				(2)
+
+#define IRQ_SDHCI0_SLOT0				(IRQ_SDHCI_CHAIN_START + 0)
+#define IRQ_SDHCI0_SLOT1				(IRQ_SDHCI_CHAIN_START + 1)
 
 #endif

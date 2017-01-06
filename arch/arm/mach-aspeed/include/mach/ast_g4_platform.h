@@ -50,9 +50,9 @@
 
 #define AST_VIDEO_BASE                     0x1E700000	/* VIDEO ENGINE */
 #define AST_SRAM_BASE                      0x1E720000	/* SRAM */
-#define AST_SDHC_BASE                      0x1E740000	/* SDHC */
-#define AST_SDHC0_BASE					0x1E740100	/* SD Slot 0*/
-#define AST_SDHC1_BASE					0x1E740200	/* SD Slot 1*/
+#define AST_SDHC0_BASE					0x1E740000	/* SD0 General Info */
+#define AST_SDHC0_SLOT0_BASE			0x1E740100	/* SD0 Slot 0*/
+#define AST_SDHC0_SLOT1_BASE			0x1E740200	/* SD1 Slot 1*/
 #define AST_2D_BASE                        0x1E760000	/* 2D */
 #define AST_GPIO_BASE                      0x1E780000	/* GPIO */
 #define AST_RTC_BASE                       0x1E781000	/* RTC */

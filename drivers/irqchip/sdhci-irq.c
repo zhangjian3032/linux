@@ -55,7 +55,11 @@
 
 /*******************************************************************/
 
-void __iomem	*sdhci_reg_base;	
+void __iomem	*sdhci_reg_base;
+
+#ifdef AST_SDHC1_BASE
+void __iomem	*sdhci1_reg_base;
+#endif
 
 void ast_sd_set_8bit_mode(u8 mode)
 {
@@ -74,10 +78,10 @@ static void ast_sdhci_isr(unsigned int irq, struct irq_desc *desc)
 	//should use run-roubin sdhci
 
 	if(sts & 1)
-		generic_handle_irq(IRQ_SDHCI_SLOT0);
+		generic_handle_irq(IRQ_SDHCI0_SLOT0);
 
 	if(sts & 2)
-		generic_handle_irq(IRQ_SDHCI_SLOT1);
+		generic_handle_irq(IRQ_SDHCI0_SLOT1);
 	
 }		
 
@@ -111,19 +115,19 @@ static int __init ast_sdhci_irq_init(void)
 #if defined(CONFIG_MMC_AST) || defined(CONFIG_MMC_AST_MODULE)
 	ast_scu_init_sdhci();
 
-	sdhci_reg_base = ioremap(AST_SDHC_BASE, SZ_256);
+	sdhci_reg_base = ioremap(AST_SDHC0_BASE, SZ_256);
 	if (!sdhci_reg_base) {
 		printk("ast_sdhci_irq_init ERROR \n");
 		return -1;
 	}
 	
-	for (irq = 0; irq < ARCH_NR_SDHCI; irq++) {
+	for (irq = 0; irq < SDHCI0_SLOT_NUM; irq++) {
 		irq_set_chip_and_handler(irq + IRQ_SDHCI_CHAIN_START, &ast_sdhci_irq_chip,
 					 handle_level_irq);
-		set_irq_flags(irq + IRQ_SDHCI_CHAIN_START, IRQF_VALID);
+		irq_clear_status_flags(irq + IRQ_SDHCI_CHAIN_START, IRQ_NOREQUEST);
 	}
 
-	irq_set_chained_handler(IRQ_SDHC, ast_sdhci_isr);
+	irq_set_chained_handler(IRQ_SDHC0, ast_sdhci_isr);
 #endif
 
 	return 0;

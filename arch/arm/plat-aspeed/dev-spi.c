@@ -252,56 +252,6 @@ static struct platform_device aspeed_spi_device1 = {
 
 #endif	//CONFIG_SPI_AST
 
-#ifdef CONFIG_AST_CAM
-static struct mtd_partition ast_spi_flash0_partitions[] = {
-	{
-		.name	= "u-boot",
-		.offset 	= 0x00000000,
-		.size		= 0x00080000,
-		.mask_flags	= MTD_WRITEABLE,
-	}, {
-		.name	= "env",
-		.offset 	= 0x00060000,
-		.size		= 0x00020000,            
-	}, {	//5MB
-		.name   	= "kernel",
-		.offset 	= 0x00080000,
-		.size   	= 0x00280000,     
-	}, {	//3MB
-		.name	= "rootfs",
-		.offset 	= 0x00300000,
-		.size		= 0x00400000,
-	}, { //512KB
-		.name	= "cf0",
-		.offset 	= 0x00700000,
-		.size		= 0x00080000,	
-	}, { //512KB
-		.name	= "dsp",
-		.offset 	= 0x00780000,
-		.size		= 0x00080000,
-	}, { //15MB
-		.name	= "pd_rootfs",
-		.offset 	= 0x00800000,
-		.size		= 0x00F00000,		
-	}, { //2M
-		.name	= "cur_config",
-		.offset 	= 0x01700000,
-		.size		= 0x00200000,	
-	}, { //2M
-		.name	= "def_config",
-		.offset 	= 0x01900000,
-		.size		= 0x00200000, 
-	}, { //2M
-		.name	= "logo",
-		.offset 	= 0x01b00000,
-		.size		= 0x00200000, 
-	}, {
-		.name	= "log",
-		.offset 	= MTDPART_OFS_APPEND,
-		.size		= MTDPART_SIZ_FULL,
-	},
-};
-#else
 static struct mtd_partition ast_spi_flash0_partitions[] = {
 	{
 		.name	= "u-boot",
@@ -326,7 +276,6 @@ static struct mtd_partition ast_spi_flash0_partitions[] = {
 		.size		= MTDPART_SIZ_FULL,
 	},
 };
-#endif
 
 #ifdef CONFIG_ARCH_AST1010
 static struct mtd_partition ast_spi_flash1_partitions[] = {

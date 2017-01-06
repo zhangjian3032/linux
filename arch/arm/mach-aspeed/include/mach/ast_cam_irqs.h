@@ -18,32 +18,19 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef _AST_G5_IRQS_H_
-#define _AST_G5_IRQS_H_				1
+#ifndef _AST_CAM_IRQS_H_
+#define _AST_CAM_IRQS_H_
 
-#ifdef CONFIG_ARCH_AST1070
-#include <mach/ast1070_irqs.h>
-#define MAX_AST1070_NR 				2
-#else
-#define MAX_AST1070_NR 				0
-#define AST_CVIC_NUM					0
-#endif 
+#define NR_IRQS							(AST_VIC_NUM + AST_FIQ_NUM  + ARCH_NR_I2C + ARCH_NR_GPIOS + ARCH_NR_SDHCI)
 
-#define NR_IRQS							(AST_VIC_NUM + AST_FIQ_NUM + ARCH_NR_EGFX + ARCH_NR_SGPIOS + ARCH_NR_GPIOS + ARCH_NR_SDHCI + ARCH_NR_PCIE + AST_NUM_MSI_IRQS  + (AST_CVIC_NUM * MAX_AST1070_NR))
+#define IRQ_SDHCI_CHAIN_START			(IRQ_GPIO_CHAIN_START + ARCH_NR_SDHCI)
 
-#define IRQ_PCIE_CHAIN_START			(IRQ_EGFX_CHAIN_START  + ARCH_NR_EGFX + (AST_CVIC_NUM * MAX_AST1070_NR))
+#define IRQ_GPIO_CHAIN_START			(IRQ_I2C_CHAIN_START + ARCH_NR_I2C)
 
-#define IRQ_EGFX_CHAIN_START			((AST_CVIC_NUM * MAX_AST1070_NR))
-
-#define IRQ_SDHCI_CHAIN_START			(IRQ_SGPIO_CHAIN_START + ARCH_NR_SGPIOS + (AST_CVIC_NUM * MAX_AST1070_NR))
-
-#define IRQ_SGPIO_CHAIN_START			(IRQ_GPIO_CHAIN_START + ARCH_NR_GPIOS + (AST_CVIC_NUM * MAX_AST1070_NR))
-
-#define IRQ_GPIO_CHAIN_START			(IRQ_I2C_CHAIN_START + ARCH_NR_I2C + (AST_CVIC_NUM * MAX_AST1070_NR))
-
-#define IRQ_I2C_CHAIN_START			(AST_VIC_NUM + AST_FIQ_NUM + (AST_CVIC_NUM * MAX_AST1070_NR))
+#define IRQ_I2C_CHAIN_START			(AST_VIC_NUM + AST_FIQ_NUM)
 
 #define FIQ_START 						AST_VIC_NUM
+
 #define AST_FIQ_NUM						64
 
 #define AST_VIC_NUM						64
@@ -51,7 +38,6 @@
 #define IRQ_SDRAM_ECC					0
 #define IRQ_MIC							1
 #define IRQ_MAC0						2			/* MAC 1 interrupt */
-#define IRQ_MAC1						3			/* MAC 2 interrupt */
 #define IRQ_CRYPTO						4
 #define IRQ_VHUB						5
 #define IRQ_EHCI0						5
@@ -101,14 +87,6 @@
 #define IRQ_EXT1							48			/* GPIOL3 */
 #define IRQ_EXT2							49			/* GPIOM1 */
 #define IRQ_UART_SDMA					50
-#define IRQ_UART5						51			/* UART 6 interrupt */
-#define IRQ_UART6						52			/* UART 7 interrupt */
-#define IRQ_UART7						53			/* UART 8 interrupt */
-#define IRQ_UART8						54			/* UART 9 interrupt */
-#define IRQ_UART9						55			/* UART 10 interrupt */
-#define IRQ_UART10						56			/* UART 11 interrupt */
-#define IRQ_UART11						57			/* UART 12 interrupt */
-#define IRQ_UART12						58			/* UART 13 interrupt */
 #define IRQ_SPI							59			
 #define IRQ_H264						61
 #define IRQ_FORMATTER					62

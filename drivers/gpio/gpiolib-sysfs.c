@@ -121,9 +121,11 @@ static ssize_t value_store(struct device *dev,
 
 	mutex_lock(&data->mutex);
 
+#if 0 //Ryan Modify for AST GPIO Feature
 	if (!test_bit(FLAG_IS_OUT, &desc->flags)) {
 		status = -EPERM;
 	} else {
+#endif	
 		long		value;
 
 		status = kstrtol(buf, 0, &value);
@@ -131,7 +133,7 @@ static ssize_t value_store(struct device *dev,
 			gpiod_set_value_cansleep(desc, value);
 			status = size;
 		}
-	}
+//	}
 
 	mutex_unlock(&data->mutex);
 

@@ -2,7 +2,11 @@
 # Makefile for the linux kernel.
 #
 
-obj-y 			+= timer.o devs.o ast-scu.o ast-ahbc.o ast-pciarbiter.o
+obj-y 			+= timer.o devs.o ast-ahbc.o ast-pciarbiter.o
+
+obj-$(CONFIG_IRMP)	+= ast-bmc-scu.o
+
+obj-$(CONFIG_RT360_CAM) += ast-cam-scu.o
 
 obj-$(CONFIG_ARCH_AST1070) += ast1070-irq.o ast1070-scu.o ast1070-i2c-irq.o dev-ci2c.o dev-cuart.o dev-clpc.o 
 
@@ -34,6 +38,3 @@ obj-y                   += dev-pwm-fan.o dev-adc.o
 obj-y			+= dev-fb.o dev-video.o dev-h264.o dev-formatter.o dev-rfx.o 
 
 obj-y			+= dev-rng.o
-#obj-m                  :=
-#obj-n                  :=
-#obj-                   :=

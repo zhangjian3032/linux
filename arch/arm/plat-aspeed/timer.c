@@ -75,6 +75,7 @@ static void __iomem *ast_timer_base;
 /***************************************************************************/
 static int ast_set_periodic(struct clock_event_device *evt)
 {
+	printk("ast_set_periodic ~~~~~~~~~~~~~~`\n");
 	ast_timer_write(TIMER_RELOAD - 1, AST_TIMER_RELOAD);
 	ast_timer_write(TIMER_RELOAD - 1, AST_TIMER_COUNT);
 	ast_timer_write(TIMER_CTRL_T1_ENABLE | TIMER_CTRL_T1_EXT_REF, AST_TIMER_CTRL1);
@@ -85,7 +86,7 @@ static int ast_set_periodic(struct clock_event_device *evt)
 static int ast_set_next_event(unsigned long cycles,
 				struct clock_event_device *evt)
 {
-	printk("ast_set_next_event %x \n", cycles);
+	printk("ast_set_next_event %x ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", cycles);
 	
 	ast_timer_write(cycles, AST_TIMER_RELOAD);
 	ast_timer_write(TIMER_CTRL_T1_ENABLE | ast_timer_read(AST_TIMER_CTRL1), AST_TIMER_CTRL1);
@@ -97,7 +98,6 @@ static struct clock_event_device ast_clockevent = {
 	.name				= "timer0",
 	.shift				= 32,
 	.features				= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-//	.set_mode	= ast_set_mode,
 	.set_next_event		= ast_set_next_event,
 	.set_state_periodic	= ast_set_periodic,
 	.rating		= 300,
@@ -124,9 +124,6 @@ static struct irqaction ast_timer_irq = {
 	.dev_id		= &ast_clockevent,
 };
 
-
-#define TIMER_FREQ_KHZ	(1000)
-
 /*
  * Set up timer interrupt, and return the current time in seconds.
  */
@@ -138,13 +135,10 @@ void __init ast_init_timer(void)
 	ast_timer_write(0, AST_TIMER_CTRL2);
 	ast_timer_write(0, AST_TIMER_CTRL3);
 
-	clockevents_config_and_register(&ast_clockevent, TIMER_FREQ_KHZ,
+	clockevents_config_and_register(&ast_clockevent, AST_TIMER_EXT_CLK_1M,
 					1, TIMER_RELOAD - 1);
-
 
 	/* Enable timer interrupts */	
 	setup_irq(IRQ_TIMER0, &ast_timer_irq);
-
-
 }
 

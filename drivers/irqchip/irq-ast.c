@@ -306,6 +306,7 @@ void __init ast_init_irq(void)
 	{
 		irq_set_chip_and_handler(i, &ast_irq_chip, handle_level_irq);
 		irq_set_chip_data(i, ast_vic_base);
+		irq_clear_status_flags(i, IRQ_NOREQUEST);
 	}
 
 	set_handle_irq(ast_vic_handle_irq);
@@ -313,6 +314,7 @@ void __init ast_init_irq(void)
 	for (i = FIQ_START; i < AST_FIQ_NUM; i++) 
 	{
 		irq_set_chip(i, &ast_fiq_chip);
+		irq_clear_status_flags(i, IRQ_NOREQUEST);
 	}
 	
 	init_FIQ(FIQ_START);

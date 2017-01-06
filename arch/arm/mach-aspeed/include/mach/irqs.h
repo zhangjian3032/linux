@@ -47,6 +47,8 @@
 #include <mach/ast_g4_irqs.h>
 #elif defined(AST_SOC_G5)
 #include <mach/ast_g5_irqs.h>
+#elif defined(AST_SOC_CAM)
+#include <mach/ast_cam_irqs.h>
 #else
 #err "no define for irqs.h"
 #endif

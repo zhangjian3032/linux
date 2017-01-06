@@ -30,8 +30,6 @@
 
 #include <plat/devs.h>
 
-#include <plat/ast-scu.h>
-
 /* --------------------------------------------------------------------
  *  ASPEED SGPIO
  * -------------------------------------------------------------------- */
@@ -60,8 +58,6 @@ static struct platform_device ast_device_sgpio = {
 extern void __init
 ast_add_device_sgpio(void)
 {
-	ast_scu_multi_func_sgpio();
-
 	platform_device_register(&ast_device_sgpio);
 }
 

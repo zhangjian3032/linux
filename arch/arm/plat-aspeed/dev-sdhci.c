@@ -35,56 +35,81 @@
  *  SDHC
  * -------------------------------------------------------------------- */
 #if defined(CONFIG_MMC_AST) || defined(CONFIG_MMC_AST_MODULE)
+static u64 ast_sdhc_dma_mask = 0xffffffffUL;
+
 static struct resource ast_sdhci0_resource[] = {
 	[0] = {
-		.start = AST_SDHC0_BASE,
-		.end = AST_SDHC0_BASE + SZ_256 - 1,
+		.start = AST_SDHC0_SLOT0_BASE,
+		.end = AST_SDHC0_SLOT0_BASE + SZ_256 - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start = IRQ_SDHCI_SLOT0,
-		.end = IRQ_SDHCI_SLOT0,
+		.start = IRQ_SDHCI0_SLOT0,
+		.end = IRQ_SDHCI0_SLOT0,
 		.flags = IORESOURCE_IRQ,
 	},
 };
-
-static struct resource ast_sdhci1_resource[] = {
-	[0] = {
-		.start = AST_SDHC1_BASE,
-		.end = AST_SDHC1_BASE + SZ_256 - 1 ,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_SDHCI_SLOT1,
-		.end = IRQ_SDHCI_SLOT1,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static u64 ast_sdhc_dma_mask = 0xffffffffUL;
 
 static struct platform_device ast_sdhci_device0 = {
 	.name	= "sdhci-ast",		
     .id = 0,
     .dev = {
-            .dma_mask = &ast_sdhc_dma_mask,
-            .coherent_dma_mask = 0xffffffff,
+		.dma_mask = &ast_sdhc_dma_mask,
+		.coherent_dma_mask = 0xffffffff,
     },
 	.resource = ast_sdhci0_resource,
 	.num_resources = ARRAY_SIZE(ast_sdhci0_resource),
+};
+
+static struct resource ast_sdhci1_resource[] = {
+	[0] = {
+		.start = AST_SDHC0_SLOT1_BASE,
+		.end = AST_SDHC0_SLOT1_BASE + SZ_256 - 1 ,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_SDHCI0_SLOT1,
+		.end = IRQ_SDHCI0_SLOT1,
+		.flags = IORESOURCE_IRQ,
+	},
 };
 
 static struct platform_device ast_sdhci_device1 = {
 	.name	= "sdhci-ast",		
     .id = 1,
     .dev = {
-            .dma_mask = &ast_sdhc_dma_mask,
-            .coherent_dma_mask = 0xffffffff,
+		.dma_mask = &ast_sdhc_dma_mask,
+		.coherent_dma_mask = 0xffffffff,
     },
 	.resource = ast_sdhci1_resource,
 	.num_resources = ARRAY_SIZE(ast_sdhci1_resource),
 };
 
+#ifdef AST_SDHC1_BASE
+static struct resource ast_sdhci2_resource[] = {
+	[0] = {
+		.start = AST_SDHC1_SLOT0_BASE,
+		.end = AST_SDHC1_SLOT0_BASE + SZ_256 - 1 ,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_SDHCI1_SLOT0,
+		.end = IRQ_SDHCI1_SLOT0,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ast_sdhci_device2 = {
+	.name	= "sdhci-ast",		
+    .id = 1,
+    .dev = {
+		.dma_mask = &ast_sdhc_dma_mask,
+		.coherent_dma_mask = 0xffffffff,
+    },
+	.resource = ast_sdhci1_resource,
+	.num_resources = ARRAY_SIZE(ast_sdhci2_resource),
+};
+#endif
 void __init ast_add_device_sdhci(void)
 {
 	//multipin. Remind: AST3200FPGA only supports one port at a time
@@ -95,6 +120,9 @@ void __init ast_add_device_sdhci(void)
 	platform_device_register(&ast_sdhci_device0);
 	platform_device_register(&ast_sdhci_device1);
 #endif	
+#ifdef AST_SDHC1_BASE
+	platform_device_register(&ast_sdhci_device2);
+#endif
 	ast_scu_multi_func_sdhc_slot(3);
 }
 #else

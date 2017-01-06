@@ -44,6 +44,8 @@
 #include <mach/ast_g4_platform.h>
 #elif defined(AST_SOC_G5)
 #include <mach/ast_g5_platform.h>
+#elif defined(AST_SOC_CAM)
+#include <mach/ast_cam_platform.h>
 #else
 #err "No define for platform.h"
 #endif
