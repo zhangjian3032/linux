@@ -1,0 +1,28 @@
+menuconfig FB_AST
+	tristate "ASPEED Framebuffer Driver"
+	depends on FB
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	default n
+
+if FB_AST
+config DISPLAY_SUPPORT
+	bool "AST Display Support"
+
+config AST_DAC
+	bool "CRT DAC output"
+
+config VGA_DDC
+        bool "Enable VGA DDC Chanel"
+        depends on FB_AST && AST_DAC && I2C_AST
+	select FB_MODE_HELPERS
+        help
+          This option will support I2C DDC driver
+
+config AST_DVO
+	bool "CRT DVO output"
+
+source "drivers/video/fbdev/aspeed/it66121/Kconfig"
+
+endif
