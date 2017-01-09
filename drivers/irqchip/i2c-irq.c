@@ -442,7 +442,7 @@ static int __init ast_i2c_irq_init(void)
 	for (irq = 0; irq < ARCH_NR_I2C; irq++) {
 		irq_set_chip_and_handler(irq + IRQ_I2C_CHAIN_START, &ast_i2c_irq_chip,
 					 handle_level_irq);
-		set_irq_flags(irq + IRQ_I2C_CHAIN_START, IRQF_VALID);
+		irq_clear_status_flags(irq + IRQ_I2C_CHAIN_START, IRQ_NOREQUEST);
 	}
 
 	irq_set_chained_handler(IRQ_I2C, ast_i2c_global_interrupt);
