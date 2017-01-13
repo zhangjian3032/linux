@@ -75,7 +75,6 @@ static void __iomem *ast_timer_base;
 /***************************************************************************/
 static int ast_set_periodic(struct clock_event_device *evt)
 {
-	printk("ast_set_periodic ~~~~~~~~~~~~~~`\n");
 	ast_timer_write(TIMER_RELOAD - 1, AST_TIMER_RELOAD);
 	ast_timer_write(TIMER_RELOAD - 1, AST_TIMER_COUNT);
 	ast_timer_write(TIMER_CTRL_T1_ENABLE | TIMER_CTRL_T1_EXT_REF, AST_TIMER_CTRL1);

@@ -48,6 +48,16 @@
 
 #define AST_I2C_POOL_BUFF_16
 
+#elif defined(AST_SOC_CAM)
+#define AST_I2C_DMA_SIZE 				4095
+#define AST_I2C_PAGE_SIZE 				16
+#define MASTER_XFER_MODE				INC_DMA_MODE
+#define SLAVE_XFER_MODE				INC_DMA_MODE
+
+#define NUM_BUS 8
+
+#define AST_I2C_POOL_BUFF_16
+
 #else
 #err "NO define for I2C"
 #endif

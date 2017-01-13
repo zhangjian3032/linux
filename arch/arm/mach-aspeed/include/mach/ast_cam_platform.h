@@ -32,6 +32,7 @@
 #define AST_ISP4_BASE					0x1E648000	/* ISP5 Controller */
 #define AST_ISP5_BASE					0x1E64A000	/* ISP6 Controller */
 
+#define AST_MAC0_BASE					0x1E660000	/* MAC1 */ 
 
 #define AST_VIC_BASE					0x1E6C0000	/* VIC */
 #define AST_CVIC_BASE					0x1E6C2000	/* CVIC */
@@ -54,19 +55,19 @@
 
 #define AST_JPEG_BASE              			0x1E700000	/* JPEG ENGINE */
 #define AST_SRAM_BASE               			0x1E720000	/* SRAM */
-#define AST_SDHC0_IRQ_BASE				0x1E740000	/* SD0 General Info */
-#define AST_SDHC0_SLOT0_BASE			0x1E740100	/* SD0 Slot 0*/
+#define AST_SDIO_BASE					0x1E740000	/* SDIO General Info */
+#define AST_SDIO_SLOT0_BASE			0x1E740100	/* SDIO Slot 0*/
 
-#define AST_SDHC1_IRQ_BASE				0x1E760000	/* SD General Info */
-#define AST_SDHC1_SLOT0_BASE			0x1E760100	/* SD1 Slot 0*/
-#define AST_SDHC1_SLOT1_BASE			0x1E760200	/* SD1 Slot 1*/
+#define AST_SDHCI_BASE					0x1E740000	/* SDHCI General Info */
+#define AST_SDHCI_SLOT0_BASE			0x1E740100	/* SDHCI0 Slot 0*/
+#define AST_SDHCI_SLOT1_BASE			0x1E740200	/* SDHCI1 Slot 1*/
 
 #define AST_GPIO_BASE					0x1E780000	/* GPIO */
 
 #define AST_RTC_BASE					0x1E781000	/* RTC */
 #define AST_TIMER_BASE              			0x1E782000	/* TIMER #0~2*/
-#define AST_UART0_BASE              			0x1E783000	/* UART1 */
-#define AST_UART1_BASE              			0x1E784000	/* UART2 */
+#define AST_UART1_BASE              			0x1E783000	/* UART1 */
+#define AST_UART0_BASE              			0x1E784000	/* UART2 */
 #define AST_WDT_BASE                			0x1E785000	/* WDT */
 
 #define AST_D3D_BASE					0x1E787000	/* D3D */

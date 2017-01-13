@@ -462,7 +462,8 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 			dev_err(uhci_dev(uhci),
 				"host controller process error, something bad happened!\n");
 		if (status & USBSTS_HCH) {
-			if (uhci->rh_state >= UHCI_RH_RUNNING) {
+			//ASPEED Chnage 
+			if (uhci->rh_state > UHCI_RH_RUNNING) {
 				dev_err(uhci_dev(uhci),
 					"host controller halted, very bad!\n");
 				if (debug > 1 && errbuf) {

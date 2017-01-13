@@ -31,28 +31,28 @@
 #if defined(CONFIG_ARCH_AST1010)
 #include "ast1010_platform.h"
 #elif defined(CONFIG_ARCH_AST1520)
-#include <mach/ast1520_platform.h>
+#include "ast1520_platform.h"
 #elif defined(CONFIG_ARCH_AST2000)
-#include <mach/ast2000_platform.h>
+#include "ast2000_platform.h"
 #elif defined(CONFIG_ARCH_AST2100)
-#include <mach/ast2100_platform.h>
+#include "ast2100_platform.h"
 #elif defined(CONFIG_ARCH_AST2200)
-#include <mach/ast2200_platform.h>
+#include "ast2200_platform.h"
 #elif defined(AST_SOC_G3)
-#include <mach/ast_g3_platform.h>
+#include "ast_g3_platform.h"
 #elif defined(AST_SOC_G4)
-#include <mach/ast_g4_platform.h>
+#include "ast_g4_platform.h"
 #elif defined(AST_SOC_G5)
-#include <mach/ast_g5_platform.h>
+#include "ast_g5_platform.h"
 #elif defined(AST_SOC_CAM)
-#include <mach/ast_cam_platform.h>
+#include "ast_cam_platform.h"
 #else
 #err "No define for platform.h"
 #endif
 /*********************************************************************************/
 /* Companion Base Address */
 #if defined(CONFIG_ARCH_AST1070)
-#include <mach/ast1070_platform.h>
+#include "ast1070_platform.h"
 #endif
 /*********************************************************************************/
 

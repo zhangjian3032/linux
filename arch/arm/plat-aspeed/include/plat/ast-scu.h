@@ -19,10 +19,9 @@
  */
 
 #if defined(CONFIG_IRMP) || defined(CONFIG_REMOTEFX) || defined(CONFIG_PCEXT)
-#include <plat/ast-bmc-scu.h>
+#include "ast-bmc-scu.h"
 #elif defined(CONFIG_RT360_CAM)
-#include <plat/ast_cam_scu.h>
+#include "ast-cam-scu.h"
 #else
 #err "no define for ast-scu.h"
 #endif
-

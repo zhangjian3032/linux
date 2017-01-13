@@ -115,7 +115,7 @@ static int __init ast_sdhci_irq_init(void)
 #if defined(CONFIG_MMC_AST) || defined(CONFIG_MMC_AST_MODULE)
 	ast_scu_init_sdhci();
 
-	sdhci_reg_base = ioremap(AST_SDHC0_BASE, SZ_256);
+	sdhci_reg_base = ioremap(AST_SDHCI_BASE, SZ_256);
 	if (!sdhci_reg_base) {
 		printk("ast_sdhci_irq_init ERROR \n");
 		return -1;
@@ -127,7 +127,7 @@ static int __init ast_sdhci_irq_init(void)
 		irq_clear_status_flags(irq + IRQ_SDHCI_CHAIN_START, IRQ_NOREQUEST);
 	}
 
-	irq_set_chained_handler(IRQ_SDHC0, ast_sdhci_isr);
+	irq_set_chained_handler(IRQ_SDHCI, ast_sdhci_isr);
 #endif
 
 	return 0;

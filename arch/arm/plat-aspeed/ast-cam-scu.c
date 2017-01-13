@@ -42,7 +42,7 @@ CLK24M
 #include <mach/hardware.h>
 
 #include <plat/ast-scu.h>
-#include <plat/regs-scu.h>
+#include <plat/regs-cam-scu.h>
 
 //#define ASPEED_SCU_LOCK
 //#define ASPEED_SCU_DEBUG

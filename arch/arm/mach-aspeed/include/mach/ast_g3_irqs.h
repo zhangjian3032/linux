@@ -66,7 +66,7 @@
 #define IRQ_RTC							22
 //23 , 24 reserverd 
 #define IRQ_CRT							25
-#define IRQ_SDHC0						26
+#define IRQ_SDHCI						26
 #define IRQ_WDT							27
 #define IRQ_TACHO						28
 #define IRQ_2D							29

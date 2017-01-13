@@ -656,7 +656,7 @@ config USB_UHCI_SUPPORT_NON_PCI_HC
 
 config USB_UHCI_PLATFORM
 	bool
-	default y if ARCH_VT8500
+	default y if (ARCH_VT8500 || PLAT_ASPEED)
 
 config USB_UHCI_BIG_ENDIAN_MMIO
 	bool

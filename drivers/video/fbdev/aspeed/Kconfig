@@ -23,6 +23,6 @@ config VGA_DDC
 config AST_DVO
 	bool "CRT DVO output"
 
-source "drivers/video/fbdev/aspeed/it66121/Kconfig"
+#source "drivers/video/fbdev/aspeed/it66121/Kconfig"
 
 endif

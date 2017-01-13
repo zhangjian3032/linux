@@ -43,6 +43,8 @@
 #define GPIO_PORT_NUM		28
 #elif defined(AST_SOC_G5)
 #define GPIO_PORT_NUM		29
+#elif defined(AST_SOC_CAM)
+#define GPIO_PORT_NUM		12
 #else
 #err "no define for gpio irqs.h"
 #endif

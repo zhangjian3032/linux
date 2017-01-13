@@ -16,6 +16,7 @@ endif
 
 obj-$(CONFIG_AST2400_BMC) += ast2400-irq.o ast2400-scu.o dev-ast2400-uart.o #dev-ast2400-i2c.o
 
+obj-y			+= dev-lpc.o 
 #obj-n   := dummy.o
 #platform
 obj-y			+= dev-uart.o dev-vuart.o dev-wdt.o dev-rtc.o dev-gpio.o dev-sgpio.o dev-crypto.o
@@ -24,15 +25,15 @@ obj-y			+= dev-uart.o dev-vuart.o dev-wdt.o dev-rtc.o dev-gpio.o dev-sgpio.o dev
 obj-y 	                += dev-nor.o dev-nand.o dev-sdhci.o
 
 #bus
-obj-y                   += dev-i2c.o dev-spi.o dev-ehci.o dev-uhci.o dev-lpc.o dev-espi.o dev-peci.o dev-kcs.o dev-bt.o dev-snoop.o dev-mbx.o dev-pcie.o dev-jtag.o dev-mctp.o dev-xdma.o
+obj-y                   += dev-i2c.o dev-spi.o dev-ehci.o dev-uhci.o dev-espi.o dev-peci.o dev-kcs.o dev-bt.o dev-snoop.o dev-mbx.o dev-pcie.o dev-jtag.o dev-mctp.o dev-xdma.o
 
 #dev
 obj-y			+= dev-udc11.o dev-hid.o dev-udc20.o
 #net
-obj-y			+= dev-eth.o
+obj-$(CONFIG_AST_MAC)	+= dev-eth.o
 
 #hwmon
-obj-y                   += dev-pwm-fan.o dev-adc.o
+obj-y			+= dev-pwm-fan.o dev-adc.o
 
 #video
 obj-y			+= dev-fb.o dev-video.o dev-h264.o dev-formatter.o dev-rfx.o 

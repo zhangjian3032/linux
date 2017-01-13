@@ -28,7 +28,9 @@
 #include <mach/platform.h>
 #include <plat/devs.h>
 #include <plat/ast-scu.h>
+#ifdef CONFIG_AST_LPC
 #include <plat/ast-lpc.h>
+#endif
 #include <mach/gpio.h>
 
 /* --------------------------------------------------------------------

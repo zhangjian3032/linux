@@ -75,8 +75,32 @@
 
 
 /*******************************************************************/
+#if defined (AST_SOC_CAM)
+struct buf_page page_info;
 
-#if defined (AST_SOC_G5)
+static void pool_buff_page_init(u32 buf_pool_addr) 
+{
+	page_info.flag = 0;
+	page_info.page_size = AST_I2C_PAGE_SIZE;
+	page_info.page_addr_point = 0;
+	page_info.page_addr = buf_pool_addr;
+
+}
+
+extern u8 request_pool_buff_page(struct buf_page **req_page)
+{
+	*req_page = &page_info;
+	return 0;
+
+}
+
+//TODO check free ?
+extern void free_pool_buff_page(struct buf_page *req_page)
+{
+	return;
+}
+
+#elif defined (AST_SOC_G5)
 struct buf_page page_info;
 
 static void pool_buff_page_init(u32 buf_pool_addr) 

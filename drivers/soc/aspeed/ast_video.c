@@ -2351,7 +2351,7 @@ static int ast_video_probe(struct platform_device *pdev)
 
 	ast_video_ctrl_init(ast_video);
 
-	ret = request_irq(ast_video->irq, ast_video_isr, IRQF_DISABLED, "ast-video", ast_video);
+	ret = request_irq(ast_video->irq, ast_video_isr, IRQF_SHARED, "ast-video", ast_video);
 	if (ret) {
 		printk(KERN_INFO "VIDEO: Failed request irq %d\n", ast_video->irq);
 		goto out_region1;
