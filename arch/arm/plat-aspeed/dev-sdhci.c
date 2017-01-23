@@ -39,8 +39,8 @@ static u64 ast_sdhc_dma_mask = 0xffffffffUL;
 
 static struct resource ast_sdhci0_resource[] = {
 	[0] = {
-		.start = AST_SDHCI_SLOT1_BASE,
-		.end = AST_SDHCI_SLOT1_BASE + SZ_256 - 1,
+		.start = AST_SDHCI_SLOT0_BASE,
+		.end = AST_SDHCI_SLOT0_BASE + SZ_256 - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
