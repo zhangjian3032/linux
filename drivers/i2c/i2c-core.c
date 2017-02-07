@@ -2598,16 +2598,16 @@ int i2c_slave_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			? 'W' : 'R', msgs->addr, msgs->len);
 #endif
 		if (in_atomic() || irqs_disabled()) {
-			ret = i2c_trylock_adapter(adap);
+			ret = i2c_trylock_bus(adap, I2C_LOCK_SEGMENT);
 			if (!ret)
 				/* I2C activity is ongoing. */
 				return -EAGAIN;
 		} else {
-			i2c_lock_adapter(adap);
+			i2c_lock_bus(adap, I2C_LOCK_SEGMENT);
 		}
 
 		ret = adap->algo->slave_xfer(adap, msgs);
-		i2c_unlock_adapter(adap);
+		i2c_unlock_bus(adap, I2C_LOCK_SEGMENT);
 
 		return ret;
 	} else {

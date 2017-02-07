@@ -299,7 +299,7 @@ extern void free_pool_buff_page(struct buf_page *req_page) {}
 
 void __iomem	*i2c_reg_base;	
 
-static void ast_i2c_global_interrupt(unsigned int irq, struct irq_desc *desc)
+static void ast_i2c_global_interrupt(struct irq_desc *desc)
 {
 	u32 i = 0;
 	u32 sts = readl(i2c_reg_base + AST_I2CG_ISR);

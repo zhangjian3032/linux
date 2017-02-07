@@ -71,7 +71,7 @@ void ast_sd_set_8bit_mode(u8 mode)
 
 EXPORT_SYMBOL(ast_sd_set_8bit_mode);
 
-static void ast_sdhci_isr(unsigned int irq, struct irq_desc *desc)
+static void ast_sdhci_isr(struct irq_desc *desc)
 {
 	u32 sts = readl(sdhci_reg_base + AST_SDHCI_ISR);
 	SDHCI_IRQ_DBUG("ast_sdhci_isr %x \n",sts);

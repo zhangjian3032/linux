@@ -30,7 +30,7 @@ obj-y                   += dev-i2c.o dev-spi.o dev-ehci.o dev-uhci.o dev-espi.o 
 #dev
 obj-y			+= dev-udc11.o dev-hid.o dev-udc20.o
 #net
-obj-$(CONFIG_AST_MAC)	+= dev-eth.o
+obj-y			+= dev-eth.o
 
 #hwmon
 obj-y			+= dev-pwm-fan.o dev-adc.o

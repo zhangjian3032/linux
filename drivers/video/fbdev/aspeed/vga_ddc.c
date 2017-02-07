@@ -141,7 +141,7 @@ static int vga_ddc_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	DDC_DBG("\n");
-
+	struct vga_ddc_info *vga_ddc;
 	if (!(vga_ddc = kzalloc(sizeof(struct vga_ddc_info), GFP_KERNEL))) {
 		return -ENOMEM;
 	}
@@ -197,7 +197,7 @@ static void __exit vga_ddc_exit(void)
 //Should after I2C bus driver 
 subsys_initcall_sync(vga_ddc_init);
 //module_init(vga_ddc_init);
-module_exit(vga_ddc_exit);
+//module_exit(vga_ddc_exit);
 
 #if 0
 MODULE_AUTHOR("Ryan Chen");

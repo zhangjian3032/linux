@@ -433,15 +433,12 @@ EXPORT_SYMBOL(ast_set_gpio_tolerant);
  * interrupts.
  */
 static void 
-ast_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+ast_gpio_irq_handler(struct irq_desc *desc)
 {
 	u32 isr;
 	int i,j;
 	struct ast_gpio_bank *ast_gpio;
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-
-	if(irq != IRQ_GPIO)
-		BUG();
 
 	GPIODBUG("ast_gpio_irq_handler %d \n ", irq);
 //	GPIODBUG("[%s] ------\n ",ast_gpio->chip.label );

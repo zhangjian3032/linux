@@ -642,16 +642,16 @@ ast_scu_init_crt(void)
 
 	//For DVO output timing
 	ast_scu_write((ast_scu_read(AST_SCU_CLK_SEL2) & SCU_VIDEO1_OUTPUT_CLK_DELAY_MASK) | SCU_VIDEO1_OUTPUT_CLK_DELAY(5), AST_SCU_CLK_SEL2);	
-
-	//enable CRT CLK
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_D2CLK_STOP_EN , AST_SCU_CLK_STOP);
 	
 #else
 	//ast2500 use 40Mhz (init @ platform.S)
 	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_CRT, AST_SCU_RESET);	
 
 	ast_scu_write(ast_scu_read(AST_SCU_RESET2) & ~SCU_RESET_CRT0, AST_SCU_RESET2);	
+
 #endif
+	//enable CRT CLK
+	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_D1CLK_STOP , AST_SCU_CLK_STOP);	
 
 	ast_scu_write(0x1df, 0xd4); 
 
@@ -2096,7 +2096,10 @@ ast_scu_espi_mode(void)
 extern int
 ast_scu_2nd_wdt_mode(void)
 {
-	return(ast_scu_read(AST_SCU_HW_STRAP1) & SCU_HW_STRAP_2ND_BOOT_WDT);
+	if(ast_scu_read(AST_SCU_HW_STRAP1) & SCU_HW_STRAP_2ND_BOOT_WDT)
+		return 1;
+	else 
+		return 0;
 }
 
 extern u8

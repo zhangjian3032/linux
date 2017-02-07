@@ -32,6 +32,9 @@ config AST_LPC_MASTER
 
 endchoice
 
+config AST_PCIE2LPC
+	bool "AST PCIe2LPC"
+
 config ARCH_AST1070
 	depends on AST_LPC_MASTER
 	select AST1070_UART_DMA

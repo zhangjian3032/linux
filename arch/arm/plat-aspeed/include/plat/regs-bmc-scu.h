@@ -283,6 +283,8 @@
 //bit 19 must keep 1 
 #if defined(AST_SOC_G5)
 #define SCU_ESPI_CLK_STOP_EN		(0x1 << 19)
+#define SCU_D1CLK_STOP				(0x1 << 10)
+
 #endif
 
 #define SCU_RFX_CLK_STOP_EN		(0x1 << 18)

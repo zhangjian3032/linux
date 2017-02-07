@@ -24,13 +24,15 @@
 #include <linux/platform_device.h>
 
 #include <mach/irqs.h>
+#include <plat/aspeed.h>
+
 #include <mach/platform.h>
 
 #include <plat/devs.h>
 #include <plat/ast-scu.h>
 
 #include <mach/ast_lcd.h>
-#include <plat/aspeed.h>
+
 
 /* --------------------------------------------------------------------
  *  ASPEED FB

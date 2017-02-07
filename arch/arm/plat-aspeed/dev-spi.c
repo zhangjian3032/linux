@@ -277,34 +277,6 @@ static struct mtd_partition ast_spi_flash0_partitions[] = {
 	},
 };
 
-#ifdef CONFIG_ARCH_AST1010
-static struct mtd_partition ast_spi_flash1_partitions[] = {
-	{
-		.name	= "uboot",
-		.offset = 0,
-		.size	= 0x00030000,
-		.mask_flags = MTD_WRITEABLE,				
-	},
-	{
-		.name	= "uboot-env",
-		.offset = MTDPART_OFS_APPEND,
-		.size	= 0x00010000,
-//		.mask_flags = MTD_WRITEABLE,
-	},
-	{
-		.name   = "uCLinux",
-		.offset = MTDPART_OFS_APPEND,
-		.size   = 0x003c0000,
-//		.mask_flags = MTD_CAP_NORFLASH,
-	},
-	{
-		.name	= "data",
-		.offset = MTDPART_OFS_APPEND,
-		.size	= MTDPART_SIZ_FULL,
-//		.mask_flags = MTD_CAP_NORFLASH,
-	}
-};
-#else
 static struct mtd_partition ast_spi_flash1_partitions[] = {
 	{
 		.name	= "bios",
@@ -333,24 +305,6 @@ static struct flash_platform_data ast_spi_flash1_data = {
 	.parts          	= ast_spi_flash1_partitions,
 };
 
-#ifdef CONFIG_ARCH_AST1010
-static struct spi_board_info ast_spi_devices[] = {
-	{
-		.modalias    		= "m25p80",
-		.platform_data  	= &ast_spi_flash1_data,
-		.chip_select    		= 0, //.chip_select This tells your device driver which chipselect to use.
-		.max_speed_hz    	= 50 * 1000 * 1000, 
-		.bus_num    		= 0, //  This chooses if SPI0 or SPI1 of the SoC is used.
-		.mode 			= SPI_MODE_0,
-	}, {
-		.modalias    		= "spidev",
-		.chip_select    		= 0,
-		.max_speed_hz    	= 30 * 1000 * 1000,
-		.bus_num    		= 1,
-		.mode 			= SPI_MODE_0,
-	},
-};
-#else
 static struct spi_board_info ast_spi_devices[] = {
 	{
 		.modalias    		= "m25p80",
@@ -380,8 +334,6 @@ static struct spi_board_info ast_spi1_devices[] = {
 		.mode 			= SPI_MODE_0,
 	},
 };
-
-#endif
 
 #if defined(AST_SPI1_BASE)
 static struct mtd_partition ast_spi_flash1_partitions[] = {

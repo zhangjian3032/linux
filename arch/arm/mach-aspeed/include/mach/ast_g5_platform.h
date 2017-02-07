@@ -64,9 +64,11 @@
 #define AST_JTAG_BASE					0x1E6E4000	/* JTAG */
 #define AST_I2S_BASE					0x1E6E5000	/* I2S */
 #define AST_CRT0_BASE					0x1E6E6000	/* CRT0 */
+#ifdef CONFIG_ARCH_AST3200
 #define AST_CRT1_BASE					0x1E6E6100	/* CRT1 */
 #define AST_CRT2_BASE					0x1E6E6200	/* CRT2 */
 #define AST_CRT3_BASE					0x1E6E6300	/* CRT3 */
+#endif
 #define AST_XDMA_BASE					0x1E6E7000	/* XDMA */
 #define AST_MCTP_BASE					0x1E6E8000	/* MCTP */
 #define AST_ADC_BASE					0x1E6E9000	/* ADC */

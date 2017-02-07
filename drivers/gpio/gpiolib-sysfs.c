@@ -118,6 +118,7 @@ static ssize_t value_store(struct device *dev,
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
 	ssize_t			status;
+	long		value;
 
 	mutex_lock(&data->mutex);
 
@@ -126,7 +127,6 @@ static ssize_t value_store(struct device *dev,
 		status = -EPERM;
 	} else {
 #endif	
-		long		value;
 
 		status = kstrtol(buf, 0, &value);
 		if (status == 0) {

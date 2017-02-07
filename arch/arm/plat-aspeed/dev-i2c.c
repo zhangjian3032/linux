@@ -40,6 +40,12 @@
 #include <plat/regs-iic.h>
 #include <plat/ast-scu.h>
 #endif
+
+//#include <linux/gpio.h>
+//#include <mach/gpio.h>
+//#include <linux/i2c-gpio.h>
+
+
 /* --------------------------------------------------------------------
  *  I2C
  * -------------------------------------------------------------------- */
@@ -549,5 +555,27 @@ void __init ast_add_device_i2c(void)
 	
 }
 #else
-void __init ast_add_device_i2c(void) {}
+
+#if 0
+static struct i2c_gpio_platform_data i2c_gpio_data = {
+	.sda_pin		= PIN_GPIOB3,
+	.scl_pin		= PIN_GPIOB2,
+	.sda_is_open_drain	= 0,
+	.scl_is_open_drain	= 0,
+	.udelay			= 40,
+}; /* This hasn't actually been used these pins
+    * are (currently) free pins on the expansion connector */
+
+static struct platform_device i2c_gpio_device = {
+	.name		= "i2c-gpio",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &i2c_gpio_data,
+	},
+};
+#endif
+
+void __init ast_add_device_i2c(void) {
+//	platform_device_register(&i2c_gpio_device);
+}
 #endif

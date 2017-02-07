@@ -85,8 +85,6 @@ static int ast_set_periodic(struct clock_event_device *evt)
 static int ast_set_next_event(unsigned long cycles,
 				struct clock_event_device *evt)
 {
-	printk("ast_set_next_event %x ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", cycles);
-	
 	ast_timer_write(cycles, AST_TIMER_RELOAD);
 	ast_timer_write(TIMER_CTRL_T1_ENABLE | ast_timer_read(AST_TIMER_CTRL1), AST_TIMER_CTRL1);
 

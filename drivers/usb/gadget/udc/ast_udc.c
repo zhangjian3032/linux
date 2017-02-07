@@ -807,6 +807,10 @@ void ast_udc_ep_handle(struct ast_udc *udc, u16 ep_num)
 //	buf = (u8 *) req->req.buf;
 
 	len = (ast_ep_read(ep, AST_EP_DMA_STS) >> 16) & 0x7ff;
+	
+//	if((len == 0) || (len < 1024)) {
+//		printk("TODO ~~~~~~ len = %d\n", len);
+//	}
 	req->req.actual += len;
 	
 //	EP_DBG(" %s : actual %d \n", ep->ep.name, req->req.actual);
@@ -835,7 +839,7 @@ void ast_udc_ep_handle(struct ast_udc *udc, u16 ep_num)
 			ast_udc_ep_dma(ep, req);
 		}		
 	} else {
-		if((!ep->ep_dir) && (len < ep->ep.maxpacket)) {
+		if((len < ep->ep.maxpacket)) {
 #if 1			
 			usb_gadget_unmap_request(&udc->gadget, &req->req, ep->ep_dir);
 			if((req->req.dma % 4) != 0) {
@@ -1207,7 +1211,16 @@ static int ast_udc_probe(struct platform_device *pdev)
 	for (i = 0; i < AST_NUM_ENDPOINTS; i++) {
 		ep = &udc->ep[i];
 		ep->ep.name = ast_ep_name[i];
-//		ep->ep.caps = ep_info[i].caps;
+		if(i == 0) {
+			ep->ep.caps.type_control = true;
+		} else {
+			ep->ep.caps.type_iso = true;
+			ep->ep.caps.type_bulk = true;
+			ep->ep.caps.type_int = true;
+		}
+		ep->ep.caps.dir_in = true;
+		ep->ep.caps.dir_out = true;
+		
 		ep->ep.ops = &ast_udc_ep_ops;
 		ep->udc = udc;
 		if(i) {
