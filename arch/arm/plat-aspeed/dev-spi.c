@@ -284,7 +284,6 @@ static struct mtd_partition ast_spi_flash1_partitions[] = {
 		.size		= MTDPART_SIZ_FULL,
 	},
 };
-#endif
 
 static struct flash_platform_data ast_spi_flash0_data = {
 #if defined(CONFIG_ARCH_AST2400) || defined(CONFIG_ARCH_AST2500)
