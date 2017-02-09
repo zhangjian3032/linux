@@ -104,7 +104,7 @@ static inline u32 ast_wdt_r32(unsigned reg)
 }
 
 //Function Declaration
-static irqreturn_t wdt_isr(int irq, void *devid, struct pt_regs *regs)
+static irqreturn_t wdt_isr(int irq, void *devid)
 {
 	/* clear timeout */
 	ast_wdt_w32(WDT_Clr, 1);
@@ -444,7 +444,7 @@ static int ast_wdt_probe(struct platform_device *pdev)
 	wdt_set_timeout_action(FALSE, FALSE, FALSE);
 
 	/* register ISR */
-	if(request_irq(IRQ_WDT, (void *)wdt_isr, IRQF_SHARED, "WDT", NULL)) {
+	if(request_irq(IRQ_WDT, wdt_isr, 0, "WDT", NULL)) {
 		printk("unable to register interrupt INT_WDT = %d\n", IRQ_WDT);
 		return (-1);
 	} else
