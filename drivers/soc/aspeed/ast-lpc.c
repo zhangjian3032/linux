@@ -544,11 +544,11 @@ void request_snoop_irq(u8 snoop_no, ast_ipmi_irq handler)
 	switch(snoop_no) {
 		case 0:		
 			//must clr interrupt first before enable
-			ast_lpc_write(ast_lpc, ast_lpc_read(ast_lpc, AST_LPC_HICR5) & LPC_HICR6_STR_SNP0W, AST_LPC_HICR6); 	
+			ast_lpc_write(ast_lpc, ast_lpc_read(ast_lpc, AST_LPC_HICR6) & LPC_HICR6_STR_SNP0W, AST_LPC_HICR6); 	
 			ast_lpc_write(ast_lpc, ast_lpc_read(ast_lpc, AST_LPC_HICR5) | LPC_HICR5_SNP0INT_EN, AST_LPC_HICR5); 				
 			break;
 		case 1:
-			ast_lpc_write(ast_lpc, ast_lpc_read(ast_lpc, AST_LPC_HICR5) & LPC_HICR6_STR_SNP1W, AST_LPC_HICR6); 
+			ast_lpc_write(ast_lpc, ast_lpc_read(ast_lpc, AST_LPC_HICR6) & LPC_HICR6_STR_SNP1W, AST_LPC_HICR6); 
 			ast_lpc_write(ast_lpc, ast_lpc_read(ast_lpc, AST_LPC_HICR5) | LPC_HICR5_SNP1INT_EN, AST_LPC_HICR5); 				
 			break;
 	
