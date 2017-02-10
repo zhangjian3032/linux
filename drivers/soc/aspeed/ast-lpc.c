@@ -439,8 +439,10 @@ EXPORT_SYMBOL(ast_get_ipmi_bt_addr);
 
 void ast_set_ipmi_bt_addr(struct ast_lpc_data *ast_lpc, u8 bt_ch, u16 bt_addr)
 {
-	LPC_DBUG("set ch %d, addr %x \n", bt_ch, bt_addr);
 	u32 iBT_Ctrl = 0;
+	
+	LPC_DBUG("set ch %d, addr %x \n", bt_ch, bt_addr);	
+
 	switch(bt_ch) {
 		case 0:	//0xca2, 0xca3 is kcs , ca4,ca5,ca6 is bt
 			ast_lpc_write(ast_lpc, (bt_addr - 2) >> 8,AST_LPC_LADR3H);
@@ -538,12 +540,15 @@ EXPORT_SYMBOL(register_snoop_drv);
 void request_snoop_irq(u8 snoop_no, ast_ipmi_irq handler)
 {
 	ast_lpc->ast_snoop[snoop_no].snoop_irq_hander = handler;
-
+	
 	switch(snoop_no) {
-		case 0:
+		case 0:		
+			//must clr interrupt first before enable
+			ast_lpc_write(ast_lpc, ast_lpc_read(ast_lpc, AST_LPC_HICR5) & LPC_HICR6_STR_SNP0W, AST_LPC_HICR6); 	
 			ast_lpc_write(ast_lpc, ast_lpc_read(ast_lpc, AST_LPC_HICR5) | LPC_HICR5_SNP0INT_EN, AST_LPC_HICR5); 				
 			break;
 		case 1:
+			ast_lpc_write(ast_lpc, ast_lpc_read(ast_lpc, AST_LPC_HICR5) & LPC_HICR6_STR_SNP1W, AST_LPC_HICR6); 
 			ast_lpc_write(ast_lpc, ast_lpc_read(ast_lpc, AST_LPC_HICR5) | LPC_HICR5_SNP1INT_EN, AST_LPC_HICR5); 				
 			break;
 	

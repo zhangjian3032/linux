@@ -35,61 +35,43 @@
 
 #define AST_VIC_NUM						64
 
-#define IRQ_SDRAM_ECC					0
-#define IRQ_MIC							1
-#define IRQ_MAC0						2			/* MAC 1 interrupt */
-#define IRQ_CRYPTO						4
-#define IRQ_VHUB						5
-#define IRQ_EHCI0						5
-#define IRQ_XDMA						6
-#define IRQ_VIDEO						7
-#define IRQ_LPC							8
-#define IRQ_UART1						9			/* UART 1 interrupt */
-#define IRQ_UART0						10			/* UART 3 interrupt */
-#define IRQ_EGFX						11			
-#define IRQ_I2C							12
-#define IRQ_EHCI1						13
-#define IRQ_HID							13
-#define IRQ_UHCI							14
-#define IRQ_PECI							15
-#define IRQ_TIMER0						16			/* TIMER 1 interrupt */
-#define IRQ_TIMER1						17			/* TIMER 2 interrupt */
-#define IRQ_TIMER2						18			/* TIMER 3 interrupt */
-#define IRQ_SMC							19
-#define IRQ_GPIO							20
-#define IRQ_SCU							21
-#define IRQ_RTC							22
-#define IRQ_ESPI							23
-//24 reserverd 
-#define IRQ_CRT							25
-#define IRQ_SDHCI						26
-#define IRQ_WDT							27
-#define IRQ_TACHO						28
-#define IRQ_2D							29
-#define IRQ_SYS_WAKEUP					30
-#define IRQ_ADC							31
-#define IRQ_UART2						32			/* UART 2 interrupt */
-#define IRQ_UART3						33			/* UART 3 interrupt */
-#define IRQ_UART4						34			/* UART 4 interrupt */
-#define IRQ_TIMER3						35			/* TIMER 4 interrupt */
-#define IRQ_TIMER4						36
-#define IRQ_TIMER5						37
-#define IRQ_TIMER6						38
-#define IRQ_TIMER7						39			/* TIMER 8 interrupt */
-#define IRQ_SGPIO						40			/* SGPIO Master  interrupt */
-#define IRQ_SGPIO_SLAVE					41
-#define IRQ_MCTP						42
-#define IRQ_JTAG							43
-#define IRQ_HOST						44
-#define IRQ_CPU							45
-#define IRQ_MAILBOX						46
-#define IRQ_EXT0							47			/* GPIOL1 */
-#define IRQ_EXT1							48			/* GPIOL3 */
-#define IRQ_EXT2							49			/* GPIOM1 */
-#define IRQ_UART_SDMA					50
-#define IRQ_SPI							59			
-#define IRQ_H264						61
-#define IRQ_FORMATTER					62
-#define IRQ_P2X							63
+#define IRQ_CFV0						0
+#define IRQ_CFV1						1
+#define IRQ_SDIO							2
+#define IRQ_SDHCI						3
+#define IRQ_H264						4
+#define IRQ_VIDEO						5
+#define IRQ_D3D							6
+#define IRQ_PP							7
+#define IRQ_ISP0							8
+#define IRQ_ISP1							9
+#define IRQ_ISP2							10
+#define IRQ_ISP3							11
+#define IRQ_ISP4							12
+#define IRQ_ISP5							13
+#define IRQ_ZSP							14
+#define IRQ_PDM							15
+#define IRQ_I2S							16
+#define IRQ_CRYPTO						17
+#define IRQ_MAC0						18			/* MAC 1 interrupt */
+#define IRQ_UDC							19
+#define IRQ_I2C							20
+#define IRQ_GPIO							21
+#define IRQ_TIMER0						22			/* TIMER 1 interrupt */
+#define IRQ_TIMER1						23			/* TIMER 2 interrupt */
+#define IRQ_TIMER2						24			/* TIMER 3 interrupt */
+#define IRQ_TIMER3						25			/* TIMER 4 interrupt */
+#define IRQ_TIMER4						26			/* TIMER 5 interrupt */
+#define IRQ_TIMER5						27			/* TIMER 6 interrupt */
+#define IRQ_TIMER6						28			/* TIMER 7 interrupt */
+#define IRQ_TIMER7						29			/* TIMER 8 interrupt */
+#define IRQ_UART0						30			/* UART 1 interrupt */
+#define IRQ_UART1						31			/* UART 2 interrupt */
+#define IRQ_UART2						32			/* UART 3 interrupt */
+#define IRQ_UART_DMA					33
+#define IRQ_FMC							34
+#define IRQ_WDT							35
+#define IRQ_RTC							36
+#define IRQ_AHBC						37
 
 #endif
