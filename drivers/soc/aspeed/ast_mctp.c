@@ -60,6 +60,7 @@
 #define DEV_NO(x)				((x & 0x1f) << 19)
 #define FUN_NO(x)				((x & 0x7) << 16)
 #ifdef AST_SOC_G5
+/* 0: route to RC, 1: route by ID, 2/3: broadcast from RC */
 #define ROUTING_TYPE_L(x)			((x & 0x1) << 14)
 #define ROUTING_TYPE_H(x)			(((x & 0x2) >> 1) << 12)
 #else
