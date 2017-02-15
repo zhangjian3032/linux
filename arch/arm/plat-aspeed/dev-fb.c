@@ -68,12 +68,14 @@ static struct resource ast_fb0_resources[] = {
 		.start = AST_CRT0_MEM_BASE,
 		.end = AST_CRT0_MEM_BASE + AST_CRT0_MEM_SIZE - 1,
 		.flags = IORESOURCE_DMA,
-	},	
+	},
+#ifdef AST_CURSOR0_MEM_BASE	
 	[3] = {
 		.start = AST_CURSOR0_MEM_BASE,
 		.end = AST_CURSOR0_MEM_BASE + AST_CURSOR0_MEM_SIZE -1,
 		.flags = IORESOURCE_DMA,
-	},	
+	},
+#endif
 };
 
 
@@ -192,8 +194,10 @@ void __init ast_add_device_fb(void)
 {
 	ast_scu_multi_func_crt();
 	ast_scu_init_crt();
-	
+
+#ifdef AST_SOC_G5	
 	fb_plat_data.clock_src = ast_get_clk_source();
+#endif
 
 	platform_device_register(&ast_fb0_device);
 #ifdef AST_CRT1_BASE	

@@ -1302,9 +1302,10 @@ static int astfb_probe(struct platform_device *pdev)
 		sfb->cursor_phy = res->start; 
 		sfb->cursor_virt = ioremap(res->start, res->end - res->start);
 		if (!sfb->cursor_virt) {
-			dev_err(dev, "cannot map CURSOR mem\n");
-			ret = -ENOMEM;
-			goto free_addr;
+			sfb->cursor_phy = 0;
+			dev_info(dev, "no map CURSOR mem\n");
+//			ret = -ENOMEM;
+//			goto free_addr;
 		}
 	}	
 //
@@ -1359,27 +1360,26 @@ static int astfb_probe(struct platform_device *pdev)
 		return 0;
 	}
 
-    dev_err(dev, "Failed to register framebuffer device: %d\n", ret);
+	dev_err(dev, "Failed to register framebuffer device: %d\n", ret);
 
 	astfb_write(sfb, astfb_read(sfb, AST_CRT_CTRL1) & ~CRT_CTRL_GRAPHIC_EN, AST_CRT_CTRL1);
-    platform_set_drvdata(pdev, NULL);
-free_irq:
-    free_irq(sfb->irq,sfb);
-free_cmap:
-    fb_dealloc_cmap(&info->cmap);
-free_mem:
-    ast_fbmem_free(sfb);
+	platform_set_drvdata(pdev, NULL);
+	free_irq:
+	free_irq(sfb->irq,sfb);
+	free_cmap:
+	fb_dealloc_cmap(&info->cmap);
+	free_mem:
+	ast_fbmem_free(sfb);
 free_addr:
-    if(sfb->addr_assign)
-            release_mem_region(info->fix.smem_start, info->fix.smem_len);
+	if(sfb->addr_assign)
+	        release_mem_region(info->fix.smem_start, info->fix.smem_len);
 free_io:
-    iounmap(sfb->base);
+	iounmap(sfb->base);
 free_res:
-    release_mem_region(info->fix.mmio_start, info->fix.mmio_len);
+	release_mem_region(info->fix.mmio_start, info->fix.mmio_len);
 free_info:
-    framebuffer_release(info);
-    return ret;
-		
+	framebuffer_release(info);
+	return ret;
 }
 
 static int

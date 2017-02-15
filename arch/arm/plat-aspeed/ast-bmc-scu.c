@@ -416,7 +416,7 @@ EXPORT_SYMBOL(ast_scu_init_mctp);
 extern void
 ast_scu_init_xdma(void)
 {
-	//Notice : 1. Must after Host reset, 2. DRAM Controller 0x08 memory protection must disable [Protect REQ#] 3. VGA PCI Bus master enable offset 0x04[bit2]
+	//Notice : 1. Must after Host reset, 2. DRAM Controller 0x08 memory protection must disable [Protect REQ#17] 3. VGA PCI Bus master enable offset 0x04[bit2]
 	spin_lock(&ast_scu_lock);	
 //	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_XDMA, AST_SCU_RESET);
 	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_XDMA, AST_SCU_RESET);

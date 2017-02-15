@@ -48,9 +48,9 @@
 
 #define AST_VIDEO_BASE                     0x1E700000	/* VIDEO ENGINE */
 #define AST_SRAM_BASE                      0x1E720000	/* SRAM */
-#define AST_SDHC0_IRQ_BASE				0x1E740000	/* SD0 General Info */
-#define AST_SDHC0_SLOT0_BASE			0x1E740100	/* SD0 Slot 0*/
-#define AST_SDHC0_SLOT1_BASE			0x1E740200	/* SD1 Slot 1*/
+#define AST_SDHCI_BASE					0x1E740000	/* SD0 General Info */
+#define AST_SDHCI_SLOT0_BASE			0x1E740100	/* SD0 Slot 0*/
+#define AST_SDHCI_SLOT1_BASE			0x1E740200	/* SD1 Slot 1*/
 #define AST_2D_BASE                        0x1E760000	/* 2D */
 #define AST_GPIO_BASE                      0x1E780000	/* GPIO */
 #define AST_RTC_BASE                       0x1E781000	/* RTC */
@@ -64,6 +64,15 @@
 #define AST_LPC_BASE                       0x1E789000	/* LPC */
 #define AST_MBX_BASE                       0x1E789200	/* MailBox */
 #define AST_I2C_BASE                       0x1E78A000	/* I2C */
+#define AST_I2C_DEV0_BASE					0x1E78A040	/* I2C DEV1 */
+#define AST_I2C_DEV1_BASE					0x1E78A080	/* I2C DEV2 */
+#define AST_I2C_DEV2_BASE				0x1E78A0C0	/* I2C DEV3 */
+#define AST_I2C_DEV3_BASE				0x1E78A100	/* I2C DEV4 */
+#define AST_I2C_DEV4_BASE				0x1E78A140	/* I2C DEV5 */
+#define AST_I2C_DEV5_BASE				0x1E78A180	/* I2C DEV6 */
+#define AST_I2C_DEV6_BASE				0x1E78A1C0	/* I2C DEV7 */
+#define AST_I2C_DEV7_BASE				0x1E78A300	/* I2C DEV8 */
+#define AST_I2C_DEV8_BASE				0x1E78A340	/* I2C DEV9 */
 #define AST_PECI_BASE                      0x1E78B000	/* PECI */
 #define AST_UART2_BASE                     0x1E78D000	/* UART2 */
 #define AST_UART3_BASE                     0x1E78E000	/* UART3 */

@@ -254,9 +254,13 @@ static struct platform_device aspeed_spi_device1 = {
 
 static struct mtd_partition ast_spi_flash0_partitions[] = {
 	{
+		.name	= "fullpart",
+		.offset 	= 0,
+		.size		= MTDPART_SIZ_FULL,
+	}, {
 		.name	= "u-boot",
 		.offset 	= 0,
-		.size		= 0x80000,
+		.size		= 0x60000,
 		.mask_flags	= MTD_WRITEABLE,
 	}, {
 		.name	= "env",
@@ -265,10 +269,10 @@ static struct mtd_partition ast_spi_flash0_partitions[] = {
 	}, {
 		.name   	= "kernel",
 		.offset 	= 0x80000,
-		.size   	= 0x280000,     
+		.size   	= 0x380000,     
 	}, {
 		.name	= "rootfs",
-		.offset 	= 0x300000,
+		.offset 	= 0x400000,
 		.size		= 0x300000,
 	}, {
 		.name	= "pd_rootfs",

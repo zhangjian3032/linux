@@ -23,7 +23,7 @@
 
 #define AST_AHBC_BASE					0x1E600000	/* AHB CONTROLLER */
 
-#define AST_FMC_BASE        				0x1E620000	/* NEW SMC CONTROLLER */
+#define AST_FMC_BASE        			0x1E620000	/* NEW SMC CONTROLLER */
 #define AST_FMC_SPI0_BASE				0x1E630000	/* NEW SMC CONTROLLER */
 #define AST_ISP0_BASE					0x1E640000	/* ISP1 Controller */
 #define AST_ISP1_BASE					0x1E642000	/* ISP2 Controller */
