@@ -219,8 +219,10 @@ static void ast_bt_tasklet_func(unsigned long data)
 	ast_bt->BTPktRdy = 1;
 }
 
-static void ast_ipmi_bt_handle(struct ast_bt_data *ast_bt) 
+static void ast_ipmi_bt_handle(void *data)
 {
+	struct ast_bt_data *ast_bt = (struct ast_bt_data *)data;
+	
 	u32 isr = readl(ast_bt->isr);
 
 	if(isr & LPC_iBT_H2B_RISING_ISR) {

@@ -7,16 +7,14 @@
  * published by the Free Software Foundation.
  *
  *   History      : 
- *    1. 2012/12/29 Ryan Chen Create
+ *    1. 2017/02/20 Ryan Chen Create
  * 
 ********************************************************************************/
-#ifndef __AST_SCU_H
-#define __AST_SCU_H                     1
+#ifndef __AST_CAM_SCU_H
+#define __AST_CAM_SCU_H                     1
 
-/*
- *  Register for SCU
- *  */
-#define AST_SCU_PROTECT				0x00		/*	protection key register	*/
+/* Register for SCU  */
+#define AST_SCU_PROTECT			0x00		/*	protection key register	*/
 #define AST_SCU_RESET				0x04		/*	system reset control register */
 #define AST_SCU_RESET2				0xD4		/*	Reset Control register set 2*/
 #define AST_SCU_CLK_SEL				0x08		/*	clock selection register	*/
@@ -24,21 +22,13 @@
 #define AST_SCU_CLK_STOP			0x0C		/*	clock stop control register	*/
 #define AST_SCU_CLK_STOP2			0xDC		/*	clock stop control register set 2*/
 #define AST_SCU_COUNT_CTRL			0x10		/*	frequency counter control register	*/
-#define AST_SCU_COUNT_VAL			0x14		/*	frequency counter measure register 	*/
-#define AST_SCU_INTR_CTRL			0x18		/*	Interrupt control and status register	*/
+#define AST_SCU_COUNT_PRANG		0x14		/*	Frequency counter comparison range 	*/
+
 #define AST_SCU_D2_PLL				0x1C		/*	D2-PLL Parameter  register	*/
-#define AST_SCU_D2_PLL_EXTEND		0x13C 		/*	D2-PLL Extender Parameter  register */
+
 #define AST_SCU_M_PLL				0x20		/*	M-PLL Parameter register		*/
 #define AST_SCU_H_PLL				0x24		/*	H-PLL Parameter register		*/
-#define AST_SCU_MH_PLL_EXTEND		0x148		/*	Extended Parameter of M/H-PLL register */
-#ifdef AST_SOC_G5
 #define AST_SCU_D_PLL				0x28		/*	D-PLL Parameter  register	*/
-#define AST_SCU_D_PLL_EXTEND0		0x130		/*	D-PLL Extended Parameter  register	*/
-#define AST_SCU_D_PLL_EXTEND1		0x134		/*	D-PLL Extended Parameter  register	*/
-#define AST_SCU_D_PLL_EXTEND2		0x138		/*	D-PLL Extended Parameter  register	*/
-#else
-#define AST_SCU_FREQ_LIMIT			0x28		/*	frequency counter comparsion register */
-#endif
 #define AST_SCU_MISC1_CTRL			0x2C		/*	Misc. Control register */
 #define AST_SCU_PCI_CONF1			0x30		/*	PCI configuration setting register#1 */
 #define AST_SCU_PCI_CONF2			0x34		/*	PCI configuration setting register#2 */
@@ -46,9 +36,7 @@
 #define AST_SCU_SYS_CTRL			0x3C		/*	System reset contrl/status register*/
 #define AST_SCU_SOC_SCRATCH0		0x40		/*	SOC scratch 0~31 register */
 #define AST_SCU_SOC_SCRATCH1		0x44		/*	SOC scratch 32~63 register */
-#define AST_SCU_VGA0				0x40		/*	VGA fuction handshake register */
-#define AST_SCU_VGA1				0x44		/*	VGA fuction handshake register */
-#define AST_SCU_MAC_CLK				0x48		/*	MAC interface clock delay setting register */
+#define AST_SCU_MAC_CLK			0x48		/*	MAC interface clock delay setting register */
 #define AST_SCU_MISC2_CTRL			0x4C		/*	Misc. 2 Control register */
 #define AST_SCU_VGA_SCRATCH0		0x50		/*	VGA Scratch register */
 #define AST_SCU_VGA_SCRATCH1		0x54		/*	VGA Scratch register */
@@ -59,13 +47,9 @@
 #define AST_SCU_VGA_SCRATCH6		0x68		/*	VGA Scratch register */
 #define AST_SCU_VGA_SCRATCH7		0x6c		/*	VGA Scratch register */
 #define AST_SCU_HW_STRAP1			0x70		/*	hardware strapping register */
-#define AST_SCU_RAMDOM_GEN			0x74		/*	random number generator register */
-#if defined(CONFIG_ARCH_AST1100) || defined(CONFIG_ARCH_AST2050) || defined(CONFIG_ARCH_AST2100) || defined(CONFIG_ARCH_AST2200)
-#define AST_SCU_MULTI_FUNC_2		0x78
-#else
-#define AST_SCU_RAMDOM_DATA			0x78		/*	random number generator data output*/
-#endif
-#define AST_SCU_REVISION_ID			0x7C		/*	Silicon revision ID register */
+#define AST_SCU_RAMDOM_GEN		0x74		/*	random number generator register */
+#define AST_SCU_RAMDOM_DATA		0x78		/*	random number generator data output*/
+#define AST_SCU_REVISION_ID		0x7C		/*	Silicon revision ID register */
 #define AST_SCU_FUN_PIN_CTRL1		0x80		/*	Multi-function Pin Control#1*/
 #define AST_SCU_FUN_PIN_CTRL2		0x84		/*	Multi-function Pin Control#2*/
 #define AST_SCU_FUN_PIN_CTRL3		0x88		/*	Multi-function Pin Control#3*/
@@ -76,56 +60,54 @@
 #define AST_SCU_FUN_PIN_CTRL7		0xA0		/*	Multi-function Pin Control#7*/
 #define AST_SCU_FUN_PIN_CTRL8		0xA4		/*	Multi-function Pin Control#8*/
 #define AST_SCU_FUN_PIN_CTRL9		0xA8		/*	Multi-function Pin Control#9*/
+#define AST_SCU_FUN_PIN_CTRL10		0xAC		/*	Multi-function Pin Control#10*/
 #define AST_SCU_MAC_CLK_DELAY_100M	0xB8		/*	MAC interface clock delay 100M setting*/
 #define AST_SCU_MAC_CLK_DELAY_10M		0xBC		/*	MAC interface clock delay 10M setting*/
 #define AST_SCU_PWR_SAVING_EN		0xC0		/*	Power Saving Wakeup Enable*/
-#define AST_SCU_PWR_SAVING_CTRL		0xC4		/*	Power Saving Wakeup Control*/
+#define AST_SCU_PWR_SAVING_CTRL	0xC4		/*	Power Saving Wakeup Control*/
 #define AST_SCU_HW_STRAP2			0xD0		/*	Haardware strapping register set 2*/
-#define AST_SCU_COUNTER4			0xE0		/*	SCU Free Run Counter Read Back #4*/
-#define AST_SCU_COUNTER4_EXT		0xE4		/*	SCU Free Run Counter Extended Read Back #4*/
+#define AST_SCU_COUNTER			0xE0		/*	SCU Free Run Counter Read Back */
+#define AST_SCU_COUNTER_EXT		0xE4		/*	SCU Free Run Counter Extended Read Back */
+#define AST_SCU_CLK_DUTY			0xE8		/*	Clock Duty Measurement Control */
+#define AST_SCU_CLK_DUTY_RESULT	0xEC		/*	Clock Duty Measurement Result */
+#define AST_SCU_SECURITY_IP_CTRL	0xF0		/*	Security IP Control  */
 
-#if defined(CONFIG_ARCH_AST1010)
-#define AST_SCU_CPU_BASE0_ADDR      0x100       /*   CPU Base Address for Segment 0x20:0000~0x2F:FFFF*/
-#define AST_SCU_CPU_BASE1_ADDR		0x104		/*	CPU Base Address for Segment 0x30:0000~0x3F:FFFF*/
-#define AST_SCU_CPU_BASE2_ADDR		0x108		/*	CPU Base Address for Segment 0x40:0000~0x4F:FFFF*/
-#define AST_SCU_CPU_BASE3_ADDR		0x10C		/*	CPU Base Address for Segment 0x50:0000~0x5F:FFFF*/
-#define AST_SCU_CPU_BASE4_ADDR		0x110		/*	CPU Base Address for Segment 0x60:0000~0x6F:FFFF*/
-#define AST_SCU_CPU_BASE5_ADDR		0x114		/*	CPU Base Address for Segment 0x70:0000~0x7F:FFFF*/
-#define AST_SCU_CPU_BASE6_ADDR      0x118   	/*   CPU Base Address for Segment 0x80:0000~0xFF:FFFF*/
-#define AST_SCU_CPU_CACHE_CTRL		0x11C		/*	CPU Cache Function Control*/
-#else
-//CPU 2 
-#define AST_SCU_CPU2_CTRL			0x100		/*	CPU2 Control Register*/
-#define AST_SCU_CPU2_BASE0_ADDR		0x104		/*	CPU2 Base Address for Segment 0x00:0000~0x1F:FFFF*/
-#define AST_SCU_CPU2_BASE1_ADDR		0x108		/*	CPU2 Base Address for Segment 0x20:0000~0x3F:FFFF*/
-#define AST_SCU_CPU2_BASE2_ADDR		0x10C		/*	CPU2 Base Address for Segment 0x40:0000~0x5F:FFFF*/
-#define AST_SCU_CPU2_BASE3_ADDR		0x110		/*	CPU2 Base Address for Segment 0x60:0000~0x7F:FFFF*/
-#define AST_SCU_CPU2_BASE4_ADDR		0x114		/*	CPU2 Base Address for Segment 0x80:0000~0xFF:FFFF*/
-#define AST_SCU_CPU2_CACHE_CTRL		0x118		/*	CPU2 Cache Function Control */
-#endif
-//
-
-#define AST_SCU_DPLL_PAR0				0x130
-#define AST_SCU_DPLL_PAR1				0x134
-#define AST_SCU_DPLL_PAR2				0x138
-
-#define AST_SCU_OTP0				0x150
-#define AST_SCU_OTP1				0x154
-#define AST_SCU_OTP2				0x158
-#define AST_SCU_OTP3				0x15C
-
-#define AST_SCU_UART24_REF			0x160		/*	Generate UART 24Mhz Ref from H-PLL when CLKIN is 25Mhz */
-#define AST_SCU_PCIE_CONFIG_SET		0x180		/*	PCI-E Configuration Setting Control Register */
-#define AST_SCU_BMC_MMIO_DEC		0x184		/*	BMC MMIO Decode Setting Register */
-#define AST_SCU_DEC_AREA1			0x188		/*	1st relocated controller decode area location */
-#define AST_SCU_DEC_AREA2			0x18C		/*	2nd relocated controller decode area location */
-#define AST_SCU_MBOX_DEC_AREA		0x190		/*	Mailbox decode area location*/
-#define AST_SCU_SRAM_DEC_AREA0		0x194		/*	Shared SRAM area decode location*/
-#define AST_SCU_SRAM_DEC_AREA1		0x198		/*	Shared SRAM area decode location*/
-#define AST_SCU_BMC_CLASS			0x19C		/*	BMC device class code and revision ID */
-#define AST_SCU_BMC_DEV_ID			0x1A4		/*	BMC device ID */
 
 #define AST_SCU_MAC_CLK_DUTY		0x1DC		/*	Clock Duty Selection */
+
+#define AST_SCU_CPU2_BASE0_ADDR	0x200		/*	CPU2 Base Address for Segment 0x00:0000~0x0F:FFFF*/
+#define AST_SCU_CPU2_BASE1_ADDR	0x204		/*	CPU2 Base Address for Segment 0x10:0000~0x1F:FFFF*/
+#define AST_SCU_CPU2_BASE2_ADDR	0x208		/*	CPU2 Base Address for Segment 0x20:0000~0x2F:FFFF*/
+#define AST_SCU_CPU2_BASE3_ADDR	0x20C		/*	CPU2 Base Address for Segment 0x30:0000~0x3F:FFFF*/
+#define AST_SCU_CPU2_BASE4_ADDR	0x210		/*	CPU2 Base Address for Segment 0x40:0000~0x4F:FFFF*/
+#define AST_SCU_CPU2_BASE5_ADDR	0x214		/*	CPU2 Base Address for Segment 0x50:0000~0x5F:FFFF*/
+#define AST_SCU_CPU2_BASE6_ADDR	0x218		/*	CPU2 Base Address for Segment 0x60:0000~0x6F:FFFF*/
+#define AST_SCU_CPU2_BASE7_ADDR	0x21C		/*	CPU2 Base Address for Segment 0x70:0000~0x7F:FFFF*/
+#define AST_SCU_CPU2_BASE8_ADDR	0x220		/*	CPU2 Base Address for Segment 0x80:0000~0x8F:FFFF*/
+#define AST_SCU_CPU2_CACHE_CTRL	0x224		/*	CPU2 Cache Function Control */
+
+#define AST_SCU_CPU3_BASE0_ADDR	0x230		/*	CPU3 Base Address for Segment 0x00:0000~0x0F:FFFF*/
+#define AST_SCU_CPU3_BASE1_ADDR	0x234		/*	CPU3 Base Address for Segment 0x10:0000~0x1F:FFFF*/
+#define AST_SCU_CPU3_BASE2_ADDR	0x238		/*	CPU3 Base Address for Segment 0x20:0000~0x2F:FFFF*/
+#define AST_SCU_CPU3_BASE3_ADDR	0x23C		/*	CPU3 Base Address for Segment 0x30:0000~0x3F:FFFF*/
+#define AST_SCU_CPU3_BASE4_ADDR	0x240		/*	CPU3 Base Address for Segment 0x40:0000~0x4F:FFFF*/
+#define AST_SCU_CPU3_BASE5_ADDR	0x244		/*	CPU3 Base Address for Segment 0x50:0000~0x5F:FFFF*/
+#define AST_SCU_CPU3_BASE6_ADDR	0x248		/*	CPU3 Base Address for Segment 0x60:0000~0x6F:FFFF*/
+#define AST_SCU_CPU3_BASE7_ADDR	0x24C		/*	CPU3 Base Address for Segment 0x70:0000~0x7F:FFFF*/
+#define AST_SCU_CPU3_BASE8_ADDR	0x250		/*	CPU3 Base Address for Segment 0x80:0000~0x8F:FFFF*/
+#define AST_SCU_CPU3_CACHE_CTRL	0x254		/*	CPU3 Cache Function Control */
+
+#define AST_SCU_ZSP_BASE0_ADDR	0x260		/*	CPU3 Base Address for Segment 0x00:0000~0x0F:FFFF*/
+#define AST_SCU_ZSP_BASE1_ADDR	0x264		/*	CPU3 Base Address for Segment 0x10:0000~0x1F:FFFF*/
+#define AST_SCU_ZSP_BASE2_ADDR	0x268		/*	CPU3 Base Address for Segment 0x20:0000~0x2F:FFFF*/
+#define AST_SCU_ZSP_BASE3_ADDR	0x26C		/*	CPU3 Base Address for Segment 0x30:0000~0x3F:FFFF*/
+#define AST_SCU_ZSP_BASE4_ADDR	0x270		/*	CPU3 Base Address for Segment 0x40:0000~0x4F:FFFF*/
+#define AST_SCU_ZSP_BASE5_ADDR	0x274		/*	CPU3 Base Address for Segment 0x50:0000~0x5F:FFFF*/
+#define AST_SCU_ZSP_BASE6_ADDR	0x278		/*	CPU3 Base Address for Segment 0x60:0000~0x6F:FFFF*/
+#define AST_SCU_ZSP_BASE7_ADDR	0x27C		/*	CPU3 Base Address for Segment 0x70:0000~0x7F:FFFF*/
+#define AST_SCU_ZSP_BASE8_ADDR	0x280		/*	CPU3 Base Address for Segment 0x80:0000~0xFF:FFFF*/
+#define AST_SCU_ZSP_CACHE_CTRL	0x284		/*	CPU3 Cache Function Control */
+
 
 
 /*	AST_SCU_PROTECT: 0x00  - protection key register */

@@ -154,12 +154,6 @@
 #define MIXMODE_CRYPTO                  0x02
 #define MIXMODE_HASH                    0x03
 
-struct ast_aes_context
-{
-    u32 erk[64];     /* encryption round keys */
-    u32 drk[64];     /* decryption round keys */
-    int nr;             /* number of rounds */
-};
 
 struct ast_aes_key {
     u32  keylength;	

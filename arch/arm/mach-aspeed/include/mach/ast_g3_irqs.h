@@ -85,7 +85,7 @@
 #define IRQ_MCTP							42
 #define IRQ_JTAG							43
 //#define IRQ_RESERVED						44
-#define IRQ_CPU							45
+#define IRQ_CFV0							45
 
 
 #endif

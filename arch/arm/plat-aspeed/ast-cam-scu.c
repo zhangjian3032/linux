@@ -2066,23 +2066,6 @@ ast_scu_get_soc_dram_base(void)
 		return AST_DRAM_BASE_4;
 }
 
-extern void
-ast_scu_get_who_init_dram(void)
-{
-	switch(SCU_VGA_DRAM_INIT_MASK(ast_scu_read(AST_SCU_VGA0))) {
-		case 0:
-			SCUMSG("VBIOS init \n");
-			break;
-		case 1:
-			SCUMSG("SOC init \n");
-			break;
-		default:
-			SCUMSG("error vga size \n");
-			break;
-	}
-}
-EXPORT_SYMBOL(ast_scu_get_who_init_dram);
-
 extern int
 ast_scu_espi_mode(void)
 {
@@ -2107,13 +2090,6 @@ ast_scu_get_superio_addr_config(void)
 	else
 		return 0x2E;
 }
-
-extern u8
-ast_scu_adc_trim_read(void)
-{
-	return (ast_scu_read(AST_SCU_OTP1) >> 28);
-}
-EXPORT_SYMBOL(ast_scu_adc_trim_read);
 
 extern void
 ast_scu_hw_random_enable(u8 enable)
@@ -2156,69 +2132,4 @@ ast_scu_otp_read(u8 reg)
 }
 
 EXPORT_SYMBOL(ast_scu_otp_read);
-#endif
-
-static irqreturn_t ast_scu_isr (int this_irq, void *dev_id)
-{
-	u32 sts = ast_scu_read(AST_SCU_INTR_CTRL);
-	
-	SCUDBUG(" %x\n",sts);
-
-	if(sts & INTR_LPC_H_L_RESET) {
-		printk("SCU : INTR_LPC_H_L_RESET \n");
-	}
-
-	if(sts & INTR_LPC_L_H_RESET) {
-		printk("SCU : INTR_LPC_L_H_RESET \n");
-	}
-
-	if(sts & INTR_PCIE_H_L_RESET) {
-		printk("SCU : INTR_PCIE_H_L_RESET\n");
-	}
-
-	if(sts & INTR_PCIE_L_H_RESET) {
-		printk("SCU : INTR_PCIE_L_H_RESET \n");
-	}
-
-	if(sts & INTR_VGA_SCRATCH_CHANGE) 
-{
-		printk("SCU : INTR_VGA_SCRATCH_CHANGE \n");
-		printk("%x, %x, %x, %x, %x, %x, %x, %x \n", ast_scu_read(AST_SCU_VGA_SCRATCH0), ast_scu_read(AST_SCU_VGA_SCRATCH1), ast_scu_read(AST_SCU_VGA_SCRATCH2), ast_scu_read(AST_SCU_VGA_SCRATCH3), ast_scu_read(AST_SCU_VGA_SCRATCH4), ast_scu_read(AST_SCU_VGA_SCRATCH5), ast_scu_read(AST_SCU_VGA_SCRATCH6), ast_scu_read(AST_SCU_VGA_SCRATCH7));
-		
-	}
-
-	if(sts & INTR_VGA_CURSOR_CHANGE) {
-		printk("SCU : INTR_VGA_CURSOR_CHANGE \n");
-	}
-
-	ast_scu_write(sts, AST_SCU_INTR_CTRL);
-	return IRQ_HANDLED;
-}		
-
-#if 0
-static int __init ast_scu_init(void)
-{
-	int ret = 0;
-	SCUDBUG("\n");	
-
-	ret = request_irq(IRQ_SCU, ast_scu_isr, IRQF_SHARED, "ast-scu", &ret);
-	if (ret) {
-		printk("AST SCU Unable request IRQ \n");
-		goto out;
-	}
-
-	//SCU intr enable
-	ast_scu_write(0x003f0000,
-				AST_SCU_INTR_CTRL);
-	
-	ast_scu_write(ast_scu_read(AST_SCU_INTR_CTRL) | 
-				INTR_LPC_H_L_RESET_EN	| INTR_LPC_L_H_RESET_EN | INTR_PCIE_H_L_RESET_EN |
-				INTR_PCIE_L_H_RESET_EN |INTR_VGA_SCRATCH_CHANGE_EN | INTR_VGA_CURSOR_CHANGE_EN	,
-				AST_SCU_INTR_CTRL);
-
-out:
-	return ret;
-}
-
-arch_initcall(ast_scu_init);
 #endif

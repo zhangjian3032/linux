@@ -91,9 +91,14 @@ static void ast_mask_ack_irq(struct irq_data *d)
 	if(((d->irq >= IRQ_TIMER0) && (d->irq <= IRQ_TIMER2)) || ((d->irq >= IRQ_TIMER3) && (d->irq <= IRQ_TIMER7)))
 		timer = 1;
 
-	if(d->irq == IRQ_CPU)
+#ifdef IRQ_CFV1
+	if((d->irq == IRQ_CFV0) || (d->irq == IRQ_CFV1))
 		cpu = 1;
-	
+#else
+	if(d->irq == IRQ_CFV0)
+		cpu = 1;
+#endif	
+
 	if (d->irq > 31) {
 		idx=1;
 		irq = d->irq - 32;
@@ -122,8 +127,13 @@ static void ast_ack_irq(struct irq_data *d)
 	if(((d->irq >= IRQ_TIMER0) && (d->irq <= IRQ_TIMER2)) || ((d->irq >= IRQ_TIMER3) && (d->irq <= IRQ_TIMER7)))
 		timer = 1;
 
-	if(d->irq == IRQ_CPU)
+#ifdef IRQ_CFV1
+	if((d->irq == IRQ_CFV0) || (d->irq == IRQ_CFV1))
 		cpu = 1;
+#else
+	if(d->irq == IRQ_CFV0)
+		cpu = 1;
+#endif	
 	
 	if (d->irq > 31) {
 		idx=1;
@@ -151,8 +161,13 @@ static void ast_mask_irq(struct irq_data *d)
 	if(((d->irq >= IRQ_TIMER0) && (d->irq <= IRQ_TIMER2)) || ((d->irq >= IRQ_TIMER3) && (d->irq <= IRQ_TIMER7)))
 		timer = 1;
 
-	if(d->irq == IRQ_CPU)
+#ifdef IRQ_CFV1
+	if((d->irq == IRQ_CFV0) || (d->irq == IRQ_CFV1))
 		cpu = 1;
+#else
+	if(d->irq == IRQ_CFV0)
+		cpu = 1;
+#endif	
 	
 	if (d->irq > 31) {
 		idx=1;

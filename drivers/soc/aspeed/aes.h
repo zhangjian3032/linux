@@ -1,24 +1,15 @@
 #ifndef _AES_H
 #define _AES_H
 
-#ifndef uint8
-#define uint8  unsigned char
-#endif
-
-#ifndef uint32
-#define uint32 unsigned long int
-#endif
-
-typedef struct
+struct ast_aes_context
 {
-    uint32 erk[64];     /* encryption round keys */
-    uint32 drk[64];     /* decryption round keys */
+    u32 erk[64];     /* encryption round keys */
+    u32 drk[64];     /* decryption round keys */
     int nr;             /* number of rounds */
-}
-aes_context;
+};
 
-int  aes_set_key( aes_context *ctx, uint8 *key, int nbits );
-void aes_encrypt( aes_context *ctx, uint8 input[16], uint8 output[16] );
-void aes_decrypt( aes_context *ctx, uint8 input[16], uint8 output[16] );
+int  aes_set_key( struct ast_aes_context *ctx, u8 *key, int nbits );
+void aes_encrypt( struct ast_aes_context *ctx, u8 input[16], u8 output[16] );
+void aes_decrypt( struct ast_aes_context *ctx, u8 input[16], u8 output[16] );
 
 #endif /* aes.h */

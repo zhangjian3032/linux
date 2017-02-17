@@ -1011,7 +1011,7 @@ static int ftgmac100_ringbuf_alloc(struct ftgmac100_priv *priv)
         skb_reserve(skb, NET_IP_ALIGN);
 
         priv->rx_skbuff[i] = skb;
-        skb->dev = priv->dev;    /* Mark as being used by this device. */
+        skb->dev = priv->netdev;    /* Mark as being used by this device. */
         priv->rx_skbdma[i] = dma_map_single(&priv->netdev->dev, skb->data, (RX_BUF_SIZE + NET_IP_ALIGN), DMA_FROM_DEVICE);     
         priv->rx_descs[i].RXBUF_BADR     = priv->rx_skbdma[i];
        

@@ -1,0 +1,64 @@
+#bash
+pwd=$PWD
+cd $1
+if [ "$1" == "" ]; then
+        exit 0
+fi
+
+if [ "$2" == "" ]; then
+        echo "No package config : CAM ? BMC"
+        exit 1
+fi
+
+#Patch replace ...
+find $1/. -name  '*.patch' | while read filename; do mv -v "${filename}" "`echo "${filename}" | sed -e 's/.patch//'`"; done
+
+#BMC
+if [ "$2" == "bmc" ]; then
+        find $1/. -name  '*.bmc' | while read filename; do mv -v "${filename}" "`echo "${filename}" | sed -e 's/.bmc//'`"; done
+        find $1/. -name  '*.cam' | while read filename; do rm -f "${filename}"; done
+	rm -f $1/arch/arm/configs/ast2500_cam_defconfig
+	rm -f $1/drivers/crypto/ast-crypto.c
+	rm -f $1/drivers/usb/gadget/udc/ast_udc.c
+fi
+
+#CAM
+if [ "$2" == "cam" ]; then
+        find $1/. -name  '*.cam' | while read filename; do mv -v "${filename}" "`echo "${filename}" | sed -e 's/.cam//'`"; done
+        find $1/. -name  '*.bmc' | while read filename; do rm -f "${filename}"; done
+fi
+
+rm -f $1/arch/arm/configs/ast1520_defconfig
+rm -f $1/arch/arm/configs/ast1520_pci_defconfig
+rm -f $1/arch/arm/configs/ast2509_defconfig
+rm -f $1/arch/arm/configs/ast3200_defconfig
+rm -f $1/arch/arm/configs/ast2500_pcie_vga_defconfig
+rm -f $1/arch/arm/configs/ast2500fb_defconfig
+rm -f $1/arch/arm/mach-aspeed/ast3200.c
+rm -f $1/arch/m68k/configs/ast1010_defconfig
+rm -rf $1/arch/m68k/include/asm/arch
+rm -f $1/arch/m68k/coldfire/ast-timers.c
+rm -f $1/arch/m68k/coldfire/config.c
+rm -f $1/arch/m68k/coldfire/vic.c
+rm -f $1/arch/m68k/include/asm/ast1010_irqs.h
+rm -f $1/arch/m68k/include/asm/regs-intr.h
+rm -f $1/arch/arm/plat-aspeed/include/plat/regs-cat6613.h
+rm -f $1/drivers/soc/aspeed/adc_cat9883.c
+rm -f $1/drivers/soc/aspeed/ast_rfx.c
+rm -f $1/drivers/soc/aspeed/ast_vhub.c
+rm -f $1/drivers/soc/aspeed/ast_rle.c
+rm -f $1/drivers/char/sram.c
+rm -f $1/drivers/usb/gadget/udc/ast_udc11.c
+rm -f $1/drivers/usb/gadget/udc/ast_udc20.c
+rm -f $1/drivers/usb/gadget/udc/ast_vhub.c
+rm -rf $1/drivers/video/fbdev/aspeed/it66121
+rm -f $1/drivers/video/fbdev/aspeed/display-sys.c
+rm -f $1/drivers/video/fbdev/aspeed/display-sys.h
+rm -f $1/drivers/video/fbdev/aspeed/vga_ddc.c
+rm -f $1/drivers/net/ethernet/aspeed/ftgmac100.c
+rm -f $1/drivers/net/ethernet/aspeed/ftgmac100.h
+rm -f $1/drivers/video/fbdev/vga_ddc.c
+rm -f $1/drivers/serial/ast_serial.c
+rm -f $1/drivers/soc/aspeed/ast_video.c.ryan
+
+rm -f $1/package.sh

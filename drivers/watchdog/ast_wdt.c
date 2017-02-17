@@ -285,7 +285,7 @@ static int wdt_set_heartbeat(int t)
  *	according to their available features. We only actually usefully support
  *	querying capabilities and current status.
  */
-static int ast_wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long ast_wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
   void __user *argp = (void __user *)arg;
   int __user *p = argp;

@@ -29,7 +29,6 @@ extern u32 ast_scu_revision_id(void);
 extern u32 ast_scu_get_phy_interface(u8 mac_num);
 extern u32 ast_scu_get_phy_config(u8 mac_num);
 extern u32 ast_scu_get_vga_memsize(void);
-extern void ast_scu_get_who_init_dram(void);
 extern void ast_scu_set_lpc_mode(void);
 
 //CLK 
@@ -112,6 +111,5 @@ extern void ast_scu_hw_random_enable(u8 enable);
 extern u32 ast_scu_hw_random_read(void);
 extern u8 ast_scu_get_hw_random_type(void);
 extern void ast_scu_set_hw_random_type(u8 type);
-extern u8 ast_scu_adc_trim_read(void);
 
 #endif
