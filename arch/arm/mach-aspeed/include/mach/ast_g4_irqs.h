@@ -90,7 +90,7 @@
 #define IRQ_MCTP						42
 #define IRQ_JTAG						43
 //#define IRQ_RESERVED					44
-#define IRQ_CPU							45
+#define IRQ_CFV0						45
 #define IRQ_MAILBOX						46
 #define IRQ_EXT0						47
 #define IRQ_EXT1						48

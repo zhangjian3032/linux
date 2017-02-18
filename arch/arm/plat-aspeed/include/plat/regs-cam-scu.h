@@ -16,7 +16,6 @@
 /* Register for SCU  */
 #define AST_SCU_PROTECT			0x00		/*	protection key register	*/
 #define AST_SCU_RESET				0x04		/*	system reset control register */
-#define AST_SCU_RESET2				0xD4		/*	Reset Control register set 2*/
 #define AST_SCU_CLK_SEL				0x08		/*	clock selection register	*/
 #define AST_SCU_CLK_SEL2			0xD8		/*	clock selection register Set 2*/
 #define AST_SCU_CLK_STOP			0x0C		/*	clock stop control register	*/
@@ -114,113 +113,44 @@
 #define SCU_PROTECT_UNLOCK			0x1688A8A8
 
 /*	AST_SCU_RESET :0x04	 - system reset control register */
-#if defined (CONFIG_ARCH_AST1010)
-#define SCU_RESET_ADC				(0x1 << 6)
-#define SCU_RESET_JTAG				(0x1 << 5)
-#define SCU_RESET_MAC0				(0x1 << 4)
-#define SCU_RESET_PECI				(0x1 << 3)
-#define SCU_RESET_PWM				(0x1 << 2)
-#define SCU_RESET_LPC				(0x1 << 1)
-#define SCU_RESET_I2C				(0x1)
-#else
-#define SCU_RESET_H264				(0x1 << 26) 
-#define SCU_RESET_XDMA				(0x1 << 25)
-#define SCU_RESET_MCTP				(0x1 << 24)
-#define SCU_RESET_P2X				(0x1 << 24)
-#define SCU_RESET_ADC				(0x1 << 23)
-#define SCU_RESET_JTAG				(0x1 << 22)
-#ifdef AST_SOC_G5
-#define SCU_RESET_PCIE_DIR			(0x1 << 21)
-#define SCU_RESET_PCIE				(0x1 << 19)
-#else
-#define SCU_PWAKE_PIN_EN			(0x1 << 20)
-#define SCU_PWAKE_PIN_OUT			(0x1 << 19)
-#endif
-#define SCU_RESET_MIC				(0x1 << 18)
-#define SCU_RESET_RFX				(0x1 << 17) 
-#define SCU_RESET_SD				(0x1 << 16)
-#define SCU_RESET_USB11				(0x1 << 15)
-#define SCU_RESET_USB20				(0x1 << 14)
-#define SCU_RESET_CRT				(0x1 << 13)
-#define SCU_RESET_MAC1				(0x1 << 12)
+#define SCU_RESET_SC				(0x1 << 18)
+#define SCU_RESET_OSD				(0x1 << 17) 
+#define SCU_RESET_EE				(0x1 << 16)
+#define SCU_RESET_WDR				(0x1 << 15)
+#define SCU_RESET_HE				(0x1 << 14)
+#define SCU_RESET_PP				(0x1 << 13)
+#define SCU_RESET_UDC0				(0x1 << 12)
 #define SCU_RESET_MAC0				(0x1 << 11)
-#define SCU_RESET_PECI				(0x1 << 10)
-#define SCU_RESET_PWM				(0x1 << 9)
-#define SCU_PCI_VGA_DIS				(0x1 << 8)
-#define SCU_RESET_2D				(0x1 << 7)
-#define SCU_RESET_VIDEO				(0x1 << 6)
-#define SCU_RESET_LPC				(0x1 << 5)
-#define SCU_RESET_ESPI				(0x1 << 5)
-#define SCU_RESET_HACE				(0x1 << 4)
-#define SCU_RESET_USB_P1			(0x1 << 3)
+#define SCU_RESET_SDHC0			(0x1 << 10)
+#define SCU_RESET_SDIO				(0x1 << 9)
+#define SCU_RESET_I2S				(0x1 << 8)
+#define SCU_RESET_H264				(0x1 << 7)
+#define SCU_RESET_JPEG				(0x1 << 6)
+#define SCU_RESET_3D				(0x1 << 5)
+#define SCU_RESET_HAC				(0x1 << 4)
+#define SCU_RESET_ISP				(0x1 << 3)
 #define SCU_RESET_I2C				(0x1 << 2)
 #define SCU_RESET_AHB				(0x1 << 1)
-#define SCU_RESET_SRAM_CTRL			(0x1 << 0)
-#endif
-
-/* AST_SCU_RESET2				0xD4		Reset Control register set 2	*/
-#define SCU_RESET_CRT3				(0x1 << 8)
-#define SCU_RESET_CRT2				(0x1 << 7)
-#define SCU_RESET_CRT1				(0x1 << 6)
-#define SCU_RESET_CRT0				(0x1 << 5)
-#define SCU_RESET_NIC1				(0x1 << 4)
-#define SCU_RESET_NIC0				(0x1 << 3)
-#define SCU_RESET_RFXDEC			(0x1 << 2)
-#define SCU_RESET_BITBLT				(0x1 << 1)
-#define SCU_RESET_RFXCMQ			(0x1)
+#define SCU_RESET_SDRAM_CTRL		(0x1 << 0)
 
 /*	AST_SCU_CLK_SEL	 : 0x08 - clock selection register	*/
-#if defined(CONFIG_ARCH_AST1010)
-#define SCU_CLK_MAC_DIV(x)			(x << 12)
-#define SCU_CLK_MAC_MASK			(0x3 << 12)
-#define SCU_LHCLK_SOURCE_EN			(0x1 << 11)		//0: ext , 1:internel
-#define SCU_LHCLK_LPC_DIV(x)		(x << 8)
-#define SCU_LHCLK_LPC_MASK			(0x7 << 8)
-#define SCU_PCLK_APB_DIV(x)			(x << 5)
-#define SCU_GET_PCLK_DIV(x)			((x >> 5) & 0x7)
-#define SCU_PCLK_APB_DIV_MASK		(0x7 << 5)		//limitation on PCLK .. PCLK > 0.5*LCLK (33Mhz)
-#define SCU_CLK_CPU_AHB_SLOW_EN		(0x1 << 4)
-#define SCU_CLK_CPU_AHB_SLOW(x)		(x << 3)
-#define SCU_CLK_CPU_AHB_SLOW_MASK	(0x3 << 3)
-#define SCU_GET_AHB_DIV(x)			((x >> 2) & 0x3)
-#define SCU_CLK_CPU_AHB_SLOW_IDLE	(0x1 << 1)
-#define SCU_CLK_CPU_AHB_DYN_SLOW_EN	(0x1)
-#else
-#define SCU_CLK_VIDEO_SLOW_EN		(0x1 << 31)
-//G5 the same with RemoteFX EPDEC
-#define SCU_CLK_VIDEO_SLOW_SET(x)	(x << 28)
-#define SCU_CLK_VIDEO_SLOW_MASK		(0x7 << 28)
-#define SCU_CLK_2D_ENG_GCLK_INVERT	(0x1 << 27)		//valid only at CRT mode SCU2C[7]
-#define SCU_CLK_2D_ENG_THROT_EN		(0x1 << 26)		//valid only at CRT mode SCU2C[7]
-#define SCU_PCLK_APB_DIV(x)			(x << 23)
-#define SCU_GET_PCLK_DIV(x)			((x >> 23) & 0x7)
-#define SCU_PCLK_APB_DIV_MASK		(0x7 << 23)		//limitation on PCLK .. PCLK > 0.5*LCLK (33Mhz)
-#define SCU_GET_LHCLK_DIV(x)		((x >> 20) & 0x7)
-#define SCU_SET_LHCLK_DIV(x)		(x << 20)
-#define SCU_LHCLK_DIV_MASK			(0x7 << 20)
-#define SCU_LHCLK_SOURCE_EN			(0x1 << 19)		//0: ext , 1:internel
-#define SCU_CLK_MAC_DIV(x)			(x << 16)
-#define SCU_CLK_MAC_MASK			(0x7 << 16)
-#define SCU_CLK_SD_EN				(0x1 << 15)
-#define SCU_CLK_VIDE0_SO_D2			(0x1 << 8)
-#define SCU_CLK_SD_DIV(x)			(x << 12)
-#define SCU_CLK_SD_GET_DIV(x)		((x >> 12) & 0x7)
-#define SCU_CLK_SD_MASK				(0x7 << 12)
-#if defined(AST_SOC_G5)
-#define SCU_CRT_CLK_L_SOURCE			(0x1 << 8)
-#else
-#define SCU_CLK_VIDEO_DELAY(x)		(x << 8)
-#define SCU_CLK_VIDEO_DELAY_MASK	(0xf << 8)
-#endif
-#define SCU_CLK_CPU_AHB_SLOW_EN		(0x1 << 7)
-#define SCU_CLK_CPU_AHB_SLOW(x)		(x << 4)
-#define SCU_CLK_CPU_AHB_SLOW_MASK	(0x7 << 4)
+#define SCU_SDHCI_CLK_SOURCE(x)	(x << 22)
+#define SCU_SDIO_CLK_SOURCE(x)		(x << 20)
+#define SCU_H264_HEVCLK_SOURCE	(x << 18)		
+#define SCU_JPEG_JCLK_SOURCE(x)	(x << 16)
+#define SCU_PP_VCLK_SOURCE(x)		(x << 14)
+#define SCU_ZSP_CLK_SOURCE(x)		(x << 12)
+#define SCU_3D_ECLK_SOURCE(x)		(x << 10)		
+
+#define SCU_APB_PCLK_DIV(x)			(x << 6)
+#define SCU_GET_PCLK_DIV(x)			((x >> 6) & 0x7)
+#define SCU_APB_PCLK_DIV_MASK		(0x7 << 6)		//limitation on PCLK .. PCLK > 0.5*LCLK (33Mhz)
+
 #define SCU_GET_AHB_SLOW_DIV(x)		((x >> 4) & 0x7)
 #define SCU_ECLK_SOURCE(x)			(x << 2)
 #define SCU_ECLK_SOURCE_MASK		(0x3 << 2)
 #define SCU_CLK_CPU_AHB_SLOW_IDLE	(0x1 << 1)
 #define SCU_CLK_CPU_AHB_DYN_SLOW_EN	(0x1 << 0)
-#endif
 
 /*	AST_SCU_CLK_SEL2	: 0xD8 - clock selection register Set 2	*/
 #define SCU_VIDEO4_OUTPUT_CLK_INVERT			(1 << 29)
