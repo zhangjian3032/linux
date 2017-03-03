@@ -23,7 +23,7 @@
 
 #define AST_AHBC_BASE					0x1E600000	/* AHB CONTROLLER */
 
-#define AST_FMC_BASE        			0x1E620000	/* NEW SMC CONTROLLER */
+#define AST_FMC_BASE        				0x1E620000	/* NEW SMC CONTROLLER */
 #define AST_FMC_SPI0_BASE				0x1E630000	/* NEW SMC CONTROLLER */
 #define AST_ISP0_BASE					0x1E640000	/* ISP1 Controller */
 #define AST_ISP1_BASE					0x1E642000	/* ISP2 Controller */
@@ -36,6 +36,8 @@
 
 #define AST_VIC_BASE					0x1E6C0000	/* VIC */
 #define AST_CVIC_BASE					0x1E6C2000	/* CVIC */
+
+#define AST_UDC_BASE					0x1E6A0000	/* USB 2.0*/
 
 #define AST_SDMC_BASE					0x1E6E0000	/* MMC SDRAM*/
 
@@ -90,12 +92,13 @@
 #define AST_I2C_DEV12_BASE				0x1E78A440	/* I2C DEV13 */
 #define AST_I2C_DEV13_BASE				0x1E78A480	/* I2C DEV14 */
 
-#define AST_PCIARBITER_BASE			0x1E78C000	/* PCI ARBITER */
 #define AST_UART2_BASE					0x1E78D000	/* UART3 */
 
 #define AST_UART_SDMA_BASE			0x1E79E000	/* UART SDMA */
 
-#define AST_H264_BASE					0x1E7C0000	/* H.264 */
+#define AST_H264_BASE					0x1E7A0000	/* H.264 */
+
+#define AST_ZSP_BASE					0x1E7C0000	/* ZSP */
 
 #define AST_FMC_CS0_BASE				0x20000000	/* CS0 */
 #define AST_FMC_CS1_BASE				0x28000000	/* CS1 */
@@ -107,8 +110,8 @@
 #define AST_SPI1_CS0_BASE				0x38000000	/* SPI 3 Flash CS 0 Memory */
 #define AST_SPI1_CS1_BASE				0x3a000000	/* SPI 3 Flash CS 1 Memory */
 
-#define AST_VIDEO_MEM_SIZE				0x2800000		//40MB
-#define AST_VIDEO_MEM 					(AST_DRAM_BASE + (SZ_8M*10))//(AST_DRAM_BASE + SZ_256M)
+#define AST_JPEG_MEM_SIZE				0x2800000		//40MB
+#define AST_JPEG_MEM 					(AST_DRAM_BASE + (SZ_8M*10))//(AST_DRAM_BASE + SZ_256M)
 
 #define AST_H264_MEM_SIZE				0x1100000 		//11MB : BS 8MB + fifo 3 * 3MB
 #define AST_H264_MEM_BASE 				(AST_GMASK_MEM_BASE + AST_GMASK_MEM_SIZE)

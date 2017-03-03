@@ -12,6 +12,7 @@ obj-$(CONFIG_ADC_CAT9883)	+= adc_cat9883.o
 obj-$(CONFIG_AST_GPIO) 		+= ast_gpio.o
 obj-$(CONFIG_AST_PECI)		+= ast_peci.o
 obj-$(CONFIG_AST_MBX)		+= ast_mailbox.o
+obj-$(CONFIG_AST_JPEG)		+= ast-jpeg.o
 obj-$(CONFIG_AST_JTAG)		+= ast_jtag.o
 obj-$(CONFIG_AST_HID)		+= ast_hid.o
 obj-$(CONFIG_AST_MCTP)		+= ast_mctp.o

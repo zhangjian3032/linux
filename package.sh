@@ -22,6 +22,7 @@ if [ "$2" == "bmc" ]; then
 	rm -f $1/arch/arm/configs/ast2500_cam_defconfig
 	rm -f $1/drivers/crypto/ast-crypto.c
 	rm -f $1/drivers/usb/gadget/udc/ast_udc.c
+	rm -f $1/drivers/soc/aspeed/ast-jpeg.c
 fi
 
 #CAM
@@ -45,6 +46,7 @@ rm -f $1/arch/m68k/coldfire/vic.c
 rm -f $1/arch/m68k/include/asm/ast1010_irqs.h
 rm -f $1/arch/m68k/include/asm/regs-intr.h
 rm -f $1/arch/arm/plat-aspeed/include/plat/regs-cat6613.h
+rm -f $1/drivers/video/fbdev/aspeed/astvgafb.c
 rm -f $1/drivers/soc/aspeed/adc_cat9883.c
 rm -f $1/drivers/soc/aspeed/ast_rfx.c
 rm -f $1/drivers/soc/aspeed/ast_vhub.c
@@ -66,5 +68,7 @@ rm -f $1/drivers/net/ethernet/aspeed/ftgmac100.h
 rm -f $1/drivers/video/fbdev/vga_ddc.c
 rm -f $1/drivers/serial/ast_serial.c
 rm -f $1/drivers/soc/aspeed/ast_video.c.ryan
+rm -f $1/drivers/soc/aspeed/ast_vgavideo.c
+rm -f $1/drivers/video/fbdev/astvgafb.c
 
 rm -f $1/package.sh

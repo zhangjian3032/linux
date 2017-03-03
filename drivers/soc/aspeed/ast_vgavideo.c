@@ -54,7 +54,7 @@
 #endif
 
 /***********************************************************************/
-struct ast_video_config
+struct ast_vgavideo_config
 {
 	u8	engine;					//0: engine 0, engine 1
 	u8	compression_mode; 		//0:DCT, 1:DCT_VQ mix VQ-2 color, 2:DCT_VQ mix VQ-4 color		9:
@@ -102,7 +102,7 @@ struct ast_mode_detection
 #define AST_VIDEO_GET_JPEG_OFFSET_IOCRX		_IOR(VIDEOIOC_BASE, 0x3, unsigned long)
 #define AST_VIDEO_VGA_MODE_DETECTION			_IOWR(VIDEOIOC_BASE, 0x4, struct ast_mode_detection*)
 
-#define AST_VIDEO_ENG_CONFIG					_IOW(VIDEOIOC_BASE, 0x5, struct ast_video_config*)
+#define AST_VIDEO_ENG_CONFIG					_IOW(VIDEOIOC_BASE, 0x5, struct ast_vgavideo_config*)
 #define AST_VIDEO_SET_SCALING					_IOW(VIDEOIOC_BASE, 0x6, struct ast_scaling*)
 
 #define AST_VIDEO_AUTOMODE_TRIGGER			_IOWR(VIDEOIOC_BASE, 0x7, struct ast_auto_mode*)
@@ -169,12 +169,12 @@ struct compress_header {
 	u8	Visual_Lossless;
 };
 
-struct ast_video_data {
+struct ast_vgavideo_data {
 	struct device		*misc_dev;
 	void __iomem		*reg_base;			/* virtual */
 	int 	irq;				//Video IRQ number 
 //	compress_header	
-	struct compress_header			compress_mode;
+	struct compress_header	compress_mode;
         phys_addr_t             *stream_phy;            /* phy */
         u32                             *stream_virt;           /* virt */
         phys_addr_t             *buff0_phy;             /* phy */
@@ -221,7 +221,7 @@ struct ast_video_data {
 	u32		sts;
 	u8		direct_mode;
 	u8		stage;
-	struct ast_video_plat_data		*plat_data;		
+	struct ast_vgavideo_plat_data		*plat_data;		
 	u32 	bandwidth;
 	struct mutex lock;	
 
@@ -240,7 +240,7 @@ struct rc4_state
  
 
 static inline void
-ast_video_write(struct ast_video_data *ast_video, u32 val, u32 reg)
+ast_vgavideo_write(struct ast_vgavideo_data *ast_video, u32 val, u32 reg)
 {
 //	VIDEO_DBG("write offset: %x, val: %x \n",reg,val);
 #ifdef CONFIG_AST_VIDEO_LOCK
@@ -258,7 +258,7 @@ ast_video_write(struct ast_video_data *ast_video, u32 val, u32 reg)
 }
 
 static inline u32
-ast_video_read(struct ast_video_data *ast_video, u32 reg)
+ast_vgavideo_read(struct ast_vgavideo_data *ast_video, u32 reg)
 {
 	u32 val = readl(ast_video->reg_base + reg);
 //	VIDEO_DBG("read offset: %x, val: %x \n",reg,val);
@@ -266,7 +266,7 @@ ast_video_read(struct ast_video_data *ast_video, u32 reg)
 }
 
 /************************************************ JPEG ***************************************************************************************/
-void ast_init_jpeg_table(struct ast_video_data *ast_video)
+void ast_init_jpeg_table(struct ast_vgavideo_data *ast_video)
 {
 	int i=0;
 	int base=0;
@@ -848,7 +848,7 @@ void ast_init_jpeg_table(struct ast_video_data *ast_video)
 
 }
 
-static void ast_video_encryption_key_setup(struct ast_video_data *ast_video)
+static void ast_vgavideo_encryption_key_setup(struct ast_vgavideo_data *ast_video)
 {
 	int i, j, k, a, StringLength;
 	struct rc4_state  s;
@@ -881,17 +881,17 @@ static void ast_video_encryption_key_setup(struct ast_video_data *ast_video)
 	}
 	for (i = 0; i < 64; i++) {
 		temp = s.m[i * 4] + ((s.m[i * 4 + 1]) << 8) + ((s.m[i * 4 + 2]) << 16) + ((s.m[i * 4 + 3]) << 24);
-		ast_video_write(ast_video, temp, AST_VIDEO_ENCRYPT_SRAM + i*4);
+		ast_vgavideo_write(ast_video, temp, AST_VIDEO_ENCRYPT_SRAM + i*4);
 	}
 
 }
 
-static u8 ast_get_vga_signal(struct ast_video_data *ast_video)
+static u8 ast_get_vga_signal(struct ast_vgavideo_data *ast_video)
 {
 	u32 VR34C, VR350, VR35C;
 	u8	color_mode;
 	
-	VR35C = ast_video_read(ast_video, AST_VIDEO_SCRATCH_35C);
+	VR35C = ast_vgavideo_read(ast_video, AST_VIDEO_SCRATCH_35C);
 	VR35C &= 0xff000000;
 
 	if(VR35C & (SCRATCH_VGA_PWR_STS_HSYNC | SCRATCH_VGA_PWR_STS_VSYNC)) {
@@ -908,11 +908,11 @@ static u8 ast_get_vga_signal(struct ast_video_data *ast_video)
 		return VGA_NO_SIGNAL;
 	} else {
 		VIDEO_DBG("VGA Signal VR35C %x \n", VR35C);
-		VR350 = ast_video_read(ast_video, AST_VIDEO_SCRATCH_350);
+		VR350 = ast_vgavideo_read(ast_video, AST_VIDEO_SCRATCH_350);
 		if(SCRATCH_VGA_GET_MODE_HEADER(VR350) == 0xA8) {
 			color_mode = SCRATCH_VGA_GET_NEW_COLOR_MODE(VR350);
 		} else {
-			VR34C = ast_video_read(ast_video, AST_VIDEO_SCRATCH_34C);	
+			VR34C = ast_vgavideo_read(ast_video, AST_VIDEO_SCRATCH_34C);	
 			if(SCRATCH_VGA_GET_COLOR_MODE(VR34C) >= VGA_15BPP_MODE) 
 				color_mode = SCRATCH_VGA_GET_COLOR_MODE(VR34C);
 			else
@@ -947,7 +947,7 @@ static u8 ast_get_vga_signal(struct ast_video_data *ast_video)
 	}		
 }
 
-static u8 ast_video_mode_detect_analog(struct ast_video_data *ast_video)
+static u8 ast_vgavideo_mode_detect_analog(struct ast_vgavideo_data *ast_video)
 {
 	u32 ctrl;
 	
@@ -960,26 +960,26 @@ static u8 ast_video_mode_detect_analog(struct ast_video_data *ast_video)
 #endif
 
 	//	2nd mode detection
-	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & 
+	ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) & 
 					~(VIDEO_DETECT_TRIGGER |
 					VIDEO_COMPRESS_TRIGGER |
 					VIDEO_AUTO_COMPRESS |
 					VIDEO_INSERT_FULL_COMPRESS)
 					,AST_VIDEO_SEQ_CTRL);
 
-	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) |
+	ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) |
 						VIDEO_DETECT_TRIGGER 
 						,AST_VIDEO_SEQ_CTRL);	
 	//wait for detect ready...
-	while (!(ast_video_read(ast_video, AST_VIDEO_INT_STS) & VIDEO_MODE_DETECT_RDY));
+	while (!(ast_vgavideo_read(ast_video, AST_VIDEO_INT_STS) & VIDEO_MODE_DETECT_RDY));
 
-	ast_video_write(ast_video, VIDEO_MODE_DETECT_RDY, AST_VIDEO_INT_STS);
+	ast_vgavideo_write(ast_video, VIDEO_MODE_DETECT_RDY, AST_VIDEO_INT_STS);
 
 	return 0;
 
 }
 
-static u8 ast_video_mode_detect_digital(struct ast_video_data *ast_video)
+static u8 ast_vgavideo_mode_detect_digital(struct ast_vgavideo_data *ast_video)
 {
 	//bit 12, 13 must be 0 , 
 	//Check polarity (video engine prefers negative signal) bit 0, 1 is 0
@@ -990,12 +990,12 @@ static u8 ast_video_mode_detect_digital(struct ast_video_data *ast_video)
 	** not be able to count line count correctly. And it causes lost of first horizontal line.
 	** Digital interface MUST NOT set this value.
 	*/
-	ast_video_write(ast_video, (ast_video_read(ast_video, AST_VIDEO_MODE_DET1) & 
+	ast_vgavideo_write(ast_video, (ast_vgavideo_read(ast_video, AST_VIDEO_MODE_DET1) & 
 				~VIDEO_DET_HSYNC_DELAY_MASK) |
 				VIDEO_DET_LONG_H_STABLE_EN
 				, AST_VIDEO_MODE_DET1);	
 
-	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) & 
+	ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_PASS_CTRL) & 
 				~(VIDEO_DUAL_EDGE_MODE | 
 				VIDEO_18BIT_SINGLE_EDGE | 
 				VIDEO_DVO_INPUT_DELAY_MASK | 
@@ -1003,7 +1003,7 @@ static u8 ast_video_mode_detect_digital(struct ast_video_data *ast_video)
 				VIDEO_SO_HSYNC_POLARITY) 
 				, AST_VIDEO_PASS_CTRL);	
 
-	ast_video_write(ast_video, (ast_video_read(ast_video, AST_VIDEO_MODE_DETECT) & 0xffff) |
+	ast_vgavideo_write(ast_video, (ast_vgavideo_read(ast_video, AST_VIDEO_MODE_DETECT) & 0xffff) |
 					VIDEO_MODE_HOR_TOLER(6) |
 					VIDEO_MODE_VER_TOLER(6) |
 					VIDEO_MODE_HOR_STABLE(2) |
@@ -1011,23 +1011,23 @@ static u8 ast_video_mode_detect_digital(struct ast_video_data *ast_video)
 					, AST_VIDEO_MODE_DETECT);	
 
 	//	2nd mode detection
-	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & 
+	ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) & 
 					~(VIDEO_DETECT_TRIGGER |
 					VIDEO_COMPRESS_TRIGGER |
 					VIDEO_AUTO_COMPRESS |
 					VIDEO_INSERT_FULL_COMPRESS)
 					,AST_VIDEO_SEQ_CTRL);
 
-	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) |
+	ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) |
 						VIDEO_DETECT_TRIGGER 
 						,AST_VIDEO_SEQ_CTRL);	
 	//wait for detect ready...
-	while (!(ast_video_read(ast_video, AST_VIDEO_INT_STS) & VIDEO_MODE_DETECT_RDY));
+	while (!(ast_vgavideo_read(ast_video, AST_VIDEO_INT_STS) & VIDEO_MODE_DETECT_RDY));
 
-	ast_video_write(ast_video, VIDEO_MODE_DETECT_RDY, AST_VIDEO_INT_STS);
+	ast_vgavideo_write(ast_video, VIDEO_MODE_DETECT_RDY, AST_VIDEO_INT_STS);
 
 	//Get External digital/analog input signal type
-	if(ast_video_read(ast_video, AST_VIDEO_MODE_DET_STS) & VIDEO_DET_FROM_ADC)
+	if(ast_vgavideo_read(ast_video, AST_VIDEO_MODE_DET_STS) & VIDEO_DET_FROM_ADC)
 		printk("Detect Input signal is ADC \n");
 	else
 		printk("Detect Input signal is Digital \n");
@@ -1035,7 +1035,7 @@ static u8 ast_video_mode_detect_digital(struct ast_video_data *ast_video)
 	return 0;
 }
 
-static void ast_video_set_eng_config(struct ast_video_data *ast_video, struct ast_video_config *video_config)
+static void ast_vgavideo_set_eng_config(struct ast_vgavideo_data *ast_video, struct ast_vgavideo_config *video_config)
 {
 	int i, base=0;
 	u32 ctrl = 0;
@@ -1045,10 +1045,10 @@ static void ast_video_set_eng_config(struct ast_video_data *ast_video, struct as
 
 	switch(video_config->engine) {
 		case 0:
-			ctrl = ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL);
+			ctrl = ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL);
 			break;
 		case 1:
-			ctrl = ast_video_read(ast_video, AST_VM_SEQ_CTRL);
+			ctrl = ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL);
 			break;
 	}
 		
@@ -1060,7 +1060,7 @@ static void ast_video_set_eng_config(struct ast_video_data *ast_video, struct as
 		ctrl &= ~VIDEO_AUTO_COMPRESS;
 	}
 
-	ast_video_write(ast_video, VIDEO_COMPRESS_COMPLETE | VIDEO_CAPTURE_COMPLETE | VIDEO_MODE_DETECT_WDT, AST_VIDEO_INT_EN);
+	ast_vgavideo_write(ast_video, VIDEO_COMPRESS_COMPLETE | VIDEO_CAPTURE_COMPLETE | VIDEO_MODE_DETECT_WDT, AST_VIDEO_INT_EN);
 
 	if(video_config->compression_format) {
 		ctrl |= VIDEO_COMPRESS_JPEG_MODE;	
@@ -1102,12 +1102,12 @@ static void ast_video_set_eng_config(struct ast_video_data *ast_video, struct as
 
 	switch(video_config->engine) {
 		case 0:
-			ast_video_write(ast_video, ctrl, AST_VIDEO_SEQ_CTRL);
-			ast_video_write(ast_video, compress_ctrl | VIDEO_DCT_LUM(video_config->Y_JPEGTableSelector) | VIDEO_DCT_CHROM(video_config->Y_JPEGTableSelector + 16), AST_VIDEO_COMPRESS_CTRL);
+			ast_vgavideo_write(ast_video, ctrl, AST_VIDEO_SEQ_CTRL);
+			ast_vgavideo_write(ast_video, compress_ctrl | VIDEO_DCT_LUM(video_config->Y_JPEGTableSelector) | VIDEO_DCT_CHROM(video_config->Y_JPEGTableSelector + 16), AST_VIDEO_COMPRESS_CTRL);
 			break;
 		case 1:			
-			ast_video_write(ast_video, ctrl, AST_VM_SEQ_CTRL);
-			ast_video_write(ast_video, compress_ctrl | VIDEO_DCT_LUM(video_config->Y_JPEGTableSelector) | VIDEO_DCT_CHROM(video_config->Y_JPEGTableSelector + 16), AST_VM_COMPRESS_CTRL);
+			ast_vgavideo_write(ast_video, ctrl, AST_VM_SEQ_CTRL);
+			ast_vgavideo_write(ast_video, compress_ctrl | VIDEO_DCT_LUM(video_config->Y_JPEGTableSelector) | VIDEO_DCT_CHROM(video_config->Y_JPEGTableSelector + 16), AST_VM_COMPRESS_CTRL);
 			break;
 	}
 
@@ -1124,22 +1124,22 @@ static void ast_video_set_eng_config(struct ast_video_data *ast_video, struct as
 	
 }
 
-static void ast_video_set_0_scaling(struct ast_video_data *ast_video, struct ast_scaling *scaling)
+static void ast_vgavideo_set_0_scaling(struct ast_vgavideo_data *ast_video, struct ast_scaling *scaling)
 {
 	u32 scan_line, v_factor, h_factor;
-	u32 ctrl = ast_video_read(ast_video, AST_VIDEO_CTRL);
+	u32 ctrl = ast_vgavideo_read(ast_video, AST_VIDEO_CTRL);
 	//no scaling
 	ctrl &= ~VIDEO_CTRL_DWN_SCALING_MASK;
 	
 	if(scaling->enable) {
 		if((ast_video->src_fbinfo.x == scaling->x) && (ast_video->src_fbinfo.y == scaling->y)) {
-			ast_video_write(ast_video, 0x00200000, AST_VIDEO_SCALING0);
-			ast_video_write(ast_video, 0x00200000, AST_VIDEO_SCALING1);
-			ast_video_write(ast_video, 0x00200000, AST_VIDEO_SCALING2);
-			ast_video_write(ast_video, 0x00200000, AST_VIDEO_SCALING3);
+			ast_vgavideo_write(ast_video, 0x00200000, AST_VIDEO_SCALING0);
+			ast_vgavideo_write(ast_video, 0x00200000, AST_VIDEO_SCALING1);
+			ast_vgavideo_write(ast_video, 0x00200000, AST_VIDEO_SCALING2);
+			ast_vgavideo_write(ast_video, 0x00200000, AST_VIDEO_SCALING3);
 			//compression x,y
-			ast_video_write(ast_video, VIDEO_COMPRESS_H(ast_video->src_fbinfo.x) | VIDEO_COMPRESS_V(ast_video->src_fbinfo.y), AST_VIDEO_COMPRESS_WIN);		
-			ast_video_write(ast_video, 0x10001000, AST_VIDEO_SCAL_FACTOR);						
+			ast_vgavideo_write(ast_video, VIDEO_COMPRESS_H(ast_video->src_fbinfo.x) | VIDEO_COMPRESS_V(ast_video->src_fbinfo.y), AST_VIDEO_COMPRESS_WIN);		
+			ast_vgavideo_write(ast_video, 0x10001000, AST_VIDEO_SCAL_FACTOR);						
 		} else {
 			//Down-Scaling
 			VIDEO_DBG("Scaling Enable\n");
@@ -1161,68 +1161,68 @@ static void ast_video_set_0_scaling(struct ast_video_data *ast_video, struct ast
 			ctrl |= VIDEO_CTRL_DWN_SCALING_ENABLE_LINE_BUFFER; 
 #endif
 			if(ast_video->src_fbinfo.x <= scaling->x * 2) {
-				ast_video_write(ast_video, 0x00101000, AST_VIDEO_SCALING0);
-				ast_video_write(ast_video, 0x00101000, AST_VIDEO_SCALING1);
-				ast_video_write(ast_video, 0x00101000, AST_VIDEO_SCALING2);
-				ast_video_write(ast_video, 0x00101000, AST_VIDEO_SCALING3);
+				ast_vgavideo_write(ast_video, 0x00101000, AST_VIDEO_SCALING0);
+				ast_vgavideo_write(ast_video, 0x00101000, AST_VIDEO_SCALING1);
+				ast_vgavideo_write(ast_video, 0x00101000, AST_VIDEO_SCALING2);
+				ast_vgavideo_write(ast_video, 0x00101000, AST_VIDEO_SCALING3);
 			} else {
-				ast_video_write(ast_video, 0x08080808, AST_VIDEO_SCALING0);
-				ast_video_write(ast_video, 0x08080808, AST_VIDEO_SCALING1);
-				ast_video_write(ast_video, 0x08080808, AST_VIDEO_SCALING2);
-				ast_video_write(ast_video, 0x08080808, AST_VIDEO_SCALING3);
+				ast_vgavideo_write(ast_video, 0x08080808, AST_VIDEO_SCALING0);
+				ast_vgavideo_write(ast_video, 0x08080808, AST_VIDEO_SCALING1);
+				ast_vgavideo_write(ast_video, 0x08080808, AST_VIDEO_SCALING2);
+				ast_vgavideo_write(ast_video, 0x08080808, AST_VIDEO_SCALING3);
 			}
 			//compression x,y
-			ast_video_write(ast_video, VIDEO_COMPRESS_H(scaling->x) | VIDEO_COMPRESS_V(scaling->y), AST_VIDEO_COMPRESS_WIN);
+			ast_vgavideo_write(ast_video, VIDEO_COMPRESS_H(scaling->x) | VIDEO_COMPRESS_V(scaling->y), AST_VIDEO_COMPRESS_WIN);
 
 			VIDEO_DBG("Scaling factor : v : %d , h : %d \n",v_factor, h_factor);
-			ast_video_write(ast_video, VIDEO_V_SCAL_FACTOR(v_factor) | VIDEO_H_SCAL_FACTOR(h_factor), AST_VIDEO_SCAL_FACTOR);
+			ast_vgavideo_write(ast_video, VIDEO_V_SCAL_FACTOR(v_factor) | VIDEO_H_SCAL_FACTOR(h_factor), AST_VIDEO_SCAL_FACTOR);
 		}
 	} else {// 1:1
 		VIDEO_DBG("Scaling Disable \n");
 		v_factor = 4096;
 		h_factor = 4096;
-		ast_video_write(ast_video, 0x00200000, AST_VIDEO_SCALING0);
-		ast_video_write(ast_video, 0x00200000, AST_VIDEO_SCALING1);
-		ast_video_write(ast_video, 0x00200000, AST_VIDEO_SCALING2);
-		ast_video_write(ast_video, 0x00200000, AST_VIDEO_SCALING3);
+		ast_vgavideo_write(ast_video, 0x00200000, AST_VIDEO_SCALING0);
+		ast_vgavideo_write(ast_video, 0x00200000, AST_VIDEO_SCALING1);
+		ast_vgavideo_write(ast_video, 0x00200000, AST_VIDEO_SCALING2);
+		ast_vgavideo_write(ast_video, 0x00200000, AST_VIDEO_SCALING3);
 		//compression x,y
-		ast_video_write(ast_video, VIDEO_COMPRESS_H(ast_video->src_fbinfo.x) | VIDEO_COMPRESS_V(ast_video->src_fbinfo.y), AST_VIDEO_COMPRESS_WIN);	
+		ast_vgavideo_write(ast_video, VIDEO_COMPRESS_H(ast_video->src_fbinfo.x) | VIDEO_COMPRESS_V(ast_video->src_fbinfo.y), AST_VIDEO_COMPRESS_WIN);	
 		
-		ast_video_write(ast_video, 0x10001000, AST_VIDEO_SCAL_FACTOR);
+		ast_vgavideo_write(ast_video, 0x10001000, AST_VIDEO_SCAL_FACTOR);
 	}
-	ast_video_write(ast_video, ctrl, AST_VIDEO_CTRL);
+	ast_vgavideo_write(ast_video, ctrl, AST_VIDEO_CTRL);
 
 	//capture x y 
 #ifdef AST_SOC_G5 //A1 issue fix
 	if(ast_video->src_fbinfo.x == 1680) {
-		ast_video_write(ast_video, VIDEO_CAPTURE_H(1728) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VIDEO_CAPTURE_WIN);		
+		ast_vgavideo_write(ast_video, VIDEO_CAPTURE_H(1728) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VIDEO_CAPTURE_WIN);		
 	} else {
-		ast_video_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) |	VIDEO_CAPTURE_V(ast_video->src_fbinfo.y)	, AST_VIDEO_CAPTURE_WIN);	
+		ast_vgavideo_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) |	VIDEO_CAPTURE_V(ast_video->src_fbinfo.y)	, AST_VIDEO_CAPTURE_WIN);	
 	}
 #else	
-	ast_video_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) | 	VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VIDEO_CAPTURE_WIN);
+	ast_vgavideo_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) | 	VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VIDEO_CAPTURE_WIN);
 #endif
 
 
 	if((ast_video->src_fbinfo.x % 8) == 0)
-		ast_video_write(ast_video, ast_video->src_fbinfo.x * 4, AST_VIDEO_SOURCE_SCAN_LINE);
+		ast_vgavideo_write(ast_video, ast_video->src_fbinfo.x * 4, AST_VIDEO_SOURCE_SCAN_LINE);
 	else {
 		scan_line = ast_video->src_fbinfo.x;
 		scan_line = scan_line + 16 - (scan_line % 16);
 		scan_line = scan_line * 4;
-		ast_video_write(ast_video, scan_line, AST_VIDEO_SOURCE_SCAN_LINE);
+		ast_vgavideo_write(ast_video, scan_line, AST_VIDEO_SOURCE_SCAN_LINE);
 	}
 	
 }
 
-static void ast_video_set_1_scaling(struct ast_video_data *ast_video, struct ast_scaling *scaling)
+static void ast_vgavideo_set_1_scaling(struct ast_vgavideo_data *ast_video, struct ast_scaling *scaling)
 {
 	u32 v_factor, h_factor;
 
 	if(scaling->enable) {
 		if((ast_video->src_fbinfo.x == scaling->x) && (ast_video->src_fbinfo.y == scaling->y)) {
-			ast_video_write(ast_video, VIDEO_COMPRESS_H(ast_video->src_fbinfo.x) | VIDEO_COMPRESS_V(ast_video->src_fbinfo.y), AST_VM_COMPRESS_WIN);			
-			ast_video_write(ast_video, 0x10001000, AST_VM_SCAL_FACTOR); 
+			ast_vgavideo_write(ast_video, VIDEO_COMPRESS_H(ast_video->src_fbinfo.x) | VIDEO_COMPRESS_V(ast_video->src_fbinfo.y), AST_VM_COMPRESS_WIN);			
+			ast_vgavideo_write(ast_video, 0x10001000, AST_VM_SCAL_FACTOR); 
 		} else {
 			//Down-Scaling
 			VIDEO_DBG("Scaling Enable\n");
@@ -1241,53 +1241,53 @@ static void ast_video_set_1_scaling(struct ast_video_data *ast_video, struct ast
 				v_factor += 1;
 			
 			//compression x,y
-			ast_video_write(ast_video, VIDEO_COMPRESS_H(scaling->x) | VIDEO_COMPRESS_V(scaling->y), AST_VM_COMPRESS_WIN);
-			ast_video_write(ast_video, VIDEO_V_SCAL_FACTOR(v_factor) | VIDEO_H_SCAL_FACTOR(h_factor), AST_VM_SCAL_FACTOR);
+			ast_vgavideo_write(ast_video, VIDEO_COMPRESS_H(scaling->x) | VIDEO_COMPRESS_V(scaling->y), AST_VM_COMPRESS_WIN);
+			ast_vgavideo_write(ast_video, VIDEO_V_SCAL_FACTOR(v_factor) | VIDEO_H_SCAL_FACTOR(h_factor), AST_VM_SCAL_FACTOR);
 		}
 	} else {// 1:1
 		VIDEO_DBG("Scaling Disable \n");
-		ast_video_write(ast_video, VIDEO_COMPRESS_H(ast_video->src_fbinfo.x) | VIDEO_COMPRESS_V(ast_video->src_fbinfo.y), AST_VM_COMPRESS_WIN);	
-		ast_video_write(ast_video, 0x10001000, AST_VM_SCAL_FACTOR);	
+		ast_vgavideo_write(ast_video, VIDEO_COMPRESS_H(ast_video->src_fbinfo.x) | VIDEO_COMPRESS_V(ast_video->src_fbinfo.y), AST_VM_COMPRESS_WIN);	
+		ast_vgavideo_write(ast_video, 0x10001000, AST_VM_SCAL_FACTOR);	
 	}
 
 	//capture x y 
 #ifdef AST_SOC_G5 //A1 issue fix
 	if(ast_video->src_fbinfo.x == 1680) {
-		ast_video_write(ast_video, VIDEO_CAPTURE_H(1728) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VM_CAPTURE_WIN);		
+		ast_vgavideo_write(ast_video, VIDEO_CAPTURE_H(1728) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VM_CAPTURE_WIN);		
 	} else {
-		ast_video_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VM_CAPTURE_WIN);	
+		ast_vgavideo_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VM_CAPTURE_WIN);	
 	}
 #else	
-	ast_video_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y)	, AST_VM_CAPTURE_WIN);
+	ast_vgavideo_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y)	, AST_VM_CAPTURE_WIN);
 #endif
 
 	
 }
 
-static void ast_video_mode_detect_trigger(struct ast_video_data *ast_video)
+static void ast_vgavideo_mode_detect_trigger(struct ast_vgavideo_data *ast_video)
 {
 	VIDEO_DBG("\n");
 
-	if(!(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & VIDEO_CAPTURE_BUSY)) {
-		printk("ERROR ~~ Capture Eng busy !! 0x04 : %x \n", ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL));
+	if(!(ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) & VIDEO_CAPTURE_BUSY)) {
+		printk("ERROR ~~ Capture Eng busy !! 0x04 : %x \n", ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL));
 
 	}
 
 	init_completion(&ast_video->mode_detect_complete);
 
-	ast_video_write(ast_video, VIDEO_MODE_DETECT_RDY, AST_VIDEO_INT_EN);
+	ast_vgavideo_write(ast_video, VIDEO_MODE_DETECT_RDY, AST_VIDEO_INT_EN);
 	
-	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~(VIDEO_DETECT_TRIGGER | VIDEO_INPUT_MODE_CHG_WDT), AST_VIDEO_SEQ_CTRL);
+	ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~(VIDEO_DETECT_TRIGGER | VIDEO_INPUT_MODE_CHG_WDT), AST_VIDEO_SEQ_CTRL);
 	
-	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_DETECT_TRIGGER, AST_VIDEO_SEQ_CTRL);			
+	ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_DETECT_TRIGGER, AST_VIDEO_SEQ_CTRL);			
 
 	wait_for_completion_interruptible(&ast_video->mode_detect_complete);
 	
-	ast_video_write(ast_video, 0, AST_VIDEO_INT_EN);	
+	ast_vgavideo_write(ast_video, 0, AST_VIDEO_INT_EN);	
 
 }
 
-static void ast_video_vga_mode_detect(struct ast_video_data *ast_video, struct ast_mode_detection *mode_detect)
+static void ast_vgavideo_vga_mode_detect(struct ast_vgavideo_data *ast_video, struct ast_mode_detection *mode_detect)
 {
 	u32 H_Start, H_End, V_Start, V_End;
 	u32 H_Temp = 0, V_Temp = 0, RefreshRateIndex, ColorDepthIndex;
@@ -1297,40 +1297,40 @@ static void ast_video_vga_mode_detect(struct ast_video_data *ast_video, struct a
 	VIDEO_DBG("\n");
 
 	//set input signal  and Check polarity (video engine prefers negative signal)		
-	ast_video_write(ast_video, (ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) &
+	ast_vgavideo_write(ast_video, (ast_vgavideo_read(ast_video, AST_VIDEO_PASS_CTRL) &
 					~(VIDEO_DIRT_FATCH | VIDEO_EXT_ADC_ATTRIBUTE)) |
 					VIDEO_INTERNAL_DE | 
 					VIDEO_SO_VSYNC_POLARITY | VIDEO_SO_HSYNC_POLARITY,
 					AST_VIDEO_PASS_CTRL);
 
-	ast_video_mode_detect_trigger(ast_video);
+	ast_vgavideo_mode_detect_trigger(ast_video);
 
 	//Enable Watchdog detection
-	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_INPUT_MODE_CHG_WDT, AST_VIDEO_SEQ_CTRL);
+	ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_INPUT_MODE_CHG_WDT, AST_VIDEO_SEQ_CTRL);
 
 Redo:
 	//for store lock
-	ast_video_mode_detect_trigger(ast_video);
+	ast_vgavideo_mode_detect_trigger(ast_video);
 
-	H_Start = VIDEO_GET_HSYNC_LEFT(ast_video_read(ast_video, AST_VIDEO_H_DETECT_STS));
-	H_End = VIDEO_GET_HSYNC_RIGHT(ast_video_read(ast_video, AST_VIDEO_H_DETECT_STS));
+	H_Start = VIDEO_GET_HSYNC_LEFT(ast_vgavideo_read(ast_video, AST_VIDEO_H_DETECT_STS));
+	H_End = VIDEO_GET_HSYNC_RIGHT(ast_vgavideo_read(ast_video, AST_VIDEO_H_DETECT_STS));
 
-	V_Start = VIDEO_GET_VSYNC_TOP(ast_video_read(ast_video, AST_VIDEO_V_DETECT_STS));
-	V_End = VIDEO_GET_VSYNC_BOTTOM(ast_video_read(ast_video, AST_VIDEO_V_DETECT_STS));
+	V_Start = VIDEO_GET_VSYNC_TOP(ast_vgavideo_read(ast_video, AST_VIDEO_V_DETECT_STS));
+	V_End = VIDEO_GET_VSYNC_BOTTOM(ast_vgavideo_read(ast_video, AST_VIDEO_V_DETECT_STS));
 
 
 	//Check if cable quality is too bad. If it is bad then we use 0x65 as threshold
 	//Because RGB data is arrived slower than H-sync, V-sync. We have to read more times to confirm RGB data is arrived
 	if ((abs(H_Temp - H_Start) > 1) || ((H_Start <= 1) || (V_Start <= 1) || (H_Start == 0xFFF) || (V_Start == 0xFFF))) {
-			H_Temp = VIDEO_GET_HSYNC_LEFT(ast_video_read(ast_video, AST_VIDEO_H_DETECT_STS));
-			V_Temp = VIDEO_GET_VSYNC_TOP(ast_video_read(ast_video, AST_VIDEO_V_DETECT_STS));
+			H_Temp = VIDEO_GET_HSYNC_LEFT(ast_vgavideo_read(ast_video, AST_VIDEO_H_DETECT_STS));
+			V_Temp = VIDEO_GET_VSYNC_TOP(ast_vgavideo_read(ast_video, AST_VIDEO_V_DETECT_STS));
 			goto Redo;
 	}
 
 //	VIDEO_DBG("H S: %d, E: %d, V S: %d, E: %d \n", H_Start, H_End, V_Start, V_End);
 
-	ast_video_write(ast_video, VIDEO_HSYNC_PIXEL_FIRST_SET(H_Start - 1) | VIDEO_HSYNC_PIXEL_LAST_SET(H_End), AST_VIDEO_TIMING_H);
-	ast_video_write(ast_video, VIDEO_VSYNC_PIXEL_FIRST_SET(V_Start) | VIDEO_VSYNC_PIXEL_LAST_SET(V_End + 1), AST_VIDEO_TIMING_V);
+	ast_vgavideo_write(ast_video, VIDEO_HSYNC_PIXEL_FIRST_SET(H_Start - 1) | VIDEO_HSYNC_PIXEL_LAST_SET(H_End), AST_VIDEO_TIMING_H);
+	ast_vgavideo_write(ast_video, VIDEO_VSYNC_PIXEL_FIRST_SET(V_Start) | VIDEO_VSYNC_PIXEL_LAST_SET(V_End + 1), AST_VIDEO_TIMING_V);
 
 	ast_video->src_fbinfo.x = (H_End - H_Start) + 1;
 	ast_video->src_fbinfo.y = (V_End - V_Start) + 1;
@@ -1340,11 +1340,11 @@ Redo:
 	mode_detect->src_x = ast_video->src_fbinfo.x;
 	mode_detect->src_y = ast_video->src_fbinfo.y;
 
-	VGA_Scratch_Register_350 = ast_video_read(ast_video, AST_VIDEO_SCRATCH_350);
-	VGA_Scratch_Register_34C = ast_video_read(ast_video, AST_VIDEO_SCRATCH_34C);
-	VGA_Scratch_Register_354 = ast_video_read(ast_video, AST_VIDEO_SCRATCH_354);
+	VGA_Scratch_Register_350 = ast_vgavideo_read(ast_video, AST_VIDEO_SCRATCH_350);
+	VGA_Scratch_Register_34C = ast_vgavideo_read(ast_video, AST_VIDEO_SCRATCH_34C);
+	VGA_Scratch_Register_354 = ast_vgavideo_read(ast_video, AST_VIDEO_SCRATCH_354);
 
-	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) &
+	ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_PASS_CTRL) &
 					~(VIDEO_SO_VSYNC_POLARITY | VIDEO_SO_HSYNC_POLARITY),
 					AST_VIDEO_PASS_CTRL);
 
@@ -1413,23 +1413,23 @@ Redo:
 	}
 
 	if(Direct_Mode) {
-		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) | VIDEO_DIRT_FATCH | VIDEO_AUTO_FATCH, AST_VIDEO_PASS_CTRL); 		
+		ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_PASS_CTRL) | VIDEO_DIRT_FATCH | VIDEO_AUTO_FATCH, AST_VIDEO_PASS_CTRL); 		
 		
-		ast_video_write(ast_video, ast_video->plat_data->get_vga_base(), AST_VIDEO_DIRECT_BASE);	
+		ast_vgavideo_write(ast_video, ast_video->plat_data->get_vga_base(), AST_VIDEO_DIRECT_BASE);	
 		
-		ast_video_write(ast_video, VIDEO_FETCH_TIMING(0) | VIDEO_FETCH_LINE_OFFSET(ast_video->src_fbinfo.x * 4)	, AST_VIDEO_DIRECT_CTRL);		
+		ast_vgavideo_write(ast_video, VIDEO_FETCH_TIMING(0) | VIDEO_FETCH_LINE_OFFSET(ast_video->src_fbinfo.x * 4)	, AST_VIDEO_DIRECT_CTRL);		
 		
 	} else {
-		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) & ~VIDEO_DIRT_FATCH, AST_VIDEO_PASS_CTRL); 
+		ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_PASS_CTRL) & ~VIDEO_DIRT_FATCH, AST_VIDEO_PASS_CTRL); 
 	}
 
 	//should enable WDT detection every after mode detection 
-	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_INPUT_MODE_CHG_WDT, AST_VIDEO_SEQ_CTRL);
+	ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_INPUT_MODE_CHG_WDT, AST_VIDEO_SEQ_CTRL);
 
 }
 
 /*return compression size */
-static void ast_video_auto_mode_trigger(struct ast_video_data *ast_video, struct ast_auto_mode *auto_mode)
+static void ast_vgavideo_auto_mode_trigger(struct ast_vgavideo_data *ast_video, struct ast_auto_mode *auto_mode)
 {
 	int timeout = 0;
 	
@@ -1446,36 +1446,36 @@ static void ast_video_auto_mode_trigger(struct ast_video_data *ast_video, struct
 			init_completion(&ast_video->automode_complete);
 
 			if(auto_mode->differential) 
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_BCD_CTRL) | VIDEO_BCD_CHG_EN, AST_VIDEO_BCD_CTRL);
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_BCD_CTRL) | VIDEO_BCD_CHG_EN, AST_VIDEO_BCD_CTRL);
 			else
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_BCD_CTRL) & ~VIDEO_BCD_CHG_EN, AST_VIDEO_BCD_CTRL);
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_BCD_CTRL) & ~VIDEO_BCD_CHG_EN, AST_VIDEO_BCD_CTRL);
 
-			ast_video_write(ast_video, (ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~(VIDEO_CAPTURE_TRIGGER | VIDEO_COMPRESS_FORCE_IDLE | VIDEO_COMPRESS_TRIGGER)) | VIDEO_AUTO_COMPRESS, AST_VIDEO_SEQ_CTRL);
+			ast_vgavideo_write(ast_video, (ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~(VIDEO_CAPTURE_TRIGGER | VIDEO_COMPRESS_FORCE_IDLE | VIDEO_COMPRESS_TRIGGER)) | VIDEO_AUTO_COMPRESS, AST_VIDEO_SEQ_CTRL);
 			//If CPU is too fast, pleas read back and trigger 
-			ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_COMPRESS_TRIGGER | VIDEO_CAPTURE_TRIGGER, AST_VIDEO_SEQ_CTRL);
+			ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_COMPRESS_TRIGGER | VIDEO_CAPTURE_TRIGGER, AST_VIDEO_SEQ_CTRL);
 			
 			timeout = wait_for_completion_interruptible_timeout(&ast_video->automode_complete, HZ/2);
 			
 			if (timeout == 0) { 
-				printk("compression timeout sts %x \n", ast_video_read(ast_video, AST_VIDEO_INT_STS));
+				printk("compression timeout sts %x \n", ast_vgavideo_read(ast_video, AST_VIDEO_INT_STS));
 				auto_mode->total_size = 0;
 				auto_mode->block_count = 0;
 			} else {
-				auto_mode->total_size = ast_video_read(ast_video, AST_VIDEO_COMPRESS_DATA_COUNT);
-				auto_mode->block_count = ast_video_read(ast_video, AST_VIDEO_COMPRESS_BLOCK_COUNT) >> 16;
+				auto_mode->total_size = ast_vgavideo_read(ast_video, AST_VIDEO_COMPRESS_DATA_COUNT);
+				auto_mode->block_count = ast_vgavideo_read(ast_video, AST_VIDEO_COMPRESS_BLOCK_COUNT) >> 16;
 			}
 			
 			break;
 		case 1:
 //			init_completion(&ast_video->automode_vm_complete);
 			if(auto_mode->differential) {
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_BCD_CTRL) | VIDEO_BCD_CHG_EN, AST_VM_BCD_CTRL);
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VM_BCD_CTRL) | VIDEO_BCD_CHG_EN, AST_VM_BCD_CTRL);
 			} else {
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_BCD_CTRL) & ~VIDEO_BCD_CHG_EN, AST_VM_BCD_CTRL);
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VM_BCD_CTRL) & ~VIDEO_BCD_CHG_EN, AST_VM_BCD_CTRL);
 			}
-			ast_video_write(ast_video, (ast_video_read(ast_video, AST_VM_SEQ_CTRL) & ~(VIDEO_CAPTURE_TRIGGER | VIDEO_COMPRESS_TRIGGER)) | VIDEO_AUTO_COMPRESS , AST_VM_SEQ_CTRL);
+			ast_vgavideo_write(ast_video, (ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL) & ~(VIDEO_CAPTURE_TRIGGER | VIDEO_COMPRESS_TRIGGER)) | VIDEO_AUTO_COMPRESS , AST_VM_SEQ_CTRL);
 
-			ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) | VIDEO_CAPTURE_TRIGGER | VIDEO_COMPRESS_TRIGGER, AST_VM_SEQ_CTRL);
+			ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL) | VIDEO_CAPTURE_TRIGGER | VIDEO_COMPRESS_TRIGGER, AST_VM_SEQ_CTRL);
 			udelay(10);
 //AST_G5 Issue in isr bit 19, so use polling mode for wait engine idle
 
@@ -1483,7 +1483,7 @@ static void ast_video_auto_mode_trigger(struct ast_video_data *ast_video, struct
 			timeout = 0;
 			while(1) {
 				timeout++; 				
-				if((ast_video_read(ast_video, AST_VM_SEQ_CTRL) & 0x50000) == 0x50000) 
+				if((ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL) & 0x50000) == 0x50000) 
 					break;
 
 				mdelay(1);	
@@ -1497,23 +1497,23 @@ static void ast_video_auto_mode_trigger(struct ast_video_data *ast_video, struct
 				auto_mode->block_count = 0;
 
 			} else {
-				auto_mode->total_size = ast_video_read(ast_video, AST_VM_COMPRESS_FRAME_END);
-				auto_mode->block_count = ast_video_read(ast_video, AST_VM_COMPRESS_BLOCK_COUNT);
+				auto_mode->total_size = ast_vgavideo_read(ast_video, AST_VM_COMPRESS_FRAME_END);
+				auto_mode->block_count = ast_vgavideo_read(ast_video, AST_VM_COMPRESS_BLOCK_COUNT);
 			}
 
-//			printk("0 isr %x \n", ast_video_read(ast_video, AST_VIDEO_INT_STS));
+//			printk("0 isr %x \n", ast_vgavideo_read(ast_video, AST_VIDEO_INT_STS));
 			//must clear it 
-			ast_video_write(ast_video, (ast_video_read(ast_video, AST_VM_SEQ_CTRL) & ~(VIDEO_CAPTURE_TRIGGER | VIDEO_COMPRESS_TRIGGER)) , AST_VM_SEQ_CTRL);
-//			printk("1 isr %x \n", ast_video_read(ast_video, AST_VIDEO_INT_STS));
+			ast_vgavideo_write(ast_video, (ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL) & ~(VIDEO_CAPTURE_TRIGGER | VIDEO_COMPRESS_TRIGGER)) , AST_VM_SEQ_CTRL);
+//			printk("1 isr %x \n", ast_vgavideo_read(ast_video, AST_VIDEO_INT_STS));
 #else
 			timeout = wait_for_completion_interruptible_timeout(&ast_video->automode_vm_complete, 10*HZ);
 			
 			if (timeout == 0) { 
-				printk("compression timeout sts %x \n", ast_video_read(ast_video, AST_VIDEO_INT_STS));
+				printk("compression timeout sts %x \n", ast_vgavideo_read(ast_video, AST_VIDEO_INT_STS));
 				return 0;
 			} else {
-				printk("%x size = %x \n", ast_video_read(ast_video, 0x270), ast_video_read(ast_video, AST_VM_COMPRESS_FRAME_END));
-				return ast_video_read(ast_video, AST_VM_COMPRESS_FRAME_END);
+				printk("%x size = %x \n", ast_vgavideo_read(ast_video, 0x270), ast_vgavideo_read(ast_video, AST_VM_COMPRESS_FRAME_END));
+				return ast_vgavideo_read(ast_video, AST_VM_COMPRESS_FRAME_END);
 			}
 #endif			
 			break;
@@ -1526,16 +1526,16 @@ static void ast_video_auto_mode_trigger(struct ast_video_data *ast_video, struct
 
 }
 
-static void ast_video_mode_detect_info(struct ast_video_data *ast_video)
+static void ast_vgavideo_mode_detect_info(struct ast_vgavideo_data *ast_video)
 
 {
 	u32 H_Start, H_End, V_Start, V_End;
 
-	H_Start = VIDEO_GET_HSYNC_LEFT(ast_video_read(ast_video, AST_VIDEO_H_DETECT_STS));
-	H_End = VIDEO_GET_HSYNC_RIGHT(ast_video_read(ast_video, AST_VIDEO_H_DETECT_STS));
+	H_Start = VIDEO_GET_HSYNC_LEFT(ast_vgavideo_read(ast_video, AST_VIDEO_H_DETECT_STS));
+	H_End = VIDEO_GET_HSYNC_RIGHT(ast_vgavideo_read(ast_video, AST_VIDEO_H_DETECT_STS));
 	
-	V_Start = VIDEO_GET_VSYNC_TOP(ast_video_read(ast_video, AST_VIDEO_V_DETECT_STS));	
-	V_End = VIDEO_GET_VSYNC_BOTTOM(ast_video_read(ast_video, AST_VIDEO_V_DETECT_STS)); 	
+	V_Start = VIDEO_GET_VSYNC_TOP(ast_vgavideo_read(ast_video, AST_VIDEO_V_DETECT_STS));	
+	V_End = VIDEO_GET_VSYNC_BOTTOM(ast_vgavideo_read(ast_video, AST_VIDEO_V_DETECT_STS)); 	
 
 	VIDEO_DBG("Get H_Start = %d, H_End = %d, V_Start = %d, V_End = %d\n", H_Start, H_End, V_Start, V_End);
 
@@ -1545,50 +1545,50 @@ static void ast_video_mode_detect_info(struct ast_video_data *ast_video)
 }
 
 
-static irqreturn_t ast_video_isr(int this_irq, void *dev_id)
+static irqreturn_t ast_vgavideo_isr(int this_irq, void *dev_id)
 {
 	u32 status;
 	u32 swap0, swap1; 
-	struct ast_video_data *ast_video = dev_id;
+	struct ast_vgavideo_data *ast_video = dev_id;
 
-	status = ast_video_read(ast_video, AST_VIDEO_INT_STS);
+	status = ast_vgavideo_read(ast_video, AST_VIDEO_INT_STS);
 
 	VIDEO_DBG("%x \n", status);
 
 	if(status & VIDEO_MODE_DETECT_RDY) {
-		ast_video_write(ast_video, VIDEO_MODE_DETECT_RDY, AST_VIDEO_INT_STS);
+		ast_vgavideo_write(ast_video, VIDEO_MODE_DETECT_RDY, AST_VIDEO_INT_STS);
 		complete(&ast_video->mode_detect_complete);
 	}
 
 	if(status & VIDEO_MODE_DETECT_WDT) {
 		ast_video->mode_change = 1;
 		VIDEO_DBG("change 1\n");
-		ast_video_write(ast_video, VIDEO_MODE_DETECT_WDT, AST_VIDEO_INT_STS);
+		ast_vgavideo_write(ast_video, VIDEO_MODE_DETECT_WDT, AST_VIDEO_INT_STS);
 	}
 
-	if(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & VIDEO_AUTO_COMPRESS) {
+	if(ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) & VIDEO_AUTO_COMPRESS) {
 		if((status & (VIDEO_COMPRESS_COMPLETE | VIDEO_CAPTURE_COMPLETE)) ==  (VIDEO_COMPRESS_COMPLETE | VIDEO_CAPTURE_COMPLETE)) {
-			ast_video_write(ast_video, VIDEO_COMPRESS_COMPLETE | VIDEO_CAPTURE_COMPLETE, AST_VIDEO_INT_STS);
-			swap0 = ast_video_read(ast_video, AST_VIDEO_SOURCE_BUFF0);
-			swap1 = ast_video_read(ast_video, AST_VIDEO_SOURCE_BUFF1);
-			ast_video_write(ast_video, swap1, AST_VIDEO_SOURCE_BUFF0);
-			ast_video_write(ast_video, swap0, AST_VIDEO_SOURCE_BUFF1);
+			ast_vgavideo_write(ast_video, VIDEO_COMPRESS_COMPLETE | VIDEO_CAPTURE_COMPLETE, AST_VIDEO_INT_STS);
+			swap0 = ast_vgavideo_read(ast_video, AST_VIDEO_SOURCE_BUFF0);
+			swap1 = ast_vgavideo_read(ast_video, AST_VIDEO_SOURCE_BUFF1);
+			ast_vgavideo_write(ast_video, swap1, AST_VIDEO_SOURCE_BUFF0);
+			ast_vgavideo_write(ast_video, swap0, AST_VIDEO_SOURCE_BUFF1);
 			VIDEO_DBG("auto mode complete \n");
 			complete(&ast_video->automode_complete);
 		}	
 	} else {
 		if (status & VIDEO_COMPRESS_COMPLETE) {
-			ast_video_write(ast_video, VIDEO_COMPRESS_COMPLETE, AST_VIDEO_INT_STS);
+			ast_vgavideo_write(ast_video, VIDEO_COMPRESS_COMPLETE, AST_VIDEO_INT_STS);
 			VIDEO_DBG("compress complete \n");		
 			complete(&ast_video->compression_complete);
 		}
 		if (status & VIDEO_CAPTURE_COMPLETE) {
-			ast_video_write(ast_video, VIDEO_CAPTURE_COMPLETE, AST_VIDEO_INT_STS);
+			ast_vgavideo_write(ast_video, VIDEO_CAPTURE_COMPLETE, AST_VIDEO_INT_STS);
 			VIDEO_DBG("capture complete \n");				
-			swap0 = ast_video_read(ast_video, AST_VIDEO_SOURCE_BUFF0);
-			swap1 = ast_video_read(ast_video, AST_VIDEO_SOURCE_BUFF1);
-			ast_video_write(ast_video, swap1, AST_VIDEO_SOURCE_BUFF0);
-			ast_video_write(ast_video, swap0, AST_VIDEO_SOURCE_BUFF1);			
+			swap0 = ast_vgavideo_read(ast_video, AST_VIDEO_SOURCE_BUFF0);
+			swap1 = ast_vgavideo_read(ast_video, AST_VIDEO_SOURCE_BUFF1);
+			ast_vgavideo_write(ast_video, swap1, AST_VIDEO_SOURCE_BUFF0);
+			ast_vgavideo_write(ast_video, swap0, AST_VIDEO_SOURCE_BUFF1);			
 			complete(&ast_video->capture_complete);
 		}
 	}
@@ -1596,63 +1596,63 @@ static irqreturn_t ast_video_isr(int this_irq, void *dev_id)
     return IRQ_HANDLED;
 }
 
-static void ast_video_ctrl_init(struct ast_video_data *ast_video)
+static void ast_vgavideo_ctrl_init(struct ast_vgavideo_data *ast_video)
 {
 	VIDEO_DBG("\n");
 
-	ast_video_write(ast_video, (u32)ast_video->buff0_phy, AST_VIDEO_SOURCE_BUFF0);
-	ast_video_write(ast_video, (u32)ast_video->buff1_phy, AST_VIDEO_SOURCE_BUFF1);
-	ast_video_write(ast_video, (u32)ast_video->bcd_phy, AST_VIDEO_BCD_BUFF);
-	ast_video_write(ast_video, (u32)ast_video->stream_phy, AST_VIDEO_STREAM_BUFF);
-	ast_video_write(ast_video, (u32)ast_video->jpeg_tbl_phy, AST_VIDEO_JPEG_HEADER_BUFF);
-	ast_video_write(ast_video, (u32)ast_video->jpeg_tbl_phy, AST_VM_JPEG_HEADER_BUFF);		
-	ast_video_write(ast_video, (u32)ast_video->jpeg_buf0_phy, AST_VM_SOURCE_BUFF0);
-	ast_video_write(ast_video, (u32)ast_video->jpeg_phy, AST_VM_COMPRESS_BUFF);
-	ast_video_write(ast_video, 0, AST_VIDEO_COMPRESS_READ);
+	ast_vgavideo_write(ast_video, (u32)ast_video->buff0_phy, AST_VIDEO_SOURCE_BUFF0);
+	ast_vgavideo_write(ast_video, (u32)ast_video->buff1_phy, AST_VIDEO_SOURCE_BUFF1);
+	ast_vgavideo_write(ast_video, (u32)ast_video->bcd_phy, AST_VIDEO_BCD_BUFF);
+	ast_vgavideo_write(ast_video, (u32)ast_video->stream_phy, AST_VIDEO_STREAM_BUFF);
+	ast_vgavideo_write(ast_video, (u32)ast_video->jpeg_tbl_phy, AST_VIDEO_JPEG_HEADER_BUFF);
+	ast_vgavideo_write(ast_video, (u32)ast_video->jpeg_tbl_phy, AST_VM_JPEG_HEADER_BUFF);		
+	ast_vgavideo_write(ast_video, (u32)ast_video->jpeg_buf0_phy, AST_VM_SOURCE_BUFF0);
+	ast_vgavideo_write(ast_video, (u32)ast_video->jpeg_phy, AST_VM_COMPRESS_BUFF);
+	ast_vgavideo_write(ast_video, 0, AST_VIDEO_COMPRESS_READ);
 
 	//clr int sts
-	ast_video_write(ast_video, 0xffffffff, AST_VIDEO_INT_STS);
-	ast_video_write(ast_video, 0, AST_VIDEO_BCD_CTRL);
+	ast_vgavideo_write(ast_video, 0xffffffff, AST_VIDEO_INT_STS);
+	ast_vgavideo_write(ast_video, 0, AST_VIDEO_BCD_CTRL);
 
 	// =============================  JPEG init ===========================================
 	ast_init_jpeg_table(ast_video);
-	ast_video_write(ast_video,  VM_STREAM_PKT_SIZE(STREAM_3MB), AST_VM_STREAM_SIZE);
-	ast_video_write(ast_video,  0x00080000 | VIDEO_DCT_LUM(4) | VIDEO_DCT_CHROM(4 + 16) | VIDEO_DCT_ONLY_ENCODE, AST_VM_COMPRESS_CTRL);
+	ast_vgavideo_write(ast_video,  VM_STREAM_PKT_SIZE(STREAM_3MB), AST_VM_STREAM_SIZE);
+	ast_vgavideo_write(ast_video,  0x00080000 | VIDEO_DCT_LUM(4) | VIDEO_DCT_CHROM(4 + 16) | VIDEO_DCT_ONLY_ENCODE, AST_VM_COMPRESS_CTRL);
 
 	//WriteMMIOLong(0x1e700238, 0x00000000);
 	//WriteMMIOLong(0x1e70023c, 0x00000000);
 
-	ast_video_write(ast_video, 0x00001E00, AST_VM_SOURCE_SCAN_LINE); //buffer pitch
-	ast_video_write(ast_video, 0x00000000, 0x268);
-	ast_video_write(ast_video, 0x00001234, 0x280);
+	ast_vgavideo_write(ast_video, 0x00001E00, AST_VM_SOURCE_SCAN_LINE); //buffer pitch
+	ast_vgavideo_write(ast_video, 0x00000000, 0x268);
+	ast_vgavideo_write(ast_video, 0x00001234, 0x280);
 
-	ast_video_write(ast_video, 0x00000000, AST_VM_PASS_CTRL);
-	ast_video_write(ast_video, 0x00000000, AST_VM_BCD_CTRL);
+	ast_vgavideo_write(ast_video, 0x00000000, AST_VM_PASS_CTRL);
+	ast_vgavideo_write(ast_video, 0x00000000, AST_VM_BCD_CTRL);
 
 	// ===============================================================================
 
 
 	//Specification define bit 12:13 must always 0;
-	ast_video_write(ast_video, (ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) & 
+	ast_vgavideo_write(ast_video, (ast_vgavideo_read(ast_video, AST_VIDEO_PASS_CTRL) & 
 				~(VIDEO_DUAL_EDGE_MODE | VIDEO_18BIT_SINGLE_EDGE)) |
 				VIDEO_DVO_INPUT_DELAY(0x4), 
 				AST_VIDEO_PASS_CTRL); 
 
-	ast_video_write(ast_video, VIDEO_STREAM_PKT_N(STREAM_32_PKTS) | 
+	ast_vgavideo_write(ast_video, VIDEO_STREAM_PKT_N(STREAM_32_PKTS) | 
 				VIDEO_STREAM_PKT_SIZE(STREAM_128KB), AST_VIDEO_STREAM_SIZE);
 
 
 	//rc4 init reset ..
-	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_CTRL) | VIDEO_CTRL_RC4_RST , AST_VIDEO_CTRL);
-	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_CTRL) & ~VIDEO_CTRL_RC4_RST , AST_VIDEO_CTRL);
+	ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_CTRL) | VIDEO_CTRL_RC4_RST , AST_VIDEO_CTRL);
+	ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_CTRL) & ~VIDEO_CTRL_RC4_RST , AST_VIDEO_CTRL);
 
 	//CRC/REDUCE_BIT register clear
-	ast_video_write(ast_video, 0, AST_VIDEO_CRC1);
-	ast_video_write(ast_video, 0, AST_VIDEO_CRC2);
-	ast_video_write(ast_video, 0, AST_VIDEO_DATA_TRUNCA);
-	ast_video_write(ast_video, 0, AST_VIDEO_COMPRESS_READ);
+	ast_vgavideo_write(ast_video, 0, AST_VIDEO_CRC1);
+	ast_vgavideo_write(ast_video, 0, AST_VIDEO_CRC2);
+	ast_vgavideo_write(ast_video, 0, AST_VIDEO_DATA_TRUNCA);
+	ast_vgavideo_write(ast_video, 0, AST_VIDEO_COMPRESS_READ);
 
-	ast_video_write(ast_video, (ast_video_read(ast_video, AST_VIDEO_MODE_DETECT) & 0xff) |
+	ast_vgavideo_write(ast_video, (ast_vgavideo_read(ast_video, AST_VIDEO_MODE_DETECT) & 0xff) |
 									VIDEO_MODE_HOR_TOLER(6) |
 									VIDEO_MODE_VER_TOLER(6) |
 									VIDEO_MODE_HOR_STABLE(2) |
@@ -1661,14 +1661,14 @@ static void ast_video_ctrl_init(struct ast_video_data *ast_video)
 									, AST_VIDEO_MODE_DETECT);	
 }
 
-static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
+static long ast_vgavideo_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
 	int ret = 1;
 	u32 ctrl = 0;
 	struct miscdevice *c = fp->private_data;
-	struct ast_video_data *ast_video = dev_get_drvdata(c->this_device);
+	struct ast_vgavideo_data *ast_video = dev_get_drvdata(c->this_device);
 	struct ast_scaling set_scaling;
-	struct ast_video_config video_config;
+	struct ast_vgavideo_config video_config;
 	
 	int vga_enable = 0;
 	struct ast_mode_detection mode_detection;	
@@ -1688,28 +1688,28 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 			break;
 		case AST_VIDEO_VGA_MODE_DETECTION:
 			ret = copy_from_user(&mode_detection, argp, sizeof(struct ast_mode_detection));
-			ast_video_vga_mode_detect(ast_video, &mode_detection);
+			ast_vgavideo_vga_mode_detect(ast_video, &mode_detection);
 			ret = copy_to_user(argp, &mode_detection, sizeof(struct ast_mode_detection));
 			break;	
 		case AST_VIDEO_ENG_CONFIG:
-			ret = copy_from_user(&video_config, argp, sizeof(struct ast_video_config));
+			ret = copy_from_user(&video_config, argp, sizeof(struct ast_vgavideo_config));
 
-			ast_video_set_eng_config(ast_video, &video_config);
+			ast_vgavideo_set_eng_config(ast_video, &video_config);
 			break;
 		case AST_VIDEO_SET_SCALING:
 			ret = copy_from_user(&set_scaling, argp, sizeof(struct ast_scaling));
 			switch(set_scaling.engine) {
 				case 0:
-					ast_video_set_0_scaling(ast_video, &set_scaling);
+					ast_vgavideo_set_0_scaling(ast_video, &set_scaling);
 					break;
 				case 1:
-					ast_video_set_1_scaling(ast_video, &set_scaling);
+					ast_vgavideo_set_1_scaling(ast_video, &set_scaling);
 					break;
 			}
 			break;
 		case AST_VIDEO_AUTOMODE_TRIGGER:
 			ret = copy_from_user(&auto_mode, argp, sizeof(struct ast_auto_mode));
-			ast_video_auto_mode_trigger(ast_video, &auto_mode);
+			ast_vgavideo_auto_mode_trigger(ast_video, &auto_mode);
 			ret = copy_to_user(argp, &auto_mode, sizeof(struct ast_auto_mode));
 			break;
 		case AST_VIDEO_CAPTURE_TRIGGER:
@@ -1729,10 +1729,10 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 }
 
 /** @note munmap handler is done by vma close handler */
-static int ast_video_mmap(struct file * file, struct vm_area_struct * vma)
+static int ast_vgavideo_mmap(struct file * file, struct vm_area_struct * vma)
 {
         struct miscdevice *c = file->private_data;
-        struct ast_video_data *ast_video = dev_get_drvdata(c->this_device);
+        struct ast_vgavideo_data *ast_video = dev_get_drvdata(c->this_device);
         size_t size = vma->vm_end - vma->vm_start;
         vma->vm_private_data = ast_video;
 
@@ -1763,10 +1763,10 @@ static int ast_video_mmap(struct file * file, struct vm_area_struct * vma)
         return 0;
 }
 
-static int ast_video_open(struct inode *inode, struct file *file)
+static int ast_vgavideo_open(struct inode *inode, struct file *file)
 {
         struct miscdevice *c = file->private_data;
-        struct ast_video_data *ast_video = dev_get_drvdata(c->this_device);
+        struct ast_vgavideo_data *ast_video = dev_get_drvdata(c->this_device);
 
         VIDEO_DBG("\n");
 
@@ -1776,10 +1776,10 @@ static int ast_video_open(struct inode *inode, struct file *file)
 
 }
 
-static int ast_video_release(struct inode *inode, struct file *file)
+static int ast_vgavideo_release(struct inode *inode, struct file *file)
 {
         struct miscdevice *c = file->private_data;
-        struct ast_video_data *ast_video = dev_get_drvdata(c->this_device);
+        struct ast_vgavideo_data *ast_video = dev_get_drvdata(c->this_device);
 
         VIDEO_DBG("\n");
 
@@ -1787,26 +1787,26 @@ static int ast_video_release(struct inode *inode, struct file *file)
         return 0;
 }
 
-static const struct file_operations ast_video_fops = {
+static const struct file_operations ast_vgavideo_fops = {
 	.owner 			= THIS_MODULE,
 	.llseek 			= no_llseek,
-	.unlocked_ioctl 	= ast_video_ioctl,
-	.open 			= ast_video_open,
-	.release 			= ast_video_release,
-	.mmap 			= ast_video_mmap,
+	.unlocked_ioctl 	= ast_vgavideo_ioctl,
+	.open 			= ast_vgavideo_open,
+	.release 			= ast_vgavideo_release,
+	.mmap 			= ast_vgavideo_mmap,
 };
 
-struct miscdevice ast_video_misc = {
+struct miscdevice ast_vgavideo_misc = {
 	.minor = MISC_DYNAMIC_MINOR,
 	.name = "ast-video",
-	.fops = &ast_video_fops,
+	.fops = &ast_vgavideo_fops,
 };
 
 /************************************************** SYS FS **************************************************************/
 static ssize_t show_vga_display(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct ast_video_data *ast_video = dev_get_drvdata(dev);
+	struct ast_vgavideo_data *ast_video = dev_get_drvdata(dev);
 	return sprintf(buf, "%d: %s\n", ast_video->plat_data->get_vga_display(), ast_video->plat_data->get_vga_display()? "Enable":"Disable");
 }
 
@@ -1814,7 +1814,7 @@ static ssize_t store_vga_display(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	u32 val;	
-	struct ast_video_data *ast_video = dev_get_drvdata(dev);
+	struct ast_vgavideo_data *ast_video = dev_get_drvdata(dev);
 
 	val = simple_strtoul(buf, NULL, 10);
 
@@ -1832,16 +1832,16 @@ static ssize_t store_video_reset(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	u32 val;	
-	struct ast_video_data *ast_video = dev_get_drvdata(dev);
+	struct ast_vgavideo_data *ast_video = dev_get_drvdata(dev);
 
 	val = simple_strtoul(buf, NULL, 10);
 
 	if(val) {
 		ast_video->plat_data->ctrl_reset();
 		//rc4 init reset ..
-		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_CTRL) | VIDEO_CTRL_RC4_RST , AST_VIDEO_CTRL);
-		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_CTRL) & ~VIDEO_CTRL_RC4_RST , AST_VIDEO_CTRL);
-		ast_video_ctrl_init(ast_video);
+		ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_CTRL) | VIDEO_CTRL_RC4_RST , AST_VIDEO_CTRL);
+		ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_CTRL) & ~VIDEO_CTRL_RC4_RST , AST_VIDEO_CTRL);
+		ast_vgavideo_ctrl_init(ast_video);
 	}
 	
 	return count;
@@ -1853,12 +1853,12 @@ static ssize_t show_video_mode_detect(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int ret = 0;
-	struct ast_video_data *ast_video = dev_get_drvdata(dev);
+	struct ast_vgavideo_data *ast_video = dev_get_drvdata(dev);
 
 	if (ret < 0)
 		return ret;
 
-	ast_video_mode_detect_info(ast_video);
+	ast_vgavideo_mode_detect_info(ast_video);
 
 	return sprintf(buf, "%i\n", ret);
 }
@@ -1867,19 +1867,19 @@ static ssize_t store_video_mode_detect(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	u32 val;	
-	struct ast_video_data *ast_video = dev_get_drvdata(dev);
+	struct ast_vgavideo_data *ast_video = dev_get_drvdata(dev);
 
 	val = simple_strtoul(buf, NULL, 10);
 
 	if(val)
-		ast_video_mode_detect_trigger(ast_video);
+		ast_vgavideo_mode_detect_trigger(ast_video);
 	
 	return count;
 }
 
 static DEVICE_ATTR(video_mode_detect, S_IRUGO | S_IWUSR, show_video_mode_detect, store_video_mode_detect); 
 
-static struct attribute *ast_video_attributes[] = {
+static struct attribute *ast_vgavideo_attributes[] = {
 	&dev_attr_vga_display.attr,
 	&dev_attr_video_reset.attr,
 	&dev_attr_video_mode_detect.attr,
@@ -1897,23 +1897,23 @@ static struct attribute *ast_video_attributes[] = {
 };
 
 static const struct attribute_group video_attribute_group = {
-	.attrs = ast_video_attributes
+	.attrs = ast_vgavideo_attributes
 };
 
 /**************************   Vudeo SYSFS  **********************************************************/
-enum ast_video_trigger_mode {
+enum ast_vgavideo_trigger_mode {
 	VIDEO_CAPTURE_MODE = 0,
 	VIDEO_COMPRESSION_MODE,
 	VIDEO_BUFFER_MODE,
 };
 
-static u8 ast_get_trigger_mode(struct ast_video_data *ast_video, u8 eng_idx) 
+static u8 ast_get_trigger_mode(struct ast_vgavideo_data *ast_video, u8 eng_idx) 
 {
 	//VR0004[3:5] 00:capture/compression/buffer
 	u32 mode=0;
 	switch(eng_idx) {
 		case 0:
-			mode = ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & (VIDEO_CAPTURE_MULTI_FRAME | VIDEO_AUTO_COMPRESS);
+			mode = ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) & (VIDEO_CAPTURE_MULTI_FRAME | VIDEO_AUTO_COMPRESS);
 			if(mode == 0) {
 				return VIDEO_CAPTURE_MODE;
 			} else if(mode == VIDEO_AUTO_COMPRESS) {
@@ -1924,7 +1924,7 @@ static u8 ast_get_trigger_mode(struct ast_video_data *ast_video, u8 eng_idx)
 				printk("ERROR Mode \n");
 			}
 		case 1:
-			mode = ast_video_read(ast_video, AST_VM_SEQ_CTRL) & (VIDEO_CAPTURE_MULTI_FRAME | VIDEO_AUTO_COMPRESS);
+			mode = ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL) & (VIDEO_CAPTURE_MULTI_FRAME | VIDEO_AUTO_COMPRESS);
 			if(mode == 0) {
 				return VIDEO_CAPTURE_MODE;
 			} else if(mode == VIDEO_AUTO_COMPRESS) {
@@ -1940,28 +1940,28 @@ static u8 ast_get_trigger_mode(struct ast_video_data *ast_video, u8 eng_idx)
 	return mode;
 }
 
-static void ast_set_trigger_mode(struct ast_video_data *ast_video, u8 eng_idx, u8 mode) 
+static void ast_set_trigger_mode(struct ast_vgavideo_data *ast_video, u8 eng_idx, u8 mode) 
 {
 	//VR0004[3:5] 00/01/11:capture/frame/stream
 	switch(eng_idx) {
 		case 0:	//video 1 
 			if(mode == VIDEO_CAPTURE_MODE) {
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~(VIDEO_CAPTURE_MULTI_FRAME | VIDEO_AUTO_COMPRESS), AST_VIDEO_SEQ_CTRL);
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~(VIDEO_CAPTURE_MULTI_FRAME | VIDEO_AUTO_COMPRESS), AST_VIDEO_SEQ_CTRL);
 			} else if (mode == VIDEO_COMPRESSION_MODE) {
-				ast_video_write(ast_video, (ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_AUTO_COMPRESS) & ~(VIDEO_CAPTURE_MULTI_FRAME) , AST_VIDEO_SEQ_CTRL);
+				ast_vgavideo_write(ast_video, (ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_AUTO_COMPRESS) & ~(VIDEO_CAPTURE_MULTI_FRAME) , AST_VIDEO_SEQ_CTRL);
 			} else if (mode == VIDEO_BUFFER_MODE) {
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_CAPTURE_MULTI_FRAME | VIDEO_AUTO_COMPRESS ,AST_VIDEO_SEQ_CTRL);	
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_CAPTURE_MULTI_FRAME | VIDEO_AUTO_COMPRESS ,AST_VIDEO_SEQ_CTRL);	
 			} else {
 				printk("ERROR Mode \n");
 			}
 			break;
 		case 1:	//video M
 			if(mode == VIDEO_CAPTURE_MODE) {
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) & ~(VIDEO_CAPTURE_MULTI_FRAME | VIDEO_AUTO_COMPRESS), AST_VM_SEQ_CTRL);
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL) & ~(VIDEO_CAPTURE_MULTI_FRAME | VIDEO_AUTO_COMPRESS), AST_VM_SEQ_CTRL);
 			} else if (mode == VIDEO_COMPRESSION_MODE) {
-				ast_video_write(ast_video, (ast_video_read(ast_video, AST_VM_SEQ_CTRL) | VIDEO_AUTO_COMPRESS) & ~(VIDEO_CAPTURE_MULTI_FRAME) , AST_VM_SEQ_CTRL);
+				ast_vgavideo_write(ast_video, (ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL) | VIDEO_AUTO_COMPRESS) & ~(VIDEO_CAPTURE_MULTI_FRAME) , AST_VM_SEQ_CTRL);
 			} else if (mode == VIDEO_BUFFER_MODE) {
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) | VIDEO_CAPTURE_MULTI_FRAME | VIDEO_AUTO_COMPRESS ,AST_VM_SEQ_CTRL);	
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL) | VIDEO_CAPTURE_MULTI_FRAME | VIDEO_AUTO_COMPRESS ,AST_VM_SEQ_CTRL);	
 			} else {
 				printk("ERROR Mode \n");
 			}
@@ -1969,35 +1969,35 @@ static void ast_set_trigger_mode(struct ast_video_data *ast_video, u8 eng_idx, u
 	}
 }
 
-static u8 ast_get_compress_yuv_mode(struct ast_video_data *ast_video, u8 eng_idx) 
+static u8 ast_get_compress_yuv_mode(struct ast_vgavideo_data *ast_video, u8 eng_idx) 
 {
 	switch(eng_idx) {
 		case 0:
-			return VIDEO_GET_COMPRESS_FORMAT(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL));
+			return VIDEO_GET_COMPRESS_FORMAT(ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL));
 			break;
 		case 1:
-			return VIDEO_GET_COMPRESS_FORMAT(ast_video_read(ast_video, AST_VM_SEQ_CTRL));
+			return VIDEO_GET_COMPRESS_FORMAT(ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL));
 			break;
 	}
 	return 0;
 }
 
-static void ast_set_compress_yuv_mode(struct ast_video_data *ast_video, u8 eng_idx, u8 yuv_mode) 
+static void ast_set_compress_yuv_mode(struct ast_vgavideo_data *ast_video, u8 eng_idx, u8 yuv_mode) 
 {
 	int i, base=0;
 
 	switch(eng_idx) {
 		case 0:	//video 1 
 			if(yuv_mode) 	//YUV420
-				ast_video_write(ast_video, (ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~VIDEO_COMPRESS_FORMAT_MASK) | VIDEO_COMPRESS_FORMAT(YUV420) , AST_VIDEO_SEQ_CTRL);
+				ast_vgavideo_write(ast_video, (ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~VIDEO_COMPRESS_FORMAT_MASK) | VIDEO_COMPRESS_FORMAT(YUV420) , AST_VIDEO_SEQ_CTRL);
 			else
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~VIDEO_COMPRESS_FORMAT_MASK , AST_VIDEO_SEQ_CTRL);
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~VIDEO_COMPRESS_FORMAT_MASK , AST_VIDEO_SEQ_CTRL);
 			break;
 		case 1:	//video M
 			if(yuv_mode) 	//YUV420
-				ast_video_write(ast_video, (ast_video_read(ast_video, AST_VM_SEQ_CTRL) & ~VIDEO_COMPRESS_FORMAT_MASK) | VIDEO_COMPRESS_FORMAT(YUV420) , AST_VM_SEQ_CTRL);
+				ast_vgavideo_write(ast_video, (ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL) & ~VIDEO_COMPRESS_FORMAT_MASK) | VIDEO_COMPRESS_FORMAT(YUV420) , AST_VM_SEQ_CTRL);
 			else
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) & ~VIDEO_COMPRESS_FORMAT_MASK, AST_VM_SEQ_CTRL);
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL) & ~VIDEO_COMPRESS_FORMAT_MASK, AST_VM_SEQ_CTRL);
 
 			for(i = 0; i<12; i++) {
 				base = (1024*i);
@@ -2011,17 +2011,17 @@ static void ast_set_compress_yuv_mode(struct ast_video_data *ast_video, u8 eng_i
 	}
 }
 
-static u8 ast_get_compress_jpeg_mode(struct ast_video_data *ast_video, u8 eng_idx) 
+static u8 ast_get_compress_jpeg_mode(struct ast_vgavideo_data *ast_video, u8 eng_idx) 
 {
 	switch(eng_idx) {
 		case 0:
-			if(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & VIDEO_COMPRESS_JPEG_MODE)
+			if(ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) & VIDEO_COMPRESS_JPEG_MODE)
 				return 1;
 			else
 				return 0;
 			break;
 		case 1:
-			if(ast_video_read(ast_video, AST_VM_SEQ_CTRL) & VIDEO_COMPRESS_JPEG_MODE)
+			if(ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL) & VIDEO_COMPRESS_JPEG_MODE)
 				return 1;
 			else
 				return 0;
@@ -2029,35 +2029,35 @@ static u8 ast_get_compress_jpeg_mode(struct ast_video_data *ast_video, u8 eng_id
 	}			
 }
 
-static void ast_set_compress_jpeg_mode(struct ast_video_data *ast_video, u8 eng_idx, u8 jpeg_mode) 
+static void ast_set_compress_jpeg_mode(struct ast_vgavideo_data *ast_video, u8 eng_idx, u8 jpeg_mode) 
 {
 	switch(eng_idx) {
 		case 0:	//video 1 
 			if(jpeg_mode) 	
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_COMPRESS_JPEG_MODE, AST_VIDEO_SEQ_CTRL);
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_COMPRESS_JPEG_MODE, AST_VIDEO_SEQ_CTRL);
 			else
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~VIDEO_COMPRESS_JPEG_MODE , AST_VIDEO_SEQ_CTRL);
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~VIDEO_COMPRESS_JPEG_MODE , AST_VIDEO_SEQ_CTRL);
 			break;
 		case 1:	//video M
 			if(jpeg_mode) 	
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) | VIDEO_COMPRESS_JPEG_MODE, AST_VM_SEQ_CTRL);
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL) | VIDEO_COMPRESS_JPEG_MODE, AST_VM_SEQ_CTRL);
 			else
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) & ~VIDEO_COMPRESS_JPEG_MODE , AST_VM_SEQ_CTRL);			
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VM_SEQ_CTRL) & ~VIDEO_COMPRESS_JPEG_MODE , AST_VM_SEQ_CTRL);			
 			break;
 	}
 }
 
-static u8 ast_get_compress_encrypt_en(struct ast_video_data *ast_video, u8 eng_idx) 
+static u8 ast_get_compress_encrypt_en(struct ast_vgavideo_data *ast_video, u8 eng_idx) 
 {
 	switch(eng_idx) {
 		case 0:
-			if(ast_video_read(ast_video, AST_VIDEO_COMPRESS_CTRL) & VIDEO_ENCRYP_ENABLE)
+			if(ast_vgavideo_read(ast_video, AST_VIDEO_COMPRESS_CTRL) & VIDEO_ENCRYP_ENABLE)
 				return 1;
 			else
 				return 0;
 			break;
 		case 1:
-			if(ast_video_read(ast_video, AST_VM_COMPRESS_CTRL) & VIDEO_ENCRYP_ENABLE)
+			if(ast_vgavideo_read(ast_video, AST_VM_COMPRESS_CTRL) & VIDEO_ENCRYP_ENABLE)
 				return 1;
 			else
 				return 0;
@@ -2065,25 +2065,25 @@ static u8 ast_get_compress_encrypt_en(struct ast_video_data *ast_video, u8 eng_i
 	}			
 }
 
-static void ast_set_compress_encrypt_en(struct ast_video_data *ast_video, u8 eng_idx, u8 enable) 
+static void ast_set_compress_encrypt_en(struct ast_vgavideo_data *ast_video, u8 eng_idx, u8 enable) 
 {
 	switch(eng_idx) {
 		case 0:	//video 1 
 			if(enable) {
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_COMPRESS_CTRL) | VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);		
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_COMPRESS_CTRL) | VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);		
 			} else {
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_COMPRESS_CTRL) & ~VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_COMPRESS_CTRL) & ~VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);
 			}
 		case 1:	//video M
 			if(enable) {
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_COMPRESS_CTRL) | VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);		
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VM_COMPRESS_CTRL) | VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);		
 			} else {
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_COMPRESS_CTRL) & ~VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);
+				ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VM_COMPRESS_CTRL) & ~VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);
 			}
 	}
 }
 
-static u8 *ast_get_compress_encrypt_key(struct ast_video_data *ast_video, u8 eng_idx) 
+static u8 *ast_get_compress_encrypt_key(struct ast_vgavideo_data *ast_video, u8 eng_idx) 
 {
 	switch(eng_idx) {
 		case 0:
@@ -2095,41 +2095,41 @@ static u8 *ast_get_compress_encrypt_key(struct ast_video_data *ast_video, u8 eng
 	}
 }
 
-static void ast_set_compress_encrypt_key(struct ast_video_data *ast_video, u8 eng_idx, u8 *key) 
+static void ast_set_compress_encrypt_key(struct ast_vgavideo_data *ast_video, u8 eng_idx, u8 *key) 
 {
 	switch(eng_idx) {
 		case 0:	//video 1 
 			memset(ast_video->EncodeKeys, 0, 256);
 			//due to system have enter key must be remove
 			memcpy(ast_video->EncodeKeys, key, strlen(key) - 1);
-			ast_video_encryption_key_setup(ast_video);
+			ast_vgavideo_encryption_key_setup(ast_video);
 			break;
 		case 1:	//video M
 			break;		
 	}
 }
 
-static u8 ast_get_compress_encrypt_mode(struct ast_video_data *ast_video) 
+static u8 ast_get_compress_encrypt_mode(struct ast_vgavideo_data *ast_video) 
 {
-	if(ast_video_read(ast_video, AST_VIDEO_CTRL) & VIDEO_CTRL_CRYPTO_AES)
+	if(ast_vgavideo_read(ast_video, AST_VIDEO_CTRL) & VIDEO_CTRL_CRYPTO_AES)
 		return 1;
 	else
 		return 0;
 }
 
-static void ast_set_compress_encrypt_mode(struct ast_video_data *ast_video, u8 mode) 
+static void ast_set_compress_encrypt_mode(struct ast_vgavideo_data *ast_video, u8 mode) 
 {
 	if(mode)
-		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_CTRL) | VIDEO_CTRL_CRYPTO_AES, AST_VIDEO_CTRL);
+		ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_CTRL) | VIDEO_CTRL_CRYPTO_AES, AST_VIDEO_CTRL);
 	else
-		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_CTRL) & ~VIDEO_CTRL_CRYPTO_AES, AST_VIDEO_CTRL);
+		ast_vgavideo_write(ast_video, ast_vgavideo_read(ast_video, AST_VIDEO_CTRL) & ~VIDEO_CTRL_CRYPTO_AES, AST_VIDEO_CTRL);
 }
 
 static ssize_t 
 ast_store_compress(struct device *dev, struct device_attribute *attr, const char *sysfsbuf, size_t count)
 {
 	u32 input_val;
-	struct ast_video_data *ast_video = dev_get_drvdata(dev);
+	struct ast_vgavideo_data *ast_video = dev_get_drvdata(dev);
 	struct sensor_device_attribute_2 *sensor_attr = to_sensor_dev_attr_2(attr);
 
 	input_val = simple_strtoul(sysfsbuf, NULL, 10);
@@ -2168,7 +2168,7 @@ ast_store_compress(struct device *dev, struct device_attribute *attr, const char
 static ssize_t 
 ast_show_compress(struct device *dev, struct device_attribute *attr, char *sysfsbuf)
 {
-	struct ast_video_data *ast_video = dev_get_drvdata(dev);
+	struct ast_vgavideo_data *ast_video = dev_get_drvdata(dev);
 	struct sensor_device_attribute_2 *sensor_attr = to_sensor_dev_attr_2(attr);
 
 	//sensor_attr->index : ch#
@@ -2233,12 +2233,12 @@ static const struct attribute_group compress_attribute_groups[] = {
 };
 
 /************************************************** SYS FS End ***********************************************************/
-static int ast_video_probe(struct platform_device *pdev)
+static int ast_vgavideo_probe(struct platform_device *pdev)
 {
 	struct resource *res0, *res1;
 	int ret=0;
 	int i;
-	struct ast_video_data *ast_video;
+	struct ast_vgavideo_data *ast_video;
 
 	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res0) {
@@ -2253,7 +2253,7 @@ static int ast_video_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	if(!(ast_video = kzalloc(sizeof(struct ast_video_data), GFP_KERNEL))) {
+	if(!(ast_video = kzalloc(sizeof(struct ast_vgavideo_data), GFP_KERNEL))) {
 		return -ENOMEM;
 		goto out;
         }
@@ -2327,7 +2327,7 @@ static int ast_video_probe(struct platform_device *pdev)
 	//TEST
 	ast_video->plat_data->get_vga_base();
 
-	ret = misc_register(&ast_video_misc);
+	ret = misc_register(&ast_vgavideo_misc);
 	if (ret){		
 		printk(KERN_ERR "VIDEO : failed to request interrupt\n");
 		goto out_irq;
@@ -2347,18 +2347,18 @@ static int ast_video_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, ast_video);
-	dev_set_drvdata(ast_video_misc.this_device, ast_video);
+	dev_set_drvdata(ast_vgavideo_misc.this_device, ast_video);
 
-	ast_video_ctrl_init(ast_video);
+	ast_vgavideo_ctrl_init(ast_video);
 
-	ret = request_irq(ast_video->irq, ast_video_isr, IRQF_SHARED, "ast-video", ast_video);
+	ret = request_irq(ast_video->irq, ast_vgavideo_isr, IRQF_SHARED, "ast-video", ast_video);
 	if (ret) {
 		printk(KERN_INFO "VIDEO: Failed request irq %d\n", ast_video->irq);
 		goto out_region1;
 	}
 
 #if 0
-       ast_video->thread_task = kthread_create(ast_video_thread, (void *) ast_video, "ast-video-kthread");
+       ast_video->thread_task = kthread_create(ast_vgavideo_thread, (void *) ast_video, "ast-video-kthread");
         if (IS_ERR(ast_video->thread_task)) {
                 printk("ast video cannot create kthread\n");
                 ret = PTR_ERR(ast_video->thread_task);
@@ -2389,13 +2389,13 @@ out:
 
 }
 
-static int ast_video_remove(struct platform_device *pdev)
+static int ast_vgavideo_remove(struct platform_device *pdev)
 {
 	struct resource *res0, *res1;
-	struct ast_video_data *ast_video = platform_get_drvdata(pdev);
-	VIDEO_DBG("ast_video_remove\n");
+	struct ast_vgavideo_data *ast_video = platform_get_drvdata(pdev);
+	VIDEO_DBG("ast_vgavideo_remove\n");
 
-	misc_deregister(&ast_video_misc);
+	misc_deregister(&ast_vgavideo_misc);
 
 	free_irq(ast_video->irq, ast_video);
 
@@ -2416,93 +2416,64 @@ static int ast_video_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 static int 
-ast_video_suspend(struct platform_device *pdev, pm_message_t state)
+ast_vgavideo_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	printk("ast_video_suspend : TODO \n");
+	printk("ast_vgavideo_suspend : TODO \n");
 	return 0;
 }
 
 static int 
-ast_video_resume(struct platform_device *pdev)
+ast_vgavideo_resume(struct platform_device *pdev)
 {
 	return 0;
 }
 
 #else
-#define ast_video_suspend        NULL
-#define ast_video_resume         NULL
+#define ast_vgavideo_suspend        NULL
+#define ast_vgavideo_resume         NULL
 #endif
 
-static const struct platform_device_id ast_video_idtable[] = {
-	{
-		.name = "ast-video",
-//		.driver_data = ast_video_data,
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, ast_video_idtable);
-
-static struct platform_driver ast_video_driver = {
-	.remove 		= ast_video_remove,
-	.suspend        = ast_video_suspend,
-	.resume         = ast_video_resume,
-	.driver  	       = {
-	        .name   = "ast-video",
-	        .owner  = THIS_MODULE,
-	},
-	.id_table	= ast_video_idtable,	
-};
-
-module_platform_driver_probe(ast_video_driver, ast_video_probe);
-
-MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
-MODULE_DESCRIPTION("AST Video Engine driver");
-MODULE_LICENSE("GPL");
-
-/***********************************************************************************/
-
-
-static struct platform_driver astvgafb_driver = {
-	.probe = astvgafb_probe,
-	.remove = astvgafb_remove,
-	.suspend = astvgafb_suspend, /* optional but recommended */
-	.resume = astvgafb_resume,   /* optional but recommended */
+static struct platform_driver ast_vgavideo_driver = {
+	.probe = ast_vgavideo_probe,
+	.remove = ast_vgavideo_remove,
+	.suspend = ast_vgavideo_suspend, /* optional but recommended */
+	.resume = ast_vgavideo_resume,   /* optional but recommended */
 	.driver = {
-		.name = "astvgafb",
+		.name = "ast_vgavideo",
+		.owner  = THIS_MODULE,
+			
 	},
 };
 
-static struct platform_device *astvgafb_device;
+static struct platform_device *ast_vgavideo_device;
 
-static int __init astvgafb_init(void)
+static int __init ast_vgavideo_init(void)
 {
 	int ret;
-	/*
-	 *  For kernel boot options (in 'video=astvgafb:<options>' format)
-	 */
-	ret = platform_driver_register(&astvgafb_driver);
+	ret = platform_driver_register(&ast_vgavideo_driver);
 
 	if (!ret) {
-		astvgafb_device = platform_device_register_simple("astvgafb", 0,
+		ast_vgavideo_device = platform_device_register_simple("ast_vgavideo", 0,
 								NULL, 0);
-
-		if (IS_ERR(astvgafb_device)) {
-			platform_driver_unregister(&astvgafb_driver);
-			ret = PTR_ERR(astvgafb_device);
+		if (IS_ERR(ast_vgavideo_device)) {
+			platform_driver_unregister(&ast_vgavideo_driver);
+			ret = PTR_ERR(ast_vgavideo_device);
 		}
 	}
 
 	return ret;
 }
 
-static void __exit astvgafb_exit(void)
+static void __exit ast_vgavideo_exit(void)
 {
-	platform_device_unregister(astvgafb_device);
-	platform_driver_unregister(&astvgafb_driver);
+	platform_device_unregister(ast_vgavideo_device);
+	platform_driver_unregister(&ast_vgavideo_driver);
 }
 
 
-module_init(astvgafb_init);
-module_exit(astvgafb_exit);
+module_init(ast_vgavideo_init);
+module_exit(ast_vgavideo_exit);
 
+MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
+MODULE_DESCRIPTION("AST Video Engine driver");
 MODULE_LICENSE("GPL");

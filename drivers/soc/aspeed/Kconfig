@@ -91,6 +91,12 @@ config AST_GPIO
 	help
 	  Driver for GPIO Controller included in ASPEED SOCs.
 
+config AST_JPEG
+	tristate "ASPEED JPEG Controller"
+	default n
+	help
+	  Driver for JPEG Controller
+
 config AST_JTAG
 	tristate "ASPEED JTAG Controller"
 	default n

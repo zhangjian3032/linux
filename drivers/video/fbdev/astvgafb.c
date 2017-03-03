@@ -436,7 +436,7 @@ static int astvgafb_probe(struct platform_device *pdev)
 
 	printk("5 \n");
 
-    retval = fb_find_mode(&info->var, info, mode_option, NULL, 0, NULL, 8);
+    retval = fb_find_mode(&info->var, info, mode_option, NULL, 0, NULL, 4);
 
        printk("6 \n");
     if (!retval || retval == 4)

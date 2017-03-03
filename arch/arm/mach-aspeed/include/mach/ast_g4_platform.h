@@ -98,20 +98,15 @@
 
 #define AST_LPC_BRIDGE						0x60000000
 
-
-#ifdef CONFIG_AST_VIDEO
 #define AST_CRT0_MEM_SIZE				SZ_8M
-#define AST_CRT0_MEM_BASE				(AST_VIDEO_MEM + 0xC000000)		//from 192MB
+#define AST_CRT0_MEM_BASE				(AST_DRAM_BASE + 0xC000000)		//from 192MB
 
 #define AST_VIDEO_MEM_SIZE				0x2800000		//40MB
 #define AST_VIDEO_MEM 					(AST_DRAM_BASE + 0xC800000)		//from 192+8 = 200MB
-#else
 
-#define AST_CRT0_MEM_SIZE				SZ_8M			
-#define AST_CRT0_MEM_BASE				(AST_VIDEO_MEM + 0xC000000)		//from 192MB
-#endif
-
+#if 0
 #define AST_CURSOR0_MEM_SIZE			SZ_1M
 #define AST_CURSOR0_MEM_BASE			(AST_CRT0_MEM_BASE + AST_CRT0_MEM_SIZE)
+#endif
 
 #endif
