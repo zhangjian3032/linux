@@ -55,6 +55,11 @@ rm -f $1/drivers/soc/aspeed/ast_egfx.c
 rm -f $1/drivers/soc/aspeed/ast_entropy.c
 rm -f $1/drivers/soc/aspeed/ast_formatter.c
 rm -f $1/drivers/soc/aspeed/ast_h264.c
+rm -f $1/drivers/soc/aspeed/ast_bitblt.c
+rm -f $1/drivers/soc/aspeed/ast_bulk.c
+rm -f $1/drivers/soc/aspeed/ast_cmdq.c
+rm -f $1/drivers/soc/aspeed/ast_hid.c
+rm -f $1/drivers/soc/aspeed/ast_mask.c
 rm -f $1/drivers/char/sram.c
 rm -f $1/drivers/usb/gadget/udc/ast_udc11.c
 rm -f $1/drivers/usb/gadget/udc/ast_udc20.c
