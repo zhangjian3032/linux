@@ -30,7 +30,6 @@ extern void __init ast_add_device_sgpio(void);
 //ADC 
 
 //Bus
-extern void __init ast_add_device_lpc(void);
 extern void __init ast_add_device_espi(void);
 extern void __init ast_add_device_kcs(void);
 extern void __init ast_add_device_bt(void);
@@ -49,8 +48,6 @@ extern void __init ast_add_device_hid(void);
 
 //USB 
 extern void __init ast_add_device_udc20(void);
-
-extern void __init ast_add_device_pcie(void);
 
 extern void __init ast_add_device_peci(void);
 extern void __init ast_add_device_jtag(void);

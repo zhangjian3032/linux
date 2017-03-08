@@ -1278,8 +1278,35 @@ static struct platform_driver ast_lpc_driver = {
 	.probe 		= ast_lpc_probe,
 };
 
+static struct platform_device *ast_lpc_device;
+
 static int __init ast_lpc_init(void)
 {
-	return platform_driver_register(&ast_lpc_driver);
+	int ret;
+
+	static struct resource ast_lpc_resource[] = {
+		[0] = {
+			.start = AST_LPC_BASE,
+			.end = AST_LPC_BASE + SZ_512 -1,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_LPC,
+			.end = IRQ_LPC,
+			.flags = IORESOURCE_IRQ,
+		},
+	};
+
+	ret = platform_driver_register(&ast_lpc_driver);
+	if (!ret) {
+		ast_lpc_device = platform_device_register_simple("ast-lpc", 0,
+								ast_lpc_resource, ARRAY_SIZE(ast_lpc_resource));
+		if (IS_ERR(ast_lpc_device)) {
+			platform_driver_unregister(&ast_lpc_driver);
+			ret = PTR_ERR(ast_lpc_device);
+		}
+	}
+	return ret;	
 }
+
 arch_initcall(ast_lpc_init);

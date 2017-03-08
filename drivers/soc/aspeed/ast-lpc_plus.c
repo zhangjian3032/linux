@@ -178,4 +178,32 @@ static int __init ast_lpc_plus_init(void)
 {
 	return platform_driver_probe(&ast_lpc_plus_driver, ast_lpc_plus_probe);
 }
+
+#if 0
+#ifdef AST_LPC_PLUS_BASE	
+	int cc_num;
+	if(gpio_get_value(PIN_GPIOI2))
+		cc_num = 2; //dual 1070
+	else	
+		cc_num = 1; //single 1070	
+
+	if(ast_scu_get_lpc_plus_enable()) {
+		ast_lpc_plus_info.scan_node = cc_num;
+	} else {
+		ast_lpc_info.lpc_bus_mode = 1;
+		ast_lpc_info.scan_node = cc_num;
+	}
+#else
+	ast_lpc_info.scan_node = 1;
+#endif
+
+#if 0	
+	//due to at init reset state is correct . 
+	if(gpio_get_value(PIN_GPIOI1))
+		printk("Use LPC+ Bus Access \n");
+	else
+		printk("Use LPC Bus Access \n");		
+#endif
+
+#endif
 core_initcall(ast_lpc_plus_init);

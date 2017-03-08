@@ -84,33 +84,10 @@ static struct platform_device ast_lpc_plus_device = {
 #endif
 void __init ast_add_device_lpc(void)
 {
-#if 0	
-	//due to at init reset state is correct . 
-	if(gpio_get_value(PIN_GPIOI1))
-		printk("Use LPC+ Bus Access \n");
-	else
-		printk("Use LPC Bus Access \n");		
-#endif
 
 #ifdef CONFIG_ARCH_AST1070
 
 
-#ifdef AST_LPC_PLUS_BASE	
-	int cc_num;
-	if(gpio_get_value(PIN_GPIOI2))
-		cc_num = 2; //dual 1070
-	else	
-		cc_num = 1; //single 1070	
-
-	if(ast_scu_get_lpc_plus_enable()) {
-		ast_lpc_plus_info.scan_node = cc_num;
-	} else {
-		ast_lpc_info.lpc_bus_mode = 1;
-		ast_lpc_info.scan_node = cc_num;
-	}
-#else
-	ast_lpc_info.scan_node = 1;
-#endif
 	
 	
 #endif	//End AST1070

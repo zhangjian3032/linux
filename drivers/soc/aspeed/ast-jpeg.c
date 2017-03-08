@@ -86,7 +86,7 @@
 #define JPEG_HALT_ENG_STS				(1 << 21)
 
 #define JPEG_COMPRESS_BUSY			(1 << 18)
-#define JPEG_COMPRESS_MODE			(1 << 13)
+#define JPEG_COMPRESS_MODE_ENABLE	(1 << 13)	/*  0: ASPEED proprietary compression mode,  1: Enable JPEG compatible mode  */
 #define JPEG_HALT_ENG_TRIGGER			(1 << 12)
 #define JPEG_COMPRESS_MODE_MASK		(3 << 10)
 #define JPEG_YUV420_COMPRESS			(1 << 10)
@@ -129,86 +129,46 @@
 #define JPEG_COMPRESS_COMPLETE		(1 << 3)
 
 /***********************************************************************/
-//IOCTL ..
-#define JPEGIOC_BASE					'J'
-
-#define AST_JPEG_GET_MEM_SIZE_IOCRX		_IOR(JPEGIOC_BASE, 0x2, unsigned long)
-#define AST_JPEG_GET_JPEG_OFFSET_IOCRX	_IOR(JPEGIOC_BASE, 0x3, unsigned long)
-
-#define AST_JPEG_ENG_CONFIG				_IOW(JPEGIOC_BASE, 0x5, struct ast_jpeg_config*)
-#define AST_JPEG_SET_SCALING				_IOW(JPEGIOC_BASE, 0x6, struct ast_scaling*)
-
-#define AST_JPEG_AUTOMODE_TRIGGER			_IOWR(JPEGIOC_BASE, 0x7, struct ast_auto_mode*)
-#define AST_JPEG_CAPTURE_TRIGGER			_IOWR(JPEGIOC_BASE, 0x8, unsigned long)
-#define AST_JPEG_COMPRESSION_TRIGGER		_IOWR(JPEGIOC_BASE, 0x9, unsigned long)
-
-/***********************************************************************/
-
-//For Socket Transfer head formate ..
-struct compress_header {
-	u32 data_len;
-	u32 block_changed;
-	u16	user_width;
-	u16	user_height;
-	u8	first_frame;
-	u8	compress_type;
-	u8	trigger_mode;
-	u8	data_format;
-	u8	mode;
-	u8	VQMode;
-	u8	Y_JPEGTableSelector;
-	u8	UV_JPEGTableSelector;
-	u8	AdvanceTableSelector;
-	u8	Visual_Lossless;
-};
-
 struct ast_jpeg_data {
 	struct device		*misc_dev;
 	void __iomem		*reg_base;			/* virtual */
 	int 	irq;				//JPEG IRQ number 
-//	compress_header	
-	struct compress_header			compress_mode;
-        phys_addr_t             *stream_phy;            /* phy */
-        u32                             *stream_virt;           /* virt */
-        phys_addr_t             *buff0_phy;             /* phy */
-        u32                             *buff0_virt;            /* virt */
-        phys_addr_t             *buff1_phy;             /* phy */
-        u32                             *buff1_virt;            /* virt */
-        phys_addr_t             *bcd_phy;               /* phy */
-        u32                             *bcd_virt;              /* virt */
-        phys_addr_t             *jpeg_phy;              /* phy */
-        u32                             *jpeg_virt;             /* virt */
-        phys_addr_t             *jpeg_buf0_phy;              /* phy */
-        u32                             *jpeg_buf0_virt;             /* virt */
-        phys_addr_t             *jpeg_tbl_phy;          /* phy */
-        u32                             *jpeg_tbl_virt;         /* virt */
+	phys_addr_t             *jpeg_phy;            /* phy */
+	u32                             *jpeg_virt;           /* virt */
+	phys_addr_t             *buff0_phy;             /* phy */
+	u32                             *buff0_virt;            /* virt */
+	phys_addr_t             *buff1_phy;             /* phy */
+	u32                             *buff1_virt;            /* virt */
+	phys_addr_t             *jpeg_tbl_phy;          /* phy */
+	u32                             *jpeg_tbl_virt;         /* virt */
 
-	//config 
-	u8	scaling;
-		
+	u8 			Y_JPEGTableSelector;
 //JPEG 
 	u32		video_mem_size;			/* phy size*/		
 	u32		video_jpeg_offset;			/* assigned jpeg memory size*/
 
-	struct completion	mode_detect_complete;
-	struct completion	automode_complete;		
-	struct completion	capture_complete;
-	struct completion	compression_complete;		
+	struct completion	jpeg_complete;		
 	
 
-	u32 flag;
-
-	struct completion				complete;	
+	u32		flag;
 	u32		sts;
-	u8		direct_mode;
-	u8		stage;
 
 	struct mutex lock;	
 
-        bool is_open;
-
-	
+	bool is_open;
 };
+
+/***********************************************************************/
+struct ast_jpeg_mode
+{
+};
+
+#define JPEGIOC_BASE				'J'
+
+#define AST_JPEG_TRIGGER			_IOWR(JPEGIOC_BASE, 0x1, struct ast_jpeg_mode*)
+
+
+/***********************************************************************/
 
 static inline void
 ast_jpeg_write(struct ast_jpeg_data *ast_jpeg, u32 val, u32 reg)
@@ -819,293 +779,55 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 
 }
 
-static void ast_jpeg_set_eng_config(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_config *video_config)
-{
-	int i, base=0;
-	u32 ctrl = 0;
-	u32 compress_ctrl = 0x00080000;
-
-	JPEG_DBG("\n");
-
-	switch(video_config->engine) {
-		case 0:
-			ctrl = ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL);
-			break;
-		case 1:
-			ctrl = ast_jpeg_read(ast_jpeg, AST_VM_SEQ_CTRL);
-			break;
-	}
-		
-
-	if(video_config->AutoMode) {
-		ctrl |= JPEG_AUTO_COMPRESS;
-		
-	} else {
-		ctrl &= ~JPEG_AUTO_COMPRESS;
-	}
-
-	ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_COMPLETE | JPEG_CAPTURE_COMPLETE | JPEG_MODE_DETECT_WDT, AST_JPEG_INT_EN);
-
-	if(video_config->compression_format) {
-		ctrl |= JPEG_COMPRESS_JPEG_MODE;	
-	} else {
-		ctrl &= ~JPEG_COMPRESS_JPEG_MODE;
-	}
-
-	ctrl &= ~JPEG_COMPRESS_FORMAT_MASK;
-		
-	if(video_config->YUV420_mode) {
-		ctrl |= JPEG_COMPRESS_FORMAT(YUV420);	
-	} 
-
-	if(video_config->rc4_enable) {
-		compress_ctrl |= JPEG_ENCRYP_ENABLE;
-	} 
-
-	switch(video_config->compression_mode) {
-		case 0:	//DCT only
-			compress_ctrl |= JPEG_DCT_ONLY_ENCODE;
-			break;
-		case 1:	//DCT VQ mix 2-color
-			compress_ctrl &= ~(JPEG_4COLOR_VQ_ENCODE |JPEG_DCT_ONLY_ENCODE);	
-			break;
-		case 2:	//DCT VQ mix 4-color
-			compress_ctrl |= JPEG_4COLOR_VQ_ENCODE;
-			break;
-		default:
-			printk("error for compression mode~~~~\n");
-			break;
-	}
-
-    if (video_config->Visual_Lossless) {
-		compress_ctrl |= JPEG_HQ_ENABLE;
-		compress_ctrl |= JPEG_HQ_DCT_LUM(video_config->AdvanceTableSelector);	
-		compress_ctrl |= JPEG_HQ_DCT_CHROM((video_config->AdvanceTableSelector + 16));		
-    } else 
-		compress_ctrl &= ~JPEG_HQ_ENABLE;
-
-	switch(video_config->engine) {
-		case 0:
-			ast_jpeg_write(ast_jpeg, ctrl, AST_JPEG_SEQ_CTRL);
-			ast_jpeg_write(ast_jpeg, compress_ctrl | JPEG_DCT_LUM(video_config->Y_JPEGTableSelector) | JPEG_DCT_CHROM(video_config->Y_JPEGTableSelector + 16), AST_JPEG_COMPRESS_CTRL);
-			break;
-		case 1:			
-			ast_jpeg_write(ast_jpeg, ctrl, AST_VM_SEQ_CTRL);
-			ast_jpeg_write(ast_jpeg, compress_ctrl | JPEG_DCT_LUM(video_config->Y_JPEGTableSelector) | JPEG_DCT_CHROM(video_config->Y_JPEGTableSelector + 16), AST_VM_COMPRESS_CTRL);
-			break;
-	}
-
-	if(video_config->compression_format == 1) {
-		for(i = 0; i<12; i++) {
-			base = (1024*i);
-			if(video_config->YUV420_mode)	//yuv420
-				ast_jpeg->jpeg_tbl_virt[base + 46] = 0x00220103; //for YUV420 mode
-			else 
-				ast_jpeg->jpeg_tbl_virt[base + 46] = 0x00110103; //for YUV444 mode)
-		}
-	}
-
-	
-}
-
-/*return compression size */
-static void ast_jpeg_auto_mode_trigger(struct ast_jpeg_data *ast_jpeg, struct ast_auto_mode *auto_mode)
-{
-	int timeout = 0;
-	
-	JPEG_DBG("\n");
-
-
-	switch(auto_mode->engine_idx) {
-		case 0:
-			init_completion(&ast_jpeg->automode_complete);
-
-			if(auto_mode->differential) 
-				ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_JPEG_BCD_CTRL) | JPEG_BCD_CHG_EN, AST_JPEG_BCD_CTRL);
-			else
-				ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_JPEG_BCD_CTRL) & ~JPEG_BCD_CHG_EN, AST_JPEG_BCD_CTRL);
-
-			ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~(JPEG_CAPTURE_TRIGGER | JPEG_COMPRESS_FORCE_IDLE | JPEG_COMPRESS_TRIGGER)) | JPEG_AUTO_COMPRESS, AST_JPEG_SEQ_CTRL);
-			//If CPU is too fast, pleas read back and trigger 
-			ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) | JPEG_COMPRESS_TRIGGER | JPEG_CAPTURE_TRIGGER, AST_JPEG_SEQ_CTRL);
-			
-			timeout = wait_for_completion_interruptible_timeout(&ast_jpeg->automode_complete, HZ/2);
-			
-			if (timeout == 0) { 
-				printk("compression timeout sts %x \n", ast_jpeg_read(ast_jpeg, AST_JPEG_INT_STS));
-				auto_mode->total_size = 0;
-				auto_mode->block_count = 0;
-			} else {
-				auto_mode->total_size = ast_jpeg_read(ast_jpeg, AST_JPEG_COMPRESS_DATA_COUNT);
-				auto_mode->block_count = ast_jpeg_read(ast_jpeg, AST_JPEG_COMPRESS_BLOCK_COUNT) >> 16;
-			}
-			
-			break;
-		case 1:
-//			init_completion(&ast_jpeg->automode_vm_complete);
-			if(auto_mode->differential) {
-				ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_VM_BCD_CTRL) | JPEG_BCD_CHG_EN, AST_VM_BCD_CTRL);
-			} else {
-				ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_VM_BCD_CTRL) & ~JPEG_BCD_CHG_EN, AST_VM_BCD_CTRL);
-			}
-			ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_VM_SEQ_CTRL) & ~(JPEG_CAPTURE_TRIGGER | JPEG_COMPRESS_TRIGGER)) | JPEG_AUTO_COMPRESS , AST_VM_SEQ_CTRL);
-
-			ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_VM_SEQ_CTRL) | JPEG_CAPTURE_TRIGGER | JPEG_COMPRESS_TRIGGER, AST_VM_SEQ_CTRL);
-			udelay(10);
-//AST_G5 Issue in isr bit 19, so use polling mode for wait engine idle
-
-#if 1		
-			timeout = 0;
-			while(1) {
-				timeout++; 				
-				if((ast_jpeg_read(ast_jpeg, AST_VM_SEQ_CTRL) & 0x50000) == 0x50000) 
-					break;
-
-				mdelay(1);	
-				if(timeout>100)
-					break;
-			}
-
-			if (timeout>=100) {
-				printk("Engine hang time out \n");
-				auto_mode->total_size = 0;
-				auto_mode->block_count = 0;
-
-			} else {
-				auto_mode->total_size = ast_jpeg_read(ast_jpeg, AST_VM_COMPRESS_FRAME_END);
-				auto_mode->block_count = ast_jpeg_read(ast_jpeg, AST_VM_COMPRESS_BLOCK_COUNT);
-			}
-
-//			printk("0 isr %x \n", ast_jpeg_read(ast_jpeg, AST_JPEG_INT_STS));
-			//must clear it 
-			ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_VM_SEQ_CTRL) & ~(JPEG_CAPTURE_TRIGGER | JPEG_COMPRESS_TRIGGER)) , AST_VM_SEQ_CTRL);
-//			printk("1 isr %x \n", ast_jpeg_read(ast_jpeg, AST_JPEG_INT_STS));
-#else
-			timeout = wait_for_completion_interruptible_timeout(&ast_jpeg->automode_vm_complete, 10*HZ);
-			
-			if (timeout == 0) { 
-				printk("compression timeout sts %x \n", ast_jpeg_read(ast_jpeg, AST_JPEG_INT_STS));
-				return 0;
-			} else {
-				printk("%x size = %x \n", ast_jpeg_read(ast_jpeg, 0x270), ast_jpeg_read(ast_jpeg, AST_VM_COMPRESS_FRAME_END));
-				return ast_jpeg_read(ast_jpeg, AST_VM_COMPRESS_FRAME_END);
-			}
-#endif			
-			break;
-	}
-
-
-}
-
 static irqreturn_t ast_jpeg_isr(int this_irq, void *dev_id)
 {
 	u32 status;
 	u32 swap0, swap1; 
 	struct ast_jpeg_data *ast_jpeg = dev_id;
 
-	status = ast_jpeg_read(ast_jpeg, AST_JPEG_INT_STS);
+	status = ast_jpeg_read(ast_jpeg, AST_JPEG_ISR);
 
 	JPEG_DBG("%x \n", status);
 
-	if(status & JPEG_MODE_DETECT_RDY) {
-		ast_jpeg_write(ast_jpeg, JPEG_MODE_DETECT_RDY, AST_JPEG_INT_STS);
-		complete(&ast_jpeg->mode_detect_complete);
+	if(status & JPEG_HANG_WDT_ISR) {
+		printk("JPEG_HANG_WDT_ISR\n");
+		complete(&ast_jpeg->jpeg_complete);
 	}
 
+	if(status & JPEG_HALT_RDY_ISR) {
+		printk("JPEG_HALT_RDY_ISR\n");
+		complete(&ast_jpeg->jpeg_complete);
+	}		
+		
+	if(status & JPEG_COMPLETE_ISR) {
+		printk("JPEG_COMPLETE_ISR\n");
+		complete(&ast_jpeg->jpeg_complete);
+	}		
 
-	if(ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & JPEG_AUTO_COMPRESS) {
-		if((status & (JPEG_COMPRESS_COMPLETE | JPEG_CAPTURE_COMPLETE)) ==  (JPEG_COMPRESS_COMPLETE | JPEG_CAPTURE_COMPLETE)) {
-			ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_COMPLETE | JPEG_CAPTURE_COMPLETE, AST_JPEG_INT_STS);
-			swap0 = ast_jpeg_read(ast_jpeg, AST_JPEG_SOURCE_BUFF0);
-			swap1 = ast_jpeg_read(ast_jpeg, AST_JPEG_SOURCE_BUFF1);
-			ast_jpeg_write(ast_jpeg, swap1, AST_JPEG_SOURCE_BUFF0);
-			ast_jpeg_write(ast_jpeg, swap0, AST_JPEG_SOURCE_BUFF1);
-			JPEG_DBG("auto mode complete \n");
-			complete(&ast_jpeg->automode_complete);
-		}	
-	} else {
-		if (status & JPEG_COMPRESS_COMPLETE) {
-			ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_COMPLETE, AST_JPEG_INT_STS);
-			JPEG_DBG("compress complete \n");		
-			complete(&ast_jpeg->compression_complete);
-		}
-		if (status & JPEG_CAPTURE_COMPLETE) {
-			ast_jpeg_write(ast_jpeg, JPEG_CAPTURE_COMPLETE, AST_JPEG_INT_STS);
-			JPEG_DBG("capture complete \n");				
-			swap0 = ast_jpeg_read(ast_jpeg, AST_JPEG_SOURCE_BUFF0);
-			swap1 = ast_jpeg_read(ast_jpeg, AST_JPEG_SOURCE_BUFF1);
-			ast_jpeg_write(ast_jpeg, swap1, AST_JPEG_SOURCE_BUFF0);
-			ast_jpeg_write(ast_jpeg, swap0, AST_JPEG_SOURCE_BUFF1);			
-			complete(&ast_jpeg->capture_complete);
-		}
-	}
+	if(status & JPEG_COMPRESS_COMPLETE) {
+		printk("JPEG_COMPRESS_COMPLETE\n");
+		complete(&ast_jpeg->jpeg_complete);
+	}		
 
-    return IRQ_HANDLED;
+	return IRQ_HANDLED;
 }
 
-static void ast_jpeg_ctrl_init(struct ast_jpeg_data *ast_jpeg)
+static void ast_jpeg_compression(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_mode *mode)
 {
-	JPEG_DBG("\n");
+	ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_H(scaling->x) | JPEG_COMPRESS_V(scaling->y), AST_JPEG_SIZE_SETTING);
 
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff0_phy, AST_JPEG_SOURCE_BUFF0);
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff1_phy, AST_JPEG_SOURCE_BUFF1);
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->bcd_phy, AST_JPEG_BCD_BUFF);
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->stream_phy, AST_JPEG_STREAM_BUFF);
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_tbl_phy, AST_JPEG_JPEG_HEADER_BUFF);
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_tbl_phy, AST_VM_JPEG_HEADER_BUFF);		
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_buf0_phy, AST_VM_SOURCE_BUFF0);
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_phy, AST_VM_COMPRESS_BUFF);
-	ast_jpeg_write(ast_jpeg, 0, AST_JPEG_COMPRESS_READ);
+	scan_line = ast_video->src_fbinfo.x;
+	scan_line = scan_line + 16 - (scan_line % 16);
+	scan_line = scan_line * 4;
+	ast_jpeg_write(ast_jpeg, scan_line, AST_JPEG_SOURCE_SCAN_LINE);
 
-	//clr int sts
-	ast_jpeg_write(ast_jpeg, 0xffffffff, AST_JPEG_INT_STS);
-	ast_jpeg_write(ast_jpeg, 0, AST_JPEG_BCD_CTRL);
+	ast_video_write(ast_video, , AST_VIDEO_COMPRESS_CTRL);
 
-	// =============================  JPEG init ===========================================
-	ast_init_jpeg_table(ast_jpeg);
-	ast_jpeg_write(ast_jpeg,  VM_STREAM_PKT_SIZE(STREAM_3MB), AST_VM_STREAM_SIZE);
-	ast_jpeg_write(ast_jpeg,  0x00080000 | JPEG_DCT_LUM(4) | JPEG_DCT_CHROM(4 + 16) | JPEG_DCT_ONLY_ENCODE, AST_VM_COMPRESS_CTRL);
-
-	//WriteMMIOLong(0x1e700238, 0x00000000);
-	//WriteMMIOLong(0x1e70023c, 0x00000000);
-
-	ast_jpeg_write(ast_jpeg, 0x00001E00, AST_VM_SOURCE_SCAN_LINE); //buffer pitch
-	ast_jpeg_write(ast_jpeg, 0x00000000, 0x268);
-	ast_jpeg_write(ast_jpeg, 0x00001234, 0x280);
-
-	ast_jpeg_write(ast_jpeg, 0x00000000, AST_VM_PASS_CTRL);
-	ast_jpeg_write(ast_jpeg, 0x00000000, AST_VM_BCD_CTRL);
-
-	// ===============================================================================
-
-
-	//Specification define bit 12:13 must always 0;
-	ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_JPEG_PASS_CTRL) & 
-				~(JPEG_DUAL_EDGE_MODE | JPEG_18BIT_SINGLE_EDGE)) |
-				JPEG_DVO_INPUT_DELAY(0x4), 
-				AST_JPEG_PASS_CTRL); 
-
-	ast_jpeg_write(ast_jpeg, JPEG_STREAM_PKT_N(STREAM_32_PKTS) | 
-				JPEG_STREAM_PKT_SIZE(STREAM_128KB), AST_JPEG_STREAM_SIZE);
-
-
-	//rc4 init reset ..
-	ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_JPEG_CTRL) | JPEG_CTRL_RC4_RST , AST_JPEG_CTRL);
-	ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_JPEG_CTRL) & ~JPEG_CTRL_RC4_RST , AST_JPEG_CTRL);
-
-	//CRC/REDUCE_BIT register clear
-	ast_jpeg_write(ast_jpeg, 0, AST_JPEG_CRC1);
-	ast_jpeg_write(ast_jpeg, 0, AST_JPEG_CRC2);
-	ast_jpeg_write(ast_jpeg, 0, AST_JPEG_DATA_TRUNCA);
-	ast_jpeg_write(ast_jpeg, 0, AST_JPEG_COMPRESS_READ);
-
-	ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_JPEG_MODE_DETECT) & 0xff) |
-									JPEG_MODE_HOR_TOLER(6) |
-									JPEG_MODE_VER_TOLER(6) |
-									JPEG_MODE_HOR_STABLE(2) |
-									JPEG_MODE_VER_STABLE(2) |
-									JPEG_MODE_EDG_THROD(0x65)
-									, AST_JPEG_MODE_DETECT);	
+	ast_jpeg_write(ast_jpeg, 0x8880000 | 
+					VIDEO_DCT_LUM(ast_jpeg->Y_JPEGTableSelector) | 
+					VIDEO_DCT_CHROM(ast_jpeg->Y_JPEGTableSelector + 16), AST_JPEG_COMPRESS_CTRL);
+	ast_jpeg_write(ast_jpeg, 0x0, AST_JPEG_EFFECT_CTRL);
+	ast_jpeg_write(ast_jpeg, 0x05, AST_JPEG_QUANTIZ_TABLE);
 }
 
 static long ast_jpeg_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
@@ -1113,32 +835,16 @@ static long ast_jpeg_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	int ret = 1;
 	struct miscdevice *c = fp->private_data;
 	struct ast_jpeg_data *ast_jpeg = dev_get_drvdata(c->this_device);
-	struct ast_jpeg_config video_config;
 	
-	struct ast_auto_mode auto_mode;	
+	struct ast_jpeg_mode mode;	
 	void __user *argp = (void __user *)arg;
 
 
 	switch (cmd) {
-		case AST_JPEG_GET_MEM_SIZE_IOCRX:
-			ret = __put_user(ast_jpeg->video_mem_size, (unsigned long __user *)arg);
-			break;
-		case AST_JPEG_GET_JPEG_OFFSET_IOCRX:
-			ret = __put_user(ast_jpeg->video_jpeg_offset, (unsigned long __user *)arg);
-			break;
-		case AST_JPEG_ENG_CONFIG:
-			ret = copy_from_user(&video_config, argp, sizeof(struct ast_jpeg_config));
-
-			ast_jpeg_set_eng_config(ast_jpeg, &video_config);
-			break;
-		case AST_JPEG_AUTOMODE_TRIGGER:
-			ret = copy_from_user(&auto_mode, argp, sizeof(struct ast_auto_mode));
-			ast_jpeg_auto_mode_trigger(ast_jpeg, &auto_mode);
-			ret = copy_to_user(argp, &auto_mode, sizeof(struct ast_auto_mode));
-			break;
-		case AST_JPEG_CAPTURE_TRIGGER:
-			break;
-		case AST_JPEG_COMPRESSION_TRIGGER:
+		case AST_JPEG_TRIGGER:
+			ret = copy_from_user(&mode, argp, sizeof(struct ast_jpeg_mode));
+			ast_jpeg_compression(ast_jpeg, &mode);
+			ret = copy_to_user(argp, &mode, sizeof(struct ast_jpeg_mode));
 			break;
 		default:
 			ret = 3;
@@ -1162,8 +868,8 @@ static int ast_jpeg_mmap(struct file * file, struct vm_area_struct * vma)
                         return -EAGAIN;
         }
 
-        if ((ast_jpeg->stream_phy + (vma->vm_pgoff << PAGE_SHIFT) + size)
-                > (ast_jpeg->stream_phy + ast_jpeg->video_mem_size)) {
+        if ((ast_jpeg->jpeg_phy + (vma->vm_pgoff << PAGE_SHIFT) + size)
+                > (ast_jpeg->jpeg_phy + ast_jpeg->video_mem_size)) {
                         printk(KERN_ERR "required sram range exceed the size "
                                    "of phisical sram\n");
                         return -EAGAIN;
@@ -1173,7 +879,7 @@ static int ast_jpeg_mmap(struct file * file, struct vm_area_struct * vma)
         vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
         if (io_remap_pfn_range(vma, vma->vm_start,
-                        ((u32)ast_jpeg->stream_phy >> PAGE_SHIFT),
+                        ((u32)ast_jpeg->jpeg_phy >> PAGE_SHIFT),
                         size,
                         vma->vm_page_prot)) {
                 printk(KERN_ERR "remap_pfn_range faile at %s()\n", __func__);
@@ -1222,190 +928,92 @@ struct miscdevice ast_jpeg_misc = {
 	.fops = &ast_jpeg_fops,
 };
 
-/************************************************** SYS FS **************************************************************/
-
-#if 0	
-
-static struct attribute *ast_jpeg_attributes[] = {
-	&dev_attr_video_reset.attr,
-	&dev_attr_video_mode_detect.attr,
-
-	&dev_attr_video_jpeg_enc.dev_attr.attr,
-	&dev_attr_video_src_x.dev_attr.attr,
-	&dev_attr_video_src_y.dev_attr.attr,
-	&dev_attr_video_scaling_en.dev_attr.attr,
-	&dev_attr_video_dwn_x.dev_attr.attr,
-	&dev_attr_video_dwn_y.dev_attr.attr,
-	&dev_attr_video_rc4_en.dev_attr.attr,
-	&dev_attr_video_rc4_key.dev_attr.attr,
-
-	NULL
-};
-
-static const struct attribute_group video_attribute_group = {
-	.attrs = ast_jpeg_attributes
-};
-
-#endif	
-
-/**************************   Vudeo SYSFS  **********************************************************/
-static u8 ast_get_compress_yuv_mode(struct ast_jpeg_data *ast_jpeg, u8 eng_idx) 
+static void ast_jpeg_ctrl_init(struct ast_jpeg_data *ast_jpeg)
 {
-	switch(eng_idx) {
-		case 0:
-			return JPEG_GET_COMPRESS_FORMAT(ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL));
-			break;
-		case 1:
-			return JPEG_GET_COMPRESS_FORMAT(ast_jpeg_read(ast_jpeg, AST_VM_SEQ_CTRL));
-			break;
-	}
-	return 0;
+	JPEG_DBG("\n");
+
+	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff0_phy, AST_JPEG_SOURCE_BUFF0);
+	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff1_phy, AST_JPEG_SOURCE_BUFF1);
+	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_phy, AST_JPEG_STREAM_BUFF);
+	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_tbl_phy, AST_JPEG_HEADER_BUFF);
+
+	//clr int sts
+	ast_jpeg_write(ast_jpeg, 0xffffffff, AST_JPEG_ISR);
+
+	ast_init_jpeg_table(ast_jpeg);
+
+#ifdef CONFIG_QUANTIZATION_TABLE
+	ast_jpeg_write(0x40000000 | JPEG_PROGRAM_QUANT_TABLE_EN, AST_JPEG_CTRL); //[18] Vr_TblBufEnable, [30] Vr_SRAMTblSel[0]
+	
+	ast_jpeg_write(0x04ed_0672, 0x400);
+	ast_jpeg_write(0x0800_06ca, 0x404);
+	ast_jpeg_write(0x0c3f_0d9b, 0x408);
+	ast_jpeg_write(0x0800_0b89, 0x40C);
+	ast_jpeg_write(0x02aa_03cd, 0x410);
+	ast_jpeg_write(0x05c5_03ac, 0x414);
+	ast_jpeg_write(0x08d4_04e8, 0x418);
+	ast_jpeg_write(0x0b89_0851, 0x41C);
+	ast_jpeg_write(0x0284_0409, 0x420);
+	ast_jpeg_write(0x0310_0299, 0x424);
+	ast_jpeg_write(0x04b0_0535, 0x428);
+	ast_jpeg_write(0x0c3f_08d4, 0x42C);
+	ast_jpeg_write(0x0284_041c, 0x430);
+	ast_jpeg_write(0x01f2_022a, 0x434);
+	ast_jpeg_write(0x0379_03db, 0x438);
+	ast_jpeg_write(0x06ce_04e8, 0x43C);
+	ast_jpeg_write(0x0277_0424, 0x440);
+	ast_jpeg_write(0x0200_0209, 0x444);
+	ast_jpeg_write(0x0273_0245, 0x448);
+	ast_jpeg_write(0x0555_03d8, 0x44C);
+	ast_jpeg_write(0x0282_0627, 0x450);
+	ast_jpeg_write(0x0191_01fe, 0x454);
+	ast_jpeg_write(0x023a_01bb, 0x458);
+	ast_jpeg_write(0x0413_0219, 0x45C);
+	ast_jpeg_write(0x03a4_08ee, 0x460);
+	ast_jpeg_write(0x0277_02b0, 0x464);
+	ast_jpeg_write(0x02d4_0284, 0x468);
+	ast_jpeg_write(0x04ed_030c, 0x46C);
+	ast_jpeg_write(0x08ee_1184, 0x470);
+	ast_jpeg_write(0x0672_06b6, 0x474);
+	ast_jpeg_write(0x0657_070c, 0x478);
+	ast_jpeg_write(0x0849_06f8, 0x47C);
+	ast_jpeg_write(0x01a4_0339, 0x480);
+	ast_jpeg_write(0x00e4_0122, 0x484);
+	ast_jpeg_write(0x0310_01b3, 0x488);
+	ast_jpeg_write(0x0555_03d8, 0x48C);
+	ast_jpeg_write(0x012f_0253, 0x490);
+	ast_jpeg_write(0x00a4_00d1, 0x494);
+	ast_jpeg_write(0x0235_00d1, 0x498);
+	ast_jpeg_write(0x03d8_02c6, 0x49C);
+	ast_jpeg_write(0x0142_0277, 0x4a0);
+	ast_jpeg_write(0x00ae_00de, 0x4a4);
+	ast_jpeg_write(0x00f0_0094, 0x4a8);
+	ast_jpeg_write(0x0310_0235, 0x4aC);
+	ast_jpeg_write(0x0166_02bd, 0x4b0);
+	ast_jpeg_write(0x00c2_00f6, 0x4b4);
+	ast_jpeg_write(0x0094_00a5, 0x4b8);
+	ast_jpeg_write(0x01b3_00d1, 0x4bC);
+	ast_jpeg_write(0x01a4_0339, 0x4c0);
+	ast_jpeg_write(0x00e4_0122, 0x4c4);
+	ast_jpeg_write(0x00ae_00c2, 0x4c8);
+	ast_jpeg_write(0x00e4_00a4, 0x4cC);
+	ast_jpeg_write(0x0217_041a, 0x4d0);
+	ast_jpeg_write(0x0122_0171, 0x4d4);
+	ast_jpeg_write(0x00de_00f6, 0x4d8);
+	ast_jpeg_write(0x0122_00d1, 0x4dC);
+	ast_jpeg_write(0x0309_05f4, 0x4e0);
+	ast_jpeg_write(0x01a4_0217, 0x4e4);
+	ast_jpeg_write(0x0142_0166, 0x4e8);
+	ast_jpeg_write(0x01a4_012f, 0x4eC);
+	ast_jpeg_write(0x05f4_0bad, 0x4f0);
+	ast_jpeg_write(0x0339_041a, 0x4f4);
+	ast_jpeg_write(0x0277_02bd, 0x4f8);
+	ast_jpeg_write(0x0339_0253, 0x4fC);
+#else
+	ast_jpeg_write(0, AST_JPEG_CTRL);
+#endif
+
 }
-
-static void ast_set_compress_yuv_mode(struct ast_jpeg_data *ast_jpeg, u8 eng_idx, u8 yuv_mode) 
-{
-	int i, base=0;
-
-	switch(eng_idx) {
-		case 0:	//video 1 
-			if(yuv_mode) 	//YUV420
-				ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_FORMAT_MASK) | JPEG_COMPRESS_FORMAT(YUV420) , AST_JPEG_SEQ_CTRL);
-			else
-				ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_FORMAT_MASK , AST_JPEG_SEQ_CTRL);
-			break;
-		case 1:	//video M
-			if(yuv_mode) 	//YUV420
-				ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_VM_SEQ_CTRL) & ~JPEG_COMPRESS_FORMAT_MASK) | JPEG_COMPRESS_FORMAT(YUV420) , AST_VM_SEQ_CTRL);
-			else
-				ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_VM_SEQ_CTRL) & ~JPEG_COMPRESS_FORMAT_MASK, AST_VM_SEQ_CTRL);
-
-			for(i = 0; i<12; i++) {
-				base = (1024*i);
-				if(yuv_mode)	//yuv420
-					ast_jpeg->jpeg_tbl_virt[base + 46] = 0x00220103; //for YUV420 mode
-				else 
-					ast_jpeg->jpeg_tbl_virt[base + 46] = 0x00110103; //for YUV444 mode)
-			}
-			
-			break;
-	}
-}
-
-static u8 ast_get_compress_jpeg_mode(struct ast_jpeg_data *ast_jpeg, u8 eng_idx) 
-{
-	switch(eng_idx) {
-		case 0:
-			if(ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & JPEG_COMPRESS_JPEG_MODE)
-				return 1;
-			else
-				return 0;
-			break;
-		case 1:
-			if(ast_jpeg_read(ast_jpeg, AST_VM_SEQ_CTRL) & JPEG_COMPRESS_JPEG_MODE)
-				return 1;
-			else
-				return 0;
-			break;
-	}			
-}
-
-static void ast_set_compress_jpeg_mode(struct ast_jpeg_data *ast_jpeg, u8 eng_idx, u8 jpeg_mode) 
-{
-	switch(eng_idx) {
-		case 0:	//video 1 
-			if(jpeg_mode) 	
-				ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) | JPEG_COMPRESS_JPEG_MODE, AST_JPEG_SEQ_CTRL);
-			else
-				ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_JPEG_MODE , AST_JPEG_SEQ_CTRL);
-			break;
-		case 1:	//video M
-			if(jpeg_mode) 	
-				ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_VM_SEQ_CTRL) | JPEG_COMPRESS_JPEG_MODE, AST_VM_SEQ_CTRL);
-			else
-				ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_VM_SEQ_CTRL) & ~JPEG_COMPRESS_JPEG_MODE , AST_VM_SEQ_CTRL);			
-			break;
-	}
-}
-
-static ssize_t 
-ast_store_compress(struct device *dev, struct device_attribute *attr, const char *sysfsbuf, size_t count)
-{
-	u32 input_val;
-	struct ast_jpeg_data *ast_jpeg = dev_get_drvdata(dev);
-	struct sensor_device_attribute_2 *sensor_attr = to_sensor_dev_attr_2(attr);
-
-	input_val = simple_strtoul(sysfsbuf, NULL, 10);
-//	input_val = StrToHex(sysfsbuf);		
-	//sensor_attr->index : ch#
-	//sensor_attr->nr : attr#
-	switch(sensor_attr->nr) 
-	{
-		case 0:	//compress mode
-			ast_set_trigger_mode(ast_jpeg, sensor_attr->index, input_val);
-			break;
-		case 1: //yuv mode
-			ast_set_compress_yuv_mode(ast_jpeg, sensor_attr->index, input_val);
-			break;
-		case 2: //jpeg/aspeed mode
-			ast_set_compress_jpeg_mode(ast_jpeg, sensor_attr->index, input_val);
-			break;
-
-		default:
-			return -EINVAL;
-			break;
-	}
-
-	return count;
-}
-
-static ssize_t 
-ast_show_compress(struct device *dev, struct device_attribute *attr, char *sysfsbuf)
-{
-	struct ast_jpeg_data *ast_jpeg = dev_get_drvdata(dev);
-	struct sensor_device_attribute_2 *sensor_attr = to_sensor_dev_attr_2(attr);
-
-	//sensor_attr->index : ch#
-	//sensor_attr->nr : attr#
-	switch(sensor_attr->nr) 
-	{
-		case 0:
-			return sprintf(sysfsbuf, "%d [0:Single, 1:Frame, 2:Stream]\n", ast_get_trigger_mode(ast_jpeg, sensor_attr->index));
-			break;
-		case 1: 
-			return sprintf(sysfsbuf, "%d:%s \n", ast_get_compress_yuv_mode(ast_jpeg, sensor_attr->index), ast_get_compress_yuv_mode(ast_jpeg, sensor_attr->index) ? "YUV420":"YUV444");
-			break;			
-		case 2: 
-			return sprintf(sysfsbuf, "%d:%s \n", ast_get_compress_jpeg_mode(ast_jpeg, sensor_attr->index), ast_get_compress_jpeg_mode(ast_jpeg, sensor_attr->index) ? "JPEG":"ASPEED");
-			break;
-		default:
-			return -EINVAL;
-			break;
-	}
-	return -EINVAL;
-}
-
-#define sysfs_compress(index) \
-static SENSOR_DEVICE_ATTR_2(compress##index##_trigger_mode, S_IRUGO | S_IWUSR, \
-	ast_show_compress, ast_store_compress, 0, index); \
-static SENSOR_DEVICE_ATTR_2(compress##index##_yuv, S_IRUGO | S_IWUSR, \
-	ast_show_compress, ast_store_compress, 1, index); \
-static SENSOR_DEVICE_ATTR_2(compress##index##_jpeg, S_IRUGO | S_IWUSR, \
-	ast_show_compress, ast_store_compress, 2, index); \
-\
-static struct attribute *compress##index##_attributes[] = { \
-	&sensor_dev_attr_compress##index##_trigger_mode.dev_attr.attr, \
-	&sensor_dev_attr_compress##index##_yuv.dev_attr.attr, \
-	&sensor_dev_attr_compress##index##_jpeg.dev_attr.attr, \
-	NULL \
-};
-
-sysfs_compress(0);
-sysfs_compress(1);
-/************************************************** SYS FS Capture ***********************************************************/
-static const struct attribute_group compress_attribute_groups[] = {
-	{ .attrs = compress0_attributes },
-	{ .attrs = compress1_attributes },	
-};
 
 /************************************************** SYS FS End ***********************************************************/
 static int ast_jpeg_probe(struct platform_device *pdev)
@@ -1452,36 +1060,33 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 	ast_jpeg->video_mem_size = resource_size(res1);
 	JPEG_DBG("video_mem_size %d MB\n",ast_jpeg->video_mem_size/1024/1024);
 	
-	ast_jpeg->stream_phy = (phys_addr_t *) res1->start;
+	ast_jpeg->jpeg_phy = (phys_addr_t *) res1->start;
 	ast_jpeg->buff0_phy = (phys_addr_t *) (res1->start + 0x400000);  //4M : size 10MB
 	ast_jpeg->buff1_phy = (phys_addr_t *) (res1->start + 0xe00000);  //14M : size 10MB
-	ast_jpeg->bcd_phy = (phys_addr_t *) (res1->start + 0x1800000);   //24M : size 1MB
-	ast_jpeg->jpeg_buf0_phy = (phys_addr_t *) (res1->start + 0x1900000);  //25MB: size 10 MB
-	ast_jpeg->video_jpeg_offset = 0x2300000;						//TODO define 
 	ast_jpeg->jpeg_phy = (phys_addr_t *) (res1->start + 0x2300000);  //35MB: size 4 MB
 	ast_jpeg->jpeg_tbl_phy = (phys_addr_t *) (res1->start + 0x2700000);      //39MB: size 1 MB
 
-	JPEG_DBG("\nstream_phy: %x, buff0_phy: %x, buff1_phy:%x, bcd_phy:%x \njpeg_phy:%x, jpeg_tbl_phy:%x \n",
-	        (u32)ast_jpeg->stream_phy, (u32)ast_jpeg->buff0_phy, (u32)ast_jpeg->buff1_phy, (u32)ast_jpeg->bcd_phy, (u32)ast_jpeg->jpeg_phy, (u32)ast_jpeg->jpeg_tbl_phy);
+	JPEG_DBG("\njpeg_phy: %x, buff0_phy: %x, buff1_phy:%x, bcd_phy:%x \njpeg_phy:%x, jpeg_tbl_phy:%x \n",
+	        (u32)ast_jpeg->jpeg_phy, (u32)ast_jpeg->buff0_phy, (u32)ast_jpeg->buff1_phy, (u32)ast_jpeg->bcd_phy, (u32)ast_jpeg->jpeg_phy, (u32)ast_jpeg->jpeg_tbl_phy);
 
 	//virt assign
-	ast_jpeg->stream_virt = ioremap(res1->start, resource_size(res1));
-	if (!ast_jpeg->stream_virt) {
+	ast_jpeg->jpeg_virt = ioremap(res1->start, resource_size(res1));
+	if (!ast_jpeg->jpeg_virt) {
 	        ret = -EIO;
 	        goto out_region1;
 	}
 
-	ast_jpeg->buff0_virt = (u32)ast_jpeg->stream_virt + 0x400000; //4M : size 10MB
-	ast_jpeg->buff1_virt = (u32)ast_jpeg->stream_virt + 0xe00000; //14M : size 10MB
-	ast_jpeg->bcd_virt = (u32)ast_jpeg->stream_virt + 0x1800000;  //24M : size 4MB
+	ast_jpeg->buff0_virt = (u32)ast_jpeg->jpeg_virt + 0x400000; //4M : size 10MB
+	ast_jpeg->buff1_virt = (u32)ast_jpeg->jpeg_virt + 0xe00000; //14M : size 10MB
+	ast_jpeg->bcd_virt = (u32)ast_jpeg->jpeg_virt + 0x1800000;  //24M : size 4MB
 	ast_jpeg->jpeg_buf0_virt = res1->start + 0x1900000;  //25MB: size x MB
-	ast_jpeg->jpeg_virt = (u32)ast_jpeg->stream_virt + 0x2300000; //35MB: size 4 MB
-	ast_jpeg->jpeg_tbl_virt = (u32)ast_jpeg->stream_virt + 0x2700000;     //39MB: size 1 MB
+	ast_jpeg->jpeg_virt = (u32)ast_jpeg->jpeg_virt + 0x2300000; //35MB: size 4 MB
+	ast_jpeg->jpeg_tbl_virt = (u32)ast_jpeg->jpeg_virt + 0x2700000;     //39MB: size 1 MB
 
-	JPEG_DBG("\nstream_virt: %x, buff0_virt: %x, buff1_virt:%x, bcd_virt:%x \njpeg_virt:%x, jpeg_tbl_virt:%x \n",
-	        (u32)ast_jpeg->stream_virt, (u32)ast_jpeg->buff0_virt, (u32)ast_jpeg->buff1_virt, (u32)ast_jpeg->bcd_virt, (u32)ast_jpeg->jpeg_virt, (u32)ast_jpeg->jpeg_tbl_virt);
+	JPEG_DBG("\njpeg_virt: %x, buff0_virt: %x, buff1_virt:%x, bcd_virt:%x \njpeg_virt:%x, jpeg_tbl_virt:%x \n",
+	        (u32)ast_jpeg->jpeg_virt, (u32)ast_jpeg->buff0_virt, (u32)ast_jpeg->buff1_virt, (u32)ast_jpeg->bcd_virt, (u32)ast_jpeg->jpeg_virt, (u32)ast_jpeg->jpeg_tbl_virt);
 
-	memset(ast_jpeg->stream_virt, 0, resource_size(res1));	
+	memset(ast_jpeg->jpeg_virt, 0, resource_size(res1));	
 
 	ast_jpeg->irq = platform_get_irq(pdev, 0);
 	if (ast_jpeg->irq < 0) {
@@ -1498,18 +1103,6 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 		goto out_irq;
 	}
 
-#if 0
-	ret = sysfs_create_group(&pdev->dev.kobj, &video_attribute_group);
-	if (ret)
-		goto out_irq;
-
-
-	for(i=0;i<2;i++) {
-		ret = sysfs_create_group(&pdev->dev.kobj, &compress_attribute_groups[i]);
-		if (ret)
-			goto out_irq;
-	}
-#endif
 	platform_set_drvdata(pdev, ast_jpeg);
 	dev_set_drvdata(ast_jpeg_misc.this_device, ast_jpeg);
 
@@ -1558,7 +1151,7 @@ static int ast_jpeg_remove(struct platform_device *pdev)
 
 	res1 = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 
-	iounmap(ast_jpeg->stream_virt);
+	iounmap(ast_jpeg->jpeg_virt);
 
 	release_mem_region(res1->start, res1->end - res1->start + 1);
 

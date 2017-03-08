@@ -295,9 +295,64 @@ static struct platform_driver ast_pcie_driver = {
  * IMPORTANT NOTE: We are relying on SoC/Board level code to check PCIESS
  * mode setting (RC/EP) and register the RC device only in RC mode.
  */
+
+static struct platform_device *ast_pcie_device;
+
 static int __init ast_pcie_rc_init(void)
 {
-	return platform_driver_probe(&ast_pcie_driver, ast_pcie_probe);
+	int ret;
+	static struct resource ast_pcie_resources[] = {
+		{
+			/* Register space */
+			.name		= "pcie-regs",
+			.start		= AST_PCIE_PLDA_BASE,
+			.end			= AST_PCIE_PLDA_BASE + SZ_16K - 1,
+			.flags		= IORESOURCE_MEM,
+		},
+#if 0	
+		{
+			/* Non-prefetch memory */
+			.name		= "pcie-nonprefetch",
+			.start		= AST_PCIE_WIN_BASE,
+			.end			= AST_PCIE_WIN_BASE + SZ_64K - 1,
+			.flags		= IORESOURCE_MEM,
+		},
+#endif	
+#if 0	
+		{
+			/* IO window */
+			.name		= "pcie-io",
+			.start		= AST_PCIE_IO_BASE,
+			.end		= AST_PCIE_IO_BASE + SZ_2M + SZ_1M - 1,
+			.flags		= IORESOURCE_IO,
+		},
+#endif
+#if 0
+		{
+			/* Inbound memory window */
+			.name		= "pcie-inbound0",
+			.start		= AST_DRAM_BASE,
+			.end			= AST_DRAM_BASE + SZ_2G - 1,
+			.flags		= IORESOURCE_MEM,
+		},
+#endif	
+	};
+
+	ret = platform_driver_register(&ast_peci_driver);
+
+	if (!ret) {
+		ast_pcie_device = platform_device_register_simple("ast-pcie", 0,
+								ast_pcie_resources, ARRAY_SIZE(ast_pcie_resources));
+		if (IS_ERR(ast_pcie_device)) {
+			platform_driver_unregister(&ast_peci_driver);
+			ret = PTR_ERR(ast_pcie_device);
+		}
+	}
+
 }
 
 module_init(ast_pcie_rc_init);
+
+MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
+MODULE_DESCRIPTION("AST PCIE Host driver");
+MODULE_LICENSE("GPL");
