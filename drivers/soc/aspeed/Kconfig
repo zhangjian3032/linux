@@ -9,6 +9,10 @@ menuconfig AST_MISC
 	  We can select misc drivers for ASPEED SOC in this sub-function.
 
 if AST_MISC
+
+config AST_VGAVIDEO
+	tristate "VGA Video Engine driver"
+
 config AST_VIDEO
 	tristate "ASPEED Video Engine driver"
 	default n
