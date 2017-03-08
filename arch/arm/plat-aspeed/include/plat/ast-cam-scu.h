@@ -55,8 +55,8 @@ extern u32 ast_scu_get_vga_memsize(void);
 
 //Ctrl Initial
 extern void ast_scu_init_uart(u8);
-extern void ast_scu_init_video(u8 dynamic_en);
-extern void ast_scu_reset_video(void);
+extern void ast_scu_init_jpeg(u8 dynamic_en);
+extern void ast_scu_reset_jpeg(void);
 extern void ast_scu_init_eth(u8 num);
 extern void ast_scu_init_lpc(void);
 extern void ast_scu_reset_espi(void);
@@ -82,7 +82,7 @@ extern void ast_scu_uartx_init(void);
 
 //Share pin
 extern void ast_scu_multi_func_uart(u8 uart);
-extern void ast_scu_multi_func_video(void);
+extern void ast_scu_multi_func_jpeg(void);
 extern void ast_scu_multi_func_eth(u8 num);
 
 extern void ast_scu_multi_func_nand(void);

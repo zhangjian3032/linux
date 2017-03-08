@@ -132,17 +132,17 @@ static struct soc_id soc_map_table[] = {
 //***********************************Initial control***********************************
 #ifdef SCU_RESET_VIDEO
 extern void
-ast_scu_reset_video(void)
+ast_scu_reset_jpeg(void)
 {
 	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_VIDEO, AST_SCU_RESET);
 	udelay(100);
 	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_VIDEO, AST_SCU_RESET);
 }
 
-EXPORT_SYMBOL(ast_scu_reset_video);
+EXPORT_SYMBOL(ast_scu_reset_jpeg);
 
 extern void
-ast_scu_init_video(u8 dynamic_en)
+ast_scu_init_jpeg(u8 dynamic_en)
 {
 	//Video Engine Clock Enable and Reset
 	//  Enable Clock & ECLK = inverse of (M-PLL / 2)
@@ -162,7 +162,7 @@ ast_scu_init_video(u8 dynamic_en)
 	udelay(100);
 	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_VIDEO, AST_SCU_RESET);
 }
-EXPORT_SYMBOL(ast_scu_init_video);
+EXPORT_SYMBOL(ast_scu_init_jpeg);
 #endif
 
 #ifdef SCU_UART1CLK_STOP_EN
@@ -450,7 +450,7 @@ ast_scu_multi_func_uart(u8 uart)
 }
 
 extern void
-ast_scu_multi_func_video()
+ast_scu_multi_func_jpeg()
 {
 
 }
