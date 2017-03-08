@@ -28,7 +28,6 @@
 #include <mach/irqs.h>
 #include <mach/platform.h>
 #include <plat/devs.h>
-#include <plat/ast_sdhci.h>
 #include <plat/ast-scu.h>
 
 /* --------------------------------------------------------------------
