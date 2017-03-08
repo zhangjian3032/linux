@@ -153,7 +153,7 @@ static void ast_adc_ctrl_init(struct ast_adc_data *ast_adc)
 #elif defined(AST_SOC_G5)
 //	TODO ... 
 //	scu read trim 
-//	write trim 0x154 [3:0]
+//	write trim 0xC4 [3:0]
 	trim = ast_scu_adc_trim_read();
 
 	if((trim == 0x0))

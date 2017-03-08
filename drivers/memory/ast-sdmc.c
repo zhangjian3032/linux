@@ -174,4 +174,4 @@ static int __init ast_sdmc_init(void)
 	return 0;
 }
 
-arch_initcall(ast_sdmc_init);
+core_initcall(ast_sdmc_init);
