@@ -23,12 +23,18 @@ if [ "$2" == "bmc" ]; then
 	rm -f $1/drivers/crypto/ast-crypto.c
 	rm -f $1/drivers/usb/gadget/udc/ast_udc.c
 	rm -f $1/drivers/soc/aspeed/ast-jpeg.c
+	rm -f $1/arch/arm/configs/ast1220_defconfig
+	rm -f $1/arch/arm/configs/ast1220_*_defconfig
+	rm -f $1/arch/arm/plat-aspeed/include/plat/regs-cam-scu.h
+	rm -f $1/arch/arm/plat-aspeed/ast-cam-scu.c
 fi
 
 #CAM
 if [ "$2" == "cam" ]; then
         find $1/. -name  '*.cam' | while read filename; do mv -v "${filename}" "`echo "${filename}" | sed -e 's/.cam//'`"; done
         find $1/. -name  '*.bmc' | while read filename; do rm -f "${filename}"; done
+	rm -f $1/arch/arm/plat-aspeed/ast1070*.*
+	rm -f $1/arch/arm/plat-aspeed/include/plat/ast1070*.*
 fi
 
 rm -f $1/arch/arm/configs/ast1520_defconfig
