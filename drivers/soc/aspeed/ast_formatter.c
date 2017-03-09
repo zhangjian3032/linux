@@ -581,13 +581,59 @@ static int ast_formatter_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ast_formatter_driver = {
+	.probe		= ast_formatter_probe,
 	.driver         = {
 		.name   = "ast-formatter",
 		.owner  = THIS_MODULE,
 	},
 };
 
-module_platform_driver_probe(ast_formatter_driver, ast_formatter_probe);
+static struct platform_device *ast_formatter_device;
+
+static int __init ast_formatter_init(void)
+{
+	int ret;
+
+	static const struct resource ast_formatter_resource[] = {
+		[0] = {
+			.start = AST_FORMATTER_BASE,
+			.end   = AST_FORMATTER_BASE + SZ_4K - 1,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_FORMATTER,
+			.end   = IRQ_FORMATTER,
+			.flags = IORESOURCE_IRQ,
+		},	
+		[2] = {
+			.start = AST_FORMATTER_MEM_BASE,
+			.end = AST_FORMATTER_MEM_BASE + AST_FORMATTER_MEM_SIZE - 1,
+			.flags = IORESOURCE_DMA,
+		},	
+	};
+	
+	ret = platform_driver_register(&ast_formatter_driver);
+
+	if (!ret) {
+		ast_formatter_device = platform_device_register_simple("ast-formatter", 0,
+								ast_formatter_resource, ARRAY_SIZE(ast_formatter_resource));
+		if (IS_ERR(ast_formatter_device)) {
+			platform_driver_unregister(&ast_formatter_driver);
+			ret = PTR_ERR(ast_formatter_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_formatter_exit(void)
+{
+	platform_device_unregister(ast_formatter_device);
+	platform_driver_unregister(&ast_formatter_driver);
+}
+
+module_init(ast_formatter_init);
+module_exit(ast_formatter_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST formatter driver");

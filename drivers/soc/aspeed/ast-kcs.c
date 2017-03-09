@@ -605,6 +605,7 @@ static int ast_kcs_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ast_kcs_driver = {
+	.probe		= ast_kcs_probe,
 	.remove 		= ast_kcs_remove,
 	.driver         = {
 		.name   = "ast-kcs",
@@ -612,7 +613,76 @@ static struct platform_driver ast_kcs_driver = {
 	},
 };
 
-module_platform_driver_probe(ast_kcs_driver, ast_kcs_probe);
+static struct platform_device *ast_kcs0_device;
+static struct platform_device *ast_kcs1_device;
+static struct platform_device *ast_kcs2_device;
+static struct platform_device *ast_kcs3_device;
+static struct platform_device *ast_kcs4_device;
+
+static int __init ast_kcs_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&ast_kcs_driver);
+
+	if (!ret) {
+		ast_kcs0_device = platform_device_register_simple("ast-kcs", 0,
+								NULL, 0);
+		if (IS_ERR(ast_kcs0_device)) {
+			platform_driver_unregister(&ast_kcs_driver);
+			ret = PTR_ERR(ast_kcs0_device);
+			return ret;
+		}
+		ast_kcs1_device = platform_device_register_simple("ast-kcs", 1,
+								NULL, 0);
+		if (IS_ERR(ast_kcs1_device)) {
+			platform_driver_unregister(&ast_kcs_driver);
+			ret = PTR_ERR(ast_kcs1_device);
+			return ret;
+		}
+
+		ast_kcs2_device = platform_device_register_simple("ast-kcs", 2,
+								NULL, 0);
+		if (IS_ERR(ast_kcs2_device)) {
+			platform_driver_unregister(&ast_kcs_driver);
+			ret = PTR_ERR(ast_kcs2_device);
+			return ret;
+		}
+
+		ast_kcs3_device = platform_device_register_simple("ast-kcs", 3,
+								NULL, 0);
+		if (IS_ERR(ast_kcs3_device)) {
+			platform_driver_unregister(&ast_kcs_driver);
+			ret = PTR_ERR(ast_kcs3_device);
+			return ret;
+		}
+
+		ast_kcs4_device = platform_device_register_simple("ast-kcs", 4,
+								NULL, 0);
+		if (IS_ERR(ast_kcs4_device)) {
+			platform_driver_unregister(&ast_kcs_driver);
+			ret = PTR_ERR(ast_kcs4_device);
+			return ret;
+		}
+			
+	}
+
+	return ret;
+}
+
+static void __exit ast_kcs_exit(void)
+{
+	platform_device_unregister(ast_kcs0_device);
+	platform_device_unregister(ast_kcs1_device);
+	platform_device_unregister(ast_kcs2_device);
+	platform_device_unregister(ast_kcs3_device);
+	platform_device_unregister(ast_kcs4_device);
+	platform_driver_unregister(&ast_kcs_driver);
+}
+
+module_init(ast_kcs_init);
+module_exit(ast_kcs_exit);
+
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST KCS driver");

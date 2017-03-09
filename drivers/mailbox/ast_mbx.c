@@ -44,6 +44,8 @@
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/miscdevice.h>
+#include <mach/irqs.h>
+#include <mach/platform.h>
 
 #ifdef CONFIG_AST_CVIC
 extern void ast_trigger_coldfire(void);
@@ -292,6 +294,7 @@ ast_coldfire_mbx_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver ast_coldfire_mbx_driver = {
+	.probe		= ast_coldfire_mbx_probe,
 	.remove 		= ast_coldfire_mbx_remove,
 	.suspend        = ast_coldfire_mbx_suspend,
 	.resume         = ast_coldfire_mbx_resume,
@@ -301,8 +304,48 @@ static struct platform_driver ast_coldfire_mbx_driver = {
 	},
 };
 
-module_platform_driver_probe(ast_coldfire_mbx_driver, ast_coldfire_mbx_probe);
+static struct platform_device *ast_coldfire_mbx_device;
+
+static int __init ast_coldfire_mbx_init(void)
+{
+	int ret;
+
+	static const struct resource ast_cf_mbx_resource[] = {
+		[0] = {
+			.start = AST_SRAM_BASE,
+			.end = AST_SRAM_BASE + SZ_1K - 1,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_CPU,
+			.end = IRQ_CPU, 
+			.flags = IORESOURCE_IRQ,
+		},
+	};
+
+	ret = platform_driver_register(&ast_coldfire_mbx_driver);
+
+	if (!ret) {
+		ast_coldfire_mbx_device = platform_device_register_simple("ast-cf-mbx", 0,
+								ast_cf_mbx_resource, ARRAY_SIZE(ast_cf_mbx_resource));
+		if (IS_ERR(ast_coldfire_mbx_device)) {
+			platform_driver_unregister(&ast_coldfire_mbx_driver);
+			ret = PTR_ERR(ast_coldfire_mbx_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_coldfire_mbx_exit(void)
+{
+	platform_device_unregister(ast_coldfire_mbx_device);
+	platform_driver_unregister(&ast_coldfire_mbx_driver);
+}
+
+module_init(ast_coldfire_mbx_init);
+module_exit(ast_coldfire_mbx_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
-MODULE_DESCRIPTION("AST Mailbox driver");
+MODULE_DESCRIPTION("AST Coldfire Mailbox driver");
 MODULE_LICENSE("GPL");

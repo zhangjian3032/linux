@@ -39,6 +39,8 @@
 #include <asm/arch/regs-mbx.h>
 #else
 #include <plat/regs-mbx.h>
+#include <mach/irqs.h>
+#include <mach/platform.h>
 #endif
 
 //#define CONFIG_AST_MBX_DEBUG
@@ -330,6 +332,7 @@ ast_mailbox_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver ast_mailbox_driver = {
+	.probe		= ast_mailbox_probe,
 	.remove 		= ast_mailbox_remove,
 	.suspend        = ast_mailbox_suspend,
 	.resume         = ast_mailbox_resume,
@@ -339,7 +342,47 @@ static struct platform_driver ast_mailbox_driver = {
 	},
 };
 
-module_platform_driver_probe(ast_mailbox_driver, ast_mailbox_probe);
+static struct platform_device *ast_mailbox_device;
+
+static int __init ast_mailbox_init(void)
+{
+	int ret;
+
+	static const struct resource ast_mailbox_resource[] = {
+		[0] = {
+			.start = AST_MBX_BASE,
+			.end = AST_MBX_BASE + SZ_256,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_MAILBOX,
+			.end = IRQ_MAILBOX,
+			.flags = IORESOURCE_IRQ,
+		},
+	};
+
+	ret = platform_driver_register(&ast_mailbox_driver);
+
+	if (!ret) {
+		ast_mailbox_device = platform_device_register_simple("ast-mailbox", 0,
+								ast_mailbox_resource, ARRAY_SIZE(ast_mailbox_resource));
+		if (IS_ERR(ast_mailbox_device)) {
+			platform_driver_unregister(&ast_mailbox_driver);
+			ret = PTR_ERR(ast_mailbox_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_mailbox_exit(void)
+{
+	platform_device_unregister(ast_mailbox_device);
+	platform_driver_unregister(&ast_mailbox_driver);
+}
+
+module_init(ast_mailbox_init);
+module_exit(ast_mailbox_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST Mailbox driver");

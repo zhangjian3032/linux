@@ -52,6 +52,9 @@
 #include <linux/slab.h>
 #include <linux/timer.h>
 
+#include <mach/irqs.h>
+#include <mach/platform.h>
+
 #include <plat/ast-scu.h>
 
 #define AST_CRYPTO_IRQ
@@ -2232,6 +2235,7 @@ static const struct dev_pm_ops ast_crypto_pm_ops = {
 #endif /* CONFIG_PM */
 
 static struct platform_driver ast_crypto_driver = {
+	.probe 		= ast_crypto_probe,
 	.remove		= ast_crypto_remove,
 	.driver		= {
 		.name	= "ast-crypto",
@@ -2241,7 +2245,49 @@ static struct platform_driver ast_crypto_driver = {
 	},
 };
 
-module_platform_driver_probe(ast_crypto_driver, ast_crypto_probe);
+static struct platform_device *ast_crypto_device;
 
+static int __init ast_crypto_init(void)
+{
+	int ret;
+
+	static const struct resource ast_crypto_resource[] = {
+		[0] = {
+			.start	= AST_CRYPTO_BASE,
+			.end	= AST_CRYPTO_BASE + SZ_128 - 1,
+			.flags	= IORESOURCE_MEM,
+		},
+		[1] = {
+				.start = IRQ_CRYPTO,
+				.end = IRQ_CRYPTO,
+				.flags = IORESOURCE_IRQ,
+		},
+		
+	};
+
+	ret = platform_driver_register(&ast_crypto_driver);
+
+	if (!ret) {
+		ast_crypto_device = platform_device_register_simple("ast-crypto", 0,
+								ast_crypto_resource, ARRAY_SIZE(ast_crypto_resource));
+		if (IS_ERR(ast_crypto_device)) {
+			platform_driver_unregister(&ast_crypto_driver);
+			ret = PTR_ERR(ast_crypto_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_crypto_exit(void)
+{
+	platform_device_unregister(ast_crypto_device);
+	platform_driver_unregister(&ast_crypto_driver);
+}
+
+module_init(ast_crypto_init);
+module_exit(ast_crypto_exit);
+
+MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
+MODULE_DESCRIPTION("AST Crypto driver");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Ryan Chen");

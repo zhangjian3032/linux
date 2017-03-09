@@ -30,7 +30,8 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
-
+#include <mach/irqs.h>
+#include <mach/platform.h>
 #include <plat/ast-scu.h>
 
 /* register ************************************************************************************/
@@ -535,6 +536,7 @@ static const struct platform_device_id ast_xdma_idtable[] = {
 MODULE_DEVICE_TABLE(platform, ast_xdma_idtable);
 #endif
 static struct platform_driver ast_xdma_driver = {
+	.probe		= ast_xdma_probe,
 	.remove 		= ast_xdma_remove,
 	.suspend        = ast_xdma_suspend,
 	.resume         = ast_xdma_resume,
@@ -545,7 +547,47 @@ static struct platform_driver ast_xdma_driver = {
 //	.id_table	= ast_xdma_idtable,		
 };
 
-module_platform_driver_probe(ast_xdma_driver, ast_xdma_probe);
+static struct platform_device *ast_xdma_device;
+
+static int __init ast_xdma_init(void)
+{
+	int ret;
+
+	static const struct resource ast_xdma_resource[] = {
+		[0] = {
+			.start = AST_XDMA_BASE,
+			.end = AST_XDMA_BASE + SZ_256,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_XDMA,
+			.end = IRQ_XDMA,
+			.flags = IORESOURCE_IRQ,
+		},
+	};
+
+	ret = platform_driver_register(&ast_xdma_driver);
+
+	if (!ret) {
+		ast_xdma_device = platform_device_register_simple("ast-xdma", 0,
+								ast_xdma_resource, ARRAY_SIZE(ast_xdma_resource));
+		if (IS_ERR(ast_xdma_device)) {
+			platform_driver_unregister(&ast_xdma_driver);
+			ret = PTR_ERR(ast_xdma_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_xdma_exit(void)
+{
+	platform_device_unregister(ast_xdma_device);
+	platform_driver_unregister(&ast_xdma_driver);
+}
+
+module_init(ast_xdma_init);
+module_exit(ast_xdma_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST X-DMA Driver");

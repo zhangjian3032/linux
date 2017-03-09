@@ -475,18 +475,12 @@ static int ast_wdt_probe(struct platform_device *pdev)
 
 static int ast_wdt_remove(struct platform_device *dev)
 {
+	wdt_disable();
 	misc_deregister(&ast_wdt_miscdev);
 	disable_irq(IRQ_WDT);
 	free_irq(IRQ_WDT, NULL);		
 	return 0;
 }
-
-static void ast_wdt_shutdown(struct platform_device *dev)
-{
-	wdt_disable();
-}
-
-static char banner[] __initdata = KERN_INFO "AST Watchdog Timer, ASPEED Technology Inc.\n";
 
 static const struct of_device_id ast_wdt_dt_ids[] = {
 	{ .compatible = "aspeed,ast-wdt" },
@@ -496,7 +490,8 @@ static const struct of_device_id ast_wdt_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, ast_wdt_dt_ids);
 
 static struct platform_driver ast_wdt_driver = {
-	.remove		= __exit_p(ast_wdt_remove),
+	.probe 		= ast_wdt_probe,
+	.remove		= ast_wdt_remove,
 #if 0        
 	.suspend		= ast_wdt_suspend,
 	.resume 		= ast_wdt_resume,
@@ -509,7 +504,63 @@ static struct platform_driver ast_wdt_driver = {
 	},
 };
 
-module_platform_driver_probe(ast_wdt_driver, ast_wdt_probe);
+static struct platform_device *ast_wdt_device;
 
+static int __init ast_wdt_init(void)
+{
+	int ret;
+
+	static const struct resource ast_wdt0_resource[] = {
+		[0] = {
+			.start	= AST_WDT_BASE,
+			.end		= AST_WDT_BASE + (SZ_16*2) - 1,
+			.flags	= IORESOURCE_MEM,
+		},
+		[1] = {
+			.start 	= IRQ_WDT,
+			.end 	= IRQ_WDT,
+			.flags 	= IORESOURCE_IRQ,
+		},	
+	};
+
+#if 0
+	static struct resource ast_wdt1_resource[] = {
+		[0] = {
+			.start	= AST_WDT_BASE + (SZ_16*2),
+			.end	= AST_WDT_BASE + (SZ_16*4) - 1,
+			.flags	= IORESOURCE_MEM,
+		},
+		[1] = {
+				.start = IRQ_WDT,
+				.end = IRQ_WDT,
+				.flags = IORESOURCE_IRQ,
+		},	
+	};
+#endif
+
+	ret = platform_driver_register(&ast_wdt_driver);
+
+	if (!ret) {
+		ast_wdt_device = platform_device_register_simple("ast-wdt", 0,
+								ast_wdt0_resource, ARRAY_SIZE(ast_wdt0_resource));
+		if (IS_ERR(ast_wdt_device)) {
+			platform_driver_unregister(&ast_wdt_driver);
+			ret = PTR_ERR(ast_wdt_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_wdt_exit(void)
+{
+	platform_device_unregister(ast_wdt_device);
+	platform_driver_unregister(&ast_wdt_driver);
+}
+
+module_init(ast_wdt_init);
+module_exit(ast_wdt_exit);
+
+MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("Watchdog driver for AST processors");
 MODULE_LICENSE("GPL");

@@ -35,12 +35,15 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
-#include <mach/hardware.h>
-#include <asm/irq.h>
+
 #include <asm/io.h>
+
+#include <mach/irqs.h>
+#include <mach/platform.h>
 
 #include <plat/regs-adc.h>
 #include <plat/ast-scu.h>
+
 
 struct adc_ch_vcc_data {
 	int v2;
@@ -753,9 +756,6 @@ ast_adc_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "ast_adc_probe \n");
 
-	//SCU ADC CTRL Reset
-	ast_scu_init_adc();	
-
 	ast_adc = kzalloc(sizeof(struct ast_adc_data), GFP_KERNEL);
 	if (!ast_adc) {
 		ret = -ENOMEM;
@@ -883,16 +883,59 @@ ast_adc_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver ast_adc_driver = {
+	.probe 		= ast_adc_probe,
 	.remove 		= ast_adc_remove,
 	.suspend        = ast_adc_suspend,
 	.resume         = ast_adc_resume,
 	.driver         = {
-	.name   = "ast_adc",
+	.name   = "ast-adc",
 	.owner  = THIS_MODULE,
 	},
 };
 
-module_platform_driver_probe(ast_adc_driver, ast_adc_probe);
+static struct platform_device *ast_adc_device;
+
+static int __init ast_adc_init(void)
+{
+	int ret;
+	static const struct resource ast_adc_resources[] = {
+		[0] = {
+			.start = AST_ADC_BASE,
+			.end = AST_ADC_BASE + SZ_4K - 1,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_ADC,
+			.end = IRQ_ADC,
+			.flags = IORESOURCE_IRQ,
+		},
+	};
+	
+	ret = platform_driver_register(&ast_adc_driver);
+
+	//SCU ADC CTRL Reset
+	ast_scu_init_adc();	
+
+	if (!ret) {
+		ast_adc_device = platform_device_register_simple("ast-adc", 0,
+								ast_adc_resources, ARRAY_SIZE(ast_adc_resources));
+		if (IS_ERR(ast_adc_device)) {
+			platform_driver_unregister(&ast_adc_driver);
+			ret = PTR_ERR(ast_adc_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_adc_exit(void)
+{
+	platform_device_unregister(ast_adc_device);
+	platform_driver_unregister(&ast_adc_driver);
+}
+
+module_init(ast_adc_init);
+module_exit(ast_adc_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST ADC driver");

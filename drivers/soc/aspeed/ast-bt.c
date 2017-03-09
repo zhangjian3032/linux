@@ -536,6 +536,7 @@ static int ast_bt_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ast_bt_driver = {
+	.probe		= ast_bt_probe,
 	.remove 		= ast_bt_remove,
 	.driver         = {
 		.name   = "ast-bt",
@@ -543,7 +544,45 @@ static struct platform_driver ast_bt_driver = {
 	},
 };
 
-module_platform_driver_probe(ast_bt_driver, ast_bt_probe);
+static struct platform_device *ast_bt0_device;
+static struct platform_device *ast_bt1_device;
+
+static int __init ast_bt_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&ast_bt_driver);
+
+	if (!ret) {
+		ast_bt0_device = platform_device_register_simple("ast-bt", 0,
+								NULL, 0);
+		if (IS_ERR(ast_bt0_device)) {
+			platform_driver_unregister(&ast_bt_driver);
+			ret = PTR_ERR(ast_bt0_device);
+			return ret;
+		}
+		ast_bt1_device = platform_device_register_simple("ast-bt", 1,
+								NULL, 0);
+		if (IS_ERR(ast_bt1_device)) {
+			platform_driver_unregister(&ast_bt_driver);
+			ret = PTR_ERR(ast_bt1_device);
+		}
+		
+	}
+
+	return ret;
+}
+
+static void __exit ast_bt_exit(void)
+{
+	platform_device_unregister(ast_bt0_device);
+	platform_device_unregister(ast_bt1_device);
+	platform_driver_unregister(&ast_bt_driver);
+}
+
+module_init(ast_bt_init);
+module_exit(ast_bt_exit);
+
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST BT driver");

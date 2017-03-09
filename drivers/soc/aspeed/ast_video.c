@@ -38,9 +38,13 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <plat/regs-video.h>
-#include <mach/ast_video.h>
+//#include <mach/ast_video.h>
 #include <mach/hardware.h>
 #include <plat/aspeed.h>
+#include <mach/irqs.h>
+#include <mach/platform.h>
+#include <plat/ast-sdmc.h>
+#include <plat/ast-scu.h>
 
 //#define CONFIG_AST_VIDEO_LOCK
 #define CONFIG_AUTO_MODE
@@ -52,6 +56,52 @@
 #else
 	#define VIDEO_DBG(fmt, args...)
 #endif
+
+//VR08[2]
+typedef enum ast_video_source {
+        VIDEO_SOURCE_INT_VGA = 0,
+        VIDEO_SOURCE_INT_CRT,
+        VIDEO_SOURCE_EXT_ADC,
+        VIDEO_SOURCE_EXT_DIGITAL,
+} video_source;
+
+//VR08[5]
+typedef enum ast_vga_mode {
+        VIDEO_VGA_DIRECT_MODE = 0,
+        VIDEO_VGA_CAPTURE_MODE,
+} vga_mode;
+
+//VR08[4]
+typedef enum ast_video_dis_en {
+        VIDEO_EXT_DE_SIGNAL = 0,
+        VIDEO_INT_DE_SIGNAL,
+} display_enable;
+
+typedef enum video_color_format {
+        VIDEO_COLOR_RGB565 = 0,
+        VIDEO_COLOR_RGB888,
+        VIDEO_COLOR_YUV444,
+        VIDEO_COLOR_YUV420,
+} color_formate;
+
+typedef enum vga_color_mode {
+        VGA_NO_SIGNAL = 0,
+        EGA_MODE,
+        VGA_MODE,
+        VGA_15BPP_MODE,
+        VGA_16BPP_MODE,
+        VGA_32BPP_MODE,
+        VGA_CGA_MODE,
+        VGA_TEXT_MODE,
+} color_mode;
+
+typedef enum video_stage {
+        NONE,
+        POLARITY,
+        RESOLUTION,
+        INIT,
+        RUN,
+} stage;
 
 /***********************************************************************/
 struct ast_video_config
@@ -221,7 +271,6 @@ struct ast_video_data {
 	u32		sts;
 	u8		direct_mode;
 	u8		stage;
-	struct ast_video_plat_data		*plat_data;		
 	u32 	bandwidth;
 	struct mutex lock;	
 
@@ -848,6 +897,15 @@ void ast_init_jpeg_table(struct ast_video_data *ast_video)
 
 }
 
+static u32 get_vga_mem_base(void)
+{
+	u32 vga_mem_size, mem_size;
+	mem_size = ast_sdmc_get_mem_size();
+	vga_mem_size = ast_scu_get_vga_memsize();
+//	printk("VGA Info : MEM Size %dMB, VGA Mem Size %dMB \n",mem_size/1024/1024, vga_mem_size/1024/1024);
+	return (mem_size - vga_mem_size);
+}
+
 static void ast_video_encryption_key_setup(struct ast_video_data *ast_video)
 {
 	int i, j, k, a, StringLength;
@@ -1415,7 +1473,7 @@ Redo:
 	if(Direct_Mode) {
 		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) | VIDEO_DIRT_FATCH | VIDEO_AUTO_FATCH, AST_VIDEO_PASS_CTRL); 		
 		
-		ast_video_write(ast_video, ast_video->plat_data->get_vga_base(), AST_VIDEO_DIRECT_BASE);	
+		ast_video_write(ast_video, get_vga_mem_base(), AST_VIDEO_DIRECT_BASE);	
 		
 		ast_video_write(ast_video, VIDEO_FETCH_TIMING(0) | VIDEO_FETCH_LINE_OFFSET(ast_video->src_fbinfo.x * 4)	, AST_VIDEO_DIRECT_CTRL);		
 		
@@ -1664,7 +1722,6 @@ static void ast_video_ctrl_init(struct ast_video_data *ast_video)
 static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
 	int ret = 1;
-	u32 ctrl = 0;
 	struct miscdevice *c = fp->private_data;
 	struct ast_video_data *ast_video = dev_get_drvdata(c->this_device);
 	struct ast_scaling set_scaling;
@@ -1718,7 +1775,7 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 			break;
 		case AST_VIDEO_SET_VGA_DISPLAY:
 			ret = __get_user(vga_enable, (int __user *)arg);
-			ast_video->plat_data->vga_display(vga_enable);
+			ast_scu_set_vga_display(vga_enable);
 			break;
 		default:
 			ret = 3;
@@ -1806,22 +1863,20 @@ struct miscdevice ast_video_misc = {
 static ssize_t show_vga_display(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct ast_video_data *ast_video = dev_get_drvdata(dev);
-	return sprintf(buf, "%d: %s\n", ast_video->plat_data->get_vga_display(), ast_video->plat_data->get_vga_display()? "Enable":"Disable");
+	return sprintf(buf, "%d: %s\n", ast_scu_get_vga_display(), ast_scu_get_vga_display()? "Enable":"Disable");
 }
 
 static ssize_t store_vga_display(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	u32 val;	
-	struct ast_video_data *ast_video = dev_get_drvdata(dev);
 
 	val = simple_strtoul(buf, NULL, 10);
 
 	if(val)
-		ast_video->plat_data->vga_display(1);
+		ast_scu_set_vga_display(1);
 	else
-		ast_video->plat_data->vga_display(0);
+		ast_scu_set_vga_display(0);
 	
 	return count;
 }
@@ -1837,7 +1892,7 @@ static ssize_t store_video_reset(struct device *dev,
 	val = simple_strtoul(buf, NULL, 10);
 
 	if(val) {
-		ast_video->plat_data->ctrl_reset();
+		ast_scu_reset_video();
 		//rc4 init reset ..
 		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_CTRL) | VIDEO_CTRL_RC4_RST , AST_VIDEO_CTRL);
 		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_CTRL) & ~VIDEO_CTRL_RC4_RST , AST_VIDEO_CTRL);
@@ -2316,17 +2371,12 @@ static int ast_video_probe(struct platform_device *pdev)
 		goto out_region1;
 	}
 
-	ast_video->plat_data = pdev->dev.platform_data;	
-
 	// default config 
 	ast_video->input_source = VIDEO_SOURCE_INT_VGA;
 	ast_video->rc4_enable = 0;
 	strcpy(ast_video->EncodeKeys, "fedcba9876543210");
 	ast_video->scaling = 0;
 	
-	//TEST
-	ast_video->plat_data->get_vga_base();
-
 	ret = misc_register(&ast_video_misc);
 	if (ret){		
 		printk(KERN_ERR "VIDEO : failed to request interrupt\n");
@@ -2443,6 +2493,7 @@ static const struct platform_device_id ast_video_idtable[] = {
 MODULE_DEVICE_TABLE(platform, ast_video_idtable);
 
 static struct platform_driver ast_video_driver = {
+	.probe 		= ast_video_probe, 
 	.remove 		= ast_video_remove,
 	.suspend        = ast_video_suspend,
 	.resume         = ast_video_resume,
@@ -2453,7 +2504,55 @@ static struct platform_driver ast_video_driver = {
 	.id_table	= ast_video_idtable,	
 };
 
-module_platform_driver_probe(ast_video_driver, ast_video_probe);
+static struct platform_device *ast_video_device;
+
+static int __init ast_video_init(void)
+{
+	int ret;
+
+	static const struct resource ast_video_resources[] = {
+		[0] = {
+			.start = AST_VIDEO_BASE,
+			.end = AST_VIDEO_BASE + SZ_2K - 1,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_VIDEO,
+			.end = IRQ_VIDEO,
+			.flags = IORESOURCE_IRQ,
+		},
+		[2] = {
+			.start = AST_VIDEO_MEM,
+			.end = AST_VIDEO_MEM + AST_VIDEO_MEM_SIZE - 1,
+			.flags = IORESOURCE_DMA,
+		},	
+	};
+	
+	ret = platform_driver_register(&ast_video_driver);
+
+	ast_scu_init_video(0);
+	ast_scu_multi_func_video();
+
+	if (!ret) {
+		ast_video_device = platform_device_register_simple("ast-video", 0,
+								ast_video_resources, ARRAY_SIZE(ast_video_resources));
+		if (IS_ERR(ast_video_device)) {
+			platform_driver_unregister(&ast_video_driver);
+			ret = PTR_ERR(ast_video_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_video_exit(void)
+{
+	platform_device_unregister(ast_video_device);
+	platform_driver_unregister(&ast_video_driver);
+}
+
+module_init(ast_video_init);
+module_exit(ast_video_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST Video Engine driver");

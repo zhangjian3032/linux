@@ -22,59 +22,21 @@ extern void __init ast_add_all_devices(void);
 //platform
 extern void __init ast_add_device_uart(void);
 extern void __init ast_add_device_vuart(void);
-extern void __init ast_add_device_watchdog(void);
-extern void __init ast_add_device_rtc(void);
-extern void __init ast_add_device_gpio(void);
-extern void __init ast_add_device_sgpio(void);
 
 //ADC 
-
-//Bus
-extern void __init ast_add_device_espi(void);
-extern void __init ast_add_device_kcs(void);
-extern void __init ast_add_device_bt(void);
-extern void __init ast_add_device_snoop(void);
-
-extern void __init ast_add_device_mailbox(void);
-extern void __init ast_add_device_cf_mbx(void);
 
 extern void __init ast_add_device_i2c(void);
 extern void __init ast_add_device_spi(void);
 extern void __init ast_add_device_ehci(void);
 extern void __init ast_add_device_uhci(void);
-extern void __init ast_add_device_gmac(void);
-extern void __init ast_add_device_udc11(void);
-extern void __init ast_add_device_hid(void);
-
-//USB 
-extern void __init ast_add_device_udc20(void);
-
-extern void __init ast_add_device_peci(void);
-extern void __init ast_add_device_jtag(void);
-
-extern void __init ast_add_device_mctp(void);
-extern void __init ast_add_device_xdma(void);
-
-extern void __init ast_add_device_crypto(void);
-//hwmon
-extern void __init ast_add_device_pwm_fan(void);
-extern void __init ast_add_device_adc(void);
-
-
-extern void __init ast_add_device_vhub(void);
 
 //Storage
 extern void __init ast_add_device_nand(void);
 extern void __init ast_add_device_flash(void);
-extern void __init ast_add_device_sdhci(void);
 extern void __init ast_add_device_nand(void);
 
 //video
 extern void __init ast_add_device_fb(void);
-extern void __init ast_add_device_video(void);
-extern void __init ast_add_device_h264(void);
-extern void __init ast_add_device_formatter(void);
 extern void __init ast_add_device_rfx(void);
-extern void __init ast_add_device_rng(void);
 
 #endif

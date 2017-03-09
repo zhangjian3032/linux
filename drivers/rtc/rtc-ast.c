@@ -472,18 +472,48 @@ static struct platform_driver ast_rtc_driver = {
 	.suspend	= ast_rtc_suspend,
 	.resume		= ast_rtc_resume,
 	.driver		= {
-		.name	= "ast_rtc",
+		.name	= "ast-rtc",
 		.owner	= THIS_MODULE,
 	},
 };
 
+
+static struct platform_device *ast_rtc_device;
+
 static int __init ast_rtc_init(void)
 {
-	return platform_driver_register(&ast_rtc_driver);
+	int ret;
+	static const struct resource ast_rtc_resources[] = {
+		[0] = {
+			.start	= AST_RTC_BASE,
+			.end	= AST_RTC_BASE + SZ_4K - 1,
+			.flags	= IORESOURCE_MEM,
+		},
+		[1] = {
+				.start = IRQ_RTC,
+				.end = IRQ_RTC,
+				.flags = IORESOURCE_IRQ,
+		},
+		
+	};
+	
+	ret = platform_driver_register(&ast_rtc_driver);
+
+	if (!ret) {
+		ast_rtc_device = platform_device_register_simple("ast-rtc", 0,
+								ast_rtc_resources, ARRAY_SIZE(ast_rtc_resources));
+		if (IS_ERR(ast_rtc_device)) {
+			platform_driver_unregister(&ast_rtc_driver);
+			ret = PTR_ERR(ast_rtc_device);
+		}
+	}
+
+	return ret;
 }
 
 static void __exit ast_rtc_exit(void)
 {
+	platform_device_unregister(ast_rtc_device);
 	platform_driver_unregister(&ast_rtc_driver);
 }
 
@@ -493,5 +523,4 @@ module_exit(ast_rtc_exit);
 MODULE_AUTHOR("Ryan Chen");
 MODULE_DESCRIPTION("RTC driver for ASPEED AST ");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:ast_rtc");
-
+MODULE_ALIAS("platform:ast-rtc");

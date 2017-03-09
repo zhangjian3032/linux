@@ -783,7 +783,7 @@ ast_hid_resume(struct platform_device *pdev)
 
 static struct platform_driver ast_hid_driver = {
 	.probe			= ast_hid_probe,
-	.remove 		= __devexit_p(ast_hid_remove),
+	.remove 		= ast_hid_remove,
     .suspend        = ast_hid_suspend,
     .resume         = ast_hid_resume,
     .driver         = {
@@ -792,15 +792,46 @@ static struct platform_driver ast_hid_driver = {
     },
 };
 
-static int __init 
-ast_hid_init(void)
+static struct platform_device *ast_hid_device;
+
+static int __init ast_hid_init(void)
 {
-	return platform_driver_register(&ast_hid_driver);
+	int ret;
+
+	static const struct resource ast_hid_resource[] = {
+		[0] = {
+			.start = AST_HID_BASE,
+			.end = AST_HID_BASE + SZ_64,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_HID,
+			.end = IRQ_HID,
+			.flags = IORESOURCE_IRQ,
+		},
+	};
+
+	ret = platform_driver_register(&ast_hid_driver);
+
+	ast_scu_multi_func_usb_port2_mode(0);
+
+//	ast_scu_init_usb_port1();
+
+	if (!ret) {
+		ast_hid_device = platform_device_register_simple("ast-hid", 0,
+								ast_hid_resource, ARRAY_SIZE(ast_hid_resource));
+		if (IS_ERR(ast_hid_device)) {
+			platform_driver_unregister(&ast_hid_driver);
+			ret = PTR_ERR(ast_hid_device);
+		}
+	}
+
+	return ret;
 }
 
-static void __exit 
-ast_hid_exit(void)
+static void __exit ast_hid_exit(void)
 {
+	platform_device_unregister(ast_hid_device);
 	platform_driver_unregister(&ast_hid_driver);
 }
 

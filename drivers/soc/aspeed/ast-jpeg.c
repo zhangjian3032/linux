@@ -1178,14 +1178,13 @@ ast_jpeg_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver ast_jpeg_driver = {
-	.probe = ast_jpeg_probe,
-	.remove = ast_jpeg_remove,
-	.suspend = ast_jpeg_suspend, /* optional but recommended */
-	.resume = ast_jpeg_resume,   /* optional but recommended */
+	.probe	= ast_jpeg_probe,
+	.remove	= ast_jpeg_remove,
+	.suspend	= ast_jpeg_suspend, /* optional but recommended */
+	.resume	= ast_jpeg_resume,   /* optional but recommended */
 	.driver = {
-		.name = "ast_jpeg",
+		.name = "ast-jpeg",
 		.owner  = THIS_MODULE,
-			
 	},
 };
 
@@ -1194,7 +1193,7 @@ static struct platform_device *ast_jpeg_device;
 static int __init ast_jpeg_init(void)
 {
 	int ret;
-	static const struct resource video_resources[] = {
+	static const struct resource jpeg_resources[] = {
 		[0] = {
 			.start = AST_JPEG_BASE,
 			.end = AST_JPEG_BASE + SZ_2K - 1,
@@ -1218,8 +1217,8 @@ static int __init ast_jpeg_init(void)
 	ast_scu_multi_func_jpeg();
 
 	if (!ret) {
-		ast_jpeg_device = platform_device_register_simple("ast_jpeg", 0,
-								video_resources, ARRAY_SIZE(video_resources));
+		ast_jpeg_device = platform_device_register_simple("ast-jpeg", 0,
+								jpeg_resources, ARRAY_SIZE(jpeg_resources));
 		if (IS_ERR(ast_jpeg_device)) {
 			platform_driver_unregister(&ast_jpeg_driver);
 			ret = PTR_ERR(ast_jpeg_device);

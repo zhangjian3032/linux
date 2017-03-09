@@ -6,6 +6,7 @@
  * Licensed under GPLv2 or later.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/mmc/host.h>
@@ -13,6 +14,8 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include "sdhci-pltfm.h"
+#include <mach/irqs.h>
+#include <mach/platform.h>
 #include <plat/ast-scu.h>
 
 extern void ast_sd_set_8bit_mode(u8 mode);
@@ -134,7 +137,86 @@ static struct platform_driver sdhci_ast_driver = {
 	.remove		= sdhci_ast_remove,
 };
 
-module_platform_driver(sdhci_ast_driver);
+static u64 ast_sdhc_dma_mask = DMA_BIT_MASK(32);
+
+static struct resource ast_sdhci0_resource[] = {
+	[0] = {
+		.start = AST_SDHCI_SLOT0_BASE,
+		.end = AST_SDHCI_SLOT0_BASE + SZ_256 - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_SDHCI0_SLOT0,
+		.end = IRQ_SDHCI0_SLOT0,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ast_sdhci_device0 = {
+	.name	= "sdhci-ast",		
+	.id = 0,
+	.dev = {
+		.dma_mask = &ast_sdhc_dma_mask,
+		.coherent_dma_mask = 0xffffffff,
+	},
+	.resource = ast_sdhci0_resource,
+	.num_resources = ARRAY_SIZE(ast_sdhci0_resource),
+};
+
+static struct resource ast_sdhci1_resource[] = {
+	[0] = {
+		.start = AST_SDHCI_SLOT1_BASE,
+		.end = AST_SDHCI_SLOT1_BASE + SZ_256 - 1 ,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_SDHCI0_SLOT1,
+		.end = IRQ_SDHCI0_SLOT1,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ast_sdhci_device1 = {
+	.name	= "sdhci-ast",		
+	.id = 1,
+	.dev = {
+		.dma_mask = &ast_sdhc_dma_mask,
+		.coherent_dma_mask = 0xffffffff,
+	},
+	.resource = ast_sdhci1_resource,
+	.num_resources = ARRAY_SIZE(ast_sdhci1_resource),
+};
+
+static int __init ast_sdhci_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&sdhci_ast_driver);
+
+	if (!ret) {
+#ifdef CONFIG_8BIT_MODE
+		ast_scu_multi_func_sdhc_8bit_mode();
+		platform_device_register(&ast_sdhci_device0);
+#else
+		platform_device_register(&ast_sdhci_device0);
+		platform_device_register(&ast_sdhci_device1);
+#endif	
+		ast_scu_multi_func_sdhc_slot(3);
+	}
+
+	return ret;
+}
+
+static void __exit ast_sdhci_exit(void)
+{
+	platform_device_unregister(&ast_sdhci_device0);
+	platform_device_unregister(&ast_sdhci_device1);
+	platform_driver_unregister(&sdhci_ast_driver);
+}
+
+module_init(ast_sdhci_init);
+module_exit(ast_sdhci_exit);
+
 
 MODULE_DESCRIPTION("SDHCI driver for AST SOC");
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");

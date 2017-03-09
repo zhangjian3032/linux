@@ -121,7 +121,37 @@ static struct platform_driver ast_rng_driver = {
 	.resume		= ast_rng_resume
 };
 
-module_platform_driver_probe(ast_rng_driver, ast_rng_probe);
+
+static struct platform_device *ast_rng_device;
+
+static int __init ast_rng_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&ast_rng_driver);
+
+	if (!ret) {
+		ast_rng_device = platform_device_register_simple("ast-rng", 0,
+								NULL, 0);
+		if (IS_ERR(ast_rng_device)) {
+			platform_driver_unregister(&ast_rng_driver);
+			ret = PTR_ERR(ast_rng_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_rng_exit(void)
+{
+	platform_device_unregister(ast_rng_device);
+	platform_driver_unregister(&ast_rng_driver);
+}
+
+
+module_init(ast_rng_init);
+module_exit(ast_rng_exit);
+
 
 MODULE_AUTHOR("Ryan Chen");
 MODULE_DESCRIPTION("H/W RNGA driver for AST");

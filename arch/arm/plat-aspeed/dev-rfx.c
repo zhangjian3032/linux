@@ -230,67 +230,6 @@ struct platform_device ast_device_egfx = {
 };
 #endif
 
-#if defined(CONFIG_AST_MASK) || defined(CONFIG_AST_MASK_MODULE)
-static struct resource ast_mask0_resource[] = {
-	[0] = {
-		.start = AST_VMASK_BASE,
-		.end   = AST_VMASK_BASE + SZ_128 - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_VMASK_DONE,
-		.end   = IRQ_VMASK_DONE,
-		.flags = IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start = AST_VMASK_MEM_BASE,
-		.end   = AST_VMASK_MEM_BASE + AST_VMASK_MEM_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},	
-};
-
-struct platform_device ast_device_mask0 = {
-	.name		 	= "ast-mask",
-	.id				= 0,
-	.dev = {
-		.dma_mask			= &ast_device_rfx_dmamask,
-		.coherent_dma_mask	= 0xffffffffUL,
-	},
-	.num_resources	= ARRAY_SIZE(ast_mask0_resource),
-	.resource			= ast_mask0_resource,
-};
-
-static struct resource ast_mask1_resource[] = {
-	[0] = {
-		.start = AST_GMASK_BASE,
-		.end   = AST_GMASK_BASE + SZ_128 - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_GMASK_DONE,
-		.end   = IRQ_GMASK_DONE,
-		.flags = IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start = AST_GMASK_MEM_BASE,
-		.end   = AST_GMASK_MEM_BASE + AST_GMASK_MEM_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},	
-};
-
-struct platform_device ast_device_mask1 = {
-	.name		 	= "ast-mask",
-	.id				= 1,
-	.dev = {
-		.dma_mask			= &ast_device_rfx_dmamask,
-		.coherent_dma_mask	= 0xffffffffUL,
-	},
-	.num_resources	= ARRAY_SIZE(ast_mask1_resource),
-	.resource			= ast_mask1_resource,
-};
-
-#endif
-
 void __init ast_add_device_rfx(void)
 {
 	//bitblt scu reset is depend on rfx ast_scu_init_rfx	
@@ -320,10 +259,6 @@ void __init ast_add_device_rfx(void)
 	platform_device_register(&ast_device_egfx);
 #endif
 
-#if defined(CONFIG_AST_MASK) || defined(CONFIG_AST_MASK_MODULE)
-	platform_device_register(&ast_device_mask0);
-	platform_device_register(&ast_device_mask1);
-#endif
 
 }
 #else	//#if defined(CONFIG_AST_RFX)

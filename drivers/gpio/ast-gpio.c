@@ -648,11 +648,48 @@ static struct platform_driver ast_gpio_driver = {
 	},
 };
 
+static struct platform_device *ast_gpio_device;
+
 static int __init ast_gpio_init(void)
 {
-	return platform_driver_register(&ast_gpio_driver);
+	int ret;
+
+	static const struct resource ast_gpio_resource[] = {
+		[0] = {
+			.start = AST_GPIO_BASE,
+			.end = AST_GPIO_BASE + SZ_512 - 1,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_GPIO,
+			.end = IRQ_GPIO,
+			.flags = IORESOURCE_IRQ,
+		},
+	};
+
+	ret = platform_driver_register(&ast_gpio_driver);
+
+	if (!ret) {
+		ast_gpio_device = platform_device_register_simple("ast-gpio", 0,
+								ast_gpio_resource, ARRAY_SIZE(ast_gpio_resource));
+		if (IS_ERR(ast_gpio_device)) {
+			platform_driver_unregister(&ast_gpio_driver);
+			ret = PTR_ERR(ast_gpio_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_gpio_exit(void)
+{
+	platform_device_unregister(ast_gpio_device);
+	platform_driver_unregister(&ast_gpio_driver);
 }
 
 core_initcall(ast_gpio_init);
 //arch_initcall(ast_gpio_init);
 
+MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
+MODULE_DESCRIPTION("GPIO driver for AST processors");
+MODULE_LICENSE("GPL");

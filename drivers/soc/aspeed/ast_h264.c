@@ -523,6 +523,7 @@ static int ast_h264_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ast_h264_driver = {
+	.probe		= ast_h264_probe,
 	.remove 		= ast_h264_remove,
 	.driver         = {
 		.name   = "ast-h264",
@@ -530,7 +531,54 @@ static struct platform_driver ast_h264_driver = {
 	},
 };
 
-module_platform_driver_probe(ast_h264_driver, ast_h264_probe);
+static struct platform_device *ast_h264_device;
+
+static int __init ast_h264_init(void)
+{
+	int ret;
+
+	static const struct resource ast_h264_resource[] = {
+		[0] = {
+			.start = AST_H264_BASE,
+			.end   = AST_H264_BASE + 0x00002100 - 1,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_H264,
+			.end   = IRQ_H264,
+			.flags = IORESOURCE_IRQ,
+		},	
+		[2] = {
+			.start = AST_H264_MEM_BASE,
+			.end = AST_H264_MEM_BASE + AST_H264_MEM_SIZE - 1,
+			.flags = IORESOURCE_DMA,
+		},	
+	};
+
+	ret = platform_driver_register(&ast_h264_driver);
+
+	ast_scu_init_h264();
+
+	if (!ret) {
+		ast_h264_device = platform_device_register_simple("ast-h264", 0,
+								ast_h264_resource, ARRAY_SIZE(ast_h264_resource));
+		if (IS_ERR(ast_h264_device)) {
+			platform_driver_unregister(&ast_h264_driver);
+			ret = PTR_ERR(ast_h264_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_h264_exit(void)
+{
+	platform_device_unregister(ast_h264_device);
+	platform_driver_unregister(&ast_h264_driver);
+}
+
+module_init(ast_h264_init);
+module_exit(ast_h264_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST H264 driver");

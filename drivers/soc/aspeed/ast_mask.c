@@ -213,13 +213,87 @@ static int ast_vmask_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ast_vmask_driver = {
+	.probe 		= ast_vmask_probe,
+	.remove 		= ast_vmask_remove,
 	.driver         = {
 		.name   = "ast-vmask",
 		.owner  = THIS_MODULE,
 	},
 };
 
-module_platform_driver_probe(ast_vmask_driver, ast_vmask_probe);
+static struct platform_device *ast_vmask0_device;
+static struct platform_device *ast_vmask1_device;
+
+static int __init ast_vmask_init(void)
+{
+	int ret;
+
+	static const struct resource ast_vmask0_resource[] = {
+		[0] = {
+			.start = AST_VMASK_BASE,
+			.end   = AST_VMASK_BASE + SZ_128 - 1,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_VMASK_DONE,
+			.end   = IRQ_VMASK_DONE,
+			.flags = IORESOURCE_IRQ,
+		},
+		[2] = {
+			.start = AST_VMASK_MEM_BASE,
+			.end   = AST_VMASK_MEM_BASE + AST_VMASK_MEM_SIZE - 1,
+			.flags = IORESOURCE_MEM,
+		},	
+	};
+
+	static const struct resource ast_vmask1_resource[] = {
+		[0] = {
+			.start = AST_GMASK_BASE,
+			.end   = AST_GMASK_BASE + SZ_128 - 1,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_GMASK_DONE,
+			.end   = IRQ_GMASK_DONE,
+			.flags = IORESOURCE_IRQ,
+		},
+		[2] = {
+			.start = AST_GMASK_MEM_BASE,
+			.end   = AST_GMASK_MEM_BASE + AST_GMASK_MEM_SIZE - 1,
+			.flags = IORESOURCE_MEM,
+		},	
+	};
+
+	ret = platform_driver_register(&ast_vmask_driver);
+
+	if (!ret) {
+		ast_vmask0_device = platform_device_register_simple("ast-vmask", 0,
+								ast_vmask0_resource, ARRAY_SIZE(ast_vmask0_resource));
+		if (IS_ERR(ast_vmask0_device)) {
+			platform_driver_unregister(&ast_vmask_driver);
+			ret = PTR_ERR(ast_vmask0_device);
+		}
+		ast_vmask1_device = platform_device_register_simple("ast-vmask", 1,
+								ast_vmask1_resource, ARRAY_SIZE(ast_vmask1_resource));
+		if (IS_ERR(ast_vmask1_device)) {
+			platform_driver_unregister(&ast_vmask_driver);
+			ret = PTR_ERR(ast_vmask1_device);
+		}
+		
+	}
+
+	return ret;
+}
+
+static void __exit ast_jpeg_exit(void)
+{
+	platform_device_unregister(ast_jpeg_device);
+	platform_driver_unregister(&ast_jpeg_driver);
+}
+
+
+module_init(ast_jpeg_init);
+module_exit(ast_jpeg_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST vmask driver");

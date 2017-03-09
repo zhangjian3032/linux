@@ -31,6 +31,8 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <plat/ast-scu.h>
+#include <mach/irqs.h>
+#include <mach/platform.h>
 
 //#include <plat/regs-mctp.h>
 //#include <plat/ast_mctp.h>
@@ -643,6 +645,7 @@ MODULE_DEVICE_TABLE(platform, ast_mctp_idtable);
 #endif 
 
 static struct platform_driver ast_mctp_driver = {
+	.probe 		= ast_mctp_probe,
 	.remove 		= ast_mctp_remove,
 	.suspend        = ast_mctp_suspend,
 	.resume         = ast_mctp_resume,
@@ -653,7 +656,52 @@ static struct platform_driver ast_mctp_driver = {
 //	.id_table	= ast_mctp_idtable,		
 };
 
-module_platform_driver_probe(ast_mctp_driver, ast_mctp_probe);
+static struct platform_device *ast_mctp_device;
+
+static int __init ast_mctp_init(void)
+{
+	int ret;
+
+	static const struct resource ast_mctp_resource[] = {
+		[0] = {
+			.start = AST_MCTP_BASE,
+			.end = AST_MCTP_BASE + SZ_256,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_MCTP,
+			.end = IRQ_MCTP,
+			.flags = IORESOURCE_IRQ,
+		},
+		[2] = {
+			.start = AST_DRAM_BASE,
+			.end = AST_DRAM_BASE,
+			.flags = IORESOURCE_BUS,
+		},	
+	};
+
+	ret = platform_driver_register(&ast_mctp_driver);
+
+	if (!ret) {
+		ast_mctp_device = platform_device_register_simple("ast-mctp", 0,
+								ast_mctp_resource, ARRAY_SIZE(ast_mctp_resource));
+		if (IS_ERR(ast_mctp_device)) {
+			platform_driver_unregister(&ast_mctp_driver);
+			ret = PTR_ERR(ast_mctp_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_mctp_exit(void)
+{
+	platform_device_unregister(ast_mctp_device);
+	platform_driver_unregister(&ast_mctp_driver);
+}
+
+module_init(ast_mctp_init);
+module_exit(ast_mctp_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST MCTP Driver");

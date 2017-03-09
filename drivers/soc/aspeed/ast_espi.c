@@ -29,11 +29,12 @@
 #include <linux/dma-mapping.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <mach/platform.h>
 #include <mach/hardware.h>
 #include <plat/regs-espi.h>
 #include <plat/ast-scu.h>
 #include <mach/gpio.h>
+#include <mach/irqs.h>
+#include <mach/platform.h>
 
 /*************************************************************************************/
 struct ast_espi_xfer {
@@ -298,7 +299,7 @@ ast_sys1_event(struct ast_espi_data *ast_espi)
 	
 }
 
-static void ast_espi_init(struct ast_espi_data *ast_espi) {
+static void ast_espi_ctrl_init(struct ast_espi_data *ast_espi) {
 
 	//a1 espi intiial 
 	ast_espi_write(ast_espi, ast_espi_read(ast_espi, AST_ESPI_CTRL) | 0xff, AST_ESPI_CTRL);
@@ -347,7 +348,7 @@ static irqreturn_t ast_espi_reset_isr(int this_irq, void *dev_id)
 	sw_mode = ast_espi_read(ast_espi, AST_ESPI_CTRL) & ESPI_CTRL_SW_FLASH_READ;
 
 	ast_scu_reset_espi();
-	ast_espi_init(ast_espi);
+	ast_espi_ctrl_init(ast_espi);
 
 	ast_espi_write(ast_espi, ast_espi_read(ast_espi, AST_ESPI_CTRL) | sw_mode, AST_ESPI_CTRL);
 	
@@ -953,7 +954,7 @@ struct miscdevice ast_espi_misc = {
 
 #define MAX_XFER_BUFF_SIZE	0x80		//128
 ///////////////////////////////////
-static int __init ast_espi_probe(struct platform_device *pdev)
+static int ast_espi_probe(struct platform_device *pdev)
 {
 	static struct ast_espi_data *ast_espi;
 	struct resource *res;
@@ -1060,7 +1061,7 @@ static int __init ast_espi_probe(struct platform_device *pdev)
 		goto err_free_mem;
 	}
 
-	ast_espi_init(ast_espi);
+	ast_espi_ctrl_init(ast_espi);
 	
 	ret = misc_register(&ast_espi_misc);
 	if (ret){		
@@ -1092,7 +1093,7 @@ err_free:
 	return ret;
 }
 
-static int __exit ast_espi_remove(struct platform_device *pdev)
+static int ast_espi_remove(struct platform_device *pdev)
 {
 	struct ast_espi_data *ast_espi;
 	struct resource *res;
@@ -1130,11 +1131,60 @@ static struct platform_driver ast_espi_driver = {
 		.name	= "ast-espi",
 		.owner	= THIS_MODULE,
 	},
+	.probe		= ast_espi_probe,
 	.remove		= ast_espi_remove,
 	.id_table	= ast_espi_idtable,		
 };
 
-module_platform_driver_probe(ast_espi_driver, ast_espi_probe);
+static struct platform_device *ast_espi_device;
+
+static int __init ast_espi_init(void)
+{
+	int ret;
+
+	static const struct resource ast_espi_resource[] = {
+		[0] = {
+			.start = AST_ESPI_BASE,
+			.end = AST_ESPI_BASE + SZ_256 -1,
+			.flags = IORESOURCE_MEM,
+		},
+#ifdef CONFIG_COLDFIRE_ESPI	
+		[1] = {
+			.start = IRQ_CPU,
+			.end = IRQ_CPU, 
+			.flags = IORESOURCE_IRQ,
+		},
+#else
+		[1] = {
+			.start = IRQ_ESPI,
+			.end = IRQ_ESPI,
+			.flags = IORESOURCE_IRQ,
+		},
+#endif
+	};
+
+	ret = platform_driver_register(&ast_espi_driver);
+
+	if (!ret) {
+		ast_espi_device = platform_device_register_simple("ast-espi", 0,
+								ast_espi_resource, ARRAY_SIZE(ast_espi_resource));
+		if (IS_ERR(ast_espi_device)) {
+			platform_driver_unregister(&ast_espi_driver);
+			ret = PTR_ERR(ast_espi_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_espi_exit(void)
+{
+	platform_device_unregister(ast_espi_device);
+	platform_driver_unregister(&ast_espi_driver);
+}
+
+module_init(ast_espi_init);
+module_exit(ast_espi_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST eSPI driver");

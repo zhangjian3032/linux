@@ -234,6 +234,7 @@ static int ast_snoop_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ast_snoop_driver = {
+	.probe		= ast_snoop_probe,
 	.remove 		= ast_snoop_remove,
 	.driver         = {
 		.name   = "ast-snoop",
@@ -241,7 +242,43 @@ static struct platform_driver ast_snoop_driver = {
 	},
 };
 
-module_platform_driver_probe(ast_snoop_driver, ast_snoop_probe);
+static struct platform_device *ast_snoop0_device;
+static struct platform_device *ast_snoop1_device;
+
+static int __init ast_snoop_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&ast_snoop_driver);
+
+	if (!ret) {
+		ast_snoop0_device = platform_device_register_simple("ast-snoop", 0,
+								NULL, 0);
+		if (IS_ERR(ast_snoop0_device)) {
+			platform_driver_unregister(&ast_snoop_driver);
+			ret = PTR_ERR(ast_snoop0_device);
+		}
+		ast_snoop0_device = platform_device_register_simple("ast-snoop", 1,
+								NULL, 0);
+		if (IS_ERR(ast_snoop1_device)) {
+			platform_driver_unregister(&ast_snoop_driver);
+			ret = PTR_ERR(ast_snoop1_device);
+		}
+		
+	}
+
+	return ret;
+}
+
+static void __exit ast_snoop_exit(void)
+{
+	platform_device_unregister(ast_snoop0_device);
+	platform_device_unregister(ast_snoop1_device);
+	platform_driver_unregister(&ast_snoop_driver);
+}
+
+module_init(ast_snoop_init);
+module_exit(ast_snoop_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST SNOOP driver");

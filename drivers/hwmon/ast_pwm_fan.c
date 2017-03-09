@@ -61,8 +61,9 @@
 #include <asm/arch/regs-pwm_fan.h>
 #include <asm/arch/ast_pwm_techo.h>
 #else
+#include <mach/irqs.h>
+#include <mach/platform.h>
 #include <plat/regs-pwm_fan.h>
-#include <mach/ast_pwm_techo.h>
 #include <plat/ast-scu.h>
 #endif
 
@@ -249,7 +250,7 @@ ast_get_tacho_measure_period(struct ast_pwm_tacho_data *ast_pwm_tacho, u8 pwm_ty
 	//TODO ... 266
 	if(AST_PTCR_CTRL_CLK_MCLK & ast_pwm_tacho_read(ast_pwm_tacho, AST_PTCR_CTRL)) {
 		//TODO .....
-		clk = ast_pwm_tacho->ast_pwm_data->get_pwm_clock();
+		clk = ast_get_h_pll_clk();
 	} else
 		clk = 24*1000*1000;
 	
@@ -911,7 +912,7 @@ ast_get_pwm_clock(struct ast_pwm_tacho_data *ast_pwm_tacho, u8 pwm_type)
 	//TODO 266
 
 	if(AST_PTCR_CTRL_CLK_MCLK & ast_pwm_tacho_read(ast_pwm_tacho, AST_PTCR_CTRL))
-			clk_source = ast_pwm_tacho->ast_pwm_data->get_pwm_clock();
+			clk_source = ast_get_h_pll_clk();
 		else
 			clk_source = 24*1000*1000;
 
@@ -1949,13 +1950,6 @@ ast_pwm_tacho_probe(struct platform_device *pdev)
 	int i;
 
 	dev_dbg(&pdev->dev, "ast_pwm_fan_probe \n");
-	//SCU Initial 
-
-	//SCU Pin-MUX 	//PWM & TACHO 
-	ast_scu_multi_func_pwm_tacho();
-
-	//SCU PWM CTRL Reset
-	ast_scu_init_pwm_tacho();	
 
 	ast_pwm_tacho = kzalloc(sizeof(struct ast_pwm_tacho_data), GFP_KERNEL);
 	if (!ast_pwm_tacho) {
@@ -2109,6 +2103,7 @@ ast_pwm_tacho_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver ast_pwm_tacho_driver = {
+	.probe 		= ast_pwm_tacho_probe,
 	.remove 		= ast_pwm_tacho_remove,
 	.suspend        = ast_pwm_tacho_suspend,
 	.resume         = ast_pwm_tacho_resume,
@@ -2118,7 +2113,52 @@ static struct platform_driver ast_pwm_tacho_driver = {
 	},
 };
 
-module_platform_driver_probe(ast_pwm_tacho_driver, ast_pwm_tacho_probe);
+static struct platform_device *ast_pwm_tacho_device;
+
+static int __init ast_pwm_tacho_init(void)
+{
+	int ret;
+	static const struct resource ast_pwm_fan_resources[] = {
+		[0] = {
+			.start = AST_PWM_BASE,
+			.end = AST_PWM_BASE + SZ_4K - 1,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_TACHO,
+			.end = IRQ_TACHO,
+			.flags = IORESOURCE_IRQ,
+		},
+	};
+
+	ret = platform_driver_register(&ast_pwm_tacho_driver);
+
+	//SCU Pin-MUX 	//PWM & TACHO 
+	ast_scu_multi_func_pwm_tacho();
+
+	//SCU PWM CTRL Reset
+	ast_scu_init_pwm_tacho();	
+
+	if (!ret) {
+		ast_pwm_tacho_device = platform_device_register_simple("ast_pwm_tacho", 0,
+								ast_pwm_fan_resources, ARRAY_SIZE(ast_pwm_fan_resources));
+		if (IS_ERR(ast_pwm_tacho_device)) {
+			platform_driver_unregister(&ast_pwm_tacho_driver);
+			ret = PTR_ERR(ast_pwm_tacho_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_pwm_tacho_exit(void)
+{
+	platform_device_unregister(ast_pwm_tacho_device);
+	platform_driver_unregister(&ast_pwm_tacho_driver);
+}
+
+module_init(ast_pwm_tacho_init);
+module_exit(ast_pwm_tacho_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST PWM TACHO driver");

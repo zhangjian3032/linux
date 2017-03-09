@@ -402,10 +402,48 @@ static struct platform_driver ast_sgpio_driver = {
         },
 };
 
+static struct platform_device *ast_sgpio_device;
+
 static int __init ast_sgpio_init(void)
 {
-        return platform_driver_register(&ast_sgpio_driver);
+	int ret;
+
+	static const struct resource ast_sgpio_resource[] = {
+		[0] = {
+			.start = AST_SGPIO_BASE,
+			.end = AST_SGPIO_BASE + SZ_256 - 1,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_SGPIO,
+			.end = IRQ_SGPIO,
+			.flags = IORESOURCE_IRQ,
+		},
+	};
+
+	ret = platform_driver_register(&ast_sgpio_driver);
+
+	if (!ret) {
+		ast_sgpio_device = platform_device_register_simple("ast-gpio", 0,
+								ast_sgpio_resource, ARRAY_SIZE(ast_sgpio_resource));
+		if (IS_ERR(ast_sgpio_device)) {
+			platform_driver_unregister(&ast_sgpio_driver);
+			ret = PTR_ERR(ast_sgpio_device);
+		}
+	}
+
+	return ret;
 }
 
+static void __exit ast_sgpio_exit(void)
+{
+	platform_device_unregister(ast_sgpio_device);
+	platform_driver_unregister(&ast_sgpio_driver);
+}
 
 core_initcall(ast_sgpio_init);
+//arch_initcall(ast_sgpio_init);
+
+MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
+MODULE_DESCRIPTION("SGPIO driver for AST processors");
+MODULE_LICENSE("GPL");

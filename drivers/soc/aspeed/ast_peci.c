@@ -19,7 +19,6 @@
 *      1. 2013/01/30 Ryan Chen create this file 
 *    
 ********************************************************************************/
-
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -35,6 +34,8 @@
 #include <asm/arch/regs-peci.h>
 #else
 #include <plat/regs-peci.h>
+#include <mach/irqs.h>
+#include <mach/platform.h>
 #endif
 
 #include <plat/ast-scu.h>
@@ -339,26 +340,17 @@ static irqreturn_t ast_peci_handler(int this_irq, void *dev_id)
 
 static void ast_peci_ctrl_init(void)
 {
-	ast_peci_write(PECI_CTRL_SAMPLING(8) | 
-					PECI_CTRL_PECI_CLK_EN, AST_PECI_CTRL);	
+	ast_peci_write(PECI_CTRL_CLK_DIV(3) |
+					PECI_CTRL_PECI_CLK_EN, AST_PECI_CTRL);
+	udelay(1000);
 
 	//PECI Timing Setting : should 4 times of peci clk period 64 = 16 * 4 ??
 	ast_peci_write(PECI_TIMING_MESSAGE(64) | PECI_TIMING_ADDRESS(64), AST_PECI_TIMING);
 
-
 	//PECI Programmable AWFCS
 	//ast_peci_write(ast_peci, PECI_PROGRAM_AW_FCS, AST_PECI_EXP_FCS);
 
-
-	//PECI Spec wide speed rangs [2kbps~2Mbps]
-	//Sampling 8/16, READ mode : Point Sampling , CLK source : 24Mhz , DIV by 8 : 3 --> CLK is 3Mhz
-	//PECI CTRL Enable 
-	ast_peci_write(PECI_CTRL_SAMPLING(8) | PECI_CTRL_CLK_DIV(3) | 
-					PECI_CTRL_PECI_EN | 
-					PECI_CTRL_PECI_CLK_EN, AST_PECI_CTRL);	
-
 	//Issue Fix for interrupt accur 
-	
 	//Clear Interrupt
 	ast_peci_write(PECI_INT_TIMEOUT | PECI_INT_CONNECT | 
 					PECI_INT_W_FCS_BAD | PECI_INT_W_FCS_ABORT |
@@ -370,7 +362,14 @@ static void ast_peci_ctrl_init(void)
 	ast_peci_write(PECI_INT_TIMEOUT | PECI_INT_CONNECT | 
 					PECI_INT_W_FCS_BAD | PECI_INT_W_FCS_ABORT |
 					PECI_INT_CMD_DONE, AST_PECI_INT_CTRL);
-	
+
+	//PECI Spec wide speed rangs [2kbps~2Mbps]
+	//Sampling 8/16, READ mode : Point Sampling , CLK source : 24Mhz , DIV by 8 : 3 --> CLK is 3Mhz
+	//PECI CTRL Enable 
+	ast_peci_write(PECI_CTRL_SAMPLING(8) | PECI_CTRL_CLK_DIV(3) | 
+					PECI_CTRL_PECI_EN | 
+					PECI_CTRL_PECI_CLK_EN, AST_PECI_CTRL);	
+
 }
 
 static const struct file_operations ast_peci_fops = {
@@ -393,9 +392,6 @@ static int ast_peci_probe(struct platform_device *pdev)
 	int ret=0;
 
 	PECI_DBG("ast_peci_probe\n");	
-
-	//SCU PECI CTRL Reset
-	ast_scu_init_peci();	
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res) {
@@ -493,16 +489,60 @@ ast_peci_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver ast_peci_driver = {
+	.probe		= ast_peci_probe,
 	.remove 		= ast_peci_remove,
 	.suspend        = ast_peci_suspend,
 	.resume         = ast_peci_resume,
 	.driver         = {
-		.name   = "ast_peci",
+		.name   = "ast-peci",
 		.owner  = THIS_MODULE,
 	},
 };
 
-module_platform_driver_probe(ast_peci_driver, ast_peci_probe);
+static struct platform_device *ast_peci_device;
+
+static int __init ast_peci_init(void)
+{
+	int ret;
+
+	static const struct resource ast_peci_resources[] = {
+		[0] = {
+			.start = AST_PECI_BASE,
+			.end = AST_PECI_BASE + SZ_4K - 1,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_PECI,
+			.end = IRQ_PECI,
+			.flags = IORESOURCE_IRQ,
+		},
+	};
+
+	ret = platform_driver_register(&ast_peci_driver);
+
+	//SCU PECI CTRL Reset
+	ast_scu_init_peci();	
+
+	if (!ret) {
+		ast_peci_device = platform_device_register_simple("ast-peci", 0,
+								ast_peci_resources, ARRAY_SIZE(ast_peci_resources));
+		if (IS_ERR(ast_peci_device)) {
+			platform_driver_unregister(&ast_peci_driver);
+			ret = PTR_ERR(ast_peci_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_peci_exit(void)
+{
+	platform_device_unregister(ast_peci_device);
+	platform_driver_unregister(&ast_peci_driver);
+}
+
+module_init(ast_peci_init);
+module_exit(ast_peci_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST PECI driver");

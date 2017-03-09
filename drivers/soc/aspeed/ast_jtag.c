@@ -33,6 +33,9 @@
 #include <plat/regs-jtag.h>
 
 #include <plat/ast-scu.h>
+#include <mach/irqs.h>
+#include <mach/platform.h>
+
 
 /*************************************************************************************/
 typedef enum jtag_xfer_mode {
@@ -788,8 +791,6 @@ static int ast_jtag_probe(struct platform_device *pdev)
 
 	JTAG_DBUG("ast_jtag_probe\n");	
 
-	ast_scu_init_jtag();	
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res) {
 		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
@@ -908,6 +909,7 @@ ast_jtag_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver ast_jtag_driver = {
+	.probe 		= ast_jtag_probe,
 	.remove 		= ast_jtag_remove,
 	.suspend        = ast_jtag_suspend,
 	.resume         = ast_jtag_resume,
@@ -917,7 +919,48 @@ static struct platform_driver ast_jtag_driver = {
 	},
 };
 
-module_platform_driver_probe(ast_jtag_driver, ast_jtag_probe);
+static struct platform_device *ast_jtag_device;
+
+static int __init ast_jtag_init(void)
+{
+	int ret;
+	static const struct resource ast_jtag_resources[] = {
+		[0] = {
+			.start = AST_JTAG_BASE,
+			.end = AST_JTAG_BASE + (SZ_16*4) - 1,
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.start = IRQ_JTAG,
+			.end = IRQ_JTAG,
+			.flags = IORESOURCE_IRQ,
+		},
+	};
+
+	ast_scu_init_jtag();	
+
+	ret = platform_driver_register(&ast_jtag_driver);
+
+	if (!ret) {
+		ast_jtag_device = platform_device_register_simple("ast-jtag", 0,
+								ast_jtag_resources, ARRAY_SIZE(ast_jtag_resources));
+		if (IS_ERR(ast_jtag_device)) {
+			platform_driver_unregister(&ast_jtag_driver);
+			ret = PTR_ERR(ast_jtag_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_jtag_exit(void)
+{
+	platform_device_unregister(ast_jtag_device);
+	platform_driver_unregister(&ast_jtag_driver);
+}
+
+module_init(ast_jtag_init);
+module_exit(ast_jtag_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST JTAG LIB Driver");

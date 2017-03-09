@@ -478,6 +478,7 @@ static int ast_snoop_dma_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ast_snoop_dma_driver = {
+	.probe		= ast_snoop_dma_probe,
 	.remove 		= ast_snoop_dma_remove,
 	.driver         = {
 		.name   = "ast-snoop-dma",
@@ -485,7 +486,34 @@ static struct platform_driver ast_snoop_dma_driver = {
 	},
 };
 
-module_platform_driver_probe(ast_snoop_dma_driver, ast_snoop_dma_probe);
+static struct platform_device *ast_snoop_dma_device;
+
+static int __init ast_snoop_dma_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&ast_snoop_dma_driver);
+
+	if (!ret) {
+		ast_snoop_dma_device = platform_device_register_simple("ast-snoop-dma", 0,
+								NULL, 0);
+		if (IS_ERR(ast_snoop_dma_device)) {
+			platform_driver_unregister(&ast_snoop_dma_driver);
+			ret = PTR_ERR(ast_snoop_dma_device);
+		}
+	}
+
+	return ret;
+}
+
+static void __exit ast_snoop_dma_exit(void)
+{
+	platform_device_unregister(ast_snoop_dma_device);
+	platform_driver_unregister(&ast_snoop_dma_driver);
+}
+
+module_init(ast_snoop_dma_init);
+module_exit(ast_snoop_dma_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST SNOOP DMA driver");
