@@ -40,7 +40,7 @@
 #define IRQ_SDIO							2
 #define IRQ_SDHCI						3
 #define IRQ_H264						4
-#define IRQ_VIDEO						5
+#define IRQ_JPEG							5
 #define IRQ_D3D							6
 #define IRQ_PP							7
 #define IRQ_ISP0							8

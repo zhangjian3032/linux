@@ -28,8 +28,6 @@ extern void ast_scu_sys_rest_info(void);
 extern u32 ast_scu_revision_id(void);
 extern u32 ast_scu_get_phy_interface(u8 mac_num);
 extern u32 ast_scu_get_phy_config(u8 mac_num);
-extern u32 ast_scu_get_vga_memsize(void);
-extern void ast_scu_set_lpc_mode(void);
 
 //CLK 
 extern void ast_scu_uart_div(void);
@@ -82,10 +80,7 @@ extern void ast_scu_uartx_init(void);
 
 //Share pin
 extern void ast_scu_multi_func_uart(u8 uart);
-extern void ast_scu_multi_func_jpeg(void);
 extern void ast_scu_multi_func_eth(u8 num);
-
-extern void ast_scu_multi_func_nand(void);
 
 extern void ast_scu_multi_func_nor(void);
 

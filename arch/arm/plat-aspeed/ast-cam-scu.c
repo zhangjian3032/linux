@@ -130,13 +130,12 @@ static struct soc_id soc_map_table[] = {
 	SOC_ID("AST2530-A2", 0x04030403),	
 };
 //***********************************Initial control***********************************
-#ifdef SCU_RESET_VIDEO
 extern void
 ast_scu_reset_jpeg(void)
 {
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_VIDEO, AST_SCU_RESET);
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_JPEG, AST_SCU_RESET);
 	udelay(100);
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_VIDEO, AST_SCU_RESET);
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_JPEG, AST_SCU_RESET);
 }
 
 EXPORT_SYMBOL(ast_scu_reset_jpeg);
@@ -144,6 +143,8 @@ EXPORT_SYMBOL(ast_scu_reset_jpeg);
 extern void
 ast_scu_init_jpeg(u8 dynamic_en)
 {
+
+#if 0
 	//Video Engine Clock Enable and Reset
 	//  Enable Clock & ECLK = inverse of (M-PLL / 2)
 	if(dynamic_en)
@@ -154,16 +155,15 @@ ast_scu_init_jpeg(u8 dynamic_en)
 		else
 			ast_scu_write((ast_scu_read(AST_SCU_CLK_SEL) & ~(SCU_ECLK_SOURCE_MASK | SCU_CLK_VIDEO_SLOW_EN)) | SCU_ECLK_SOURCE(2), AST_SCU_CLK_SEL);
 	}
-	
+#endif	
 	// Enable CLK
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~(SCU_ECLK_STOP_EN | SCU_VCLK_STOP_EN), AST_SCU_CLK_STOP);	
+	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~(SCU_JCLK_STOP_EN), AST_SCU_CLK_STOP);	
 	mdelay(10);
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_VIDEO, AST_SCU_RESET);
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_JPEG, AST_SCU_RESET);
 	udelay(100);
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_VIDEO, AST_SCU_RESET);
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_JPEG, AST_SCU_RESET);
 }
 EXPORT_SYMBOL(ast_scu_init_jpeg);
-#endif
 
 #ifdef SCU_UART1CLK_STOP_EN
 extern void
@@ -199,19 +199,6 @@ ast_scu_init_eth(u8 num)
 {
 	
 }
-
-#ifdef SCU_RESET_USB11
-extern void
-ast_scu_init_uhci(void)
-{
-	//USB1.1 Host's Clock Enable and Reset
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_USB11CLK_STOP_EN, AST_SCU_CLK_STOP);
-	mdelay(10);
-
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_USB11, AST_SCU_RESET);
-}
-EXPORT_SYMBOL(ast_scu_init_uhci);
-#endif
 
 #ifdef SCU_RESET_USB20
 extern void
@@ -450,13 +437,6 @@ ast_scu_multi_func_uart(u8 uart)
 }
 
 extern void
-ast_scu_multi_func_jpeg()
-{
-
-}
-
-
-extern void
 ast_scu_multi_func_eth(u8 num)
 {
 }
@@ -579,19 +559,6 @@ ast_scu_sys_rest_info(void)
 {
 	u32 rest = ast_scu_read(AST_SCU_SYS_CTRL);
 
-#ifdef CONFIG_ARCH_AST1010
-	if(rest & SCU_SYS_WDT_FULL_FLAG) {
-		SCUMSG("RST : External \n");
-		ast_scu_write(SCU_SYS_WDT_FULL_FLAG, AST_SCU_SYS_CTRL);
-	} else if (rest & SCU_SYS_WDT_SOC_RESET) {
-		SCUMSG("RST : Watchdog - SOC\n");
-		ast_scu_write(SCU_SYS_WDT_SOC_RESET, AST_SCU_SYS_CTRL);
-	} else if (rest & SCU_SYS_PWR_RESET_FLAG) {
-		SCUMSG("RST : Power On \n");
-		ast_scu_write(SCU_SYS_PWR_RESET_FLAG, AST_SCU_SYS_CTRL);
-	} else {
-	}
-#else
 	if(rest & SCU_SYS_EXT_RESET_FLAG) {
 		SCUMSG("RST : External \n");
 		ast_scu_write(ast_scu_read(AST_SCU_SYS_CTRL) & ~SCU_SYS_EXT_RESET_FLAG, AST_SCU_SYS_CTRL);
@@ -616,7 +583,6 @@ ast_scu_sys_rest_info(void)
 		SCUMSG("RST : Power On \n");
 		ast_scu_write(ast_scu_read(AST_SCU_SYS_CTRL) & ~SCU_SYS_PWR_RESET_FLAG, AST_SCU_SYS_CTRL);
 	}
-#endif
 }	
 
 

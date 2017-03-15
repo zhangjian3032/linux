@@ -27,6 +27,7 @@ if [ "$2" == "bmc" ]; then
 	rm -f $1/arch/arm/configs/ast1220_*_defconfig
 	rm -f $1/arch/arm/plat-aspeed/include/plat/regs-cam-scu.h
 	rm -f $1/arch/arm/plat-aspeed/ast-cam-scu.c
+	rm -rf $1/driver/media/ast-jpegia/platform/ast-jpeg
 fi
 
 #CAM
