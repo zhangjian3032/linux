@@ -1023,14 +1023,12 @@ static int v4l_querycap(const struct v4l2_ioctl_ops *ops,
 	struct v4l2_capability *cap = (struct v4l2_capability *)arg;
 	struct video_device *vfd = video_devdata(file);
 	int ret;
-printk("v4l_querycap \n");
+
 	cap->version = LINUX_VERSION_CODE;
 	cap->device_caps = vfd->device_caps;
 	cap->capabilities = vfd->device_caps | V4L2_CAP_DEVICE_CAPS;
-	printk("v4l_querycap 1\n");
 
 	ret = ops->vidioc_querycap(file, fh, cap);
-	printk("v4l_querycap 2\n");
 
 	cap->capabilities |= V4L2_CAP_EXT_PIX_FORMAT;
 	/*
@@ -1041,7 +1039,6 @@ printk("v4l_querycap \n");
 		!cap->device_caps, "Bad caps for driver %s, %x %x",
 		cap->driver, cap->capabilities, cap->device_caps);
 	cap->device_caps |= V4L2_CAP_EXT_PIX_FORMAT;
-	printk("v4l_querycap 3\n");
 
 	return ret;
 }
