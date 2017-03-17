@@ -57,15 +57,10 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 
-#ifdef CONFIG_COLDFIRE
-#include <asm/arch/regs-pwm_fan.h>
-#include <asm/arch/ast_pwm_techo.h>
-#else
 #include <mach/irqs.h>
 #include <mach/platform.h>
 #include <plat/regs-pwm_fan.h>
 #include <plat/ast-scu.h>
-#endif
 
 //#define MCLK	1
 
@@ -73,7 +68,6 @@ struct ast_pwm_tacho_data {
 	struct device			*hwmon_dev;
 	void __iomem			*reg_base;			/* virtual */
 	int 					irq;				
-	struct ast_pwm_driver_data *ast_pwm_data;	
 };
 
 struct ast_pwm_tacho_data *ast_pwm_tacho;
@@ -1956,8 +1950,6 @@ ast_pwm_tacho_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	ast_pwm_tacho->ast_pwm_data = pdev->dev.platform_data;	
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res) {
