@@ -254,7 +254,7 @@ static struct hw_pci ast_pcie = {
  * module initialization and configuration.
  */
 
-static int __init ast_pcie_probe(struct platform_device *pdev)
+static int ast_pcie_probe(struct platform_device *pdev)
 {
 	ast_pcie_base =  ioremap(AST_PCIE_PLDA_BASE , SZ_256);	
 
@@ -280,6 +280,7 @@ static const struct of_device_id ast_pcie_of_match[] = {
 MODULE_DEVICE_TABLE(of, ast_pcie_of_match);
 
 static struct platform_driver ast_pcie_driver = {
+	.probe = ast_pcie_probe,
 	.driver = {
 		.name	= "ast-pcie",
 		.owner	= THIS_MODULE,
@@ -338,17 +339,17 @@ static int __init ast_pcie_rc_init(void)
 #endif	
 	};
 
-	ret = platform_driver_register(&ast_peci_driver);
+	ret = platform_driver_register(&ast_pcie_driver);
 
 	if (!ret) {
 		ast_pcie_device = platform_device_register_simple("ast-pcie", 0,
 								ast_pcie_resources, ARRAY_SIZE(ast_pcie_resources));
 		if (IS_ERR(ast_pcie_device)) {
-			platform_driver_unregister(&ast_peci_driver);
+			platform_driver_unregister(&ast_pcie_driver);
 			ret = PTR_ERR(ast_pcie_device);
 		}
 	}
-
+	return ret;
 }
 
 module_init(ast_pcie_rc_init);

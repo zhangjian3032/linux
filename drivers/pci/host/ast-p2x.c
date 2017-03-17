@@ -160,7 +160,7 @@ extern void ast_p2x_addr_map(u32 mask, u32 addr)
 }
 
 static void
-ast_p2x_irq_handler(unsigned int irq, struct irq_desc *desc)
+ast_p2x_irq_handler(struct irq_desc *desc)
 {
 	u32 msi = 0;
 	u32 i;
@@ -338,13 +338,12 @@ ast_init_p2x_irq(void)
 	P2XDBUG("\n");
 
 	for(i=0;i<ARCH_NR_PCIE + AST_NUM_MSI_IRQS;i++) {
-		irq_set_chip_data(i + IRQ_PCIE_CHAIN_START, NULL);
-		irq_set_chip_and_handler(i + IRQ_PCIE_CHAIN_START, &ast_p2x_irq_chip, handle_level_irq);
-		set_irq_flags(i + IRQ_PCIE_CHAIN_START, IRQF_VALID);
+		irq_set_chip_and_handler(i + IRQ_PCIE_CHAIN_START, &ast_p2x_irq_chip,
+					 handle_level_irq);
+		irq_clear_status_flags(i + IRQ_PCIE_CHAIN_START, IRQ_NOREQUEST);
 	}
 
 	irq_set_chained_handler(IRQ_P2X, ast_p2x_irq_handler);
-
 }
 
 static int __init ast_p2x_init(void)

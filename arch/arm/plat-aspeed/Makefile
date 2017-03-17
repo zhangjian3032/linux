@@ -10,10 +10,6 @@ obj-$(CONFIG_RT360_CAM) += ast-cam-scu.o
 
 obj-$(CONFIG_ARCH_AST1070) += ast1070-irq.o ast1070-scu.o ast1070-i2c-irq.o dev-ci2c.o dev-cuart.o dev-clpc.o 
 
-ifeq ($(CONFIG_PCI),y)
-obj-$(CONFIG_PCIE_AST)	+= ast-p2x.o ast-pciarbiter.o
-endif
-
 obj-$(CONFIG_AST2400_BMC) += ast2400-irq.o ast2400-scu.o dev-ast2400-uart.o #dev-ast2400-i2c.o
 
 #obj-y			+= dev-lpc.o 

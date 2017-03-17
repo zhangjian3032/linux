@@ -60,9 +60,9 @@
 #define AST_SDIO_BASE					0x1E740000	/* SDIO General Info */
 #define AST_SDIO_SLOT0_BASE			0x1E740100	/* SDIO Slot 0*/
 
-#define AST_SDHCI_BASE					0x1E740000	/* SDHCI General Info */
-#define AST_SDHCI_SLOT0_BASE			0x1E740100	/* SDHCI0 Slot 0*/
-#define AST_SDHCI_SLOT1_BASE			0x1E740200	/* SDHCI1 Slot 1*/
+#define AST_SDHCI_BASE					0x1E760000	/* SDHCI General Info */
+#define AST_SDHCI_SLOT0_BASE			0x1E760100	/* SDHCI0 Slot 0*/
+#define AST_SDHCI_SLOT1_BASE			0x1E760200	/* SDHCI1 Slot 1*/
 
 #define AST_GPIO_BASE					0x1E780000	/* GPIO */
 
