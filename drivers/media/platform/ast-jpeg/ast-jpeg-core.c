@@ -608,18 +608,10 @@ static int ast_jpeg_open(struct file *file)
 
 	ctx->jpeg = jpeg;
 	if (vfd == jpeg->vfd_encoder) {
-		ctx->mode = S5P_JPEG_ENCODE;
 		out_fmt = ast_jpeg_find_format(ctx, V4L2_PIX_FMT_RGB565,
 							FMT_TYPE_OUTPUT);
 		cap_fmt = ast_jpeg_find_format(ctx, V4L2_PIX_FMT_JPEG,
 							FMT_TYPE_CAPTURE);
-	} else {
-		ctx->mode = S5P_JPEG_DECODE;
-		out_fmt = ast_jpeg_find_format(ctx, V4L2_PIX_FMT_JPEG,
-							FMT_TYPE_OUTPUT);
-		cap_fmt = ast_jpeg_find_format(ctx, V4L2_PIX_FMT_YUYV,
-							FMT_TYPE_CAPTURE);
-		ctx->scale_factor = EXYNOS3250_DEC_SCALE_FACTOR_8_8;
 	}
 
 	ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(jpeg->m2m_dev, ctx, queue_init);
@@ -652,7 +644,7 @@ static int ast_jpeg_release(struct file *file)
 	struct ast_jpeg *jpeg = video_drvdata(file);
 	struct ast_jpeg_ctx *ctx = fh_to_ctx(file->private_data);
 
-	printk("ast_jpeg_open \n");
+	printk("ast_jpeg_release \n");
 
 	mutex_lock(&jpeg->lock);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
@@ -864,23 +856,17 @@ static int ast_jpeg_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
 	struct ast_jpeg_ctx *ctx = fh_to_ctx(priv);
-#if 0
-	if (ctx->mode == S5P_JPEG_ENCODE) {
-		strlcpy(cap->driver, S5P_JPEG_M2M_NAME,
+	printk("ast_jpeg_querycap \n");
+
+		strlcpy(cap->driver, "ast-jpeg",
 			sizeof(cap->driver));
-		strlcpy(cap->card, S5P_JPEG_M2M_NAME " encoder",
+		strlcpy(cap->card, "ast-jpeg-encoder",
 			sizeof(cap->card));
-	} else {
-		strlcpy(cap->driver, S5P_JPEG_M2M_NAME,
-			sizeof(cap->driver));
-		strlcpy(cap->card, S5P_JPEG_M2M_NAME " decoder",
-			sizeof(cap->card));
-	}
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(ctx->jpeg->dev));
 	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-#endif	
+
 	return 0;
 }
 
@@ -915,13 +901,9 @@ static int ast_jpeg_enum_fmt_vid_cap(struct file *file, void *priv,
 				   struct v4l2_fmtdesc *f)
 {
 	struct ast_jpeg_ctx *ctx = fh_to_ctx(priv);
-
-	if (ctx->mode == S5P_JPEG_ENCODE)
-		return enum_fmt(sjpeg_formats, SJPEG_NUM_FORMATS, f,
-				SJPEG_FMT_FLAG_ENC_CAPTURE);
-
+	printk("ast_jpeg_enum_fmt_vid_cap \n");
 	return enum_fmt(sjpeg_formats, SJPEG_NUM_FORMATS, f,
-					SJPEG_FMT_FLAG_DEC_CAPTURE);
+				SJPEG_FMT_FLAG_ENC_CAPTURE);
 }
 
 static int ast_jpeg_enum_fmt_vid_out(struct file *file, void *priv,
@@ -929,12 +911,9 @@ static int ast_jpeg_enum_fmt_vid_out(struct file *file, void *priv,
 {
 	struct ast_jpeg_ctx *ctx = fh_to_ctx(priv);
 
-	if (ctx->mode == S5P_JPEG_ENCODE)
-		return enum_fmt(sjpeg_formats, SJPEG_NUM_FORMATS, f,
-				SJPEG_FMT_FLAG_ENC_OUTPUT);
-
 	return enum_fmt(sjpeg_formats, SJPEG_NUM_FORMATS, f,
-					SJPEG_FMT_FLAG_DEC_OUTPUT);
+			SJPEG_FMT_FLAG_ENC_OUTPUT);
+
 }
 
 static struct ast_jpeg_q_data *get_q_data(struct ast_jpeg_ctx *ctx,
@@ -987,14 +966,9 @@ static struct ast_jpeg_fmt *ast_jpeg_find_format(struct ast_jpeg_ctx *ctx,
 {
 	unsigned int k, fmt_flag;
 
-	if (ctx->mode == S5P_JPEG_ENCODE)
 		fmt_flag = (fmt_type == FMT_TYPE_OUTPUT) ?
 				SJPEG_FMT_FLAG_ENC_OUTPUT :
 				SJPEG_FMT_FLAG_ENC_CAPTURE;
-	else
-		fmt_flag = (fmt_type == FMT_TYPE_OUTPUT) ?
-				SJPEG_FMT_FLAG_DEC_OUTPUT :
-				SJPEG_FMT_FLAG_DEC_CAPTURE;
 
 	for (k = 0; k < ARRAY_SIZE(sjpeg_formats); k++) {
 		struct ast_jpeg_fmt *fmt = &sjpeg_formats[k];
@@ -1097,7 +1071,7 @@ static int ast_jpeg_try_fmt_vid_cap(struct file *file, void *priv,
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct ast_jpeg_fmt *fmt;
 	int ret;
-
+printk("ast_jpeg_try_fmt_vid_cap \n");
 	fmt = ast_jpeg_find_format(ctx, f->fmt.pix.pixelformat,
 						FMT_TYPE_CAPTURE);
 	if (!fmt) {
@@ -1105,28 +1079,6 @@ static int ast_jpeg_try_fmt_vid_cap(struct file *file, void *priv,
 			 "Fourcc format (0x%08x) invalid.\n",
 			 f->fmt.pix.pixelformat);
 		return -EINVAL;
-	}
-
-	if (!ctx->jpeg->variant->hw_ex4_compat || ctx->mode != S5P_JPEG_DECODE)
-		goto exit;
-
-	/*
-	 * The exynos4x12 device requires resulting YUV image
-	 * subsampling not to be lower than the input jpeg subsampling.
-	 * If this requirement is not met then downgrade the requested
-	 * capture format to the one with subsampling equal to the input jpeg.
-	 */
-	if ((fmt->flags & SJPEG_FMT_NON_RGB) &&
-	    (fmt->subsampling < ctx->subsampling)) {
-		ret = ast_jpeg_adjust_fourcc_to_subsampling(ctx->subsampling,
-							    fmt->fourcc,
-							    &pix->pixelformat,
-							    ctx);
-		if (ret < 0)
-			pix->pixelformat = V4L2_PIX_FMT_GREY;
-
-		fmt = ast_jpeg_find_format(ctx, pix->pixelformat,
-							FMT_TYPE_CAPTURE);
 	}
 
 	/*
@@ -1480,7 +1432,6 @@ static int ast_jpeg_controls_create(struct ast_jpeg_ctx *ctx)
 
 	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 3);
 
-	if (ctx->mode == S5P_JPEG_ENCODE) {
 		v4l2_ctrl_new_std(&ctx->ctrl_handler, &ast_jpeg_ctrl_ops,
 				  V4L2_CID_JPEG_COMPRESSION_QUALITY,
 				  0, 3, 1, S5P_JPEG_COMPR_QUAL_WORST);
@@ -1490,7 +1441,6 @@ static int ast_jpeg_controls_create(struct ast_jpeg_ctx *ctx)
 				  0, 3, 0xffff, 0);
 		if (ctx->jpeg->variant->version == SJPEG_S5P)
 			mask = ~0x06; /* 422, 420 */
-	}
 
 	ctrl = v4l2_ctrl_new_std_menu(&ctx->ctrl_handler, &ast_jpeg_ctrl_ops,
 				      V4L2_CID_JPEG_CHROMA_SUBSAMPLING,
@@ -1501,10 +1451,6 @@ static int ast_jpeg_controls_create(struct ast_jpeg_ctx *ctx)
 		ret = ctx->ctrl_handler.error;
 		goto error_free;
 	}
-
-	if (ctx->mode == S5P_JPEG_DECODE)
-		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE |
-			V4L2_CTRL_FLAG_READ_ONLY;
 
 	ret = v4l2_ctrl_handler_setup(&ctx->ctrl_handler);
 	if (ret < 0)
@@ -1605,9 +1551,7 @@ static int ast_jpeg_job_ready(void *priv)
 {
 	struct ast_jpeg_ctx *ctx = priv;
 
-	if (ctx->mode == S5P_JPEG_DECODE)
-		return ctx->hdr_parsed;
-	return 1;
+	return ctx->hdr_parsed;
 }
 
 static void ast_jpeg_job_abort(void *priv)
@@ -1643,9 +1587,6 @@ static int ast_jpeg_queue_setup(struct vb2_queue *vq,
 	 * header is parsed during decoding and parsed information stored
 	 * in the context so we do not allow another buffer to overwrite it
 	 */
-	if (ctx->mode == S5P_JPEG_DECODE)
-		count = 1;
-
 	*nbuffers = count;
 	*nplanes = 1;
 	sizes[0] = size;
@@ -1677,39 +1618,6 @@ static void ast_jpeg_buf_queue(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct ast_jpeg_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
-
-	if (ctx->mode == S5P_JPEG_DECODE &&
-	    vb->vb2_queue->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		struct ast_jpeg_q_data tmp, *q_data;
-
-		ctx->hdr_parsed = ast_jpeg_parse_hdr(&tmp,
-		     (unsigned long)vb2_plane_vaddr(vb, 0),
-		     min((unsigned long)ctx->out_q.size,
-			 vb2_get_plane_payload(vb, 0)), ctx);
-		if (!ctx->hdr_parsed) {
-			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
-			return;
-		}
-
-		q_data = &ctx->out_q;
-		q_data->w = tmp.w;
-		q_data->h = tmp.h;
-		q_data->sos = tmp.sos;
-		memcpy(q_data->dht.marker, tmp.dht.marker,
-		       sizeof(tmp.dht.marker));
-		memcpy(q_data->dht.len, tmp.dht.len, sizeof(tmp.dht.len));
-		q_data->dht.n = tmp.dht.n;
-		memcpy(q_data->dqt.marker, tmp.dqt.marker,
-		       sizeof(tmp.dqt.marker));
-		memcpy(q_data->dqt.len, tmp.dqt.len, sizeof(tmp.dqt.len));
-		q_data->dqt.n = tmp.dqt.n;
-		q_data->sof = tmp.sof;
-		q_data->sof_len = tmp.sof_len;
-
-		q_data = &ctx->cap_q;
-		q_data->w = tmp.w;
-		q_data->h = tmp.h;
-	}
 
 	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
 }
