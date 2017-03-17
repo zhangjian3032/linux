@@ -36,6 +36,7 @@ if [ "$2" == "cam" ]; then
         find $1/. -name  '*.bmc' | while read filename; do rm -f "${filename}"; done
 	rm -f $1/arch/arm/plat-aspeed/ast1070*.*
 	rm -f $1/arch/arm/plat-aspeed/include/plat/ast1070*.*
+	rm -f $1/drivers/pci/host/*ast*.c
 fi
 
 rm -f $1/arch/arm/configs/ast1520_defconfig
