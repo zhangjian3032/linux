@@ -12,7 +12,6 @@ obj-$(CONFIG_ARCH_AST1070) += ast1070-irq.o ast1070-scu.o ast1070-i2c-irq.o dev-
 
 obj-$(CONFIG_AST2400_BMC) += ast2400-irq.o ast2400-scu.o dev-ast2400-uart.o #dev-ast2400-i2c.o
 
-#obj-y			+= dev-lpc.o 
 #obj-n   := dummy.o
 #platform
 obj-y			+= dev-uart.o dev-vuart.o
