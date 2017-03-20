@@ -19,7 +19,8 @@
 *    1. 2012/09/15 ryan chen create this file
 *
 ********************************************************************************/
-
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/platform_device.h>
@@ -59,7 +60,6 @@ typedef enum {
 /* --------------------------------------------------------------------
  * UART
  * -------------------------------------------------------------------- */
-#if defined(CONFIG_SERIAL_8250) && defined(CONFIG_SERIAL_AST_VUART)
 static struct plat_serial8250_port ast_vuart_data[] = {
 	{
 		.mapbase		= AST_VUART0_BASE,
@@ -74,13 +74,13 @@ static struct plat_serial8250_port ast_vuart_data[] = {
 
 struct platform_device ast_vuart_device = {
 	.name		= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM1,
-	.dev			= {
+	.id		= PLAT8250_DEV_PLATFORM1,
+	.dev		= {
 		.platform_data	= ast_vuart_data,
 	},
 };
 
-void __init ast_add_device_vuart(void)
+static int __init ast_vuart_init(void)
 {
 	void __iomem *vuart_base = ioremap(AST_VUART0_BASE, SZ_256);
 
@@ -93,7 +93,11 @@ void __init ast_add_device_vuart(void)
 
 	iounmap(vuart_base);
 	platform_device_register(&ast_vuart_device);
+
+	return 0;
 }
-#else
-void __init ast_add_device_vuart(void) {}
-#endif
+
+module_init(ast_vuart_init);
+MODULE_DESCRIPTION("VUART driver for AST SOC");
+MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
+MODULE_LICENSE("GPL v2");

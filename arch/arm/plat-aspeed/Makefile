@@ -14,7 +14,7 @@ obj-$(CONFIG_AST2400_BMC) += ast2400-irq.o ast2400-scu.o dev-ast2400-uart.o #dev
 
 #obj-n   := dummy.o
 #platform
-obj-y			+= dev-uart.o dev-vuart.o
+obj-y			+= dev-uart.o
 
 #Storage
 obj-y 	                += dev-nor.o dev-nand.o 

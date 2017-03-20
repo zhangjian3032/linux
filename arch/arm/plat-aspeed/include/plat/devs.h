@@ -21,7 +21,6 @@ extern void __init ast_add_all_devices(void);
 
 //platform
 extern void __init ast_add_device_uart(void);
-extern void __init ast_add_device_vuart(void);
 
 //ADC 
 

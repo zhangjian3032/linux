@@ -37,6 +37,7 @@ if [ "$2" == "cam" ]; then
 	rm -f $1/arch/arm/plat-aspeed/ast1070*.*
 	rm -f $1/arch/arm/plat-aspeed/include/plat/ast1070*.*
 	rm -f $1/drivers/pci/host/*ast*.c
+	rm -f $1/drivers/tty/serial/8250/ast*.c
 fi
 
 rm -f $1/arch/arm/configs/ast1520_defconfig
