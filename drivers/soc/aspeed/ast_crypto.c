@@ -689,7 +689,7 @@ static int ast_crypto_probe(struct platform_device *pdev)
 #endif
 	// 8-byte aligned
 
-	ast_crypto->src_virt_buff = dma_alloc_coherent(&pdev->dev,
+	ast_crypto->src_virt_buff = dma_alloc_coherent(NULL,
 					 PAGE_SIZE,
 					 &ast_crypto->src_phy_buff, GFP_KERNEL);
 
