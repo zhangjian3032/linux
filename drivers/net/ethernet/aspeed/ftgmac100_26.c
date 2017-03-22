@@ -27,6 +27,11 @@
 //6. 02/26/2015 - by CC@aspeed
 //   Add NAPI function
 //   Add free Rx buffer function when ast_gmac_stop()
+//7. 10/30/2015 - by CC@aspeed
+//   Fixed AST2400 TCP checksum issue.
+//   Fixed setmulticast issue
+//8. 03/20/2017 - by CC@aspeed
+//   for Linux 4.9
 //-----------------------------------------------------------------------------
 
 #include <linux/module.h>
@@ -1201,7 +1206,6 @@ static void ftgmac100_timeout (struct net_device *dev)
     ftgmac100_phy_configure(dev);
 
     netif_wake_queue(dev);
-//    dev->trans_start = jiffies;
 }
 
 static void ftgmac100_free_tx (struct net_device *dev) 
@@ -1278,8 +1282,8 @@ static int ftgmac100_rcv(struct net_device *dev)
             {
                 if ( cur_desc->FIFO_FULL )
                 {
-                    PRINTK("info: RX_FIFO full\n");                    
-                    priv->stats.rx_errors++;    // error frame....
+                    PRINTK("info: RX_FIFO full\n"); 
+                    priv->stats.rx_dropped++;
                     continue;                     
                 }
                 else
@@ -1302,7 +1306,6 @@ static int ftgmac100_rcv(struct net_device *dev)
                         }
                         if (cur_desc->FTL)
                         {
-//                        {
                             DO_PRINT("err: FTL\n");
                         }
                         if (cur_desc->RUNT)
@@ -1323,20 +1326,19 @@ static int ftgmac100_rcv(struct net_device *dev)
                     }
 
                     if ((cur_desc->DF) && (cur_desc->UDPCS_FAIL))
-                        {
-                            DO_PRINT("err: UDPCS_FAIL\n");
+                    {
+                        DO_PRINT("err: UDPCS_FAIL\n");
                         priv->stats.rx_errors++;    // error frame....
                         continue;                                   
-                        }
+                    }
                     if ((cur_desc->DF) && (cur_desc->TCPCS_FAIL) )
-                        {
-                            DO_PRINT("err: TCPCS_FAIL\n");
-                        
+                    {
+                        DO_PRINT("err: TCPCS_FAIL\n");
                         priv->stats.rx_errors++;    // error frame....
-                        continue;                                                
+                        continue;                                   
                     }
                 }
-
+                
                 if (cur_desc->MULTICAST)
                 {
                     priv->stats.multicast++;
@@ -1533,7 +1535,7 @@ static void ftgmac100_setmulticast( struct net_device *dev, int count, struct de
             continue;
         }
 #if 0 
-//A0, A1
+// Only for AST2100 AST2050 AST1100 A0, A1
             crc_val = crc32( cur_addr->dmi_addr, 5 );
             crc_val = (~(crc_val>>2)) & 0x3f;
             if (crc_val >= 32)
@@ -1573,6 +1575,10 @@ static void ftgmac100_setmulticast( struct net_device *dev, int count, struct de
             }
 #endif
     }
+    
+	/*
+	** Driver should re-init MAHT1_REG and MAHT0_REG in case of leaving multicast group.
+	*/
 	if (ids->isRevA2) {
 		outl(maht1, ioaddr + MAHT1_REG);
 		outl(maht0, ioaddr + MAHT0_REG);
@@ -1668,8 +1674,8 @@ static int ftgmac100_open(struct net_device *netdev)
     ftgmac100_ringbuf_alloc(priv);
 
     /* Grab the IRQ next.  Beyond this, we will free the IRQ. */
-    err = request_irq(netdev->irq, (void *)&ftgmac100_interrupt,
-                        IRQF_SHARED, netdev->name, netdev);
+    err = request_irq(netdev->irq, (void *)&ftgmac100_interrupt, 0, netdev->name, netdev);
+
     if (err)
     {
         DO_PRINT("%s: unable to get IRQ %d (retval=%d).\n",

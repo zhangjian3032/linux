@@ -313,11 +313,10 @@ typedef struct
 // --------------------------------------------------------------------
 //      driver related definition
 // --------------------------------------------------------------------
-//#define RXDES_NUM	       64//64 // we defined 32 descriptor for OTG issue 
-#define RXDES_NUM           64
+#define RXDES_NUM           256
 #define RX_BUF_SIZE         1536
 
-#define TXDES_NUM           16
+#define TXDES_NUM           256
 #define TX_BUF_SIZE         1536
 
 #define PHYID_VENDOR_MASK               0xfffffc00
