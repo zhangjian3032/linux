@@ -1471,6 +1471,7 @@ Redo:
 	}
 
 	if(Direct_Mode) {
+		VIDEO_DBG("Direct Mode \n");
 		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) | VIDEO_DIRT_FATCH | VIDEO_AUTO_FATCH, AST_VIDEO_PASS_CTRL); 		
 		
 		ast_video_write(ast_video, get_vga_mem_base(), AST_VIDEO_DIRECT_BASE);	
@@ -1478,6 +1479,7 @@ Redo:
 		ast_video_write(ast_video, VIDEO_FETCH_TIMING(0) | VIDEO_FETCH_LINE_OFFSET(ast_video->src_fbinfo.x * 4)	, AST_VIDEO_DIRECT_CTRL);		
 		
 	} else {
+		VIDEO_DBG("Sync Mode \n");
 		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) & ~VIDEO_DIRT_FATCH, AST_VIDEO_PASS_CTRL); 
 	}
 
@@ -1536,8 +1538,7 @@ static void ast_video_auto_mode_trigger(struct ast_video_data *ast_video, struct
 			ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) | VIDEO_CAPTURE_TRIGGER | VIDEO_COMPRESS_TRIGGER, AST_VM_SEQ_CTRL);
 			udelay(10);
 //AST_G5 Issue in isr bit 19, so use polling mode for wait engine idle
-
-#if 1		
+#if 1
 			timeout = 0;
 			while(1) {
 				timeout++; 				
@@ -1553,7 +1554,6 @@ static void ast_video_auto_mode_trigger(struct ast_video_data *ast_video, struct
 				printk("Engine hang time out \n");
 				auto_mode->total_size = 0;
 				auto_mode->block_count = 0;
-
 			} else {
 				auto_mode->total_size = ast_video_read(ast_video, AST_VM_COMPRESS_FRAME_END);
 				auto_mode->block_count = ast_video_read(ast_video, AST_VM_COMPRESS_BLOCK_COUNT);
