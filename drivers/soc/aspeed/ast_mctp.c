@@ -552,25 +552,26 @@ static int ast_mctp_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	ret = request_irq(ast_mctp->irq, ast_mctp_isr, IRQF_SHARED, "ast-mctp", ast_mctp);
-	if (ret) {
-		printk("MCTP Unable to get IRQ");
-		goto out_region;
-	}
-
 	ast_mctp->flag = 0;
 	init_waitqueue_head(&ast_mctp->mctp_wq);
 
 	ret = misc_register(&ast_mctp_misc);
 	if (ret){		
 		printk(KERN_ERR "MCTP : failed to request interrupt\n");
-		goto out_irq;
+		goto out_region;
 	}
 
 	platform_set_drvdata(pdev, ast_mctp);
 	dev_set_drvdata(ast_mctp_misc.this_device, ast_mctp);
 
 	ast_mctp_ctrl_init(ast_mctp);
+
+	ret = request_irq(ast_mctp->irq, ast_mctp_isr, IRQF_SHARED, "ast-mctp", ast_mctp);
+	if (ret) {
+		printk("MCTP Unable to get IRQ");
+		goto out_region;
+	}
+	
 #if 0
 	ret = sysfs_create_group(&ast_mctp_misc.this_device->kobj,
 			&mctp_attribute_group);
