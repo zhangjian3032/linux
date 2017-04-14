@@ -56,9 +56,9 @@ static int ehci_ast_setup(struct usb_hcd *hcd)
 
 	ehci->sbrn = 0x20;
 		 
-//	retval = ehci_halt(ehci);
-//	if (retval)
-//		return retval;
+	retval = ehci_halt(ehci);
+	if (retval)
+		return retval;
 
 
 	/*
