@@ -60,7 +60,7 @@
 
 
 #define AST_VIDEO_DEF_HEADER	0x080		/* Video User Defined Header Parameter Setting with Compression */
-#define AST_VIDEO_JPEG_COUNT	0x084		/*  */
+#define AST_VIDEO_JPEG_COUNT	0x084		/* true jpeg size */
 
 #define AST_VIDEO_H_DETECT_STS  0x090		/* Video Source Left/Right Edge Detection Read Back Register */
 #define AST_VIDEO_V_DETECT_STS  0x094		/* Video Source Top/Bottom Edge Detection Read Back Register */
@@ -85,7 +85,7 @@
 #define AST_VM_COMPRESS_CTRL			0x260		/* Video Management Compression or Video Profile 2-5 Decompression Control Register */
 #define AST_VM_COMPRESS_VR264			0x264		/* VR264 REserved */
 #define AST_VM_COMPRESS_BLOCK_COUNT		0x274		/* Video Total Number of Compressed Video Block Read Back Register */
-#define AST_VM_COMPRESS_FRAME_END	0x278		/* Video Management Frame-end offset of compressed video stream buffer read back Register */
+#define AST_VM_COMPRESS_FRAME_END	0x278	/*16 bytes align */	/* Video Management Frame-end offset of compressed video stream buffer read back Register */
 
 
 #define AST_VIDEO_CTRL			0x300		/* Video Control Register */
