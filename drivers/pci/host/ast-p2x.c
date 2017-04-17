@@ -69,8 +69,9 @@ ast_p2x_write(u32 val, u32 reg)
 
 extern void ast_pcie_cfg_read(u8 type, u32 bdf_offset, u32 *value)
 {
-	u32 timeout =0;
-	u32 desc3,desc2;
+	u32 timeout, desc3, desc2;
+r_again:
+	timeout = 0;
 	txTag %= 0x7;
 //	printk("Read: type = %d, busfunc = %x ",type, bdf_offset);
 	if((ast_p2x_read(AST_P2X_INT) & P2X_RX_COMPLETE) != 0)
@@ -105,7 +106,14 @@ extern void ast_pcie_cfg_read(u8 type, u32 bdf_offset, u32 *value)
 		((desc3 & 0xfff) == 0x1) && 
 		((desc2 & 0xe000) == 0)) {
 		*value = ast_p2x_read(AST_P2X_RX_DATA);
-
+        } else if ( ((desc3 >> 24) == 0x0A) &&
+                        ((desc2 & 0xe000) == 0x4000)) {
+//                        printk("cfg read re-try \n");
+                        ast_p2x_write(ast_p2x_read(AST_P2X_CTRL) | P2X_CTRL_UNLOCK_RX_BUFF |P2X_CTRL_RX_EN, AST_P2X_CTRL);
+                        ast_p2x_write(ast_p2x_read(AST_P2X_INT) | P2X_TX_COMPLETE | P2X_RX_COMPLETE, AST_P2X_INT);
+                        //wait
+                        while(ast_p2x_read(AST_P2X_INT) & P2X_RX_COMPLETE);
+                        goto r_again;
 	} else {
 		*value = 0xffffffff;		
 		
