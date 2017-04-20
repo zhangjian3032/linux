@@ -710,13 +710,17 @@
 /*	AST_SCU_COUNTER4_EXT		0xE4		SCU Free Run Counter Extended Read Back #4*/
 
 //CPU 2 
-/*	AST_SCU_CPU2_CTRL			0x100		CPU2 Control Register*/
-/*	AST_SCU_CPU2_BASE0_ADDR		0x104		CPU2 Base Address for Segment 0x00:0000~0x1F:FFFF*/
-/*	AST_SCU_CPU2_BASE1_ADDR		0x108		CPU2 Base Address for Segment 0x20:0000~0x3F:FFFF*/
-/*	AST_SCU_CPU2_BASE2_ADDR		0x10C		CPU2 Base Address for Segment 0x40:0000~0x5F:FFFF*/
-/*	AST_SCU_CPU2_BASE3_ADDR		0x110		CPU2 Base Address for Segment 0x60:0000~0x7F:FFFF*/
-/*	AST_SCU_CPU2_BASE4_ADDR		0x114		CPU2 Base Address for Segment 0x80:0000~0xFF:FFFF*/
-/*	AST_SCU_CPU2_CACHE_CTRL		0x118		CPU2 Cache Function Control */
+/*	#define AST_SCU_CPU2_BASE0_ADDR	0x200		CPU2 Base Address for Segment 0x00:0000~0x0F:FFFF*/
+/*	#define AST_SCU_CPU2_BASE1_ADDR	0x204		CPU2 Base Address for Segment 0x10:0000~0x1F:FFFF*/
+/*	#define AST_SCU_CPU2_BASE2_ADDR	0x208		CPU2 Base Address for Segment 0x20:0000~0x2F:FFFF*/
+/*	#define AST_SCU_CPU2_BASE3_ADDR	0x20C		CPU2 Base Address for Segment 0x30:0000~0x3F:FFFF*/
+/*	#define AST_SCU_CPU2_BASE4_ADDR	0x210		CPU2 Base Address for Segment 0x40:0000~0x4F:FFFF*/
+/*	#define AST_SCU_CPU2_BASE5_ADDR	0x214		CPU2 Base Address for Segment 0x50:0000~0x5F:FFFF*/
+/*	#define AST_SCU_CPU2_BASE6_ADDR	0x218		CPU2 Base Address for Segment 0x60:0000~0x6F:FFFF*/
+/*	#define AST_SCU_CPU2_BASE7_ADDR	0x21C		CPU2 Base Address for Segment 0x70:0000~0x7F:FFFF*/
+/*	#define AST_SCU_CPU2_BASE8_ADDR	0x220		CPU2 Base Address for Segment 0x80:0000~0x8F:FFFF*/
+
+/*	#define AST_SCU_CPU2_CACHE_CTRL	0x224		CPU2 Cache Function Control */
 
 
 /*	AST_SCU_UART24_REF			0x160		Generate UART 24Mhz Ref from H-PLL when CLKIN is 25Mhz */

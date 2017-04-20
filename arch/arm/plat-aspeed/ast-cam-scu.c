@@ -41,7 +41,7 @@ CLK24M
 
 #include <mach/hardware.h>
 
-#include <plat/ast-scu.h>
+#include <plat/ast-cam-scu.h>
 #include <plat/regs-cam-scu.h>
 
 //#define ASPEED_SCU_LOCK
@@ -197,7 +197,18 @@ EXPORT_SYMBOL(ast_scu_init_uart);
 extern void
 ast_scu_init_eth(u8 num)
 {
-	
+	switch(num) {
+		case 0:
+			ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_MAC0, 
+							AST_SCU_RESET);		
+			udelay(100);
+			ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_MAC_CLK_STOP_EN, 
+							AST_SCU_CLK_STOP);		
+			udelay(1000);
+			ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_MAC0, 
+							AST_SCU_RESET);		
+			break;
+	}		
 }
 
 #ifdef SCU_RESET_USB20
@@ -216,14 +227,37 @@ ast_scu_init_usb_port1(void)
 	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_USB20, AST_SCU_RESET);
 }
 
+
 EXPORT_SYMBOL(ast_scu_init_usb_port1);
 #endif
 
 extern void
 ast_scu_init_sdhci(void)
 {
+	//SDHCI Host's Clock Enable and Reset
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_SD, AST_SCU_RESET);
+	
+	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_SDCLK_STOP_EN, AST_SCU_CLK_STOP);
+	mdelay(10);
 
+	ast_scu_write(ast_scu_read(AST_SCU_CLK_SEL) | SCU_CLK_SD_EN, AST_SCU_CLK_SEL);
+	mdelay(10);
+
+#ifdef CONFIG_ARCH_AST3200
+	// SDCLK = H-PLL / 12
+	ast_scu_write((ast_scu_read(AST_SCU_CLK_SEL) & ~SCU_CLK_SD_MASK) | SCU_CLK_SD_DIV(7), 
+		AST_SCU_CLK_SEL);
+#else
+	// SDCLK = G4  H-PLL / 4, G5 = H-PLL /8
+	ast_scu_write((ast_scu_read(AST_SCU_CLK_SEL) & ~SCU_CLK_SD_MASK) | SCU_CLK_SD_DIV(1), 
+		AST_SCU_CLK_SEL);
+#endif 
+
+	mdelay(10);
+	
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_SD, AST_SCU_RESET);
 }
+
 EXPORT_SYMBOL(ast_scu_init_sdhci);
 
 extern void
@@ -243,6 +277,14 @@ EXPORT_SYMBOL(ast_scu_init_i2c);
 extern void
 ast_scu_init_hace(void)
 {
+	//enable YCLK for HAC
+	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) &
+					~(SCU_YCLK_STOP_EN | SCU_RSACLK_STOP_EN), 
+					AST_SCU_CLK_STOP);
+	mdelay(1);
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) &
+					~SCU_RESET_HACE, 
+					AST_SCU_RESET);
 }
 EXPORT_SYMBOL(ast_scu_init_hace);
 
@@ -252,23 +294,6 @@ ast_scu_init_h264(void)
 
 }
 EXPORT_SYMBOL(ast_scu_init_h264);
-
-/* 0:disable spi 1: enable spi master 2:enable spi master and spi slave to ahb 3: enable spi pass-through*/
-extern void
-ast_scu_spi_master(u8 mode)
-{
-
-}
-
-EXPORT_SYMBOL(ast_scu_spi_master);
-
-//***********************************CLK control***********************************
-extern void
-ast_scu_uart_div(void)
-{
-}
-
-EXPORT_SYMBOL(ast_scu_uart_div);
 
 extern void
 ast_scu_clk_stop(u32 clk_name,u8 stop_enable)
@@ -411,8 +436,21 @@ EXPORT_SYMBOL(ast_scu_osc_clk_output);
 extern u32
 ast_get_sd_clock_src(void)
 {
+//TODO ~~
+#ifdef CONFIG_AST_CAM_25FPGA
+	return 48000000;
+#else
+	u32 clk=0, sd_div;
 
-	return 0;
+	clk = ast_get_h_pll_clk();
+	//get div
+	sd_div = SCU_CLK_SD_GET_DIV(ast_scu_read(AST_SCU_CLK_SEL));
+		sd_div = (sd_div+1) << 2;
+		SCUDBUG("div %d, sdclk =%d \n",sd_div,clk/sd_div);
+		clk /= sd_div;
+
+	return clk;
+#endif	
 }
 
 EXPORT_SYMBOL(ast_get_sd_clock_src);
@@ -431,9 +469,6 @@ EXPORT_SYMBOL(ast_scu_show_system_info);
 extern void
 ast_scu_multi_func_uart(u8 uart)
 {
-
-
-
 }
 
 extern void
@@ -442,15 +477,8 @@ ast_scu_multi_func_eth(u8 num)
 }
 
 extern void
-ast_scu_multi_func_nand(void)
-{
-
-}
-
-extern void
 ast_scu_multi_func_romcs(u8 num)
 {
-
 }
 
 extern void
@@ -459,14 +487,6 @@ ast_scu_multi_func_i2c(u8 bus_no)
 }	
 
 EXPORT_SYMBOL(ast_scu_multi_func_i2c);
-
-extern void
-ast_scu_multi_func_pwm_tacho(void)
-{
-
-}	
-
-EXPORT_SYMBOL(ast_scu_multi_func_pwm_tacho);
 
 //0 : usb 2.0 hub mode, 1:usb 2.0 host2 controller
 extern void
@@ -483,56 +503,33 @@ ast_scu_multi_func_usb_port2_mode(u8 mode)
 
 }	
 
-EXPORT_SYMBOL(ast_scu_multi_func_usb_port2_mode);
-
-//0 : gpioQ6,7 mode , 1: usb1.1 host port 4 mode
-extern void
-ast_scu_multi_func_usb_port34_mode(u8 mode)
-{
-
-}	
-
-EXPORT_SYMBOL(ast_scu_multi_func_usb_port34_mode);
-
-//0 : 1: SD1 function 
-extern void
-ast_scu_multi_func_sdhc_8bit_mode(void)
-{
-
-}	
-
-EXPORT_SYMBOL(ast_scu_multi_func_sdhc_8bit_mode);
 
 extern void
 ast_scu_multi_func_sdhc_slot(u8 slot)
 {
-
+	switch(slot) {
+		case 1:
+			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_SD1, 
+						AST_SCU_FUN_PIN_CTRL5);						
+			break;
+		case 2:
+			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_SD2, 
+						AST_SCU_FUN_PIN_CTRL5);									
+			break;
+		case 3:
+			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_SD1 | SCU_FUC_PIN_SD2, 
+						AST_SCU_FUN_PIN_CTRL5);						
+			break;			
+	}
 }	
 
 EXPORT_SYMBOL(ast_scu_multi_func_sdhc_slot);
-
-//0: VGA , 1 : CRT, 2 : PASS through Port -A, 3 : PASS through Port -B  
-extern void
-ast_scu_set_crt_source(u8 dac_soource)
-{
-
-}
-
-EXPORT_SYMBOL(ast_scu_set_crt_source);
 
 extern void
 ast_scu_multi_nic_switch(u8 enable)
 {
 		
 }
-
-extern void
-ast_scu_multi_func_sgpio(void)
-{
-
-}	
-
-EXPORT_SYMBOL(ast_scu_multi_func_sgpio);
 
 //***********************************Information ***********************************
 extern u32
@@ -598,14 +595,46 @@ ast_scu_sys_rest_info(void)
 extern u32
 ast_scu_get_phy_config(u8 mac_num)
 {
+	u32 scatch = ast_scu_read(AST_SCU_SOC_SCRATCH0);
 
+	switch(mac_num) {
+		case 0:
+			return (SCU_MAC0_GET_PHY_MODE(scatch));
+			break;
+		case 1:
+			return (SCU_MAC1_GET_PHY_MODE(scatch));
+			break;
+		default:
+			SCUMSG("error mac number \n");
+			break;
+	}
+	return -1;
 }
 EXPORT_SYMBOL(ast_scu_get_phy_config);
 
 extern u32
 ast_scu_get_phy_interface(u8 mac_num)
 {
+	u32 trap1 = ast_scu_read(AST_SCU_HW_STRAP1);
 
+	switch(mac_num) {
+		case 0:
+			if(SCU_HW_STRAP_MAC0_RGMII & trap1)
+				return 1;
+			else
+				return 0;
+			break;
+		case 1:
+			if(SCU_HW_STRAP_MAC1_RGMII & trap1)
+				return 1;
+			else
+				return 0;
+			break;
+		default:
+			SCUMSG("error mac number \n");
+			break;
+	}
+	return -1;
 }
 EXPORT_SYMBOL(ast_scu_get_phy_interface);
 
