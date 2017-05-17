@@ -96,38 +96,7 @@ struct soc_id {
 #define SOC_ID(str, rev) { .name = str, .rev_id = rev, }
 
 static struct soc_id soc_map_table[] = {
-	SOC_ID("AST1100/AST2050-A0", 0x00000200),
-	SOC_ID("AST1100/AST2050-A1", 0x00000201),
-	SOC_ID("AST1100/AST2050-A2,3/AST2150-A0,1", 0x00000202),
-	SOC_ID("AST1510/AST2100-A0", 0x00000300),
-	SOC_ID("AST1510/AST2100-A1", 0x00000301),
-	SOC_ID("AST1510/AST2100-A2,3", 0x00000302),
-	SOC_ID("AST2200-A0,1", 0x00000102),
-	SOC_ID("AST2300-A0", 0x01000003),
-	SOC_ID("AST2300-A1", 0x01010303),
-	SOC_ID("AST1300-A1", 0x01010003),
-	SOC_ID("AST1050-A1", 0x01010203),
-	SOC_ID("AST2400-A0", 0x02000303),
-	SOC_ID("AST2400-A1", 0x02010303),
-	SOC_ID("AST1010-A0", 0x03000003),
-	SOC_ID("AST1010-A1", 0x03010003),
-	SOC_ID("AST3200-A0", 0x04002003),
-	SOC_ID("AST3200-A1", 0x04012003),
-	SOC_ID("AST3200-A2", 0x04032003),
-	SOC_ID("AST1520-A0", 0x03000203),	
-	SOC_ID("AST1520-A1", 0x03010203),
-	SOC_ID("AST2510-A0", 0x04000103),
-	SOC_ID("AST2510-A1", 0x04010103),
-	SOC_ID("AST2510-A2", 0x04030103),	
-	SOC_ID("AST2520-A0", 0x04000203),
-	SOC_ID("AST2520-A1", 0x04010203),
-	SOC_ID("AST2520-A2", 0x04030203),
-	SOC_ID("AST2500-A0", 0x04000303),	
-	SOC_ID("AST2500-A1", 0x04010303),
-	SOC_ID("AST2500-A2", 0x04030303),	
-	SOC_ID("AST2530-A0", 0x04000403),
-	SOC_ID("AST2530-A1", 0x04010403),
-	SOC_ID("AST2530-A2", 0x04030403),	
+	SOC_ID("AST1220-A0", 0x04030000),
 };
 //***********************************Initial control***********************************
 extern void
@@ -235,27 +204,15 @@ extern void
 ast_scu_init_sdhci(void)
 {
 	//SDHCI Host's Clock Enable and Reset
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_SD, AST_SCU_RESET);
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_SDHCI, AST_SCU_RESET);
 	
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_SDCLK_STOP_EN, AST_SCU_CLK_STOP);
+	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_SDHCI_CLK_STOP_EN, AST_SCU_CLK_STOP);
 	mdelay(10);
 
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_SEL) | SCU_CLK_SD_EN, AST_SCU_CLK_SEL);
-	mdelay(10);
-
-#ifdef CONFIG_ARCH_AST3200
-	// SDCLK = H-PLL / 12
-	ast_scu_write((ast_scu_read(AST_SCU_CLK_SEL) & ~SCU_CLK_SD_MASK) | SCU_CLK_SD_DIV(7), 
-		AST_SCU_CLK_SEL);
-#else
-	// SDCLK = G4  H-PLL / 4, G5 = H-PLL /8
-	ast_scu_write((ast_scu_read(AST_SCU_CLK_SEL) & ~SCU_CLK_SD_MASK) | SCU_CLK_SD_DIV(1), 
-		AST_SCU_CLK_SEL);
-#endif 
 
 	mdelay(10);
 	
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_SD, AST_SCU_RESET);
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_SDHCI, AST_SCU_RESET);
 }
 
 EXPORT_SYMBOL(ast_scu_init_sdhci);
@@ -278,13 +235,6 @@ extern void
 ast_scu_init_hace(void)
 {
 	//enable YCLK for HAC
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) &
-					~(SCU_YCLK_STOP_EN | SCU_RSACLK_STOP_EN), 
-					AST_SCU_CLK_STOP);
-	mdelay(1);
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) &
-					~SCU_RESET_HACE, 
-					AST_SCU_RESET);
 }
 EXPORT_SYMBOL(ast_scu_init_hace);
 
@@ -436,21 +386,9 @@ EXPORT_SYMBOL(ast_scu_osc_clk_output);
 extern u32
 ast_get_sd_clock_src(void)
 {
-//TODO ~~
-#ifdef CONFIG_AST_CAM_25FPGA
-	return 48000000;
-#else
-	u32 clk=0, sd_div;
 
-	clk = ast_get_h_pll_clk();
-	//get div
-	sd_div = SCU_CLK_SD_GET_DIV(ast_scu_read(AST_SCU_CLK_SEL));
-		sd_div = (sd_div+1) << 2;
-		SCUDBUG("div %d, sdclk =%d \n",sd_div,clk/sd_div);
-		clk /= sd_div;
-
-	return clk;
-#endif	
+	printk("TODO ~~ ast_get_sd_clock_src \n");
+	return 54000000;
 }
 
 EXPORT_SYMBOL(ast_get_sd_clock_src);
