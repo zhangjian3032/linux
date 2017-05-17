@@ -107,7 +107,7 @@ static void ast_adc_ctrl_init(struct ast_adc_data *ast_adc)
 #ifdef AST_SOC_G5
 	u8 trim;
 #endif
-	//Set wait a sensing cycle t (s) = 1000 * 12 * (1/PCLK) * 2 * (ADC0c[31:17] + 1) * (ADC0c[9:0] +1)
+	//Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[31:17] + 1) * (ADC0c[9:0] +1)
 	//ex : pclk = 48Mhz , ADC0c[31:17] = 0,  ADC0c[9:0] = 0x40 : 64,  ADC0c[31:17] = 0x3e7 : 999 
 	// --> 0.0325s	= 12 * 2 * (0x3e7 + 1) *(64+1) / 48000000
 	// --> 0.0005s	= 12 * 2 * (0x3e7 + 1) / 48000000	
