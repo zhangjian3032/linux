@@ -43,13 +43,13 @@
 #include <plat/aspeed.h>
 #include <plat/ast-scu.h>
 
+#include <linux/dma-mapping.h>
 
-//#define CONFIG_AST_JPEG_LOCK
-
-//#define CONFIG_AST_JPEG_DEBUG
+#define CONFIG_AST_JPEG_DEBUG
 
 #ifdef CONFIG_AST_JPEG_DEBUG
-	#define JPEG_DBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt,__FUNCTION__, ## args)	
+	//#define JPEG_DBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt,__FUNCTION__, ## args)	
+	#define JPEG_DBG(fmt, args...) printk("%s() " fmt,__FUNCTION__, ## args)
 #else
 	#define JPEG_DBG(fmt, args...)
 #endif
@@ -139,21 +139,21 @@ struct ast_jpeg_data {
 	struct device		*misc_dev;
 	void __iomem		*reg_base;			/* virtual */
 	int 	irq;				//JPEG IRQ number 
+	u32                             *jpeg_tbl_virt;         /* virt */
+	dma_addr_t 			jpeg_tbl_dma_addr;
+	
 	phys_addr_t             *jpeg_phy;            /* phy */
 	u32                             *jpeg_virt;           /* virt */
 	phys_addr_t             *buff0_phy;             /* phy */
 	u32                             *buff0_virt;            /* virt */
 	phys_addr_t             *buff1_phy;             /* phy */
 	u32                             *buff1_virt;            /* virt */
-	phys_addr_t             *jpeg_tbl_phy;          /* phy */
-	u32                             *jpeg_tbl_virt;         /* virt */
 
-//JPEG 
-	u32		video_mem_size;			/* phy size*/		
-	u32		video_jpeg_offset;			/* assigned jpeg memory size*/
-
-	struct completion	jpeg_complete;		
+	u32		jpeg_mem_size;			/* phy size*/		
+	u32		raw_buff0_offset;			/* buff0 offset*/
+	u32		raw_buff1_offset;			/* buff1 offset*/
 	
+	struct completion	jpeg_complete;		
 
 	u32		flag;
 	u32		sts;
@@ -163,6 +163,9 @@ struct ast_jpeg_data {
 	bool is_open;
 };
 
+/***********************************************************************/
+#define JPEG_RAW_BUFF0_OFFSET 0x1000000
+#define JPEG_RAW_BUFF1_OFFSET 0x2000000
 /***********************************************************************/
 struct ast_jpeg_mode
 {
@@ -174,9 +177,12 @@ struct ast_jpeg_mode
 
 #define JPEGIOC_BASE				'J'
 
-#define AST_JPEG_CONFIG				_IOW(JPEGIOC_BASE, 0x0, struct ast_jpeg_mode*)
-#define AST_JPEG_TRIGGER			_IOR(JPEGIOC_BASE, 0x1, unsigned long)
-
+#define AST_JPEG_SET_CONFIG					_IOW(JPEGIOC_BASE, 0x0, struct ast_jpeg_mode*)
+#define AST_JPEG_GET_CONFIG					_IOR(JPEGIOC_BASE, 0x1, struct ast_jpeg_mode*)
+#define AST_JPEG_GET_MEM_SIZE_IOCRX			_IOR(JPEGIOC_BASE, 0x2, unsigned long)
+#define AST_JPEG_GET_BUFFER0_OFFSET_IOCRX	_IOR(JPEGIOC_BASE, 0x3, unsigned long)
+#define AST_JPEG_GET_BUFFER1_OFFSET_IOCRX	_IOR(JPEGIOC_BASE, 0x4, unsigned long)
+#define AST_JPEG_TRIGGER						_IOR(JPEGIOC_BASE, 0x5, unsigned long)
 
 /***********************************************************************/
 
@@ -826,6 +832,8 @@ static void ast_jpeg_config(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_mode
 	int i, base=0;
 
 	u32 scan_line;
+
+	JPEG_DBG("x : %d, y : %d \n", jpeg_mode->x, jpeg_mode->y);
 	ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_H(jpeg_mode->x) | JPEG_COMPRESS_V(jpeg_mode->y), AST_JPEG_SIZE_SETTING);
 
 	if((jpeg_mode->x % 8) == 0)
@@ -836,6 +844,8 @@ static void ast_jpeg_config(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_mode
 		scan_line = scan_line * 4;
 		ast_jpeg_write(ast_jpeg, scan_line, AST_JPEG_SOURCE_SCAN_LINE);
 	}
+
+	JPEG_DBG("YUV : %d, Y Table : %d \n", jpeg_mode->YUV420, jpeg_mode->Y_JPEGTableSelector);
 
 	for(i = 0; i<12; i++) {
 		base = (1024*i);
@@ -857,9 +867,11 @@ static void ast_jpeg_config(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_mode
 
 }
 
-static u32 ast_jpeg_compression(struct ast_jpeg_data *ast_jpeg)
+static u32 ast_jpeg_compression(struct ast_jpeg_data *ast_jpeg, unsigned long *jpeg_size)
 {
 	int timeout = 0;	
+
+	JPEG_DBG("\n");
 
 	init_completion(&ast_jpeg->jpeg_complete);
 
@@ -871,9 +883,13 @@ static u32 ast_jpeg_compression(struct ast_jpeg_data *ast_jpeg)
 	
 	if (timeout == 0) { 
 		printk("compression timeout sts %x \n", ast_jpeg_read(ast_jpeg, AST_JPEG_ISR));
+		*jpeg_size = ast_jpeg_read(ast_jpeg, AST_JPEG_STREAM_SIZE);
+		printk("size %d \n", *jpeg_size);
 		return 0;
 	} else {
-		return ast_jpeg_read(ast_jpeg, AST_JPEG_STREAM_SIZE);
+		*jpeg_size = ast_jpeg_read(ast_jpeg, AST_JPEG_STREAM_SIZE);
+		JPEG_DBG("compress size %d \n",*jpeg_size);
+		return 1;
 	}	
 }
 
@@ -884,16 +900,30 @@ static long ast_jpeg_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	struct ast_jpeg_data *ast_jpeg = dev_get_drvdata(c->this_device);
 	
 	struct ast_jpeg_mode mode;	
+	unsigned long jpeg_size = 0;
 	void __user *argp = (void __user *)arg;
 
-
 	switch (cmd) {
-		case AST_JPEG_CONFIG:
-			break;
-		case AST_JPEG_TRIGGER:
+		case AST_JPEG_SET_CONFIG:
 			ret = copy_from_user(&mode, argp, sizeof(struct ast_jpeg_mode));
 			ast_jpeg_config(ast_jpeg, &mode);
-			ret = copy_to_user(argp, &mode, sizeof(struct ast_jpeg_mode));
+			ret = copy_to_user(argp, &mode, sizeof(struct ast_jpeg_mode));			
+			break;
+		case AST_JPEG_GET_MEM_SIZE_IOCRX:
+			ret = __put_user(ast_jpeg->jpeg_mem_size, (unsigned long __user *)arg);			
+			break;
+		case AST_JPEG_GET_BUFFER0_OFFSET_IOCRX:
+			ret = __put_user(ast_jpeg->raw_buff0_offset, (unsigned long __user *)arg);
+			break;
+		case AST_JPEG_GET_BUFFER1_OFFSET_IOCRX:
+			ret = __put_user(ast_jpeg->raw_buff1_offset, (unsigned long __user *)arg);
+			break;
+		case AST_JPEG_TRIGGER:
+			ast_jpeg_compression(ast_jpeg, &jpeg_size);
+//			 if(ast_jpeg_compression(ast_jpeg, &jpeg_size))
+			 	ret = __put_user(jpeg_size, (unsigned long __user *)arg);
+//			 else
+//			 	ret = 3;
 			break;
 		default:
 			ret = 3;
@@ -911,20 +941,6 @@ static int ast_jpeg_mmap(struct file * file, struct vm_area_struct * vma)
         size_t size = vma->vm_end - vma->vm_start;
         vma->vm_private_data = ast_jpeg;
 
-        if (PAGE_ALIGN(size) > ast_jpeg->video_mem_size) {
-                        printk(KERN_ERR "required length exceed the size "
-                                   "of physical sram (%x)\n", ast_jpeg->video_mem_size);
-                        return -EAGAIN;
-        }
-
-        if ((ast_jpeg->jpeg_phy + (vma->vm_pgoff << PAGE_SHIFT) + size)
-                > (ast_jpeg->jpeg_phy + ast_jpeg->video_mem_size)) {
-                        printk(KERN_ERR "required sram range exceed the size "
-                                   "of phisical sram\n");
-                        return -EAGAIN;
-        }
-
-        vma->vm_flags |= VM_IO;
         vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
         if (io_remap_pfn_range(vma, vma->vm_start,
@@ -936,19 +952,21 @@ static int ast_jpeg_mmap(struct file * file, struct vm_area_struct * vma)
         }
 
         return 0;
+	
 }
 
 static int ast_jpeg_open(struct inode *inode, struct file *file)
 {
-        struct miscdevice *c = file->private_data;
-        struct ast_jpeg_data *ast_jpeg = dev_get_drvdata(c->this_device);
+	struct miscdevice *c = file->private_data;
+	struct ast_jpeg_data *ast_jpeg = dev_get_drvdata(c->this_device);
 
-        JPEG_DBG("\n");
+	JPEG_DBG("\n");
 
-        ast_jpeg->is_open = true;
-
+	if(ast_jpeg->is_open == true)
+		return -1;
+	else
+		ast_jpeg->is_open = true;
         return 0;
-
 }
 
 static int ast_jpeg_release(struct inode *inode, struct file *file)
@@ -980,8 +998,9 @@ struct miscdevice ast_jpeg_misc = {
 static void ast_jpeg_ctrl_init(struct ast_jpeg_data *ast_jpeg)
 {
 	JPEG_DBG("\n");
-	
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_tbl_phy, AST_JPEG_HEADER_BUFF);
+
+	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_tbl_dma_addr, AST_JPEG_HEADER_BUFF);
+
 	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff0_phy, AST_JPEG_SOURCE_BUFF0);
 	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff1_phy, AST_JPEG_SOURCE_BUFF1);
 	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_phy, AST_JPEG_STREAM_BUFF);
@@ -996,76 +1015,73 @@ static void ast_jpeg_ctrl_init(struct ast_jpeg_data *ast_jpeg)
 
 	ast_init_jpeg_table(ast_jpeg);
 
-#ifdef CONFIG_QUANTIZATION_TABLE
+	//for CONFIG_QUANTIZATION_TABLE
 	ast_jpeg_write(ast_jpeg, JPEG_QUANT_TABLE_LOAD | JPEG_PROGRAM_QUANT_TABLE_EN, AST_JPEG_CTRL); //[18] Vr_TblBufEnable, [30] Vr_SRAMTblSel[0]
 	
-	ast_jpeg_write(ast_jpeg, 0x04ed_0672, 0x400);
-	ast_jpeg_write(ast_jpeg, 0x0800_06ca, 0x404);
-	ast_jpeg_write(ast_jpeg, 0x0c3f_0d9b, 0x408);
-	ast_jpeg_write(ast_jpeg, 0x0800_0b89, 0x40C);
-	ast_jpeg_write(ast_jpeg, 0x02aa_03cd, 0x410);
-	ast_jpeg_write(ast_jpeg, 0x05c5_03ac, 0x414);
-	ast_jpeg_write(ast_jpeg, 0x08d4_04e8, 0x418);
-	ast_jpeg_write(ast_jpeg, 0x0b89_0851, 0x41C);
-	ast_jpeg_write(ast_jpeg, 0x0284_0409, 0x420);
-	ast_jpeg_write(ast_jpeg, 0x0310_0299, 0x424);
-	ast_jpeg_write(ast_jpeg, 0x04b0_0535, 0x428);
-	ast_jpeg_write(ast_jpeg, 0x0c3f_08d4, 0x42C);
-	ast_jpeg_write(ast_jpeg, 0x0284_041c, 0x430);
-	ast_jpeg_write(ast_jpeg, 0x01f2_022a, 0x434);
-	ast_jpeg_write(ast_jpeg, 0x0379_03db, 0x438);
-	ast_jpeg_write(ast_jpeg, 0x06ce_04e8, 0x43C);
-	ast_jpeg_write(ast_jpeg, 0x0277_0424, 0x440);
-	ast_jpeg_write(ast_jpeg, 0x0200_0209, 0x444);
-	ast_jpeg_write(ast_jpeg, 0x0273_0245, 0x448);
-	ast_jpeg_write(ast_jpeg, 0x0555_03d8, 0x44C);
-	ast_jpeg_write(ast_jpeg, 0x0282_0627, 0x450);
-	ast_jpeg_write(ast_jpeg, 0x0191_01fe, 0x454);
-	ast_jpeg_write(ast_jpeg, 0x023a_01bb, 0x458);
-	ast_jpeg_write(ast_jpeg, 0x0413_0219, 0x45C);
-	ast_jpeg_write(ast_jpeg, 0x03a4_08ee, 0x460);
-	ast_jpeg_write(ast_jpeg, 0x0277_02b0, 0x464);
-	ast_jpeg_write(ast_jpeg, 0x02d4_0284, 0x468);
-	ast_jpeg_write(ast_jpeg, 0x04ed_030c, 0x46C);
-	ast_jpeg_write(ast_jpeg, 0x08ee_1184, 0x470);
-	ast_jpeg_write(ast_jpeg, 0x0672_06b6, 0x474);
-	ast_jpeg_write(ast_jpeg, 0x0657_070c, 0x478);
-	ast_jpeg_write(ast_jpeg, 0x0849_06f8, 0x47C);
-	ast_jpeg_write(ast_jpeg, 0x01a4_0339, 0x480);
-	ast_jpeg_write(ast_jpeg, 0x00e4_0122, 0x484);
-	ast_jpeg_write(ast_jpeg, 0x0310_01b3, 0x488);
-	ast_jpeg_write(ast_jpeg, 0x0555_03d8, 0x48C);
-	ast_jpeg_write(ast_jpeg, 0x012f_0253, 0x490);
-	ast_jpeg_write(ast_jpeg, 0x00a4_00d1, 0x494);
-	ast_jpeg_write(ast_jpeg, 0x0235_00d1, 0x498);
-	ast_jpeg_write(ast_jpeg, 0x03d8_02c6, 0x49C);
-	ast_jpeg_write(ast_jpeg, 0x0142_0277, 0x4a0);
-	ast_jpeg_write(ast_jpeg, 0x00ae_00de, 0x4a4);
-	ast_jpeg_write(ast_jpeg, 0x00f0_0094, 0x4a8);
-	ast_jpeg_write(ast_jpeg, 0x0310_0235, 0x4aC);
-	ast_jpeg_write(ast_jpeg, 0x0166_02bd, 0x4b0);
-	ast_jpeg_write(ast_jpeg, 0x00c2_00f6, 0x4b4);
-	ast_jpeg_write(ast_jpeg, 0x0094_00a5, 0x4b8);
-	ast_jpeg_write(ast_jpeg, 0x01b3_00d1, 0x4bC);
-	ast_jpeg_write(ast_jpeg, 0x01a4_0339, 0x4c0);
-	ast_jpeg_write(ast_jpeg, 0x00e4_0122, 0x4c4);
-	ast_jpeg_write(ast_jpeg, 0x00ae_00c2, 0x4c8);
-	ast_jpeg_write(ast_jpeg, 0x00e4_00a4, 0x4cC);
-	ast_jpeg_write(ast_jpeg, 0x0217_041a, 0x4d0);
-	ast_jpeg_write(ast_jpeg, 0x0122_0171, 0x4d4);
-	ast_jpeg_write(ast_jpeg, 0x00de_00f6, 0x4d8);
-	ast_jpeg_write(ast_jpeg, 0x0122_00d1, 0x4dC);
-	ast_jpeg_write(ast_jpeg, 0x0309_05f4, 0x4e0);
-	ast_jpeg_write(ast_jpeg, 0x01a4_0217, 0x4e4);
-	ast_jpeg_write(ast_jpeg, 0x0142_0166, 0x4e8);
-	ast_jpeg_write(ast_jpeg, 0x01a4_012f, 0x4eC);
-	ast_jpeg_write(ast_jpeg, 0x05f4_0bad, 0x4f0);
-	ast_jpeg_write(ast_jpeg, 0x0339_041a, 0x4f4);
-	ast_jpeg_write(ast_jpeg, 0x0277_02bd, 0x4f8);
-	ast_jpeg_write(ast_jpeg, 0x0339_0253, 0x4fC);
-#else
-	ast_jpeg_write(ast_jpeg, 0, AST_JPEG_CTRL);
-#endif
+	ast_jpeg_write(ast_jpeg, 0x04ed0672, 0x400);
+	ast_jpeg_write(ast_jpeg, 0x080006ca, 0x404);
+	ast_jpeg_write(ast_jpeg, 0x0c3f0d9b, 0x408);
+	ast_jpeg_write(ast_jpeg, 0x08000b89, 0x40C);
+	ast_jpeg_write(ast_jpeg, 0x02aa03cd, 0x410);
+	ast_jpeg_write(ast_jpeg, 0x05c503ac, 0x414);
+	ast_jpeg_write(ast_jpeg, 0x08d404e8, 0x418);
+	ast_jpeg_write(ast_jpeg, 0x0b890851, 0x41C);
+	ast_jpeg_write(ast_jpeg, 0x02840409, 0x420);
+	ast_jpeg_write(ast_jpeg, 0x03100299, 0x424);
+	ast_jpeg_write(ast_jpeg, 0x04b00535, 0x428);
+	ast_jpeg_write(ast_jpeg, 0x0c3f08d4, 0x42C);
+	ast_jpeg_write(ast_jpeg, 0x0284041c, 0x430);
+	ast_jpeg_write(ast_jpeg, 0x01f2022a, 0x434);
+	ast_jpeg_write(ast_jpeg, 0x037903db, 0x438);
+	ast_jpeg_write(ast_jpeg, 0x06ce04e8, 0x43C);
+	ast_jpeg_write(ast_jpeg, 0x02770424, 0x440);
+	ast_jpeg_write(ast_jpeg, 0x02000209, 0x444);
+	ast_jpeg_write(ast_jpeg, 0x02730245, 0x448);
+	ast_jpeg_write(ast_jpeg, 0x055503d8, 0x44C);
+	ast_jpeg_write(ast_jpeg, 0x02820627, 0x450);
+	ast_jpeg_write(ast_jpeg, 0x019101fe, 0x454);
+	ast_jpeg_write(ast_jpeg, 0x023a01bb, 0x458);
+	ast_jpeg_write(ast_jpeg, 0x04130219, 0x45C);
+	ast_jpeg_write(ast_jpeg, 0x03a408ee, 0x460);
+	ast_jpeg_write(ast_jpeg, 0x027702b0, 0x464);
+	ast_jpeg_write(ast_jpeg, 0x02d40284, 0x468);
+	ast_jpeg_write(ast_jpeg, 0x04ed030c, 0x46C);
+	ast_jpeg_write(ast_jpeg, 0x08ee1184, 0x470);
+	ast_jpeg_write(ast_jpeg, 0x067206b6, 0x474);
+	ast_jpeg_write(ast_jpeg, 0x0657070c, 0x478);
+	ast_jpeg_write(ast_jpeg, 0x084906f8, 0x47C);
+	ast_jpeg_write(ast_jpeg, 0x01a40339, 0x480);
+	ast_jpeg_write(ast_jpeg, 0x00e40122, 0x484);
+	ast_jpeg_write(ast_jpeg, 0x031001b3, 0x488);
+	ast_jpeg_write(ast_jpeg, 0x055503d8, 0x48C);
+	ast_jpeg_write(ast_jpeg, 0x012f0253, 0x490);
+	ast_jpeg_write(ast_jpeg, 0x00a400d1, 0x494);
+	ast_jpeg_write(ast_jpeg, 0x023500d1, 0x498);
+	ast_jpeg_write(ast_jpeg, 0x03d802c6, 0x49C);
+	ast_jpeg_write(ast_jpeg, 0x01420277, 0x4a0);
+	ast_jpeg_write(ast_jpeg, 0x00ae00de, 0x4a4);
+	ast_jpeg_write(ast_jpeg, 0x00f00094, 0x4a8);
+	ast_jpeg_write(ast_jpeg, 0x03100235, 0x4aC);
+	ast_jpeg_write(ast_jpeg, 0x016602bd, 0x4b0);
+	ast_jpeg_write(ast_jpeg, 0x00c200f6, 0x4b4);
+	ast_jpeg_write(ast_jpeg, 0x009400a5, 0x4b8);
+	ast_jpeg_write(ast_jpeg, 0x01b300d1, 0x4bC);
+	ast_jpeg_write(ast_jpeg, 0x01a40339, 0x4c0);
+	ast_jpeg_write(ast_jpeg, 0x00e40122, 0x4c4);
+	ast_jpeg_write(ast_jpeg, 0x00ae00c2, 0x4c8);
+	ast_jpeg_write(ast_jpeg, 0x00e400a4, 0x4cC);
+	ast_jpeg_write(ast_jpeg, 0x0217041a, 0x4d0);
+	ast_jpeg_write(ast_jpeg, 0x01220171, 0x4d4);
+	ast_jpeg_write(ast_jpeg, 0x00de00f6, 0x4d8);
+	ast_jpeg_write(ast_jpeg, 0x012200d1, 0x4dC);
+	ast_jpeg_write(ast_jpeg, 0x030905f4, 0x4e0);
+	ast_jpeg_write(ast_jpeg, 0x01a40217, 0x4e4);
+	ast_jpeg_write(ast_jpeg, 0x01420166, 0x4e8);
+	ast_jpeg_write(ast_jpeg, 0x01a4012f, 0x4eC);
+	ast_jpeg_write(ast_jpeg, 0x05f40bad, 0x4f0);
+	ast_jpeg_write(ast_jpeg, 0x0339041a, 0x4f4);
+	ast_jpeg_write(ast_jpeg, 0x027702bd, 0x4f8);
+	ast_jpeg_write(ast_jpeg, 0x03390253, 0x4fC);
 
 }
 
@@ -1110,18 +1126,34 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 		goto out_region0;
 	}
 
+	ast_jpeg->jpeg_tbl_virt = dma_alloc_coherent(NULL,
+					 1024 * 4 * 12,
+					 &ast_jpeg->jpeg_tbl_dma_addr, GFP_KERNEL);
+
+	JPEG_DBG("JPEG TABLE DMA %x, virt = %x \n", ast_jpeg->jpeg_tbl_dma_addr, ast_jpeg->jpeg_tbl_virt);
+	
 	//Phy assign
-	ast_jpeg->video_mem_size = resource_size(res1);
-	JPEG_DBG("video_mem_size %d MB\n",ast_jpeg->video_mem_size/1024/1024);
+	ast_jpeg->jpeg_mem_size = resource_size(res1);
+	JPEG_DBG("jpeg_mem_size %d MB\n",ast_jpeg->jpeg_mem_size/1024/1024);
 
-	//src YUYV = 4096x2048x2 = 16MB, NV12 = Y:4096x2048x1 = 8MB, CbCr : 4096x2048x0.5 = 4MB
-	ast_jpeg->jpeg_phy = (phys_addr_t *) res1->start;				// 4M * 6 = 24MB
-	ast_jpeg->buff0_phy = (phys_addr_t *) (res1->start + 0x1800000);  //16M 
-	ast_jpeg->buff1_phy = (phys_addr_t *) (res1->start + 0x400000);  //4M 
-	ast_jpeg->jpeg_tbl_phy = (phys_addr_t *) (res1->start + 0x2C00000);      //44MB: size 1 MB
+	//Total = 16 * 3 = 48MB
 
-	JPEG_DBG("\njpeg_phy: %x, buff0_phy: %x, buff1_phy:%x, bcd_phy:%x \njpeg_phy:%x, jpeg_tbl_phy:%x \n",
-	        (u32)ast_jpeg->jpeg_phy, (u32)ast_jpeg->buff0_phy, (u32)ast_jpeg->buff1_phy, (u32)ast_jpeg->bcd_phy, (u32)ast_jpeg->jpeg_phy, (u32)ast_jpeg->jpeg_tbl_phy);
+	//Dest JPEG 
+	//4096 * 2048 / 2 = 4MB
+	
+	ast_jpeg->jpeg_phy = (phys_addr_t *) res1->start;		// 4M * 2 = 8MB
+
+	//SRC raw x*y 
+	//YUYV = 4096x2048x2 = 16MB, 
+	//NV12 = Y:4096x2048x1 = 8MB, CbCr : 4096x2048x0.5 = 4MB
+	
+	ast_jpeg->buff0_phy = (phys_addr_t *) (res1->start + JPEG_RAW_BUFF0_OFFSET);  //24M : 16M 
+	ast_jpeg->raw_buff0_offset = JPEG_RAW_BUFF0_OFFSET;
+	ast_jpeg->buff1_phy = (phys_addr_t *) (res1->start + JPEG_RAW_BUFF1_OFFSET);  //24M + 16M : 16M 
+	ast_jpeg->raw_buff1_offset = JPEG_RAW_BUFF1_OFFSET;
+
+	JPEG_DBG("\n jpeg_phy: %x, buff0_phy: %x, buff1_phy:%x \n",
+	        (u32)ast_jpeg->jpeg_phy, (u32)ast_jpeg->buff0_phy, (u32)ast_jpeg->buff1_phy);
 
 	//virt assign
 	ast_jpeg->jpeg_virt = ioremap(res1->start, resource_size(res1));
@@ -1130,12 +1162,11 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 	        goto out_region1;
 	}
 
-	ast_jpeg->buff0_virt = (u32)ast_jpeg->jpeg_virt + 0x1800000; //24M : size 10MB
-	ast_jpeg->buff1_virt = (u32)ast_jpeg->jpeg_virt + 0x400000; //34M : size 10MB
-	ast_jpeg->jpeg_tbl_virt = (u32)ast_jpeg->jpeg_virt + 0x2C00000;     //44MB: size 1 MB
+	ast_jpeg->buff0_virt = ast_jpeg->jpeg_virt + JPEG_RAW_BUFF0_OFFSET; //24M : size 10MB
+	ast_jpeg->buff1_virt = ast_jpeg->jpeg_virt + JPEG_RAW_BUFF1_OFFSET; //34M : size 10MB
 
-	JPEG_DBG("\njpeg_virt: %x, buff0_virt: %x, buff1_virt:%x, bcd_virt:%x \njpeg_virt:%x, jpeg_tbl_virt:%x \n",
-	        (u32)ast_jpeg->jpeg_virt, (u32)ast_jpeg->buff0_virt, (u32)ast_jpeg->buff1_virt, (u32)ast_jpeg->bcd_virt, (u32)ast_jpeg->jpeg_virt, (u32)ast_jpeg->jpeg_tbl_virt);
+	JPEG_DBG("\n jpeg_virt: %x, buff0_virt: %x, buff1_virt:%x \n",
+	        (u32)ast_jpeg->jpeg_virt, (u32)ast_jpeg->buff0_virt, (u32)ast_jpeg->buff1_virt);
 
 	memset(ast_jpeg->jpeg_virt, 0, resource_size(res1));	
 
@@ -1146,8 +1177,6 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 		goto out_region1;
 	}
 
-
-	//TEST
 	ret = misc_register(&ast_jpeg_misc);
 	if (ret){		
 		printk(KERN_ERR "JPEG : failed to request interrupt\n");
@@ -1155,11 +1184,16 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, ast_jpeg);
+
+
 	dev_set_drvdata(ast_jpeg_misc.this_device, ast_jpeg);
+
+
 
 	ast_jpeg_ctrl_init(ast_jpeg);
 
-	ret = request_irq(ast_jpeg->irq, ast_jpeg_isr, IRQF_SHARED, "ast-video", ast_jpeg);
+
+	ret = request_irq(ast_jpeg->irq, ast_jpeg_isr, IRQF_SHARED, "ast-jpeg", ast_jpeg);
 	if (ret) {
 		printk(KERN_INFO "JPEG: Failed request irq %d\n", ast_jpeg->irq);
 		goto out_region1;
@@ -1280,6 +1314,7 @@ static int __init ast_jpeg_init(void)
 
 static void __exit ast_jpeg_exit(void)
 {
+	JPEG_DBG("ast_jpeg_exit \n");
 	platform_device_unregister(ast_jpeg_device);
 	platform_driver_unregister(&ast_jpeg_driver);
 }
@@ -1288,5 +1323,5 @@ module_init(ast_jpeg_init);
 module_exit(ast_jpeg_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
-MODULE_DESCRIPTION("AST JPEG Engine driver");
+MODULE_DESCRIPTION("AST JPEG Encoder Device Driver");
 MODULE_LICENSE("GPL");
