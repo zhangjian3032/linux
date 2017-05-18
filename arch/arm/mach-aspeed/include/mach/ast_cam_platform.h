@@ -94,7 +94,7 @@
 
 #define AST_UART2_BASE					0x1E78D000	/* UART3 */
 
-#define AST_UART_SDMA_BASE			0x1E79E000	/* UART SDMA */
+#define AST_UART_SDMA_BASE			0x1E78E000    /* UART SDMA */
 
 #define AST_H264_BASE					0x1E7A0000	/* H.264 */
 
