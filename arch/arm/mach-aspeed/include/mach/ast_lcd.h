@@ -66,4 +66,7 @@ void ast_hdmi_enable(int en);
 int vga_read_edid(void);
 struct fb_info *astfb_get_crt_screen(u8 crt);
 
-
+struct fb_info *astfb_get_fb_info(u8 crt);
+u8 astfb_get_crt_color_format(struct fb_info *info);
+u32 astfb_get_crt_fb_addr(struct fb_info *info);
+u16 astfb_get_crt_fb_line_offset(struct fb_info *info);

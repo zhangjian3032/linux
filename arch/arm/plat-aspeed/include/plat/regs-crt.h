@@ -94,6 +94,7 @@
 // bit 11 reserved 
 #define CRT_CTRL_HW_CURSOR_FORMAT	(0x1 << 10) // 0: XRGB4444, 1:ARGB4444
 #define CRT_CTRL_FORMAT_MASK		(0x7 << 7)
+#define CRT_CTRL_GET_FORMAT(x)		((x >> 7) & 0x7)
 #define CRT_CTRL_FORMAT(x)			(x << 7)
 #define COLOR_RGB565				(0)
 #define COLOR_YUV444				(1)
@@ -162,6 +163,7 @@
 #define CRT_V_RS_END(x)				(x << 16)
 
 /* AST_CRT_OFFSET - 0x84 : CRT Display Offset & Terminal Count Register */
+#define CRT_GET_DISP_OFFSET(x)		(x & 0xffff)
 #define CRT_DISP_OFFSET(x)			(x)
 #define CRT_TERM_COUNT(x)			(x << 16)
 

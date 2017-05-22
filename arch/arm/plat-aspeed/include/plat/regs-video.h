@@ -192,7 +192,7 @@
 
 /*	AST_VIDEO_DIRECT_CTRL	0x010		Video Direct Frame buffer mode control Register VR008[5]=1 */
 #define VIDEO_FETCH_TIMING(x)			((x) << 16)
-#define VIDEO_FETCH_LINE_OFFSET(x)		(x)
+#define VIDEO_FETCH_LINE_OFFSET(x)		(x & 0xffff)
 
 /*	AST_VIDEO_TIMING_V		0x010		Video Timing Generation Setting Register */
 #define VIDEO_VSYNC_PIXEL_FIRST_SET(x)	((x) << 16)

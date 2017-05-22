@@ -1075,7 +1075,7 @@ struct fb_info *info1;
 struct fb_info *info2;
 struct fb_info *info3;
 
-struct fb_info *astfb_get_crt_screen(u8 crt)
+struct fb_info *astfb_get_fb_info(u8 crt)
 {
 	switch(crt) {
 		case 0:
@@ -1093,7 +1093,33 @@ struct fb_info *astfb_get_crt_screen(u8 crt)
 	}
 }
 
-EXPORT_SYMBOL(astfb_get_crt_screen);
+EXPORT_SYMBOL(astfb_get_fb_info);
+
+u8 astfb_get_crt_color_format(struct fb_info *info)
+{
+	struct astfb_info *sfb = info->dev->driver_data;
+
+	return CRT_CTRL_GET_FORMAT(astfb_read(sfb, AST_CRT_CTRL1));
+}
+
+EXPORT_SYMBOL(astfb_get_crt_color_format);
+
+u32 astfb_get_crt_fb_addr(struct fb_info *info)
+{
+	struct astfb_info *sfb = info->dev->driver_data;
+	
+	return astfb_read(sfb, AST_CRT_ADDR);;
+}
+
+EXPORT_SYMBOL(astfb_get_crt_fb_addr);
+
+u16 astfb_get_crt_fb_line_offset(struct fb_info *info)
+{
+	struct astfb_info *sfb = info->dev->driver_data;
+
+	return CRT_GET_DISP_OFFSET(astfb_read(sfb, AST_CRT_OFFSET));
+}
+EXPORT_SYMBOL(astfb_get_crt_fb_line_offset);
 
 static int astfb_probe(struct platform_device *pdev)
 {

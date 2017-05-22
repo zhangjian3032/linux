@@ -45,6 +45,7 @@
 #include <mach/platform.h>
 #include <plat/ast-sdmc.h>
 #include <plat/ast-scu.h>
+#include <mach/ast_lcd.h>
 
 //#define CONFIG_AST_VIDEO_LOCK
 #define CONFIG_AUTO_MODE
@@ -160,7 +161,7 @@ struct ast_mode_detection
 #define AST_VIDEO_COMPRESSION_TRIGGER		_IOWR(VIDEOIOC_BASE, 0x9, unsigned long)
 
 #define AST_VIDEO_SET_VGA_DISPLAY				_IOW(VIDEOIOC_BASE, 0xa, int)
-
+#define AST_VIDEO_SET_CRT_COMPRESSION		_IO(VIDEOIOC_BASE, 0xb)
 /***********************************************************************/
 typedef struct {
 	u16	HorizontalActive;
@@ -275,8 +276,9 @@ struct ast_video_data {
 	struct mutex lock;	
 
         bool is_open;
-
-	
+#ifdef CONFIG_FB_AST	
+	struct fb_info *info;
+#endif
 };
 
 //  RC4 structure
@@ -1654,6 +1656,31 @@ static irqreturn_t ast_video_isr(int this_irq, void *dev_id)
     return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_FB_AST	
+static void ast_set_crt_compression(struct ast_video_data *ast_video)
+{
+	//VR008[8]<=0
+	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) & ~VIDEO_AUTO_FATCH, AST_VIDEO_PASS_CTRL);
+
+	//VR008[4]<=0 when CRT60[8:7]=10. VR008[4]<=1 when CRT60[8:7]=00.
+	if(astfb_get_crt_color_format(ast_video->info) == 0x2) {
+		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) & ~VIDEO_16BPP_MODE, AST_VIDEO_PASS_CTRL);
+	} else if (astfb_get_crt_color_format(ast_video->info) == 0x0) {
+		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) | VIDEO_16BPP_MODE, AST_VIDEO_PASS_CTRL);
+	} else {
+		printk("error \n");
+	}
+	
+	//VR00C <= CRT80
+	ast_video_write(ast_video, astfb_get_crt_fb_addr(ast_video->info), AST_VIDEO_DIRECT_BASE);
+
+	//VR010[14:0] <= CRT84[14:0]
+	ast_video_write(ast_video, VIDEO_FETCH_LINE_OFFSET(astfb_get_crt_fb_line_offset(ast_video->info)), AST_VIDEO_DIRECT_CTRL);
+
+	//VR010[15]<=0 //force VGA blank, don;t have to do
+}
+#endif
+
 static void ast_video_ctrl_init(struct ast_video_data *ast_video)
 {
 	VIDEO_DBG("\n");
@@ -1728,6 +1755,7 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 	struct ast_video_config video_config;
 	
 	int vga_enable = 0;
+	int compression_source = 0;
 	struct ast_mode_detection mode_detection;	
 	struct ast_auto_mode auto_mode;	
 	void __user *argp = (void __user *)arg;
@@ -1777,6 +1805,11 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 			ret = __get_user(vga_enable, (int __user *)arg);
 			ast_scu_set_vga_display(vga_enable);
 			break;
+		case AST_VIDEO_SET_CRT_COMPRESSION:
+#ifdef CONFIG_FB_AST				
+			ast_set_crt_compression(ast_video);
+#endif
+			break;			
 		default:
 			ret = 3;
 			break;
@@ -2376,7 +2409,11 @@ static int ast_video_probe(struct platform_device *pdev)
 	ast_video->rc4_enable = 0;
 	strcpy(ast_video->EncodeKeys, "fedcba9876543210");
 	ast_video->scaling = 0;
-	
+
+#ifdef CONFIG_FB_AST	
+	ast_video->info = astfb_get_fb_info(0);
+#endif
+
 	ret = misc_register(&ast_video_misc);
 	if (ret){		
 		printk(KERN_ERR "VIDEO : failed to request interrupt\n");
