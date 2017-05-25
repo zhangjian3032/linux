@@ -102,6 +102,9 @@ config ARCH_AST1220
 
 endchoice
 
+config AST_CAM_FPGA
+	bool "AST CAM FPGA"
+
 endif
 
 config AST_CVIC
