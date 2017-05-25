@@ -100,7 +100,11 @@ static unsigned int sdhci_ast_get_timeout_clk(struct sdhci_host *host)
 	AST2500 : ADMA/SDMA/PIO
 */
 static struct sdhci_ops sdhci_ast_ops = {
+#ifdef CONFIG_RT360_CAM
+	.set_clock = sdhci_set_clock,
+#else
 	.set_clock = sdhci_ast_set_clock,
+#endif	
 	.get_max_clock	= sdhci_ast_get_max_clk,
 	.set_bus_width = sdhci_ast_set_bus_width,
 	.get_timeout_clock = sdhci_ast_get_timeout_clk,
@@ -194,6 +198,10 @@ static int __init ast_sdhci_init(void)
 	ret = platform_driver_register(&sdhci_ast_driver);
 
 	if (!ret) {
+#ifdef CONFIG_AST_CAM_FPGA
+		platform_device_register(&ast_sdhci_device1);
+		ast_scu_multi_func_sdhc_slot(2);
+#else
 #ifdef CONFIG_8BIT_MODE
 		ast_scu_multi_func_sdhc_8bit_mode();
 		platform_device_register(&ast_sdhci_device0);
@@ -202,6 +210,7 @@ static int __init ast_sdhci_init(void)
 		platform_device_register(&ast_sdhci_device1);
 #endif	
 		ast_scu_multi_func_sdhc_slot(3);
+#endif		
 	}
 
 	return ret;

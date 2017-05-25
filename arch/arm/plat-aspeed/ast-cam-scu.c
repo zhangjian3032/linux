@@ -388,7 +388,11 @@ ast_get_sd_clock_src(void)
 {
 
 	printk("TODO ~~ ast_get_sd_clock_src \n");
+#ifdef CONFIG_AST_CAM_FPGA
+	return 50000000;
+#else
 	return 54000000;
+#endif
 }
 
 EXPORT_SYMBOL(ast_get_sd_clock_src);
