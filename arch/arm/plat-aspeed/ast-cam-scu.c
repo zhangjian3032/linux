@@ -386,7 +386,6 @@ EXPORT_SYMBOL(ast_scu_osc_clk_output);
 extern u32
 ast_get_sd_clock_src(void)
 {
-
 	printk("TODO ~~ ast_get_sd_clock_src \n");
 #ifdef CONFIG_AST_CAM_FPGA
 	return 50000000;

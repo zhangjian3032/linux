@@ -128,6 +128,11 @@
 
 /* AST_JPEG_IER			0x304		JPEG interrupt Enable */
 /* AST_JPEG_ISR			0x308		JPEG interrupt status */
+#define JPEG_HANG_WDT_ISR				(1 << 9)
+#define JPEG_HALT_RDY_ISR				(1 << 8)
+
+#define JPEG_COMPLETE_ISR				(1 << 5)
+
 #define JPEG_COMPRESS_COMPLETE		(1 << 3)
 
 /***********************************************************************/
@@ -210,7 +215,6 @@ ast_jpeg_read(struct ast_jpeg_data *ast_jpeg, u32 reg)
 /************************************************ JPEG ***************************************************************************************/
 void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 {
-	int i=0;
 	int base=0;
 	//JPEG header default value:
 	ast_jpeg->jpeg_tbl_virt[base + 0] = 0xE0FFD8FF;
@@ -339,7 +343,6 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 158] = 0x03110200;
 	ast_jpeg->jpeg_tbl_virt[base + 159] = 0x003F0011;
 
-//Table 7
 	ast_jpeg->jpeg_tbl_virt[base + 10] = 0x01020043;
 	ast_jpeg->jpeg_tbl_virt[base + 11] = 0x01010101;
 	ast_jpeg->jpeg_tbl_virt[base + 12] = 0x01010102;
@@ -374,7 +377,6 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 41] = 0x12121212;
 	ast_jpeg->jpeg_tbl_virt[base + 42] = 0x12121212;
 	ast_jpeg->jpeg_tbl_virt[base + 43] = 0xFF121212;
-
 }
 
 static irqreturn_t ast_jpeg_isr(int this_irq, void *dev_id)
@@ -385,19 +387,22 @@ static irqreturn_t ast_jpeg_isr(int this_irq, void *dev_id)
 	status = ast_jpeg_read(ast_jpeg, AST_JPEG_ISR);
 
 	JPEG_DBG("%x \n", status);
-#if 0
+
 	if(status & JPEG_HANG_WDT_ISR) {
 		printk("JPEG_HANG_WDT_ISR\n");
+		ast_jpeg_write(ast_jpeg, JPEG_HANG_WDT_ISR, AST_JPEG_ISR);
 		complete(&ast_jpeg->jpeg_complete);
 	}
 		
 	if(status & JPEG_COMPLETE_ISR) {
 		printk("JPEG_COMPLETE_ISR\n");
+		ast_jpeg_write(ast_jpeg, JPEG_COMPLETE_ISR, AST_JPEG_ISR);
 		complete(&ast_jpeg->jpeg_complete);
 	}		
-#endif
+
 	if(status & JPEG_COMPRESS_COMPLETE) {
 		printk("JPEG_COMPRESS_COMPLETE\n");
+		ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_COMPLETE, AST_JPEG_ISR);
 		complete(&ast_jpeg->jpeg_complete);
 	}		
 
