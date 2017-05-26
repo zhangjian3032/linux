@@ -15,6 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <linux/irqchip.h> 
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -79,11 +80,10 @@ static void __init ast_init(void)
 #endif	
 }
 
-static const char *const ast_dt_compat[] __initconst = {
-	//"ti,omap2420",
-	"aspeed,ast2500",
-	"aspeed,ast2400",
-	NULL,
+static const char *const aspeed_dt_match[] __initconst = {
+		"aspeed,ast2400",
+		"aspeed,ast2500",
+		NULL,
 };
 
 
@@ -91,7 +91,7 @@ static const char *const ast_dt_compat[] __initconst = {
 //Non-DT
 MACHINE_START(ASPEED, AST_MACH_NAME)
 	.map_io			= ast_map_io,
-	.init_irq			= ast_init_irq,	
+	.init_irq			= ast_init_irq,
 	.init_machine		= ast_init,	
 	.init_time			= ast_init_timer,
 #if defined(CONFIG_AST_WATCHDOG) || defined(CONFIG_AST_WATCHDOG_MODULE)	 	
