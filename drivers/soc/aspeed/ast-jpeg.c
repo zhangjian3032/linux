@@ -94,7 +94,9 @@
 #define JPEG_HALT_ENG_TRIGGER			(1 << 12)
 #define JPEG_COMPRESS_MODE_MASK		(3 << 10)
 //only support YUV420 no YUV444
-#define JPEG_YUV420_COMPRESS			(1 << 10)
+#define JPEG_YUY2_COMPRESS			(1 << 10)
+#define JPEG_NV12_COMPRESS			(3 << 10)
+
 
 #define JPEG_AUTO_COMPRESS			(1 << 5)
 #define JPEG_COMPRESS_TRIGGER			(1 << 4)
@@ -110,10 +112,6 @@
 
 /* AST_JPEG_COMPRESS_CTRL	0x060		JPEG Compression Control Register */
 #define JPEG_DCT_TEST(x)					((x) << 17)
-#define JPEG_DCT_LUM(x)					((x) << 11)
-#define JPEG_GET_DCT_LUM(x)				((x >> 11) & 0x1f)
-#define JPEG_DCT_CHROM(x)				((x) << 6)
-#define JPEG_GET_DCT_CHROM(x)			((x >> 6) & 0x1f)
 #define JPEG_DCT_MASK					(0x3ff << 6)
 
 /* AST_JPEG_CTRL			0x300		JPEG Control Register */
@@ -172,7 +170,7 @@ struct ast_jpeg_mode
 {
 	u16		x;
 	u16		y;
-	u8 		Y_JPEGTableSelector;	
+	u8		format; //0: YUY2,  1:NV12
 };
 
 #define JPEGIOC_BASE				'J'
@@ -215,6 +213,7 @@ ast_jpeg_read(struct ast_jpeg_data *ast_jpeg, u32 reg)
 /************************************************ JPEG ***************************************************************************************/
 void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 {
+	int i = 0;
 	int base=0;
 	//JPEG header default value:
 	ast_jpeg->jpeg_tbl_virt[base + 0] = 0xE0FFD8FF;
@@ -377,6 +376,12 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 41] = 0x12121212;
 	ast_jpeg->jpeg_tbl_virt[base + 42] = 0x12121212;
 	ast_jpeg->jpeg_tbl_virt[base + 43] = 0xFF121212;
+
+	for(i = 0; i<12; i++) {
+		base = (1024*i);
+		ast_jpeg->jpeg_tbl_virt[base + 46] = 0x00220103; //for YUV420 mode
+	}
+	
 }
 
 static irqreturn_t ast_jpeg_isr(int this_irq, void *dev_id)
@@ -411,35 +416,22 @@ static irqreturn_t ast_jpeg_isr(int this_irq, void *dev_id)
 
 static void ast_jpeg_config(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_mode *jpeg_mode)
 {
-	int i, base=0;
-
 	u32 scan_line;
 
 	JPEG_DBG("x : %d, y : %d \n", jpeg_mode->x, jpeg_mode->y);
 	ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_H(jpeg_mode->x) | JPEG_COMPRESS_V(jpeg_mode->y), AST_JPEG_SIZE_SETTING);
 
-	if((jpeg_mode->x % 8) == 0)
-		ast_jpeg_write(ast_jpeg, jpeg_mode->x * 4, AST_JPEG_SOURCE_SCAN_LINE);
-	else {
-		scan_line = jpeg_mode->x;
-		scan_line = scan_line + 16 - (scan_line % 16);
-		scan_line = scan_line * 4;
-		ast_jpeg_write(ast_jpeg, scan_line, AST_JPEG_SOURCE_SCAN_LINE);
-	}
-
-	JPEG_DBG("Y Table : %d \n", jpeg_mode->Y_JPEGTableSelector);
-
-	for(i = 0; i<12; i++) {
-		base = (1024*i);
-		ast_jpeg->jpeg_tbl_virt[base + 46] = 0x00220103; //for YUV420 mode
-	}
-
-	ast_jpeg_write(ast_jpeg, 0x80000 | 
-					JPEG_DCT_LUM(jpeg_mode->Y_JPEGTableSelector) | 
-					JPEG_DCT_CHROM(jpeg_mode->Y_JPEGTableSelector + 16), AST_JPEG_COMPRESS_CTRL);
-
-
-	ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) | JPEG_YUV420_COMPRESS, AST_JPEG_SEQ_CTRL);
+	ast_jpeg_write(ast_jpeg, 0x80000, AST_JPEG_COMPRESS_CTRL);
+	
+	if(jpeg_mode->format) {
+		ast_jpeg_write(ast_jpeg, jpeg_mode->x, AST_JPEG_SOURCE_SCAN_LINE);
+		ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_MODE_MASK) | 
+						JPEG_NV12_COMPRESS, AST_JPEG_SEQ_CTRL);		
+	} else {
+		ast_jpeg_write(ast_jpeg, jpeg_mode->x * 2, AST_JPEG_SOURCE_SCAN_LINE);	
+		ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_MODE_MASK) | 
+						JPEG_YUY2_COMPRESS, AST_JPEG_SEQ_CTRL);
+	}	
 }
 
 static u32 ast_jpeg_compression(struct ast_jpeg_data *ast_jpeg, unsigned long *jpeg_size)
@@ -591,7 +583,7 @@ static void ast_jpeg_ctrl_init(struct ast_jpeg_data *ast_jpeg)
 	ast_init_jpeg_table(ast_jpeg);
 
 	//for CONFIG_QUANTIZATION_TABLE
-	ast_jpeg_write(ast_jpeg, JPEG_QUANT_TABLE_LOAD | JPEG_PROGRAM_QUANT_TABLE_EN, AST_JPEG_CTRL); //[18] Vr_TblBufEnable, [30] Vr_SRAMTblSel[0]
+	ast_jpeg_write(ast_jpeg, JPEG_QUANT_TABLE_LOAD | JPEG_VERTICAL_BORDER_MASK | JPEG_PROGRAM_QUANT_TABLE_EN, AST_JPEG_CTRL); //[18] Vr_TblBufEnable, [30] Vr_SRAMTblSel[0]
 	
 	ast_jpeg_write(ast_jpeg, 0x04ed0672, 0x400);
 	ast_jpeg_write(ast_jpeg, 0x080006ca, 0x404);
