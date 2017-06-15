@@ -597,7 +597,7 @@ static inline void serial8250_clear_fifos(struct ast_uart_port *p)
  * This routine is called by rs_init() to initialize a specific serial
  * port.
  */
-static void autoconfig(struct ast_uart_port *up, unsigned int probeflags)
+static void autoconfig(struct ast_uart_port *up)
 {
 	unsigned long flags;
 	UART_DBG("line [%d] \n",up->port.line);
@@ -1276,7 +1276,6 @@ static int serial8250_request_port(struct uart_port *port)
 static void serial8250_config_port(struct uart_port *port, int flags)
 {
 	struct ast_uart_port *up = (struct ast_uart_port *)port;
-	int probeflags = PROBE_ANY;
 	int ret;
 
 	/*
@@ -1288,7 +1287,7 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 		return;
 
 	if (flags & UART_CONFIG_TYPE)
-		autoconfig(up, probeflags);
+		autoconfig(up);
 
 	if (up->port.type == PORT_UNKNOWN)
 		serial8250_release_std_resource(up);
