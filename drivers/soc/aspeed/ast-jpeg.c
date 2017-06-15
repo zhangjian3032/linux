@@ -423,10 +423,11 @@ static void ast_jpeg_config(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_mode
 
 	ast_jpeg_write(ast_jpeg, 0x80000, AST_JPEG_COMPRESS_CTRL);
 	
-	if(jpeg_mode->format) {
+	if(jpeg_mode->format) { //NV12
 		ast_jpeg_write(ast_jpeg, jpeg_mode->x, AST_JPEG_SOURCE_SCAN_LINE);
 		ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_MODE_MASK) | 
-						JPEG_NV12_COMPRESS, AST_JPEG_SEQ_CTRL);		
+						JPEG_NV12_COMPRESS, AST_JPEG_SEQ_CTRL);	
+		ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff0_phy + (jpeg_mode->x * jpeg_mode->y), AST_JPEG_SOURCE_BUFF1);	
 	} else {
 		ast_jpeg_write(ast_jpeg, jpeg_mode->x * 2, AST_JPEG_SOURCE_SCAN_LINE);	
 		ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_MODE_MASK) | 
@@ -449,9 +450,9 @@ static u32 ast_jpeg_compression(struct ast_jpeg_data *ast_jpeg, unsigned long *j
 	timeout = wait_for_completion_interruptible_timeout(&ast_jpeg->jpeg_complete, HZ/2);
 	
 	if (timeout == 0) { 
-		printk("compression timeout sts %x \n", ast_jpeg_read(ast_jpeg, AST_JPEG_ISR));
+//		printk("compression timeout sts %x \n", ast_jpeg_read(ast_jpeg, AST_JPEG_ISR));
 		*jpeg_size = ast_jpeg_read(ast_jpeg, AST_JPEG_STREAM_SIZE);
-		printk("size %d \n", *jpeg_size);
+//		printk("size %d \n", *jpeg_size);
 		return 0;
 	} else {
 		*jpeg_size = ast_jpeg_read(ast_jpeg, AST_JPEG_STREAM_SIZE);
