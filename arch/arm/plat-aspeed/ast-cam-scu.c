@@ -208,14 +208,25 @@ ast_scu_init_sdhci(void)
 	
 	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_SDHCI_CLK_STOP_EN, AST_SCU_CLK_STOP);
 	mdelay(10);
-
-
-	mdelay(10);
 	
 	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_SDHCI, AST_SCU_RESET);
 }
 
 EXPORT_SYMBOL(ast_scu_init_sdhci);
+
+extern void
+ast_scu_init_sdio(void)
+{
+	//SDHCI Host's Clock Enable and Reset
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_SDIO, AST_SCU_RESET);
+	
+	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_SDIO_CLK_STOP_EN, AST_SCU_CLK_STOP);
+	mdelay(10);
+	
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_SDIO, AST_SCU_RESET);
+}
+
+EXPORT_SYMBOL(ast_scu_init_sdio);
 
 extern void
 ast_scu_init_i2c(void)
@@ -235,6 +246,16 @@ extern void
 ast_scu_init_hace(void)
 {
 	//enable YCLK for HAC
+	spin_lock(&ast_scu_lock);
+	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) &
+					~(SCU_YCLK_STOP_EN), 
+					AST_SCU_CLK_STOP);
+	mdelay(1);
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) &
+					~SCU_RESET_HACE, 
+					AST_SCU_RESET);
+	spin_unlock(&ast_scu_lock);	
+
 }
 EXPORT_SYMBOL(ast_scu_init_hace);
 
@@ -268,25 +289,9 @@ EXPORT_SYMBOL(ast_get_clk_source);
 extern u32
 ast_get_h_pll_clk(void)
 {
-	u32 clk=0;
-	u32 h_pll_set = ast_scu_read(AST_SCU_H_PLL);
+	printk("TODO ~~\n");
 
-	if(h_pll_set & SCU_H_PLL_OFF)
-		return 0;
-	
-	// Programming
-	clk = ast_get_clk_source();
-	if(h_pll_set & SCU_H_PLL_BYPASS_EN) {
-		return clk;
-	} else {
-		//P = SCU24[18:13]
-		//M = SCU24[12:5]
-		//N = SCU24[4:0]
-		//hpll = 24MHz * [(M+1) /(N+1)] / (P+1)
-		clk = ((clk * (SCU_H_PLL_GET_MNUM(h_pll_set) + 1)) / (SCU_H_PLL_GET_NNUM(h_pll_set) + 1)) /(SCU_H_PLL_GET_PNUM(h_pll_set) + 1);
-	}
-	SCUDBUG("h_pll = %d\n",clk);
-	return clk;
+	return 0;
 }
 
 EXPORT_SYMBOL(ast_get_h_pll_clk);
@@ -294,25 +299,10 @@ EXPORT_SYMBOL(ast_get_h_pll_clk);
 extern u32
 ast_get_m_pll_clk(void)
 {
-	u32 clk=0;
-	u32 m_pll_set = ast_scu_read(AST_SCU_M_PLL);
+	printk("TODO ~~\n");
 
-	if(m_pll_set & SCU_M_PLL_OFF)
-		return 0;
-	
-	// Programming
-	clk = ast_get_clk_source();
-	if(m_pll_set & SCU_M_PLL_BYPASS) {
-		return clk;
-	} else {
-		//PD  == SCU20[13:18]
-		//M  == SCU20[5:12]	
-		//N  == SCU20[0:4]		
-		//mpll =  24MHz * [(M+1) /(N+1)] / (P+1)
-		clk = ((clk * (SCU_M_PLL_GET_MNUM(m_pll_set) + 1)) / (SCU_M_PLL_GET_NNUM(m_pll_set) + 1))/(SCU_M_PLL_GET_PDNUM(m_pll_set) + 1);
-	}
-	SCUDBUG("m_pll = %d\n",clk);
-	return clk;
+	return 0;
+
 }
 
 EXPORT_SYMBOL(ast_get_m_pll_clk);
@@ -320,34 +310,14 @@ EXPORT_SYMBOL(ast_get_m_pll_clk);
 extern u32
 ast_get_ahbclk(void)
 {
-	unsigned int axi_div, ahb_div, hpll;
+	printk("TODO ~~\n");
 
-	hpll = ast_get_h_pll_clk();
-	//AST2500 A1 fix 
-	axi_div = 2;
-	ahb_div = (SCU_HW_STRAP_GET_AXI_AHB_RATIO(ast_scu_read(AST_SCU_HW_STRAP1)) + 1); 
-	
-	SCUDBUG("HPLL=%d, AXI_Div=%d, AHB_DIV = %d, AHB CLK=%d\n", hpll, axi_div, ahb_div, (hpll/axi_div)/ahb_div);	
-	return ((hpll/axi_div)/ahb_div);
+	return 0;
+
 
 }
 
 EXPORT_SYMBOL(ast_get_ahbclk);
-
-extern u32
-ast_get_d2_pll_clk(void)
-{
-	return 10000000;
-}
-
-EXPORT_SYMBOL(ast_get_d2_pll_clk);
-
-extern void
-ast_set_d2_pll_clk(u32 pll_setting)
-{
-}
-
-EXPORT_SYMBOL(ast_set_d2_pll_clk);
 
 extern u32
 ast_get_d_pll_clk(void)
@@ -390,7 +360,8 @@ ast_get_sd_clock_src(void)
 #ifdef CONFIG_AST_CAM_FPGA
 	return 50000000;
 #else
-	return 54000000;
+	//return 54000000;
+	return 108000000;
 #endif
 }
 
@@ -467,6 +438,15 @@ ast_scu_multi_func_sdhc_slot(u8 slot)
 EXPORT_SYMBOL(ast_scu_multi_func_sdhc_slot);
 
 extern void
+ast_scu_multi_func_sdio_slot(void)
+{
+	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_SDIO, 
+				AST_SCU_FUN_PIN_CTRL5);						
+}	
+
+EXPORT_SYMBOL(ast_scu_multi_func_sdio_slot);
+
+extern void
 ast_scu_multi_nic_switch(u8 enable)
 {
 		
@@ -497,10 +477,6 @@ ast_scu_sys_rest_info(void)
 {
 	u32 rest = ast_scu_read(AST_SCU_SYS_CTRL);
 
-	if(rest & SCU_SYS_EXT_RESET_FLAG) {
-		SCUMSG("RST : External \n");
-		ast_scu_write(ast_scu_read(AST_SCU_SYS_CTRL) & ~SCU_SYS_EXT_RESET_FLAG, AST_SCU_SYS_CTRL);
-	}
 	if (rest & SCU_SYS_WDT1_RESET_FLAG) {
 		SCUMSG("RST : WDT1 \n");		
 		ast_scu_write(ast_scu_read(AST_SCU_SYS_CTRL) & ~SCU_SYS_WDT1_RESET_FLAG, AST_SCU_SYS_CTRL);
@@ -523,62 +499,6 @@ ast_scu_sys_rest_info(void)
 	}
 }	
 
-
-/*
-* D[15:11] in 0x1E6E2040 is NCSI scratch from U-Boot. D[15:14] = MAC1, D[13:12] = MAC2
-* The meanings of the 2 bits are:
-* 00(0): Dedicated PHY
-* 01(1): ASPEED's EVA + INTEL's NC-SI PHY chip EVA
-* 10(2): ASPEED's MAC is connected to NC-SI PHY chip directly
-* 11: Reserved
-*/
-
-extern u32
-ast_scu_get_phy_config(u8 mac_num)
-{
-	u32 scatch = ast_scu_read(AST_SCU_SOC_SCRATCH0);
-
-	switch(mac_num) {
-		case 0:
-			return (SCU_MAC0_GET_PHY_MODE(scatch));
-			break;
-		case 1:
-			return (SCU_MAC1_GET_PHY_MODE(scatch));
-			break;
-		default:
-			SCUMSG("error mac number \n");
-			break;
-	}
-	return -1;
-}
-EXPORT_SYMBOL(ast_scu_get_phy_config);
-
-extern u32
-ast_scu_get_phy_interface(u8 mac_num)
-{
-	u32 trap1 = ast_scu_read(AST_SCU_HW_STRAP1);
-
-	switch(mac_num) {
-		case 0:
-			if(SCU_HW_STRAP_MAC0_RGMII & trap1)
-				return 1;
-			else
-				return 0;
-			break;
-		case 1:
-			if(SCU_HW_STRAP_MAC1_RGMII & trap1)
-				return 1;
-			else
-				return 0;
-			break;
-		default:
-			SCUMSG("error mac number \n");
-			break;
-	}
-	return -1;
-}
-EXPORT_SYMBOL(ast_scu_get_phy_interface);
-
 extern u32
 ast_scu_get_soc_dram_base(void)
 {
@@ -587,21 +507,6 @@ ast_scu_get_soc_dram_base(void)
 		return AST_DRAM_BASE_8;
 	else
 		return AST_DRAM_BASE_4;
-}
-
-extern int
-ast_scu_2nd_wdt_mode(void)
-{
-	return(ast_scu_read(AST_SCU_HW_STRAP1) & SCU_HW_STRAP_2ND_BOOT_WDT);
-}
-
-extern u8
-ast_scu_get_superio_addr_config(void)
-{
-	if(ast_scu_read(AST_SCU_HW_STRAP1) & SCU_HW_STRAP_SUPER_IO_CONFIG)
-		return 0x4E;
-	else
-		return 0x2E;
 }
 
 extern void

@@ -63,6 +63,7 @@ extern void ast_scu_init_usb_port1(void);
 extern void ast_scu_init_usb_port2(void);
 extern void ast_scu_init_uhci(void);
 extern void ast_scu_init_sdhci(void);
+extern void ast_scu_init_sdio(void);
 extern void ast_scu_init_i2c(void);
 extern void ast_scu_init_pwm_tacho(void);
 extern void ast_scu_init_adc(void);
@@ -95,8 +96,9 @@ extern void ast_scu_multi_func_usb_port2_mode(u8 mode);
 //0 : gpioQ6,7 mode , 1: usb1.1 host port 4 mode
 extern void ast_scu_multi_func_usb_port34_mode(u8 mode);
 
-extern void ast_scu_multi_func_sdhc_8bit_mode(void);
 extern void ast_scu_multi_func_sdhc_slot(u8 slot);
+extern void ast_scu_multi_func_sdio_slot(void);
+
 extern void ast_scu_multi_func_crt(void);
 
 extern void ast_scu_multi_nic_switch(u8 enable);
