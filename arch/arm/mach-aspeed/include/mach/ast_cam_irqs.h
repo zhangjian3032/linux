@@ -68,7 +68,7 @@
 #define IRQ_UART0						30			/* UART 1 interrupt */
 #define IRQ_UART1						31			/* UART 2 interrupt */
 #define IRQ_UART2						32			/* UART 3 interrupt */
-#define IRQ_UART_DMA					33
+#define IRQ_UART_SDMA					33
 #define IRQ_FMC							34
 #define IRQ_WDT							35
 #define IRQ_RTC							36

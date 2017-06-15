@@ -36,7 +36,7 @@
 #include <plat/ast-scu.h>
 #include <plat/core.h>
 
-#ifdef CONFIG_ARCH_AST2500
+#ifdef CONFIG_AST_UART_SDMA
 #include <mach/ast-uart-dma.h>
 #endif
 #include <mach/ast_wdt.h>
@@ -62,7 +62,7 @@ void __init ast_map_io(void)
 
 static void __init ast_init(void)
 {
-#ifdef CONFIG_ARCH_AST2500
+#ifdef CONFIG_AST_UART_SDMA
 	ast_uart_sdma_init();
 #endif
 #ifdef CONFIG_ARCH_AST3200

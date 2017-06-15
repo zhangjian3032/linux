@@ -98,6 +98,7 @@ choice
 
 config ARCH_AST1220
         select CPU_V6
+	select AST_UART_SDMA
         bool "AST1220"
 
 endchoice
