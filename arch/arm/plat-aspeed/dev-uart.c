@@ -213,7 +213,7 @@ static struct plat_serial8250_port ast_uart_data[] = {
 #if defined(CONFIG_AST_UART_SDMA) && defined(CONFIG_SERIAL_AST_DMA_UART)
 static struct plat_serial8250_port ast_dma_uart_data[] = {
 //If use UART1/2 must reset HICR9[5:4]
-/*
+#ifdef CONFIG_ARCH_AST1220
 	{
 		.mapbase	= AST_UART1_BASE,
 		.irq		= IRQ_UART1,
@@ -231,8 +231,9 @@ static struct plat_serial8250_port ast_dma_uart_data[] = {
 		.iotype 	= UPIO_MEM,
 		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.private_data = &ast_uart1_dma_data,				
-	},	
-*/	
+	},
+#endif	
+#ifdef AST_UART3_BASE
 	{
 		.mapbase	= AST_UART3_BASE,
 		.irq		= IRQ_UART3,
@@ -242,6 +243,8 @@ static struct plat_serial8250_port ast_dma_uart_data[] = {
 		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.private_data = &ast_uart2_dma_data,						
 	},	
+#endif
+#ifdef AST_UART4_BASE
 	{
 		.mapbase	= AST_UART4_BASE,
 		.irq		= IRQ_UART4,
@@ -250,7 +253,9 @@ static struct plat_serial8250_port ast_dma_uart_data[] = {
 		.iotype 	= UPIO_MEM,
 		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.private_data = &ast_uart3_dma_data,		
-	},	
+	},
+#endif
+#ifdef AST_UART5_BASE
 	{
 		.mapbase	= AST_UART5_BASE,
 		.irq		= IRQ_UART5,
@@ -259,7 +264,9 @@ static struct plat_serial8250_port ast_dma_uart_data[] = {
 		.iotype 	= UPIO_MEM,
 		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.private_data = &ast_uart4_dma_data,		
-	},	
+	},
+#endif
+#ifdef AST_UART6_BASE
 	{
 		.mapbase	= AST_UART6_BASE,
 		.irq		= IRQ_UART6,
@@ -268,7 +275,9 @@ static struct plat_serial8250_port ast_dma_uart_data[] = {
 		.iotype 	= UPIO_MEM,
 		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.private_data = &ast_uart5_dma_data,		
-	},	
+	},
+#endif
+#ifdef AST_UART7_BASE
 	{
 		.mapbase	= AST_UART7_BASE,
 		.irq		= IRQ_UART7,
@@ -277,7 +286,9 @@ static struct plat_serial8250_port ast_dma_uart_data[] = {
 		.iotype 	= UPIO_MEM,
 		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.private_data = &ast_uart6_dma_data,		
-	},	
+	},
+#endif	
+#ifdef AST_UART8_BASE
 	{
 		.mapbase	= AST_UART8_BASE,
 		.irq		= IRQ_UART8,
@@ -286,7 +297,9 @@ static struct plat_serial8250_port ast_dma_uart_data[] = {
 		.iotype 	= UPIO_MEM,
 		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.private_data = &ast_uart7_dma_data,		
-	},	
+	},
+#endif
+#ifdef AST_UART9_BASE
 	{
 		.mapbase	= AST_UART9_BASE,
 		.irq		= IRQ_UART9,
@@ -295,7 +308,9 @@ static struct plat_serial8250_port ast_dma_uart_data[] = {
 		.iotype 	= UPIO_MEM,
 		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.private_data = &ast_uart8_dma_data,		
-	},	
+	},
+#endif
+#ifdef AST_UART10_BASE
 	{
 		.mapbase	= AST_UART10_BASE,
 		.irq		= IRQ_UART10,
@@ -304,7 +319,9 @@ static struct plat_serial8250_port ast_dma_uart_data[] = {
 		.iotype 	= UPIO_MEM,
 		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.private_data = &ast_uart9_dma_data,		
-	},	
+	},
+#endif
+#ifdef AST_UART11_BASE
 	{
 		.mapbase	= AST_UART11_BASE,
 		.irq		= IRQ_UART11,
@@ -313,7 +330,9 @@ static struct plat_serial8250_port ast_dma_uart_data[] = {
 		.iotype 	= UPIO_MEM,
 		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.private_data = &ast_uart10_dma_data,		
-	},	
+	},
+#endif
+#ifdef AST_UART12_BASE
 	{
 		.mapbase	= AST_UART12_BASE,
 		.irq		= IRQ_UART12,
@@ -322,7 +341,8 @@ static struct plat_serial8250_port ast_dma_uart_data[] = {
 		.iotype 	= UPIO_MEM,
 		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.private_data = &ast_uart11_dma_data,		
-	},	
+	},
+#endif	
 	{ },
 };
 
