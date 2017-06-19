@@ -183,6 +183,24 @@ static struct plat_serial8250_port ast_uart_data[] = {
 	},
 #ifdef CONFIG_SERIAL_AST_DMA_UART
 #else
+#ifdef CONFIG_ARCH_AST1220
+	{
+		.mapbase	= AST_UART1_BASE,
+		.irq		= IRQ_UART1,
+		.uartclk	= (24*1000000L),
+		.regshift	= 2,
+		.iotype 	= UPIO_MEM,
+		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+	},	
+	{
+		.mapbase	= AST_UART2_BASE,
+		.irq		= IRQ_UART2,
+		.uartclk	= (24*1000000L),
+		.regshift	= 2,
+		.iotype 	= UPIO_MEM,
+		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+	},	
+#endif
 #ifdef AST_UART3_BASE
 	{
 		.mapbase	= AST_UART3_BASE,
@@ -221,7 +239,7 @@ static struct plat_serial8250_port ast_dma_uart_data[] = {
 		.regshift	= 2,
 		.iotype 	= UPIO_MEM,
 		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
-		.private_data = &ast_uart0_dma_data,		
+		.private_data = &ast_uart1_dma_data,		
 	},	
 	{
 		.mapbase	= AST_UART2_BASE,
@@ -230,7 +248,7 @@ static struct plat_serial8250_port ast_dma_uart_data[] = {
 		.regshift	= 2,
 		.iotype 	= UPIO_MEM,
 		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
-		.private_data = &ast_uart1_dma_data,				
+		.private_data = &ast_uart2_dma_data,				
 	},
 #endif	
 #ifdef AST_UART3_BASE
