@@ -1,240 +1,181 @@
 /*
- *  linux/arch/arm/plat-aspeed/irq.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
- 
-#include <linux/irq.h>
+  *  Copyright (C) 2017 - Ryan Chen,  ASPEED Technology Inc.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation; either version 2 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program; if not, write to the Free Software
+  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  */
 #include <linux/io.h>
-#include <mach/hardware.h>
-#include <asm/fiq.h>
-
-
-#include <asm/mach/irq.h>
-
-#include <asm/irq.h>
-#include <asm/fiq.h>
-
-
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/bitmap.h>
-#include <linux/types.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
+#include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/irqdomain.h>
-#include <linux/err.h>
-#include <linux/slab.h>
-
-#include <mach/hardware.h>
-#include <asm/irq.h>
-#include <asm/setup.h>
+#include <linux/device.h>
 
 #include <asm/exception.h>
-#include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
-#include <asm/mach/map.h>
 
+struct aspeed_vic {
+	void __iomem		*base;
+	struct irq_domain *domain;
+};
 
+static struct aspeed_vic *ast_vic;
 /***************************************************************************/
-static void __iomem *ast_vic_base;
-static struct irq_domain *ast_vic_domain;
-static struct device_node *ast_vic_np;
-
+#define AST_VIC_NUM_IRQS	64
 /***************************************************************************/
-#define AST_IRQ_STS(x)				(ast_vic_base + 0x80 + (x*0x04))
-#define AST_FIQ_STS(x)				(ast_vic_base + 0x88 + (x*0x04))
-#define AST_RAW_STS(x)				(ast_vic_base + 0x90 + (x*0x04))
-#define AST_INTR_SEL(x)				(ast_vic_base + 0x98 + (x*0x04))
-#define AST_INTR_EN(x)				(ast_vic_base + 0xA0 + (x*0x04))
-#define AST_INTR_DIS(x)				(ast_vic_base + 0xA8 + (x*0x04))
-#define AST_INTR_SW_EN(x)			(ast_vic_base + 0xB0 + (x*0x04))
-#define AST_INTR_SW_CLR(x)			(ast_vic_base + 0xB8 + (x*0x04))
-#define AST_INTR_SENSE(x)			(ast_vic_base + 0xC0 + (x*0x04))
-#define AST_INTR_BOTH_EDGE(x)		(ast_vic_base + 0xC8 + (x*0x04))
-#define AST_INTR_EVENT(x)				(ast_vic_base + 0xD0 + (x*0x04))
-#define AST_INTR_EDGE_CLR(x)			(ast_vic_base + 0xD8 + (x*0x04))
-#define AST_INTR_EDGE_STS(x)			(ast_vic_base + 0xE0 + (x*0x04))
+#define AST_IRQ_STS(x)				(ast_vic->base + 0x00 + (x*0x04))
+#define AST_FIQ_STS(x)				(ast_vic->base + 0x04 + (x*0x04))
+#define AST_RAW_STS(x)				(ast_vic->base + 0x10 + (x*0x04))
+#define AST_INTR_SEL(x)				(ast_vic->base + 0x18 + (x*0x04))
+#define AST_INTR_EN(x)				(ast_vic->base + 0x20 + (x*0x04))
+#define AST_INTR_DIS(x)				(ast_vic->base + 0x28 + (x*0x04))
+#define AST_INTR_SW_EN(x)			(ast_vic->base + 0x30 + (x*0x04))
+#define AST_INTR_SW_CLR(x)			(ast_vic->base + 0x38 + (x*0x04))
+#define AST_INTR_SENSE(x)			(ast_vic->base + 0x40 + (x*0x04))
+#define AST_INTR_BOTH_EDGE(x)		(ast_vic->base + 0x48 + (x*0x04))
+#define AST_INTR_EVENT(x)			(ast_vic->base + 0x50 + (x*0x04))
+#define AST_INTR_EDGE_CLR(x)		(ast_vic->base + 0x58 + (x*0x04))
+#define AST_INTR_EDGE_STS(x)		(ast_vic->base + 0x60 + (x*0x04))
 
 #define IRQ_SET_LEVEL_TRIGGER(x, irq_no)   *((volatile unsigned long*)AST_INTR_SENSE(x)) |= 1 << (irq_no)
 #define IRQ_SET_EDGE_TRIGGER(x, irq_no)    *((volatile unsigned long*)AST_INTR_SENSE(x)) &= ~(1 << (irq_no))
 #define IRQ_SET_RISING_EDGE(x, irq_no)     *((volatile unsigned long*)AST_INTR_EVENT(x)) |= 1 << (irq_no)
+#define IRQ_SET_BOTH_TRIGGER(x, irq_no)    *((volatile unsigned long*)AST_INTR_BOTH_EDGE(x)) &= ~(1 << (irq_no))
 #define IRQ_SET_FALLING_EDGE(x, irq_no)    *((volatile unsigned long*)AST_INTR_EVENT(x)) &= ~(1 << (irq_no))
 #define IRQ_SET_HIGH_LEVEL(x,irq_no)      *((volatile unsigned long*)AST_INTR_EVENT(x)) |= 1 << (irq_no)
 #define IRQ_SET_LOW_LEVEL(x, irq_no)       *((volatile unsigned long*)AST_INTR_EVENT(x)) &= ~(1 << (irq_no))
 #define IRQ_EDGE_CLEAR(x, irq_no)          *((volatile unsigned long*)AST_INTR_EDGE_CLR(x)) |= 1 << (irq_no)
 #define IRQ_SW_CLEAR(x, irq_no)          *((volatile unsigned long*)AST_INTR_SW_CLR(x)) |= 1 << (irq_no)
-
 /***************************************************************************/
-static void ast_mask_ack_irq(struct irq_data *d)
+asmlinkage void __exception_irq_entry ast_vic_handle_irq(struct pt_regs *regs)
 {
-	u8 timer;
-	u8 cpu;
-	int idx = 0;
-	u32 irq = d->irq;
+	u32 stat, hwirq;
 
-	if(((d->irq >= IRQ_TIMER0) && (d->irq <= IRQ_TIMER2)) || ((d->irq >= IRQ_TIMER3) && (d->irq <= IRQ_TIMER7)))
-		timer = 1;
-
-#ifdef IRQ_CFV1
-	if((d->irq == IRQ_CFV0) || (d->irq == IRQ_CFV1))
-		cpu = 1;
-#else
-	if(d->irq == IRQ_CFV0)
-		cpu = 1;
-#endif	
-
-	if (d->irq > 31) {
-		idx=1;
-		irq = d->irq - 32;
-	} 
-	
-	writel(readl(AST_INTR_DIS(idx)) | (1 << irq), AST_INTR_DIS(idx));
-
-	/*
-	 * clear the interrupt
-	 */
-	if(timer)
-		IRQ_EDGE_CLEAR(idx, irq);	
-
-	if(cpu)
-		IRQ_SW_CLEAR(idx, irq);	
-	
+	for (;;) {
+		hwirq = 0;
+		stat = readl(AST_IRQ_STS(0));
+		if (!stat) {
+			stat = readl(AST_IRQ_STS(1));
+			hwirq = 32;
+		}
+		if (stat == 0)
+			break;
+		hwirq += ffs(stat) - 1;
+//		printk("handle irq %d \n", hwirq);
+		handle_domain_irq(ast_vic->domain, hwirq, regs);
+	}
 }
 
-static void ast_ack_irq(struct irq_data *d)
+static void ast_vic_ack_irq(struct irq_data *d)
 {
-	u8 timer;
-	u8 cpu;
-	int idx = 0;
-	u32 irq = d->irq;
-	
-	if(((d->irq >= IRQ_TIMER0) && (d->irq <= IRQ_TIMER2)) || ((d->irq >= IRQ_TIMER3) && (d->irq <= IRQ_TIMER7)))
-		timer = 1;
+        int idx = 0;
+        int idx_irq = d->hwirq;
 
-#ifdef IRQ_CFV1
-	if((d->irq == IRQ_CFV0) || (d->irq == IRQ_CFV1))
-		cpu = 1;
-#else
-	if(d->irq == IRQ_CFV0)
-		cpu = 1;
-#endif	
-	
-	if (d->irq > 31) {
-		idx=1;
-		irq = d->irq - 32;
-	} 
+        if (d->hwirq & 0x20) {
+                idx = 1;
+                idx_irq &= 0x1f;
+        }
 
-	/*
-	 * clear the interrupt
-	 */
-	if(timer)
-		IRQ_EDGE_CLEAR(idx, irq);	
+        /*  check edge interrupt type */
+        if(!((0x1 << idx_irq) & readl(AST_INTR_SENSE(idx))))
+                IRQ_EDGE_CLEAR(idx, idx_irq);
 
-	if(cpu)
-		IRQ_SW_CLEAR(idx, irq);	
-	
+        /*  check sw interrupt type */
+        if((0x1 << idx_irq) & readl(AST_INTR_SW_EN(idx)))
+                IRQ_SW_CLEAR(idx, idx_irq);
 }
 
-static void ast_mask_irq(struct irq_data *d)
+static void ast_vic_mask_irq(struct irq_data *d)
 {
-	u8 timer;
-	u8 cpu;
 	int idx = 0;
-	u32 irq = d->irq;
+	int idx_irq = d->hwirq;
 	
-	if(((d->irq >= IRQ_TIMER0) && (d->irq <= IRQ_TIMER2)) || ((d->irq >= IRQ_TIMER3) && (d->irq <= IRQ_TIMER7)))
-		timer = 1;
-
-#ifdef IRQ_CFV1
-	if((d->irq == IRQ_CFV0) || (d->irq == IRQ_CFV1))
-		cpu = 1;
-#else
-	if(d->irq == IRQ_CFV0)
-		cpu = 1;
-#endif	
-	
-	if (d->irq > 31) {
-		idx=1;
-		irq = d->irq - 32;
+	if (d->hwirq & 0x20) {
+		idx = 1;
+		idx_irq &= 0x1f;
 	} 
 	
-	writel(readl(AST_INTR_DIS(idx)) | (1 << irq), AST_INTR_DIS(idx));
-
+	writel(readl(AST_INTR_DIS(idx)) | (1 << idx_irq), AST_INTR_DIS(idx));
 }
 
-
-static void ast_unmask_irq(struct irq_data *d)
+static void ast_vic_unmask_irq(struct irq_data *d)
 {
-	int idx = 0;
-	u32 irq = d->irq;
+        int idx = 0;
+        int idx_irq = d->hwirq;
 
-	if (d->irq > 31) {
-		idx=1;
-		irq = d->irq - 32;
-	} 
+        if (d->hwirq & 0x20) {
+	        idx = 1;
+	        idx_irq &= 0x1f;
+        }
 
-	writel(readl(AST_INTR_EN(idx)) | (1 << irq), AST_INTR_EN(idx));
+        writel((1 << idx_irq), AST_INTR_EN(idx));
 }
 
-static void ast_unmask_fiq(struct irq_data *d)
+static void ast_vic_mask_ack_irq(struct irq_data *d)
 {
 	int idx = 0;
-	u32 irq = d->irq;
+	u32 idx_irq = d->hwirq;
 
-	if (d->irq > 31) {
+	if (d->hwirq & 0x20) {
 		idx=1;
-		irq = d->irq - 32;
+		idx_irq &= 0x1f;
 	} 
 	
-	writel(1, AST_INTR_SEL(idx));
+	writel((1 << idx_irq), AST_INTR_DIS(idx));
+
+	/*	check edge interrupt type */
+	if(!((0x1 << idx_irq) & readl(AST_INTR_SENSE(idx))))
+		IRQ_EDGE_CLEAR(idx, idx_irq);
 	
-	writel(readl(AST_INTR_EN(idx)) | (1 << irq), AST_INTR_EN(idx));
+	/*	check sw interrupt type */
+	if((0x1 << idx_irq) & readl(AST_INTR_SW_EN(idx)))
+		IRQ_SW_CLEAR(idx, idx_irq);	
+	
 }
 
 static int ast_irq_type(struct irq_data *d, unsigned int type)
 {
 	int idx = 0;
-	u32 irq = d->irq;
+	u32 idx_irq = d->hwirq;
 
-	if (d->irq > 31) {
-		idx=1;
-		irq = d->irq - 32;
+	if (d->hwirq & 0x20) {
+		idx = 1;
+		idx_irq &= 0x1f;
 	} 
-//	printk("ast_irq_type irq %d , type %x\n", d->irq, type);
-	
+printk("ast_irq_type irq %d \n", d->hwirq);
 	switch (type) {
 		case IRQ_TYPE_NONE:
 			break;
 		case IRQ_TYPE_EDGE_RISING:
-			IRQ_SET_RISING_EDGE(idx,irq);
-			irq_set_handler(d->irq, handle_edge_irq);
+			IRQ_SET_EDGE_TRIGGER(idx, idx_irq);
+			IRQ_SET_RISING_EDGE(idx, idx_irq);
+			irq_set_handler(d->hwirq, handle_edge_irq);
 			break;
 		case IRQ_TYPE_EDGE_FALLING:
-			IRQ_SET_FALLING_EDGE(idx,irq);
-			irq_set_handler(d->irq, handle_edge_irq);
+			IRQ_SET_EDGE_TRIGGER(idx, idx_irq);
+			IRQ_SET_FALLING_EDGE(idx, idx_irq);
+			irq_set_handler(d->hwirq, handle_edge_irq);
 			break;		
 		case IRQ_TYPE_EDGE_BOTH:
-	//		irq_set_handler(d->irq, handle_edge_irq);
+			IRQ_SET_EDGE_TRIGGER(idx, idx_irq);
+			IRQ_SET_BOTH_TRIGGER(idx, idx_irq);
+			irq_set_handler(d->hwirq, handle_edge_irq);
 			break;
-		case IRQ_TYPE_LEVEL_LOW:
 		case IRQ_TYPE_LEVEL_HIGH:
-			irq_set_handler(d->irq, handle_level_irq);
+			irq_set_handler(d->hwirq, handle_level_irq);
 			break;
 		default:
 			pr_err("No such irq type %d", type);
@@ -244,93 +185,85 @@ static int ast_irq_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static struct irq_chip ast_irq_chip = {
-	.name	= "ast-vic",
-	.irq_mask_ack = ast_mask_ack_irq,
-	.irq_ack	= ast_ack_irq,
-	.irq_mask	= ast_mask_irq,
-	.irq_unmask = ast_unmask_irq,
-	.irq_set_type	= ast_irq_type,
-//		.irq_set_wake	= ast_irq_wake	
-}; 
+static struct irq_chip ast_vic_chip = {
+	.name		= "ast-vic",
+	.irq_ack	= ast_vic_ack_irq,
+	.irq_mask	= ast_vic_mask_irq,
+	.irq_unmask = ast_vic_unmask_irq,
+	.irq_mask_ack	= ast_vic_mask_ack_irq,		
+	.irq_set_type	= ast_irq_type,	
+};
 
-static struct irq_chip ast_fiq_chip = {
-	.name	= "ast_fiq",
-	.irq_ack	= ast_mask_irq,
-	.irq_mask	= ast_mask_irq,
-	.irq_unmask = ast_unmask_fiq,
-}; 
-
-asmlinkage void __exception_irq_entry
-ast_vic_handle_irq(struct pt_regs *regs)
+static int ast_vic_map(struct irq_domain *d, unsigned int irq,
+			irq_hw_number_t hwirq)
 {
-	u32 irqstat0, irqstat1;
-	u32 irq;	
+	int idx = 0;
+	u32 idx_irq = hwirq;
 
-	irqstat0 = readl(AST_IRQ_STS(0));
-	irqstat1 = readl(AST_IRQ_STS(1));
-
-	/*
-	 * ISR value is 0 when there is no current interrupt or when there is
-	 * a spurious interrupt
-	 */
-	if (irqstat0) {
-		irq = ffs(irqstat0) - 1;
-		handle_IRQ(irq, regs);
+	if (hwirq & 0x20) {
+		idx = 1;
+		idx_irq &= 0x1f;
+	} 
+	
+	if((0x1 << idx_irq) & readl(AST_INTR_SENSE(idx))) {
+		irq_set_chip_and_handler(irq, &ast_vic_chip, handle_level_irq);
+		irq_set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
+	} else {
+		irq_set_chip_and_handler(irq, &ast_vic_chip, handle_edge_irq);
+		irq_set_irq_type(irq, IRQ_TYPE_EDGE_BOTH);
 	}
 
-	if(irqstat1) {
-		irq = ffs(irqstat1) - 1 + 32;
-		handle_IRQ(irq, regs);		
-	}
+	irq_set_chip_data(irq, ast_vic);
+	irq_set_probe(irq);
+
+	return 0;
+
 }
 
-void __init ast_init_irq(void)
+static struct irq_domain_ops ast_vic_dom_ops = {
+	.map = ast_vic_map,
+	.xlate = irq_domain_xlate_onetwocell,
+};
+
+static int __init ast_init_vic_of(struct device_node *node,
+			       struct device_node *parent)
 {
-	int i;
-	int irq_base;	
+	int i = 0;
+	void __iomem *regs;
 
-	ast_vic_base = ioremap(AST_VIC_BASE, SZ_256);
-	if (!ast_vic_base)
-		panic("Unable to ioremap AIC registers\n");
+	regs = of_iomap(node, 0);
 
+	if (!regs) {
+		pr_err("aspeed-vic: could not map irq registers\n");
+		return -EINVAL;
+	}
+	
+	ast_vic = kzalloc(sizeof(struct aspeed_vic), GFP_KERNEL);
+	if (!ast_vic) {
+		iounmap(regs);
+		return -ENOMEM;
+	}
 
+	ast_vic->base = regs;
+
+	/* VIC Init */
 	for(i = 0; i < 2; i++) {
-		writel(0, AST_INTR_SEL(i));
 		writel(0, AST_INTR_EN(i));
+		writel(0, AST_INTR_SEL(i));
+		writel(0, AST_INTR_SW_CLR(i));
 		writel(0xFFFFFFFF, AST_INTR_DIS(i));
 		writel(0xFFFFFFFF, AST_INTR_EDGE_CLR(i));
 	}
 
-	/* Add irq domain for VIC */
-	irq_base = irq_alloc_descs(-1, 0, AST_VIC_NUM, 0);
-	if (irq_base < 0) {
-		WARN(1, "Cannot allocate irq_descs, assuming pre-allocated\n");
-		irq_base = 0;
-	}
-	ast_vic_domain = irq_domain_add_legacy(ast_vic_np, AST_VIC_NUM,
-						irq_base, 0,
-						&irq_domain_simple_ops, NULL);
-
-	if (!ast_vic_domain)
-		panic("Unable to add VIC irq domain\n");
-
-	irq_set_default_host(ast_vic_domain);
-	
-	for (i = 0; i < AST_VIC_NUM; i++) 
-	{
-		irq_set_chip_and_handler(i, &ast_irq_chip, handle_level_irq);
-		irq_set_chip_data(i, ast_vic_base);
-		irq_clear_status_flags(i, IRQ_NOREQUEST);
-	}
-
 	set_handle_irq(ast_vic_handle_irq);
 
-	for (i = FIQ_START; i < AST_FIQ_NUM; i++) 
-	{
-		irq_set_chip(i, &ast_fiq_chip);
-		irq_clear_status_flags(i, IRQ_NOREQUEST);
-	}
-	
-	init_FIQ(FIQ_START);
+	ast_vic->domain = irq_domain_add_simple(node, AST_VIC_NUM_IRQS, 0,
+					 &ast_vic_dom_ops, ast_vic);
+
+#ifdef CONFIG_FIQ
+	init_FIQ(0);
+#endif
+	return 0;
 }
+
+IRQCHIP_DECLARE(aspeed_vic, "aspeed,ast-vic", ast_init_vic_of);

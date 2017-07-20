@@ -21,32 +21,15 @@
 *
 ********************************************************************************/
 
-#include <asm/io.h>
-#include <linux/i2c.h>
 #include <linux/irq.h>
-
-#if defined(CONFIG_COLDFIRE)
-#include <asm/sizes.h>
-#include <asm/arch/devs.h>
-#include <asm/arch/platform.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/aspeed.h>
-#else
-#include <mach/irqs.h>
-#include <mach/platform.h>
-#include <plat/ast_i2c.h>
-#include <plat/ast-scu.h>
-#endif
-
-//#define AST_I2C_IRQ_DEBUG
-
-#ifdef AST_I2C_IRQ_DEBUG
-#define DEBUG
-#define I2C_IRQ_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
-#else
-#define I2C_IRQ_DBUG(fmt, args...)
-#endif
-
+#include <linux/irqchip.h>
+#include <linux/irqchip/chained_irq.h>
+#include <linux/irqdomain.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/io.h>
+#include <mach/ast_i2c.h>
+#include <mach/ast-scu.h>
 /*******************************************************************/
 #define AST_I2CG_ISR				0x00
 
@@ -71,10 +54,19 @@
 #define AST_I2CG_CTRL			0x0C
 #define I2C_SRAM_BUFF_EN	0x1
 #endif
+/*******************************************************************/
+//#define AST_I2C_IRQ_DEBUG
 
-
+#ifdef AST_I2C_IRQ_DEBUG
+#define DEBUG
+#define I2C_IRQ_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
+#else
+#define I2C_IRQ_DBUG(fmt, args...)
+#endif
 
 /*******************************************************************/
+/*******************************************************************/
+
 #if defined (AST_SOC_CAM)
 struct buf_page page_info;
 
@@ -296,139 +288,15 @@ static void pool_buff_page_init(void) {}
 extern u8 request_pool_buff_page(struct buf_page **req_page) {return 0;}
 extern void free_pool_buff_page(struct buf_page *req_page) {}
 #endif
-
-void __iomem	*i2c_reg_base;	
-
-static void ast_i2c_global_interrupt(struct irq_desc *desc)
-{
-	u32 i = 0;
-	u32 sts = readl(i2c_reg_base + AST_I2CG_ISR);
-	I2C_IRQ_DBUG("ast_i2c_global_interrupt %x \n",sts);
-	//should use run-roubin i2c
-#if 1	
-	for (i = 0; sts != 0; i++, sts >>= 1) {
-		if (sts & 1) {
-			I2C_IRQ_DBUG("gen irq %d\n", i);
-			generic_handle_irq(IRQ_I2C_CHAIN_START + i);
-			I2C_IRQ_DBUG("gen irq %d Exit \n", i);
-		}
-	}	
-
-#else
-	if(sts & AST_I2C_DEV0_IRQ) {
-//		I2C_IRQ_DBUG("ISR_DEVICE1\n");
-		generic_handle_irq(IRQ_I2C_DEV0);
-	}
-
-	if(sts & AST_I2C_DEV1_IRQ) {
-//		I2C_IRQ_DBUG("ISR_DEVICE2\n");
-		generic_handle_irq(IRQ_I2C_DEV1);
-	}
-
-	if(sts & AST_I2C_DEV2_IRQ) {
-//		I2C_IRQ_DBUG("ISR_DEVICE3\n");
-		generic_handle_irq(IRQ_I2C_DEV2);
-	}
-
-	if(sts & AST_I2C_DEV3_IRQ) {
-//		I2C_IRQ_DBUG("ISR_DEVICE4\n");
-		generic_handle_irq(IRQ_I2C_DEV3);
-	}
-
-	if(sts & AST_I2C_DEV4_IRQ) {
-//		I2C_IRQ_DBUG("ISR_DEVICE5\n");
-		generic_handle_irq(IRQ_I2C_DEV4);
-	}
-
-	if(sts & AST_I2C_DEV5_IRQ) {
-//		I2C_IRQ_DBUG("ISR_DEVICE6\n");
-		generic_handle_irq(IRQ_I2C_DEV5);
-	}
-
-	if(sts & AST_I2C_DEV6_IRQ) {
-//		I2C_IRQ_DBUG("ISR_DEVICE7\n");
-		generic_handle_irq(IRQ_I2C_DEV6);
-	}
-
-	if(sts & AST_I2C_DEV7_IRQ) {
-//		I2C_IRQ_DBUG("ISR_DEVICE8\n");
-		generic_handle_irq(IRQ_I2C_DEV7);
-	}
-
-	if(sts & AST_I2C_DEV8_IRQ) {
-//		I2C_IRQ_DBUG("ISR_DEVICE9\n");
-		generic_handle_irq(IRQ_I2C_DEV8);
-	}
-
-	if(sts & AST_I2C_DEV9_IRQ) {
-//		I2C_IRQ_DBUG("ISR_DEVICE10\n");
-		generic_handle_irq(IRQ_I2C_DEV9);
-	}
-
-	if(sts & AST_I2C_DEV10_IRQ) {
-//		I2C_IRQ_DBUG("ISR_DEVICE11\n");
-		generic_handle_irq(IRQ_I2C_DEV10);
-	}
-
-	if(sts & AST_I2C_DEV11_IRQ) {
-//		I2C_IRQ_DBUG("ISR_DEVICE12\n");
-		generic_handle_irq(IRQ_I2C_DEV11);
-	}
-
-	if(sts & AST_I2C_DEV12_IRQ) {
-//		I2C_IRQ_DBUG("ISR_DEVICE13\n");
-		generic_handle_irq(IRQ_I2C_DEV12);
-	}
-
-	if(sts & AST_I2C_DEV13_IRQ) {
-//		I2C_IRQ_DBUG("ISR_DEVICE14\n");
-		generic_handle_irq(IRQ_I2C_DEV13);
-	}
-#endif
-
-}		
+/*******************************************************************/
 
 
-static void ast_i2c_ack_irq(struct irq_data *d)
-{
-//	I2C_IRQ_DBUG("ack irq[%d]\n",d->irq);
-}
 
-static void ast_i2c_mask_irq(struct irq_data *d)
-{
-//	I2C_IRQ_DBUG("mask irq[%d]\n",d->irq);
-}
+/*******************************************************************/
 
-static void ast_i2c_unmask_irq(struct irq_data *d)
-{
-//	I2C_IRQ_DBUG("unmask irq[%d]\n",d->irq);
-}
 
-static struct irq_chip ast_i2c_irq_chip = {
-	.name		= "i2c_irq_chip",
-	.irq_ack		= ast_i2c_ack_irq,
-	.irq_mask		= ast_i2c_mask_irq,
-	.irq_unmask	= ast_i2c_unmask_irq,
-};
 
-static int __init ast_i2c_irq_init(void)
-{
-	int irq = 0;
-	u8 *buf_pool;
-
-	I2C_IRQ_DBUG("ast_i2c_irq_init \n");
-
-#if defined(CONFIG_I2C_AST) || defined(CONFIG_I2C_AST_MODULE)
-	//SCU I2C Reset 
-	ast_scu_init_i2c();
-
-	i2c_reg_base = ioremap(AST_I2C_BASE, SZ_16);
-	if (!i2c_reg_base) {
-		printk("ast_i2c_irq_init ERROR \n");
-		return -1;
-	}
-	
-
+#if 0
 #if defined (AST_I2C_POOL_BUFF_2048)
 	buf_pool= ioremap(AST_I2C_BASE+0x800, 2048);
 	if (!buf_pool) {
@@ -453,26 +321,103 @@ static int __init ast_i2c_irq_init(void)
 	}
 	pool_buff_page_init((u32)buf_pool); 
 
-#ifdef AST_SOC_G5	
-	if((MASTER_XFER_MODE == BUFF_MODE) || (SLAVE_XFER_MODE == BUFF_MODE) ||
-		(MASTER_XFER_MODE == INC_DMA_MODE) || (SLAVE_XFER_MODE == INC_DMA_MODE))
-		writel(I2C_SRAM_BUFF_EN, i2c_reg_base + AST_I2CG_CTRL);
-#endif
 	
 #else
 	buf_pool = 0;
 #endif
 	
-	for (irq = 0; irq < ARCH_NR_I2C; irq++) {
-		irq_set_chip_and_handler(irq + IRQ_I2C_CHAIN_START, &ast_i2c_irq_chip,
-					 handle_level_irq);
-		irq_clear_status_flags(irq + IRQ_I2C_CHAIN_START, IRQ_NOREQUEST);
-	}
-
-	irq_set_chained_handler(IRQ_I2C, ast_i2c_global_interrupt);
-
+	return 0;
+}
 #endif
+void ast_i2c_sram_buff_enable(struct ast_i2c_irq *i2c_irq) {
+	writel(I2C_SRAM_BUFF_EN, i2c_irq->regs + AST_I2CG_CTRL);
+};
+EXPORT_SYMBOL(ast_i2c_sram_buff_enable);
+
+static void ast_i2c_irq_handler(struct irq_desc *desc)
+{
+	struct ast_i2c_irq *i2c_irq = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	unsigned long bit, status;
+	unsigned int bus_irq;
+
+	chained_irq_enter(chip, desc);
+	status = readl(i2c_irq->regs + AST_I2CG_ISR);
+	for_each_set_bit(bit, &status, i2c_irq->bus_num) {
+		bus_irq = irq_find_mapping(i2c_irq->irq_domain, bit);
+		generic_handle_irq(bus_irq);
+	}
+	chained_irq_exit(chip, desc);
+}
+
+static void noop(struct irq_data *data) { }
+
+static unsigned int noop_ret(struct irq_data *data)
+{
+	return 0;
+}
+
+struct irq_chip i2c_irq_chip = {
+	.name		= "i2c-irq",
+	.irq_startup	= noop_ret,
+	.irq_shutdown	= noop,
+	.irq_enable	= noop,
+	.irq_disable	= noop,
+	.irq_ack	= noop,
+	.irq_mask	= noop,
+	.irq_unmask	= noop,
+	.flags		= IRQCHIP_SKIP_SET_WAKE,
+};
+
+static int ast_i2c_map_irq_domain(struct irq_domain *domain,
+					unsigned int irq, irq_hw_number_t hwirq)
+{
+	irq_set_chip_and_handler(irq, &i2c_irq_chip, handle_simple_irq);
+	irq_set_chip_data(irq, domain->host_data);
 
 	return 0;
 }
-core_initcall(ast_i2c_irq_init);
+
+static const struct irq_domain_ops ast_i2c_irq_domain_ops = {
+	.map = ast_i2c_map_irq_domain,
+};
+
+static int __init ast_i2c_irq_of_init(struct device_node *node,
+					struct device_node *parent)
+{
+	struct ast_i2c_irq *i2c_irq;
+
+	i2c_irq = kzalloc(sizeof(*i2c_irq), GFP_KERNEL);
+	if (!i2c_irq)
+		return -ENOMEM;
+
+	i2c_irq->regs = of_iomap(node, 0);
+	if (IS_ERR(i2c_irq->regs))
+		return PTR_ERR(i2c_irq->regs);
+
+	node->data = i2c_irq;
+	if (of_property_read_u32(node, "bus_num", &i2c_irq->bus_num) == 0) {
+		printk("i2c_irq->bus_num = %d \n", i2c_irq->bus_num);
+	}
+
+	i2c_irq->parent_irq = irq_of_parse_and_map(node, 0);
+	if (i2c_irq->parent_irq < 0)
+		return i2c_irq->parent_irq;
+
+	i2c_irq->irq_domain = irq_domain_add_linear(
+			node, i2c_irq->bus_num,
+			&ast_i2c_irq_domain_ops, NULL);
+	if (!i2c_irq->irq_domain)
+		return -ENOMEM;
+
+	i2c_irq->irq_domain->name = "ast-i2c-domain";
+
+	irq_set_chained_handler_and_data(i2c_irq->parent_irq,
+					 ast_i2c_irq_handler, i2c_irq);
+
+	pr_info("i2c-irq controller registered, irq %d\n", i2c_irq->parent_irq);
+
+	return 0;
+}
+
+IRQCHIP_DECLARE(ast_i2c_irq, "aspeed,ast-i2c-irq", ast_i2c_irq_of_init);
