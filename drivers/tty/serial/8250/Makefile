@@ -32,6 +32,7 @@ obj-$(CONFIG_SERIAL_8250_LPSS)		+= 8250_lpss.o
 obj-$(CONFIG_SERIAL_8250_MID)		+= 8250_mid.o
 obj-$(CONFIG_SERIAL_8250_MOXA)		+= 8250_moxa.o
 obj-$(CONFIG_SERIAL_AST_VUART)		+= ast_vuart.o
+obj-$(CONFIG_AST_UART_SDMA)		+= ast-uart-sdma.o
 obj-$(CONFIG_SERIAL_AST_DMA_UART)	+= ast_dma_uart.o
 obj-$(CONFIG_SERIAL_OF_PLATFORM)	+= 8250_of.o
 

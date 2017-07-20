@@ -173,10 +173,16 @@ config SERIAL_AST_VUART
         select SERIAL_CORE
         help
           The ASPEED VUART driver supporting. The device node is /dev/ttyS
-	
+
+config AST_UART_SDMA
+	bool "AST UART SDMA"
+	depends on ARCH_AST2500 || ARCH_AST1220
+	help
+	  The ASPEED SDMA for support UART
+
 config SERIAL_AST_DMA_UART
         tristate "AST UART driver with DMA"
-        depends on ARCH_ASPEED
+        depends on AST_UART_SDMA
         select SERIAL_CORE
         help
           The ASPEED UART driver with DMA supporting. The device node is /dev/ttyDMA

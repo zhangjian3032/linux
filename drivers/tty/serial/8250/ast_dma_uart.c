@@ -1395,11 +1395,7 @@ static int __init serial8250_probe(struct platform_device *dev)
 {
 	struct plat_serial8250_port *p = dev->dev.platform_data;
 	struct uart_port port;
-#if defined(CONFIG_AST1070_UART_DMA)
-	struct ast_uart_dma_data *uart_dma_data;
-#elif defined(CONFIG_AST_UART_SDMA)
 	struct ast_uart_sdma_data *uart_dma_data;
-#else
 		
 #endif	
 	int ret, i;
