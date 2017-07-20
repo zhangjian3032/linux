@@ -18,16 +18,12 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifdef CONFIG_COLDFIRE
-#else 
-#include <plat/aspeed.h>
-#include <mach/ast_i2c_irqs.h>
+#include <mach/aspeed.h>
 #include <mach/ast_sdhci_irqs.h>
 #include <mach/ast_gpio_irqs.h>
 #include <mach/ast_pcie_irqs.h>
 //#include <mach/ast_lpc_irqs.h>
 #include <mach/ast_egfx_irqs.h>
-#endif
 
 #if defined(CONFIG_ARCH_AST1010)
 #include <asm/ast1010_irqs.h>
@@ -53,14 +49,3 @@
 #err "no define for irqs.h"
 #endif
 
-/*********************************************************************************/
-//CVIC
-#if defined(CONFIG_ARCH_AST1070)
-//Companion chip irq
-#include <mach/ast1070_irqs.h>
-#include <mach/ast1070_i2c_irqs.h>
-#endif
-
-#if defined(CONFIG_AST2400_BMC)
-#include <mach/ext_ast2400_irqs.h>
-#endif

@@ -17,11 +17,7 @@
 #ifndef _AST_PLATFORM_H_
 #define _AST_PLATFORM_H_                 1
 
-#ifdef CONFIG_COLDFIRE
-#include "../../../plat-aspeed/include/plat/aspeed.h"
-#else
-#include <plat/aspeed.h>
-#endif 
+#include "aspeed.h"
 
 #define AST_PLL_25MHZ			25000000
 #define AST_PLL_24MHZ			24000000

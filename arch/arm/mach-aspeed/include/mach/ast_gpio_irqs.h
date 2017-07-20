@@ -21,11 +21,7 @@
 #ifndef _GPIO_IRQS_H_
 #define _GPIO_IRQS_H_                 1
 
-#ifdef CONFIG_COLDFIRE
-#include "../../../plat-aspeed/include/plat/aspeed.h"
-#else
-#include <plat/aspeed.h>
-#endif 
+#include <mach/aspeed.h>
 
 #define ARCH_NR_GPIOS 					(GPIO_PORT_NUM*8) 
 

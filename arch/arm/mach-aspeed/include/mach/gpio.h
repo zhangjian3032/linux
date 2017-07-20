@@ -26,13 +26,10 @@
 #define __ASM_ARCH_ASPEED_GPIO_H
 
 #include <linux/kernel.h>
-#ifdef CONFIG_COLDFIRE
-#include "irqs.h"
-#include "ast_gpio_irqs.h"
-#else
 #include <mach/irqs.h>
-#include <plat/aspeed.h>
-#endif
+#include <mach/aspeed.h>
+
+
 /*************************************************************/
 #define GPIO_PORTA							0x0
 #define GPIO_PORTB							0x1

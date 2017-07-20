@@ -498,54 +498,7 @@ static struct i2c_board_info __initdata ast_i2c_board_info_7[] = {
 /*-------------------------------------*/
 void __init ast_add_device_i2c(void)
 {
-	platform_device_register(&ast_i2c_dev0_device);
-	platform_device_register(&ast_i2c_dev1_device);
-	platform_device_register(&ast_i2c_dev2_device);
 	
-#if defined(AST_I2C_DEV3_BASE)				
-	platform_device_register(&ast_i2c_dev3_device);
-#endif
-
-#if defined(AST_I2C_DEV4_BASE)			
-	platform_device_register(&ast_i2c_dev4_device);
-#endif
-
-#if defined(AST_I2C_DEV5_BASE)		
-	platform_device_register(&ast_i2c_dev5_device);
-#endif
-
-#if defined(AST_I2C_DEV6_BASE)		
-	platform_device_register(&ast_i2c_dev6_device);
-#endif
-
-#if defined(AST_I2C_DEV7_BASE)	
-	platform_device_register(&ast_i2c_dev7_device);
-#endif
-
-#if defined(AST_I2C_DEV8_BASE)
-	platform_device_register(&ast_i2c_dev8_device);
-#endif
-
-#if defined(CONFIG_MMC_AST)
-	//Due to share pin with SD 
-#else
-#if defined(AST_I2C_DEV9_BASE)
-	platform_device_register(&ast_i2c_dev9_device);	
-#endif
-#if defined(AST_I2C_DEV10_BASE)
-	platform_device_register(&ast_i2c_dev10_device);
-#endif
-
-#if defined(AST_I2C_DEV11_BASE)
-	platform_device_register(&ast_i2c_dev11_device);
-#endif	
-#if defined(AST_I2C_DEV12_BASE)
-	platform_device_register(&ast_i2c_dev12_device);
-#endif	
-#if defined(AST_I2C_DEV13_BASE)
-	platform_device_register(&ast_i2c_dev13_device);
-#endif
-#endif	
 	
 	i2c_register_board_info(0, ast_i2c_board_info_0, ARRAY_SIZE(ast_i2c_board_info_0));	
 	i2c_register_board_info(1, ast_i2c_board_info_1, ARRAY_SIZE(ast_i2c_board_info_1));	
@@ -575,7 +528,5 @@ static struct platform_device i2c_gpio_device = {
 };
 #endif
 
-void __init ast_add_device_i2c(void) {
-//	platform_device_register(&i2c_gpio_device);
-}
+
 #endif

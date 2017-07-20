@@ -36,11 +36,10 @@
 
 #endif
 
-#define AST_DRAM_BASE					0x80000000
+
 
 #define AST_SRAM_SIZE					(SZ_32K)
 
-#define AST_AHBC_BASE					0x1E600000	/* AHB CONTROLLER */
 
 #define AST_FMC_BASE        			0x1E620000	/* NEW SMC CONTROLLER */
 #define AST_FMC_SPI0_BASE				0x1E630000	/* NEW SMC CONTROLLER */
@@ -163,8 +162,7 @@
 #define AST_CRT0_MEM_SIZE				SZ_8M
 #define AST_CRT0_MEM_BASE				(AST_DRAM_BASE + 0xB000000)		//from 176MB
 
-#define AST_VIDEO_MEM_SIZE				0x2800000		//40MB
-#define AST_VIDEO_MEM 					(AST_DRAM_BASE + 0xB800000)		//from 176+8 = 184MB
+
 
 #if 0
 #define AST_CURSOR0_MEM_SIZE			SZ_1M

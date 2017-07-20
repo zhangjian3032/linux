@@ -110,7 +110,7 @@
 #define AST_SPI1_CS0_BASE				0x38000000	/* SPI 3 Flash CS 0 Memory */
 #define AST_SPI1_CS1_BASE				0x3a000000	/* SPI 3 Flash CS 1 Memory */
 
-#define AST_JPEG_MEM_SIZE				0x3000000	//48MB
+#define AST_JPEG_MEM_SIZE				0x4000000	//64MB
 #define AST_JPEG_MEM 					(AST_DRAM_BASE + SZ_256M)	//(AST_DRAM_BASE + SZ_256M)
 
 #define AST_H264_MEM_SIZE				0x1100000 		

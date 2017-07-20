@@ -38,7 +38,6 @@ config ARCH_AST2400
 config ARCH_AST2500
 	select CPU_V6
 	select USB_ARCH_HAS_EHCI
-	select AST_UART_SDMA
 	select EGFX_IRQ
 	bool "AST2500"
 
@@ -98,7 +97,6 @@ choice
 
 config ARCH_AST1220
         select CPU_V6
-	select AST_UART_SDMA
         bool "AST1220"
 
 endchoice
@@ -115,9 +113,6 @@ config AST_SCU_LOCK
 	bool "AST SCU Protection Key"
 
 config AST1070_UART_DMA
-	bool
-
-config AST_UART_SDMA
 	bool
 
 endmenu

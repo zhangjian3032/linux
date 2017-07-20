@@ -15,94 +15,21 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <linux/irqchip.h> 
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/list.h>
-#include <linux/slab.h>
-#include <linux/string.h>
 
-#include <asm/mach-types.h>
-#include <asm/system_misc.h>
 
-#include <asm/mach/irq.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-
-#include <mach/hardware.h>
-#include <plat/devs.h>
-
-#include <plat/ast-scu.h>
-#include <plat/core.h>
-
-#ifdef CONFIG_AST_UART_SDMA
-#include <mach/ast-uart-dma.h>
-#endif
 #include <mach/ast_wdt.h>
-
-static struct map_desc ast_io_desc[] __initdata = {
-	{ 	
-		.virtual		= IO_ADDRESS(AST_SCU_BASE), 
-		.pfn			= __phys_to_pfn(AST_SCU_BASE),
-		.length 		= SZ_4K,
-		.type			= MT_DEVICE,
-	}, {
-		.virtual		= IO_ADDRESS(AST_UART0_BASE), 
-		.pfn			= __phys_to_pfn(AST_UART0_BASE),
-		.length 		= SZ_4K,
-		.type			= MT_DEVICE,		
-	},
-};
-
-void __init ast_map_io(void)
-{
-	iotable_init(ast_io_desc, ARRAY_SIZE(ast_io_desc));
-}
-
-static void __init ast_init(void)
-{
-#ifdef CONFIG_AST_UART_SDMA
-	ast_uart_sdma_init();
-#endif
-#ifdef CONFIG_ARCH_AST3200
-	//AST3200 usb audio codec clock
-	ast_scu_osc_clk_output();
-#endif
-
-	ast_add_all_devices();		
-
-	ast_scu_show_system_info();
-#ifdef CONFIG_AST2400_BMC
-	ast2400_scu_init(AST_PCI_EXT_SCU, SZ_4K);
-	ast2400_add_device_uart();
-//	ast2400_add_device_i2c();
-#endif	
-}
 
 static const char *const aspeed_dt_match[] __initconst = {
 		"aspeed,ast2400",
 		"aspeed,ast2500",
+		"aspeed,ast2600",		
 		NULL,
 };
 
-
-#if 1
-//Non-DT
-MACHINE_START(ASPEED, AST_MACH_NAME)
-	.map_io			= ast_map_io,
-	.init_irq			= ast_init_irq,
-	.init_machine		= ast_init,	
-	.init_time			= ast_init_timer,
-#if defined(CONFIG_AST_WATCHDOG) || defined(CONFIG_AST_WATCHDOG_MODULE)	 	
+DT_MACHINE_START(aspeed_dt, "ASpeed BMC SoC")
+	.dt_compat		= aspeed_dt_match,
+#if defined(CONFIG_AST_WATCHDOG) || defined(CONFIG_AST_WATCHDOG_MODULE)
 	.restart			= ast_soc_wdt_reset,
 #endif
 MACHINE_END
-#else
-DT_MACHINE_START(ASPEED_DT, AST_MACH_NAME)
-        .dt_compat      = ast_dt_compat, //tq2440_dt_compat,
-        .map_io         = ast_map_io, //tq2440_dt_map_io,
-        .init_irq       = ast_init_irq, //irqchip_init,
-        .init_machine   = ast_init,//tq2440_dt_machine_init,
-MACHINE_END
-#endif

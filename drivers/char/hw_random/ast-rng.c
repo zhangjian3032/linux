@@ -25,7 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/hw_random.h>
 
-#include <plat/ast-scu.h>
+#include <mach/ast-scu.h>
 
 static int ast_rng_data_read(struct hwrng *rng, u32 *data)
 {
@@ -67,7 +67,7 @@ static struct attribute_group rng_attribute_group = {
 	.attrs = rng_sysfs_entries,
 };
 
-static int __init ast_rng_probe(struct platform_device *pdev)
+static int ast_rng_probe(struct platform_device *pdev)
 {
 	int ret = hwrng_register(&ast_rng_ops);
 
@@ -81,11 +81,10 @@ static int __init ast_rng_probe(struct platform_device *pdev)
 		printk(KERN_ERR "ast_jtag: failed to create sysfs device attributes.\n");
 		return -1;
 	}
-
 	return 0;
 }
 
-static int __exit ast_rng_remove(struct platform_device *pdev)
+static int ast_rng_remove(struct platform_device *pdev)
 {
 	hwrng_unregister(&ast_rng_ops);
 
@@ -95,64 +94,43 @@ static int __exit ast_rng_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int ast_rng_suspend(struct platform_device *pdev, pm_message_t message)
+static int ast_rng_suspend(struct device *dev)
 {
 	ast_scu_hw_random_enable(0);
 	return 0;
 }
 
-static int ast_rng_resume(struct platform_device *pdev)
+static int ast_rng_resume(struct device *dev)
 {
 	ast_scu_hw_random_enable(1);
 	return 0;
 }
-#else
-#define	ast_rng_suspend	NULL
-#define	ast_rng_resume		NULL
+static const struct dev_pm_ops ast_rng_pm_ops = {
+        .suspend        = ast_rng_suspend,
+        .resume         = ast_rng_resume,
+};
 #endif
 
+static const struct of_device_id ast_rng_dt_ids[] = {
+        { .compatible = "aspeed,ast-rng" },
+        { /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, ast_rng_dt_ids);
+
 static struct platform_driver ast_rng_driver = {
-	.driver = {
-		.name		= "ast-rng",
-		.owner		= THIS_MODULE,
+	.probe          = ast_rng_probe,
+	.remove         = ast_rng_remove,
+	.driver         = {
+		.name   = "ast-rng",
+#ifdef CONFIG_PM			
+		.pm     = &ast_rng_pm_ops,
+#endif		
+		.of_match_table = ast_rng_dt_ids,
 	},
-	.remove		= __exit_p(ast_rng_remove),
-	.suspend		= ast_rng_suspend,
-	.resume		= ast_rng_resume
 };
 
+module_platform_driver(ast_rng_driver);
 
-static struct platform_device *ast_rng_device;
-
-static int __init ast_rng_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&ast_rng_driver);
-
-	if (!ret) {
-		ast_rng_device = platform_device_register_simple("ast-rng", 0,
-								NULL, 0);
-		if (IS_ERR(ast_rng_device)) {
-			platform_driver_unregister(&ast_rng_driver);
-			ret = PTR_ERR(ast_rng_device);
-		}
-	}
-
-	return ret;
-}
-
-static void __exit ast_rng_exit(void)
-{
-	platform_device_unregister(ast_rng_device);
-	platform_driver_unregister(&ast_rng_driver);
-}
-
-
-module_init(ast_rng_init);
-module_exit(ast_rng_exit);
-
-
-MODULE_AUTHOR("Ryan Chen");
-MODULE_DESCRIPTION("H/W RNGA driver for AST");
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
+MODULE_DESCRIPTION("ASPEED random number generator driver");

@@ -116,6 +116,7 @@ struct ast_sdma_ch {
 
 struct ast_sdma {
 	void __iomem		*reg_base;	
+	int				dma_irq;	
 	struct ast_sdma_ch	*dma_ch;
 };
 
@@ -139,8 +140,6 @@ extern int ast_uart_rx_sdma_update(u8 ch, u16 point);
 extern u32 ast_uart_get_tx_sdma_pt(u8 ch);
 extern u16 ast_uart_get_rx_sdma_pt(u8 ch);
 extern void ast_uart_set_sdma_time_out(u16 val);
-
-extern int ast_uart_sdma_init(void);
 #endif
 
 
