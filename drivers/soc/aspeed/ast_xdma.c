@@ -30,9 +30,7 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <mach/irqs.h>
-#include <mach/platform.h>
-#include <plat/ast-scu.h>
+#include <mach/ast-scu.h>
 
 /* register ************************************************************************************/
 #define AST_XDMA_HOST_CMDQ_LOW 		0x00
@@ -337,7 +335,7 @@ static long xdma_ioctl(struct file *file, unsigned int cmd,
 	int ret = 0;
 	struct miscdevice *c = file->private_data;
 	struct ast_xdma_info *ast_xdma = dev_get_drvdata(c->this_device);
-	void __user *argp = (void __user *)arg;	
+	void  *argp = (void  *)arg;	
 	struct ast_xdma_xfer xfer;	
 
 	switch (cmd) {
@@ -360,8 +358,6 @@ static long xdma_ioctl(struct file *file, unsigned int cmd,
 	}
 	
     return ret;
-
-
 }
 
 static int xdma_open(struct inode *inode, struct file *file)
@@ -422,24 +418,18 @@ static int ast_xdma_probe(struct platform_device *pdev)
 
 	ast_scu_init_xdma();
 
+	if (!(ast_xdma = devm_kzalloc(&pdev->dev, sizeof(struct ast_xdma_info), GFP_KERNEL))) {
+		return -ENOMEM;
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res) {
 		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
 		ret = -ENOENT;
 		goto out;
 	}
-
-	if (!request_mem_region(res->start, resource_size(res), res->name)) {
-		dev_err(&pdev->dev, "cannot reserved region\n");
-		ret = -ENXIO;
-		goto out;
-	}
-
-	if (!(ast_xdma = kzalloc(sizeof(struct ast_xdma_info), GFP_KERNEL))) {
-		return -ENOMEM;
-	}
 	
-	ast_xdma->reg_base = ioremap(res->start, resource_size(res));
+	ast_xdma->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (!ast_xdma->reg_base) {
 		ret = -EIO;
 		goto out_region;
@@ -452,7 +442,7 @@ static int ast_xdma_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	ret = request_irq(ast_xdma->irq, ast_xdma_isr, IRQF_SHARED, "ast-xdma", ast_xdma);
+	ret = devm_request_irq(&pdev->dev, ast_xdma->irq, ast_xdma_isr, 0, dev_name(&pdev->dev), ast_xdma);
 	if (ret) {
 		printk("MCTP Unable to get IRQ");
 		goto out_region;
@@ -525,70 +515,27 @@ ast_xdma_resume(struct platform_device *pdev)
 #define ast_xdma_suspend        NULL
 #define ast_xdma_resume         NULL
 #endif
-#if 0
-static const struct platform_device_id ast_xdma_idtable[] = {
-	{
-		.name = "ast-xdma",
-//		.driver_data = ast_video_data,
-		/* sentinel */
-	}
+
+static const struct of_device_id ast_xdma_match[] = {
+	{ .compatible = "aspeed,ast-xdma" },
+	{ },
 };
-MODULE_DEVICE_TABLE(platform, ast_xdma_idtable);
-#endif
+
 static struct platform_driver ast_xdma_driver = {
 	.probe		= ast_xdma_probe,
 	.remove 		= ast_xdma_remove,
-	.suspend        = ast_xdma_suspend,
-	.resume         = ast_xdma_resume,
-	.driver         = {
-		.name   = "ast-xdma",
-		.owner  = THIS_MODULE,
+#ifdef CONFIG_PM	
+	.suspend		= ast_xdma_suspend,
+	.resume 		= ast_xdma_resume,
+#endif	
+	.driver = {
+		.name		= "ast-xdma",
+		.of_match_table = ast_xdma_match,
 	},
-//	.id_table	= ast_xdma_idtable,		
 };
 
-static struct platform_device *ast_xdma_device;
-
-static int __init ast_xdma_init(void)
-{
-	int ret;
-
-	static const struct resource ast_xdma_resource[] = {
-		[0] = {
-			.start = AST_XDMA_BASE,
-			.end = AST_XDMA_BASE + SZ_256,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = IRQ_XDMA,
-			.end = IRQ_XDMA,
-			.flags = IORESOURCE_IRQ,
-		},
-	};
-
-	ret = platform_driver_register(&ast_xdma_driver);
-
-	if (!ret) {
-		ast_xdma_device = platform_device_register_simple("ast-xdma", 0,
-								ast_xdma_resource, ARRAY_SIZE(ast_xdma_resource));
-		if (IS_ERR(ast_xdma_device)) {
-			platform_driver_unregister(&ast_xdma_driver);
-			ret = PTR_ERR(ast_xdma_device);
-		}
-	}
-
-	return ret;
-}
-
-static void __exit ast_xdma_exit(void)
-{
-	platform_device_unregister(ast_xdma_device);
-	platform_driver_unregister(&ast_xdma_driver);
-}
-
-module_init(ast_xdma_init);
-module_exit(ast_xdma_exit);
+module_platform_driver(ast_xdma_driver);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
-MODULE_DESCRIPTION("AST X-DMA Driver");
+MODULE_DESCRIPTION("ASPEED X-DMA Driver");
 MODULE_LICENSE("GPL");

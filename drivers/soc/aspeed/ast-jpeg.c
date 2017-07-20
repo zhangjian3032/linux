@@ -40,8 +40,8 @@
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/platform.h>
-#include <plat/aspeed.h>
-#include <plat/ast-scu.h>
+#include <mach/aspeed.h>
+#include <mach/ast-scu.h>
 
 #include <linux/dma-mapping.h>
 

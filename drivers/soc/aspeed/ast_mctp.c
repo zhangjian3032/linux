@@ -30,12 +30,8 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <plat/ast-scu.h>
-#include <mach/irqs.h>
-#include <mach/platform.h>
+#include <mach/ast-scu.h>
 
-//#include <plat/regs-mctp.h>
-//#include <plat/ast_mctp.h>
 /* register ************************************************************************************/
 #define AST_MCTP_CTRL 		0x00
 #define AST_MCTP_TX_CMD	0x04
@@ -513,30 +509,24 @@ static int ast_mctp_probe(struct platform_device *pdev)
 
 	ast_scu_init_mctp();
 
+	if (!(ast_mctp = devm_kzalloc(&pdev->dev, sizeof(struct ast_mctp_info), GFP_KERNEL))) {
+		return -ENOMEM;
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res) {
 		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
 		ret = -ENOENT;
 		goto out;
 	}
-
-	if (!request_mem_region(res->start, resource_size(res), res->name)) {
-		dev_err(&pdev->dev, "cannot reserved region\n");
-		ret = -ENXIO;
-		goto out;
-	}
-
-	if (!(ast_mctp = kzalloc(sizeof(struct ast_mctp_info), GFP_KERNEL))) {
-		return -ENOMEM;
-	}
 	
-	ast_mctp->reg_base = ioremap(res->start, resource_size(res));
+	ast_mctp->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (!ast_mctp->reg_base) {
 		ret = -EIO;
 		goto out_region;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_BUS, 0);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (NULL == res) {
 		dev_err(&pdev->dev, "cannot get IORESOURCE_BUS\n");
 		ret = -ENOENT;
@@ -566,7 +556,8 @@ static int ast_mctp_probe(struct platform_device *pdev)
 
 	ast_mctp_ctrl_init(ast_mctp);
 
-	ret = request_irq(ast_mctp->irq, ast_mctp_isr, IRQF_SHARED, "ast-mctp", ast_mctp);
+	ret = devm_request_irq(&pdev->dev, ast_mctp->irq, ast_mctp_isr,
+						   0, dev_name(&pdev->dev), ast_mctp);
 	if (ret) {
 		printk("MCTP Unable to get IRQ");
 		goto out_region;
@@ -634,75 +625,26 @@ ast_mctp_resume(struct platform_device *pdev)
 #define ast_mctp_resume         NULL
 #endif
 
-#if 0
-static const struct platform_device_id ast_mctp_idtable[] = {
-	{
-		.name = "ast-mctp",
-//		.driver_data = ast_video_data,
-		/* sentinel */
-	}
+static const struct of_device_id ast_mctp_of_matches[] = {
+	{ .compatible = "aspeed,ast-mctp", },
+	{},
 };
-MODULE_DEVICE_TABLE(platform, ast_mctp_idtable);
-#endif 
+MODULE_DEVICE_TABLE(of, ast_mctp_of_matches);
 
 static struct platform_driver ast_mctp_driver = {
 	.probe 		= ast_mctp_probe,
 	.remove 		= ast_mctp_remove,
+#ifdef CONFIG_PM	
 	.suspend        = ast_mctp_suspend,
 	.resume         = ast_mctp_resume,
+#endif	
 	.driver         = {
-		.name   = "ast-mctp",
-		.owner  = THIS_MODULE,
+		.name   = KBUILD_MODNAME,
+		.of_match_table = ast_mctp_of_matches,
 	},
-//	.id_table	= ast_mctp_idtable,		
 };
 
-static struct platform_device *ast_mctp_device;
-
-static int __init ast_mctp_init(void)
-{
-	int ret;
-
-	static const struct resource ast_mctp_resource[] = {
-		[0] = {
-			.start = AST_MCTP_BASE,
-			.end = AST_MCTP_BASE + SZ_256,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = IRQ_MCTP,
-			.end = IRQ_MCTP,
-			.flags = IORESOURCE_IRQ,
-		},
-		[2] = {
-			.start = AST_DRAM_BASE,
-			.end = AST_DRAM_BASE,
-			.flags = IORESOURCE_BUS,
-		},	
-	};
-
-	ret = platform_driver_register(&ast_mctp_driver);
-
-	if (!ret) {
-		ast_mctp_device = platform_device_register_simple("ast-mctp", 0,
-								ast_mctp_resource, ARRAY_SIZE(ast_mctp_resource));
-		if (IS_ERR(ast_mctp_device)) {
-			platform_driver_unregister(&ast_mctp_driver);
-			ret = PTR_ERR(ast_mctp_device);
-		}
-	}
-
-	return ret;
-}
-
-static void __exit ast_mctp_exit(void)
-{
-	platform_device_unregister(ast_mctp_device);
-	platform_driver_unregister(&ast_mctp_driver);
-}
-
-module_init(ast_mctp_init);
-module_exit(ast_mctp_exit);
+module_platform_driver(ast_mctp_driver);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST MCTP Driver");

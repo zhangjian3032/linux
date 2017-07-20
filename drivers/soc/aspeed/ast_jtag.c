@@ -29,14 +29,67 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 
-#include <plat/ast-scu.h>
-#include <plat/regs-jtag.h>
+#include <mach/ast-scu.h>
 
-#include <plat/ast-scu.h>
-#include <mach/irqs.h>
-#include <mach/platform.h>
+/*************************************************************************************/
+#define AST_JTAG_DATA			0x00
+#define AST_JTAG_INST			0x04
+#define AST_JTAG_CTRL			0x08
+#define AST_JTAG_ISR				0x0C
+#define AST_JTAG_SW				0x10
+#define AST_JTAG_TCK				0x14
+#define AST_JTAG_IDLE			0x18
+
+/* AST_JTAG_CTRL - 0x08 : Engine Control */
+#define JTAG_ENG_EN				(0x1 << 31)
+#define JTAG_ENG_OUT_EN			(0x1 << 30)
+#define JTAG_FORCE_TMS			(0x1 << 29)
+
+#define JTAG_IR_UPDATE			(0x1 << 26)	//AST2500 only
+#define JTAG_INST_LEN_MASK		(0x3f << 20)
+#define JTAG_SET_INST_LEN(x)		(x << 20)
+#define JTAG_SET_INST_MSB		(0x1 << 19)
+#define JTAG_TERMINATE_INST		(0x1 << 18)
+#define JTAG_LAST_INST			(0x1 << 17)
+#define JTAG_INST_EN				(0x1 << 16)
+#define JTAG_DATA_LEN_MASK		(0x3f << 4)
+
+#define JTAG_DR_UPDATE			(0x1 << 10)	//AST2500 only
+#define JTAG_DATA_LEN(x)			(x << 4)
+#define JTAG_SET_DATA_MSB		(0x1 << 3)
+#define JTAG_TERMINATE_DATA		(0x1 << 2)
+#define JTAG_LAST_DATA			(0x1 << 1)
+#define JTAG_DATA_EN				(0x1)
+
+/* AST_JTAG_ISR	- 0x0C : INterrupt status and enable */
+#define JTAG_INST_PAUSE			(0x1 << 19)
+#define JTAG_INST_COMPLETE		(0x1 << 18)
+#define JTAG_DATA_PAUSE			(0x1 << 17)
+#define JTAG_DATA_COMPLETE		(0x1 << 16)
+
+#define JTAG_INST_PAUSE_EN		(0x1 << 3)
+#define JTAG_INST_COMPLETE_EN	(0x1 << 2)
+#define JTAG_DATA_PAUSE_EN		(0x1 << 1)
+#define JTAG_DATA_COMPLETE_EN	(0x1)
 
 
+/* AST_JTAG_SW	- 0x10 : Software Mode and Status */
+#define JTAG_SW_MODE_EN			(0x1 << 19)
+#define JTAG_SW_MODE_TCK		(0x1 << 18)
+#define JTAG_SW_MODE_TMS		(0x1 << 17)
+#define JTAG_SW_MODE_TDIO		(0x1 << 16)
+//
+#define JTAG_STS_INST_PAUSE		(0x1 << 2)
+#define JTAG_STS_DATA_PAUSE		(0x1 << 1)
+#define JTAG_STS_ENG_IDLE		(0x1)
+
+/* AST_JTAG_TCK	- 0x14 : TCK Control */
+#define JTAG_TCK_INVERSE			(0x1 << 31)
+#define JTAG_TCK_DIVISOR_MASK	(0x7ff)
+#define JTAG_GET_TCK_DIVISOR(x)	(x & 0x7ff)
+
+/*  AST_JTAG_IDLE - 0x18 : Ctroller set for go to IDLE */
+#define JTAG_GO_IDLE				(0x1)
 /*************************************************************************************/
 typedef enum jtag_xfer_mode {
 	HW_MODE = 0,   
@@ -790,25 +843,21 @@ static int ast_jtag_probe(struct platform_device *pdev)
 	int ret=0;
 
 	JTAG_DBUG("ast_jtag_probe\n");	
+	
+	ast_scu_init_jtag();	
 
+	if (!(ast_jtag = devm_kzalloc(&pdev->dev, sizeof(struct ast_jtag_info), GFP_KERNEL))) {
+		return -ENOMEM;
+	}
+	
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res) {
 		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
 		ret = -ENOENT;
 		goto out;
 	}
-
-	if (!request_mem_region(res->start, resource_size(res), res->name)) {
-		dev_err(&pdev->dev, "cannot reserved region\n");
-		ret = -ENXIO;
-		goto out;
-	}
-
-	if (!(ast_jtag = kzalloc(sizeof(struct ast_jtag_info), GFP_KERNEL))) {
-		return -ENOMEM;
-	}
 	
-	ast_jtag->reg_base = ioremap(res->start, resource_size(res));
+	ast_jtag->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (!ast_jtag->reg_base) {
 		ret = -EIO;
 		goto out_region;
@@ -824,8 +873,8 @@ static int ast_jtag_probe(struct platform_device *pdev)
 	ast_jtag_write(ast_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN ,AST_JTAG_CTRL); //Eanble Clock
 	ast_jtag_write(ast_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO, AST_JTAG_SW);
 
-
-	ret = request_irq(ast_jtag->irq, ast_jtag_interrupt, IRQF_SHARED, "ast-jtag", ast_jtag);
+	ret = devm_request_irq(&pdev->dev, ast_jtag->irq, ast_jtag_interrupt,
+						   0, dev_name(&pdev->dev), ast_jtag);	
 	if (ret) {
 		printk("JTAG Unable to get IRQ");
 		goto out_region;
@@ -864,7 +913,7 @@ out_irq:
 out_region:
 	release_mem_region(res->start, res->end - res->start + 1);
 out:
-	printk(KERN_WARNING "applesmc: driver init failed (ret=%d)!\n", ret);
+	printk(KERN_WARNING "ast_jtag: driver init failed (ret=%d)!\n", ret);
 	return ret;
 }
 
@@ -902,65 +951,28 @@ ast_jtag_resume(struct platform_device *pdev)
 {
 	return 0;
 }
-
-#else
-#define ast_jtag_suspend        NULL
-#define ast_jtag_resume         NULL
 #endif
+
+static const struct of_device_id ast_jtag_of_matches[] = {
+	{ .compatible = "aspeed,ast-jtag", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, ast_jtag_of_matches);
 
 static struct platform_driver ast_jtag_driver = {
 	.probe 		= ast_jtag_probe,
 	.remove 		= ast_jtag_remove,
+#ifdef CONFIG_PM	
 	.suspend        = ast_jtag_suspend,
 	.resume         = ast_jtag_resume,
+#endif	
 	.driver         = {
-		.name   = "ast-jtag",
-		.owner  = THIS_MODULE,
+		.name   = KBUILD_MODNAME,
+		.of_match_table = ast_jtag_of_matches,
 	},
 };
 
-static struct platform_device *ast_jtag_device;
-
-static int __init ast_jtag_init(void)
-{
-	int ret;
-	static const struct resource ast_jtag_resources[] = {
-		[0] = {
-			.start = AST_JTAG_BASE,
-			.end = AST_JTAG_BASE + (SZ_16*4) - 1,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = IRQ_JTAG,
-			.end = IRQ_JTAG,
-			.flags = IORESOURCE_IRQ,
-		},
-	};
-
-	ast_scu_init_jtag();	
-
-	ret = platform_driver_register(&ast_jtag_driver);
-
-	if (!ret) {
-		ast_jtag_device = platform_device_register_simple("ast-jtag", 0,
-								ast_jtag_resources, ARRAY_SIZE(ast_jtag_resources));
-		if (IS_ERR(ast_jtag_device)) {
-			platform_driver_unregister(&ast_jtag_driver);
-			ret = PTR_ERR(ast_jtag_device);
-		}
-	}
-
-	return ret;
-}
-
-static void __exit ast_jtag_exit(void)
-{
-	platform_device_unregister(ast_jtag_device);
-	platform_driver_unregister(&ast_jtag_driver);
-}
-
-module_init(ast_jtag_init);
-module_exit(ast_jtag_exit);
+module_platform_driver(ast_jtag_driver);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST JTAG LIB Driver");

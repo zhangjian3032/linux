@@ -31,14 +31,8 @@
 
 #include <mach/hardware.h>
 
-#include <plat/regs-lpc.h>
-#include <plat/ast-lpc.h>
-#ifdef CONFIG_ARCH_AST1070
-#include <plat/ast1070-scu.h>
-#include <plat/ast1070-devs.h>
-#include <plat/regs-ast1070-intc.h>
-#include <plat/ast-uart-dma.h>
-#endif
+#include <mach/regs-lpc.h>
+#include <mach/ast-lpc.h>
 
 //#define AST_LPCP_DEBUG
 

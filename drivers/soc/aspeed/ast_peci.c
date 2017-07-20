@@ -30,20 +30,106 @@
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/miscdevice.h>
-#ifdef CONFIG_COLDFIRE
-#include <asm/arch/regs-peci.h>
-#else
-#include <plat/regs-peci.h>
 #include <mach/irqs.h>
 #include <mach/platform.h>
-#endif
 
-#include <plat/ast-scu.h>
+#include <mach/ast-scu.h>
 
+/***********************************************************************/
+/*AST PECI Register Definition */
+#define AST_PECI_CTRL		0x00
+#define AST_PECI_TIMING 		0x04
+#define AST_PECI_CMD		0x08
+#define AST_PECI_CMD_CTRL	0x0C
+#define AST_PECI_EXP_FCS	0x10
+#define AST_PECI_CAP_FCS	0x14
+#define AST_PECI_INT_CTRL	0x18
+#define AST_PECI_INT_STS	0x1C
+#define AST_PECI_W_DATA0	0x20
+#define AST_PECI_W_DATA1	0x24
+#define AST_PECI_W_DATA2	0x28
+#define AST_PECI_W_DATA3	0x2c
+#define AST_PECI_R_DATA0	0x30
+#define AST_PECI_R_DATA1	0x34
+#define AST_PECI_R_DATA2	0x38
+#define AST_PECI_R_DATA3	0x3c
+#define AST_PECI_W_DATA4	0x40
+#define AST_PECI_W_DATA5	0x44
+#define AST_PECI_W_DATA6	0x48
+#define AST_PECI_W_DATA7	0x4c
+#define AST_PECI_R_DATA4	0x50
+#define AST_PECI_R_DATA5	0x54
+#define AST_PECI_R_DATA6	0x58
+#define AST_PECI_R_DATA7	0x5c
+
+
+/* AST_PECI_CTRL - 0x00 : Control Register */
+#define PECI_CTRL_SAMPLING_MASK			(0xf << 16)
+#define PECI_CTRL_SAMPLING(x)			(x << 16)
+#define PECI_CTRL_READ_MODE_MASK		(0xf << 12)
+#define PECI_CTRL_CONT_MODE				(1 << 16)
+#define PECI_CTRL_DBG_MODE				(2 << 16)
+#define PECI_CTRL_CLK_SOURCE			(0x1 << 11)	//0: 24Mhz, 1: MCLK
+#define PECI_CTRL_CLK_DIV_MASK			(0x3 << 8)	
+#define PECI_CTRL_CLK_DIV(x)			(x << 8)	
+#define PECI_CTRL_INVERT_OUT			(0x1 << 7)	
+#define PECI_CTRL_INVERT_IN				(0x1 << 6)	
+#define PECI_CTRL_BUS_CONTENT_EN		(0x1 << 5)	
+#define PECI_CTRL_PECI_EN				(0x1 << 4)	
+#define PECI_CTRL_PECI_CLK_EN			(0x1)	
+
+/* AST_PECI_TIMING - 0x04 : Timing Negotiation */
+#define PECI_TIMING_MESSAGE_GET(x)		((x & 0xff00) >> 8)
+#define PECI_TIMING_MESSAGE(x)			(x << 8)
+#define PECI_TIMING_ADDRESS_GET(x)		(x & 0xff)
+#define PECI_TIMING_ADDRESS(x)			(x)
+
+/* AST_PECI_CMD	- 0x08 : Command Register */
+#define PECI_CMD_PIN_MON				(0x1 << 31)
+#define PECI_CMD_STS					(0xf << 24)
+#define PECI_CMD_FIRE					(0x1)
+
+/* AST_PECI_LEN	- 0x0C : Read/Write Length Register */
+#define PECI_AW_FCS_EN					(0x1 << 31)
+#define PECI_READ_LEN_MASK				(0xff << 16)
+#define PECI_READ_LEN(x)				(x << 16)
+#define PECI_WRITE_LEN_MASK				(0xff << 8)
+#define PECI_WRITE_LEN(x)				(x << 8)
+#define PECI_TAGET_ADDR_MASK			(0xff)
+#define PECI_TAGET_ADDR(x)				(x)
+
+
+/* AST_PECI_EXP_FCS	- 0x10 : Expected FCS Data Register  */
+#define PECI_PROGRAM_AW_FCS				(0xf << 24) 
+#define PECI_EXPECT_READ_FCS			(0xf << 16) 
+#define PECI_EXPECT_AW_FCS_AUTO			(0xf << 8) 
+#define PECI_EXPECT_WRITE_FCS			(0xf) 
+
+/* AST_PECI_CAP_FCS	- 0x14 : Captured FCS Data Register */
+#define PECI_CAPTURE_READ_FCS(x)		((x & 0xff) >> 16) 
+#define PECI_CAPTURE_WRITE_FCS			(0xff) 
+
+/* AST_PECI_INT_CTRL/ STS  - 0x18/0x1c  : Interrupt Register */
+#define PECI_INT_TIMING_RESULT_MASK		(0x3 << 30)
+#define PECI_INT_TIMEOUT				(0x1 << 4)
+#define PECI_INT_CONNECT				(0x1 << 3)
+#define PECI_INT_W_FCS_BAD				(0x1 << 2)
+#define PECI_INT_W_FCS_ABORT			(0x1 << 1)
+#define PECI_INT_CMD_DONE				(0x1)
+
+#define    AUTO_GEN_AWFCS                         1
+//#define    ENABLE_BUS_CONTENTION                  0x20
+
+#define    DISABLE_ENGINE                         0
+#define    ENABLE_RX_ENGINE                       (1 << 0)
+#define    ENABLE_TX_ENGINE                       (1 << 1)
+#define    LEFT_CHANNEL_HIGH                      (1 << 16)
+#define    DELAY_CLOCK_CYCLE                      (1 << 17)
+/***********************************************************************/
 //#define CONFIG_AST_PECI_DEBUG
 
 #ifdef CONFIG_AST_PECI_DEBUG
-	#define PECI_DBG(fmt, args...) printk("%s(): " fmt, __FUNCTION__, ## args)
+	#define PECI_DBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt,__FUNCTION__, ## args)
 #else
 	#define PECI_DBG(fmt, args...)
 #endif
@@ -67,16 +153,12 @@ struct xfer_msg {
 	u32		sts;
 };
 
-#define PECI_DEVICE      "/dev/ast-peci"
-
 //IOCTL ..
 #define PECIIOC_BASE       'P'
 
 #define AST_PECI_IOCRTIMING		_IOR(PECIIOC_BASE, 0, struct timing_negotiation*)
 #define AST_PECI_IOCWTIMING		_IOW(PECIIOC_BASE, 1, struct timing_negotiation*)
 #define AST_PECI_IOCXFER		_IOWR(PECIIOC_BASE, 2, struct xfer_msg*)
-
-
 /***********************************************************************/
 
 static struct ast_peci_data {
@@ -281,7 +363,6 @@ static int ast_peci_open(struct inode *inode, struct file *file)
 {
 	PECI_DBG("ast_peci_open\n");
 
-
 	/* Flush input queue on first open */
 	if (ast_peci.open_count)
 		return -1;
@@ -400,13 +481,7 @@ static int ast_peci_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	if (!request_mem_region(res->start, resource_size(res), res->name)) {
-		dev_err(&pdev->dev, "cannot reserved region\n");
-		ret = -ENXIO;
-		goto out;
-	}
-
-	ast_peci.reg_base = ioremap(res->start, resource_size(res));
+	ast_peci.reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (!ast_peci.reg_base) {
 		ret = -EIO;
 		goto out_region;
@@ -419,9 +494,8 @@ static int ast_peci_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	ret = request_irq(ast_peci.irq, ast_peci_handler, IRQF_SHARED,
-			  "ast-peci", &ast_peci);
-	
+	ret = devm_request_irq(&pdev->dev, ast_peci.irq, ast_peci_handler,
+						   0, dev_name(&pdev->dev), NULL);	
 	if (ret) {
 		printk(KERN_INFO "PECI: Failed request irq %d\n", ast_peci.irq);
 		goto out_region;
@@ -438,7 +512,6 @@ static int ast_peci_probe(struct platform_device *pdev)
 	printk(KERN_INFO "ast_peci: driver successfully loaded.\n");
 
 	return 0;
-
 
 out_irq:
 	free_irq(ast_peci.irq, NULL);
@@ -482,68 +555,32 @@ ast_peci_resume(struct platform_device *pdev)
 	ast_peci_ctrl_init();
 	return 0;
 }
-
 #else
 #define ast_peci_suspend        NULL
 #define ast_peci_resume         NULL
 #endif
 
+static const struct of_device_id of_ast_peci_match_table[] = {
+	{ .compatible = "aspeed,ast-peci", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, of_ast_peci_table);
+
 static struct platform_driver ast_peci_driver = {
 	.probe		= ast_peci_probe,
 	.remove 		= ast_peci_remove,
+#ifdef CONFIG_PM	
 	.suspend        = ast_peci_suspend,
 	.resume         = ast_peci_resume,
-	.driver         = {
-		.name   = "ast-peci",
-		.owner  = THIS_MODULE,
+#endif	
+	.driver		= {
+		.name	= KBUILD_MODNAME,
+		.of_match_table = of_ast_peci_match_table,
 	},
 };
 
-static struct platform_device *ast_peci_device;
-
-static int __init ast_peci_init(void)
-{
-	int ret;
-
-	static const struct resource ast_peci_resources[] = {
-		[0] = {
-			.start = AST_PECI_BASE,
-			.end = AST_PECI_BASE + SZ_4K - 1,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = IRQ_PECI,
-			.end = IRQ_PECI,
-			.flags = IORESOURCE_IRQ,
-		},
-	};
-
-	ret = platform_driver_register(&ast_peci_driver);
-
-	//SCU PECI CTRL Reset
-	ast_scu_init_peci();	
-
-	if (!ret) {
-		ast_peci_device = platform_device_register_simple("ast-peci", 0,
-								ast_peci_resources, ARRAY_SIZE(ast_peci_resources));
-		if (IS_ERR(ast_peci_device)) {
-			platform_driver_unregister(&ast_peci_driver);
-			ret = PTR_ERR(ast_peci_device);
-		}
-	}
-
-	return ret;
-}
-
-static void __exit ast_peci_exit(void)
-{
-	platform_device_unregister(ast_peci_device);
-	platform_driver_unregister(&ast_peci_driver);
-}
-
-module_init(ast_peci_init);
-module_exit(ast_peci_exit);
+module_platform_driver(ast_peci_driver);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
-MODULE_DESCRIPTION("AST PECI driver");
+MODULE_DESCRIPTION("ASPEED PECI driver");
 MODULE_LICENSE("GPL");

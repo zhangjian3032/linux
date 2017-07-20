@@ -35,14 +35,39 @@
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/miscdevice.h>
-#ifdef CONFIG_COLDFIRE
-#include <asm/arch/regs-mbx.h>
-#else
-#include <plat/regs-mbx.h>
 #include <mach/irqs.h>
 #include <mach/platform.h>
-#endif
+/***********************************************************************/
+#define AST_MBX_DAT0				0x00
+#define AST_MBX_DAT1				0x04
+#define AST_MBX_DAT2				0x08
+#define AST_MBX_DAT3				0x0C
+#define AST_MBX_DAT4				0x10
+#define AST_MBX_DAT5				0x14
+#define AST_MBX_DAT6				0x18
+#define AST_MBX_DAT7				0x1C
+#define AST_MBX_DAT8				0x20
+#define AST_MBX_DAT9				0x24
+#define AST_MBX_DATA				0x28
+#define AST_MBX_DATB				0x2C
+#define AST_MBX_DATC				0x30
+#define AST_MBX_DATD				0x34
+#define AST_MBX_DATE				0x38
+#define AST_MBX_DATF				0x3C
+#define AST_MBX_STS0				0x40
+#define AST_MBX_STS1				0x44
+#define AST_MBX_BCR				0x48
+#define AST_MBX_HCR				0x4C
+#define AST_MBX_BIE0				0x50
+#define AST_MBX_BIE1				0x54
+#define AST_MBX_HIE0				0x58
+#define AST_MBX_HIE1				0x5C
 
+/* AST_MBX_BCR					0x48 	*/
+#define	MBHIST			(1 << 7)
+#define	MBHMK			(1 << 1)
+#define	MBBINT			(1)
+/***********************************************************************/
 //#define CONFIG_AST_MBX_DEBUG
 
 #ifdef CONFIG_AST_MBX_DEBUG
@@ -331,58 +356,27 @@ ast_mailbox_resume(struct platform_device *pdev)
 #define ast_mailbox_resume         NULL
 #endif
 
+static const struct of_device_id ast_mailbox_of_matches[] = {
+	{ .compatible = "aspeed,ast-mailbox", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, ast_mailbox_of_matches);
+
 static struct platform_driver ast_mailbox_driver = {
 	.probe		= ast_mailbox_probe,
 	.remove 		= ast_mailbox_remove,
-	.suspend        = ast_mailbox_suspend,
-	.resume         = ast_mailbox_resume,
-	.driver         = {
-		.name   = "ast-mailbox",
-		.owner  = THIS_MODULE,
+#ifdef CONFIG_PM	
+	.suspend		= ast_mailbox_suspend,
+	.resume 		= ast_mailbox_resume,
+#endif	
+	.driver 		= {
+		.name	= KBUILD_MODNAME,
+		.of_match_table = ast_mailbox_of_matches,
 	},
 };
 
-static struct platform_device *ast_mailbox_device;
+module_platform_driver(ast_mailbox_driver);
 
-static int __init ast_mailbox_init(void)
-{
-	int ret;
-
-	static const struct resource ast_mailbox_resource[] = {
-		[0] = {
-			.start = AST_MBX_BASE,
-			.end = AST_MBX_BASE + SZ_256,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = IRQ_MAILBOX,
-			.end = IRQ_MAILBOX,
-			.flags = IORESOURCE_IRQ,
-		},
-	};
-
-	ret = platform_driver_register(&ast_mailbox_driver);
-
-	if (!ret) {
-		ast_mailbox_device = platform_device_register_simple("ast-mailbox", 0,
-								ast_mailbox_resource, ARRAY_SIZE(ast_mailbox_resource));
-		if (IS_ERR(ast_mailbox_device)) {
-			platform_driver_unregister(&ast_mailbox_driver);
-			ret = PTR_ERR(ast_mailbox_device);
-		}
-	}
-
-	return ret;
-}
-
-static void __exit ast_mailbox_exit(void)
-{
-	platform_device_unregister(ast_mailbox_device);
-	platform_driver_unregister(&ast_mailbox_driver);
-}
-
-module_init(ast_mailbox_init);
-module_exit(ast_mailbox_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST Mailbox driver");

@@ -42,14 +42,8 @@ In ICH7 or newer, choose any 2 of GENx_DEC, set 00040081h & 007C0C81h
 #include <mach/hardware.h>
 #include <linux/dma-mapping.h>
 
-#include <plat/regs-lpc.h>
-#include <plat/ast-lpc.h>
-#ifdef CONFIG_ARCH_AST1070
-#include <plat/ast-uart-dma.h>
-#include <plat/ast1070-scu.h>
-#include <plat/ast1070-devs.h>
-#include <plat/regs-ast1070-intc.h>
-#endif
+#include <mach/regs-lpc.h>
+#include <mach/ast-lpc.h>
 #include <linux/miscdevice.h>
 #include <linux/hwmon-sysfs.h>
 

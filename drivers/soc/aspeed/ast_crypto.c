@@ -51,7 +51,7 @@
 #include <mach/irqs.h>
 #include <mach/platform.h>
 #include <mach/hardware.h>
-#include <plat/ast-scu.h>
+#include <mach/ast-scu.h>
 #include "aes.h"
 
 /*****************************************************************************************************************/
@@ -753,69 +753,24 @@ static int ast_crypto_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct platform_device_id ast_crypto_idtable[] = {
-	{
-		.name = "ast-crypto",
-//		.driver_data = ast_video_data,
-		/* sentinel */
-	},
-	{
-	}
+static const struct of_device_id ast_crypto_of_matches[] = {
+	{ .compatible = "aspeed,ast-crypto", },
+	{},
 };
-MODULE_DEVICE_TABLE(platform, ast_crypto_idtable);
+
+MODULE_DEVICE_TABLE(of, ast_crypto_of_matches);
+
 
 static struct platform_driver ast_crypto_driver = {
-	.driver		= {
-		.name	= "ast-crypto",
-		.owner	= THIS_MODULE,
-	},
 	.probe 		= ast_crypto_probe,
 	.remove		= ast_crypto_remove,
-	.id_table	= ast_crypto_idtable,		
+	.driver         = {
+		.name   = KBUILD_MODNAME,
+		.of_match_table = ast_crypto_of_matches,
+	},
 };
 
-static struct platform_device *ast_crypto_device;
-
-static int __init ast_crypto_init(void)
-{
-	int ret;
-
-	static const struct resource ast_crypto_resource[] = {
-		[0] = {
-			.start	= AST_CRYPTO_BASE,
-			.end	= AST_CRYPTO_BASE + SZ_128 - 1,
-			.flags	= IORESOURCE_MEM,
-		},
-		[1] = {
-				.start = IRQ_CRYPTO,
-				.end = IRQ_CRYPTO,
-				.flags = IORESOURCE_IRQ,
-		},
-		
-	};
-
-	ret = platform_driver_register(&ast_crypto_driver);
-
-	if (!ret) {
-		ast_crypto_device = platform_device_register_simple("ast-crypto", 0,
-								ast_crypto_resource, ARRAY_SIZE(ast_crypto_resource));
-		if (IS_ERR(ast_crypto_device)) {
-			platform_driver_unregister(&ast_crypto_driver);
-			ret = PTR_ERR(ast_crypto_device);
-		}
-	}
-
-	return ret;
-}
-
-static void __exit ast_crypto_exit(void)
-{
-	platform_device_unregister(ast_crypto_device);
-	platform_driver_unregister(&ast_crypto_driver);
-}
-
-module_init(ast_crypto_init);
-module_exit(ast_crypto_exit);
+module_platform_driver(ast_crypto_driver);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST Crypto driver");
