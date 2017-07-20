@@ -27,8 +27,7 @@
 
 #include <mach/platform.h>
 #include <mach/hardware.h>
-
-#include <plat/ast-sdmc.h>
+#include <mach/ast-sdmc.h>
 /************************************  Registers for SDMC ****************************************/ 
 #define AST_SDMC_PROTECT				0x00		/*	protection key register	*/
 #define AST_SDMC_CONFIG				0x04		/*	Configuration register */

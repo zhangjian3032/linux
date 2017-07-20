@@ -21,7 +21,6 @@
 *	 4 - show/store upper
 *	 5 - show/store lower  */
 
-
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
@@ -34,16 +33,182 @@
 #include <linux/sysfs.h>
 #include <linux/err.h>
 #include <linux/slab.h>
-
-
 #include <asm/io.h>
-
-#include <mach/irqs.h>
 #include <mach/platform.h>
+#include <mach/ast-scu.h>
+/****************************************************************************************/
+#if defined(AST_SOC_G3)
+#define MAX_CH_NO		12
+#elif defined(AST_SOC_G4) || defined(AST_SOC_G5) 
+#define MAX_CH_NO		16
+#elif defined(CONFIG_ARCH_AST1010)
+#define MAX_CH_NO		8
+#else
+#err "ADC NO define MAX CHANNEL NO"
+#endif
 
-#include <plat/regs-adc.h>
-#include <plat/ast-scu.h>
+#if defined(AST_SOC_G5) 
+#define TEMPER_CH_NO	2
+#endif
 
+/*AST ADC Register Definition */
+#define AST_ADC_CTRL			0x00
+#define AST_ADC_IER				0x04
+#define AST_ADC_VGA				0x08
+#if defined(CONFIG_ARCH_AST1010)
+#define AST_ADC_TRIM			0x08
+#endif
+#define AST_ADC_CLK				0x0c
+#define AST_ADC_CH0_1			0x10
+#define AST_ADC_CH2_3			0x14
+#define AST_ADC_CH4_5			0x18
+#define AST_ADC_CH6_7			0x1c
+#define AST_ADC_CH8_9			0x20
+#define AST_ADC_CH10_11			0x24
+#define AST_ADC_CH12_13			0x28
+#define AST_ADC_CH14_15			0x2c
+#define AST_ADC_BOUND0			0x30
+#define AST_ADC_BOUND1			0x34
+#define AST_ADC_BOUND2			0x38
+#define AST_ADC_BOUND3			0x3c
+#define AST_ADC_BOUND4			0x40
+#define AST_ADC_BOUND5			0x44
+#define AST_ADC_BOUND6			0x48
+#define AST_ADC_BOUND7			0x4c
+#define AST_ADC_BOUND8			0x50
+#define AST_ADC_BOUND9			0x54
+#define AST_ADC_BOUND10			0x58
+#define AST_ADC_BOUND11			0x5c
+#define AST_ADC_BOUND12			0x60
+#define AST_ADC_BOUND13			0x64
+#define AST_ADC_BOUND14			0x68
+#define AST_ADC_BOUND15			0x6c
+#define AST_ADC_HYSTER0			0x70
+#define AST_ADC_HYSTER1			0x74
+#define AST_ADC_HYSTER2			0x78
+#define AST_ADC_HYSTER3			0x7c
+#define AST_ADC_HYSTER4			0x80
+#define AST_ADC_HYSTER5			0x84
+#define AST_ADC_HYSTER6			0x88
+#define AST_ADC_HYSTER7			0x8c
+#define AST_ADC_HYSTER8			0x90
+#define AST_ADC_HYSTER9			0x94
+#define AST_ADC_HYSTER10		0x98
+#define AST_ADC_HYSTER11		0x9c
+#define AST_ADC_HYSTER12		0xa0
+#define AST_ADC_HYSTER13		0xa4
+#define AST_ADC_HYSTER14		0xa8
+#define AST_ADC_HYSTER15		0xac
+#define AST_ADC_INTR_SEL		0xC0
+#if defined(AST_SOC_G5)
+#define AST_ADC_CH16			0xD0
+#define AST_ADC_CH17			0xD4
+#define AST_ADC_COMP_TRIM		0xC4
+#endif
+
+// AST_ADC_CTRL:0x00 - ADC Engine Control Register 
+#define AST_ADC_CTRL_CH15_EN		(0x1 << 31)
+#define AST_ADC_CTRL_CH14_EN		(0x1 << 30)
+#define AST_ADC_CTRL_CH13_EN		(0x1 << 29)
+#define AST_ADC_CTRL_CH12_EN		(0x1 << 28)
+#define AST_ADC_CTRL_CH11_EN		(0x1 << 27)
+#define AST_ADC_CTRL_CH10_EN		(0x1 << 26)
+#define AST_ADC_CTRL_CH9_EN			(0x1 << 25)
+#define AST_ADC_CTRL_CH8_EN			(0x1 << 24)
+#define AST_ADC_CTRL_CH7_EN			(0x1 << 23)
+#define AST_ADC_CTRL_CH6_EN			(0x1 << 22)
+#define AST_ADC_CTRL_CH5_EN			(0x1 << 21)
+#define AST_ADC_CTRL_CH4_EN			(0x1 << 20)
+#define AST_ADC_CTRL_CH3_EN			(0x1 << 19)
+#define AST_ADC_CTRL_CH2_EN			(0x1 << 18)
+#define AST_ADC_CTRL_CH1_EN			(0x1 << 17)
+#define AST_ADC_CTRL_CH0_EN			(0x1 << 16)
+
+#if defined(AST_SOC_G3)
+#define AST_ADC_CTRL_COMPEN_CLR		(0x1 << 6)
+#define AST_ADC_CTRL_COMPEN			(0x1 << 5)
+#elif defined(AST_SOC_G4)
+#define AST_ADC_CTRL_COMPEN			(0x1 << 4)
+#elif defined(AST_SOC_G5)
+#define AST_ADC_CTRL_INIT_RDY		(0x1 << 8)
+#define AST_ADC_CTRL_COMPEN			(0x1 << 5)
+#else
+#err "ERROR define COMPEN ADC"
+#endif
+
+#if defined(CONFIG_ARCH_AST1010)
+#define AST_ADC_CTRL_OTP			(0x1 << 3)
+#define AST_ADC_CTRL_PWR_DWN		(0x1 << 2)
+#define AST_ADC_CTRL_TEST			(0x1 << 1)
+#endif
+
+#define AST_ADC_CTRL_NORMAL			(0x7 << 1)
+
+#define AST_ADC_CTRL_EN				(0x1)
+
+
+/* AST_ADC_IER : 0x04 - Interrupt Enable and Interrupt status	*/
+#define AST_ADC_IER_CH15			(0x1 << 31)
+#define AST_ADC_IER_CH14			(0x1 << 30)
+#define AST_ADC_IER_CH13			(0x1 << 29)
+#define AST_ADC_IER_CH12			(0x1 << 28)
+#define AST_ADC_IER_CH11			(0x1 << 27)
+#define AST_ADC_IER_CH10			(0x1 << 26)
+#define AST_ADC_IER_CH9				(0x1 << 25)
+#define AST_ADC_IER_CH8				(0x1 << 24)
+#define AST_ADC_IER_CH7				(0x1 << 23)
+#define AST_ADC_IER_CH6				(0x1 << 22)
+#define AST_ADC_IER_CH5				(0x1 << 21)
+#define AST_ADC_IER_CH4				(0x1 << 20)
+#define AST_ADC_IER_CH3				(0x1 << 19)
+#define AST_ADC_IER_CH2				(0x1 << 18)
+#define AST_ADC_IER_CH1				(0x1 << 17)
+#define AST_ADC_IER_CH0				(0x1 << 16)
+#define AST_ADC_STS_CH15			(0x1 << 15)
+#define AST_ADC_STS_CH14			(0x1 << 14)
+#define AST_ADC_STS_CH13			(0x1 << 13)
+#define AST_ADC_STS_CH12			(0x1 << 12)
+#define AST_ADC_STS_CH11			(0x1 << 11)
+#define AST_ADC_STS_CH10			(0x1 << 10)
+#define AST_ADC_STS_CH9				(0x1 << 9)
+#define AST_ADC_STS_CH8				(0x1 << 8)
+#define AST_ADC_STS_CH7				(0x1 << 7)
+#define AST_ADC_STS_CH6				(0x1 << 6)
+#define AST_ADC_STS_CH5				(0x1 << 5)
+#define AST_ADC_STS_CH4				(0x1 << 4)
+#define AST_ADC_STS_CH3				(0x1 << 3)
+#define AST_ADC_STS_CH2				(0x1 << 2)
+#define AST_ADC_STS_CH1				(0x1 << 1)
+#define AST_ADC_STS_CH0				(0x1)
+
+/* AST_ADC_VGA	: 0x08 - VGA Detect Control */
+#define AST_ADC_VGA_EN				(0x1 << 16)
+#define AST_ADC_VGA_DIV_MASK		(0x3ff)
+
+/* AST_ADC_CLK : 0x0c - ADC CLK Control */
+#define AST_ADC_CLK_PRE_DIV_MASK	(0x7fff << 17)
+#define AST_ADC_CLK_PRE_DIV			(0x1 << 17)
+#define AST_ADC_CLK_INVERT			(0x1 << 16)		//only for ast2300
+#define AST_ADC_CLK_DIV_MASK		(0x3ff)
+
+#define AST_ADC_H_CH_MASK			(0x3ff << 16)
+#define AST_ADC_L_CH_MASK			(0x3ff)
+
+#define AST_ADC_H_BOUND				(0x3ff << 16)
+#define AST_ADC_L_BOUND				(0x3ff)
+
+#define AST_ADC_HYSTER_EN			(0x1 << 31)
+
+#if defined(AST_SOC_G5)
+/* AST_ADC_CH16	 : 0xD0 - */
+/* AST_ADC_CH17	 : 0xD4 - */
+#define AST_TEMP_CH_RDY				(0x1 << 31)
+#define AST_GET_TEMP_A_MASK(x)		((x >>16) & 0xfff)
+#define AST_TEMP_CH_EN				(0x1 << 15)		
+#define AST_GET_TEMP_B_MASK(x)		(x & 0xfff)
+#endif
+
+/******************************************************************************************/
 
 struct adc_ch_vcc_data {
 	int v2;
@@ -756,7 +921,7 @@ ast_adc_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "ast_adc_probe \n");
 
-	ast_adc = kzalloc(sizeof(struct ast_adc_data), GFP_KERNEL);
+	ast_adc = devm_kzalloc(&pdev->dev, sizeof(struct ast_adc_data), GFP_KERNEL);
 	if (!ast_adc) {
 		ret = -ENOMEM;
 		goto out;
@@ -769,13 +934,7 @@ ast_adc_probe(struct platform_device *pdev)
 		goto out_mem;
 	}
 
-	if (!request_mem_region(res->start, resource_size(res), res->name)) {
-		dev_err(&pdev->dev, "cannot reserved region\n");
-		ret = -ENXIO;
-		goto out_mem;
-	}
-
-	ast_adc->reg_base = ioremap(res->start, resource_size(res));
+	ast_adc->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (!ast_adc->reg_base) {
 		ret = -EIO;
 		goto out_region;
@@ -829,7 +988,7 @@ out_region:
 out_mem:
 	kfree(ast_adc);
 out:
-	printk(KERN_WARNING "applesmc: driver init failed (ret=%d)!\n", ret);
+	printk(KERN_WARNING "ast_adc: driver init failed (ret=%d)!\n", ret);
 	return ret;
 }
 
@@ -841,7 +1000,7 @@ ast_adc_remove(struct platform_device *pdev)
 	struct resource *res;
 	printk(KERN_INFO "ast_adc: driver unloaded.\n");
 
-    hwmon_device_unregister(ast_adc->dev);
+	hwmon_device_unregister(ast_adc->dev);
 
 	for(i=0; i<MAX_CH_NO; i++)
 		sysfs_remove_group(&pdev->dev.kobj, &adc_attribute_groups[i]);
@@ -882,60 +1041,24 @@ ast_adc_resume(struct platform_device *pdev)
 #define ast_adc_resume         NULL
 #endif
 
+static const struct of_device_id ast_adc_matches[] = {
+	{ .compatible = "aspeed,ast-adc", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, ast_adc_matches);
+
 static struct platform_driver ast_adc_driver = {
 	.probe 		= ast_adc_probe,
 	.remove 		= ast_adc_remove,
 	.suspend        = ast_adc_suspend,
 	.resume         = ast_adc_resume,
 	.driver         = {
-	.name   = "ast-adc",
-	.owner  = THIS_MODULE,
+		.name   = KBUILD_MODNAME,
+		.of_match_table = ast_adc_matches,
 	},
 };
 
-static struct platform_device *ast_adc_device;
-
-static int __init ast_adc_init(void)
-{
-	int ret;
-	static const struct resource ast_adc_resources[] = {
-		[0] = {
-			.start = AST_ADC_BASE,
-			.end = AST_ADC_BASE + SZ_4K - 1,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = IRQ_ADC,
-			.end = IRQ_ADC,
-			.flags = IORESOURCE_IRQ,
-		},
-	};
-	
-	ret = platform_driver_register(&ast_adc_driver);
-
-	//SCU ADC CTRL Reset
-	ast_scu_init_adc();	
-
-	if (!ret) {
-		ast_adc_device = platform_device_register_simple("ast-adc", 0,
-								ast_adc_resources, ARRAY_SIZE(ast_adc_resources));
-		if (IS_ERR(ast_adc_device)) {
-			platform_driver_unregister(&ast_adc_driver);
-			ret = PTR_ERR(ast_adc_device);
-		}
-	}
-
-	return ret;
-}
-
-static void __exit ast_adc_exit(void)
-{
-	platform_device_unregister(ast_adc_device);
-	platform_driver_unregister(&ast_adc_driver);
-}
-
-module_init(ast_adc_init);
-module_exit(ast_adc_exit);
+module_platform_driver(ast_adc_driver);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST ADC driver");

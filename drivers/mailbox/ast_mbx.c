@@ -317,8 +317,8 @@ static int __init ast_coldfire_mbx_init(void)
 			.flags = IORESOURCE_MEM,
 		},
 		[1] = {
-			.start = IRQ_CPU,
-			.end = IRQ_CPU, 
+			.start = IRQ_CFV0,
+			.end = IRQ_CFV0, 
 			.flags = IORESOURCE_IRQ,
 		},
 	};

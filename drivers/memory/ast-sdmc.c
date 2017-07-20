@@ -26,9 +26,7 @@
 
 #include <mach/platform.h>
 #include <mach/hardware.h>
-
-#include <plat/ast-sdmc.h>
-
+#include <mach/ast-sdmc.h>
 /***********************  Registers for SDMC ***************************/ 
 #define AST_SDMC_PROTECT	0x00		/*	protection key register	*/
 #define AST_SDMC_CONFIG		0x04		/*	Configuration register */
@@ -167,11 +165,34 @@ ast_sdmc_get_cache(void)
 		return 0;
 }
 
-static int __init ast_sdmc_init(void)
+static int ast_sdmc_probe(struct platform_device *pdev)
 {
+	struct resource *res;
+
 	SDMCDBUG("\n");
-	ast_sdmc_base = ioremap(AST_SDMC_BASE , SZ_256);
+	
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ast_sdmc_base = devm_ioremap_resource(&pdev->dev, res);
+
 	return 0;
+}
+
+static const struct of_device_id ast_sdmc_of_match[] = {
+	{ .compatible = "aspeed,ast-admc", },
+	{ }
+};
+
+static struct platform_driver ast_sdmc_driver = {
+	.probe = ast_sdmc_probe,
+	.driver = {
+		.name = KBUILD_MODNAME,
+		.of_match_table = ast_sdmc_of_match,
+	},
+};
+
+static int ast_bmc_scu_init(void)
+{
+	return platform_driver_register(&ast_sdmc_driver);
 }
 
 core_initcall(ast_sdmc_init);
