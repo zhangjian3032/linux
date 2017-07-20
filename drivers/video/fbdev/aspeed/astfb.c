@@ -38,11 +38,175 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/mach/map.h>
-#include <plat/aspeed.h>
-#include <plat/regs-crt.h>
+#include <mach/aspeed.h>
 #include <mach/ast_lcd.h>
+#include <mach/ast-scu.h>
+
 
 /***********************************************************************/
+/* CRT control registers */
+//0x00 ~ 0x5F Reserved - FB0 
+//0x60 ~ 90 FB1
+#define AST_CRT_CTRL1				0x60
+#define AST_CRT_CTRL2				0x64
+#define AST_CRT_STS					0x68
+#define AST_CRT_PLL					0x6C
+#define AST_CRT_HORIZ0				0x70
+#define AST_CRT_HORIZ1				0x74
+#define AST_CRT_VERTI0				0x78
+#define AST_CRT_VERTI1				0x7C
+#define AST_CRT_ADDR				0x80
+#define AST_CRT_OFFSET				0x84
+#define AST_CRT_THROD				0x88
+#define AST_CRT_XSCALING			0x8C
+//0x8c Reserved
+//0x90 ~ Cursor
+#define AST_CRT_CURSOR0				0x90
+#define AST_CRT_CURSOR1				0x94
+#define AST_CRT_CURSOR2				0x98
+#define AST_CRT_UADDR				0x9C
+//0x9c Reserved
+//0xA0 ~ OSD
+#define AST_CRT_OSDH				0xA0
+#define AST_CRT_OSDV				0xA4
+#define AST_CRT_OSDADDR				0xA8
+#define AST_CRT_OSDDISP				0xAC
+#define AST_CRT_OSDTHROD			0xB0
+#define AST_CRT_VADDR				0xB4
+
+//0xb4 Reserved
+#define AST_CRT_STS_V				0xB8
+#define AST_CRT_SCRATCH				0xBC
+#define AST_CRT_X					0xC0
+//0xC4
+#define AST_CRT_OSD_COLOR			0xE0
+
+/* AST_CRT_CTRL1 - 0x60 : CRT Control Register I */
+#define CRT_CTRL_VERTICAL_INTR_STS	(0x1 << 31) 
+#define CRT_CTRL_VERTICAL_INTR_EN	(0x1 << 30) 
+//24~28 reserved
+#define CRT_CTRL_DESK_OFF			(0x1 << 23) 
+#define CRT_CTRL_FSYNC_OFF			(0x1 << 22) 
+#define CRT_CTRL_FSYNC_POLARITY		(0x1 << 21) 
+#define CRT_CTRL_SCREEN_OFF			(0x1 << 20) 
+#define CRT_CTRL_VSYNC_OFF			(0x1 << 19) 
+#define CRT_CTRL_HSYNC_OFF			(0x1 << 18) 
+#define CRT_CTRL_VSYNC_POLARITY		(0x1 << 17) 
+#define CRT_CTRL_HSYNC_POLARITY		(0x1 << 16) 
+#define CRT_CTRL_TILE_EN			(0x1 << 15) 
+#define CRT_CTRL_HDTVYUV_EN			(0x1 << 14) 
+#define CRT_CTRL_YUV_FORMAT(x)		(x << 12) 
+#define YUV_MODE0					0
+#define YUV_MODE1					1
+#define YUV_MODE2					2
+// bit 11 reserved 
+#define CRT_CTRL_HW_CURSOR_FORMAT	(0x1 << 10) // 0: XRGB4444, 1:ARGB4444
+#define CRT_CTRL_FORMAT_MASK		(0x7 << 7)
+#define CRT_CTRL_GET_FORMAT(x)		((x >> 7) & 0x7)
+#define CRT_CTRL_FORMAT(x)			(x << 7)
+#define COLOR_RGB565				(0)
+#define COLOR_YUV444				(1)
+#define COLOR_XRGB8888				(2)
+#define COLOR_RGB888				(3)
+#define COLOR_YUV444_2RGB			(5)
+#define COLOR_YUV422				(7)
+#define CRT_CTRL_ENVEFLIP			(0x1 << 6)
+//bit 5
+#define CRT_CTRL_SCALING_X			(0x1 << 4)
+#define CRT_CTRL_INTER_TIMING		(0x1 << 3)
+#define CRT_CTRL_OSD_EN				(0x1 << 2)
+#define CRT_CTRL_HW_CURSOR_EN		(0x1 << 1)
+#define CRT_CTRL_GRAPHIC_EN			(0x1)
+
+/*AST_CRT_CTRL2 - 0x64 : CRT Control Register II */
+#define CRT_CTRL_VLINE_NUM_MASK		(0xfff << 20)
+#define CRT_CTRL_VLINE_NUM(x)		(x << 20)
+#define CRT_CTRL_TESTDVO_MASK		(0xfff << 8)
+#define CRT_CTRL_TESTDVO(x)			(x << 8)
+#define CRT_CTRL_DVO_EN				(0x1 << 7)
+#define CRT_CTRL_DVO_DUAL			(0x1 << 6)
+#define CRT_CTRL_FIFO_FULL			(0x1 << 5)
+#define CRT_CTRL_TEST_EN			(0x1 << 4)
+#define CRT_CTRL_SIGN_DON			(0x1 << 3)
+#define CRT_CTRL_SIGN_TRIGGER		(0x1 << 2)
+#define CRT_CTRL_DAC_TEST_EN		(0x1 << 1)
+#define CRT_CTRL_DAC_PWR_EN			(0x1)
+
+/* AST_CRT_STS	- 0x68 : CRT Status Register */
+#define CRT_STS_RED_RB(x)			(x << 24)
+#define CRT_STS_GREEN_RB(x)			(x << 16)
+#define CRT_STS_BLUE_RB(x)			(x << 8)
+#define CRT_STS_DAC_SENSE_EN		(0x1 << 7)
+//6 reserved
+#define CRT_STS_ODDFIELD_SYNC		(0x1 << 5)
+#define CRT_STS_ODDFIELD			(0x1 << 4)
+#define CRT_STS_HDISPLAY_RB			(0x1 << 3)
+#define CRT_STS_HRETRACE_RB			(0x1 << 2)
+#define CRT_STS_VDISPLAY_RB			(0x1 << 1)
+#define CRT_STS_VRETRACE_RB			(0x1)
+
+/* AST_CRT_PLL -  0x6C : CRT Video PLL Setting Register */
+#define CRT_PLL_DAC_MODE_SENSE(x)	(x << 30)
+#define CRT_PLL_DAC_SENSE(x)		(x << 28)
+#define CRT_PLL_BYPASS				(0x1 << 17)
+#define CRT_PLL_PWR_DWN				(0x1 << 16)
+#define CRT_PLL_POST_DIVIDER(x)		(((x & 0x3) << 13) | (((x >> 2) & 0xf) << 18) | (((x >> 6) & 0x1) << 23) | (((x >> 7) & 0x1) << 22))
+#define CRT_PLL_DENUM(x)			(x << 8)
+#define CRT_PLL_NUM(x)				(x)
+
+/* AST_CRT_HORIZ0 - 0x70 : CRT Horizontal Total & Display Enable End Register */
+#define CRT_H_TOTAL(x)				(x)
+#define CRT_H_DE(x) 				(x << 16)
+
+/* AST_	0x74 : CRT Horizontal Retrace Start & End Register */
+#define CRT_H_RS_START(x)			(x)
+#define CRT_H_RS_END(x)				(x << 16)
+
+/* AST_CRT_ - 0x78 : CRT Horizontal Total & Display Enable End Register */
+#define CRT_V_TOTAL(x)				(x)
+#define CRT_V_DE(x) 				(x << 16)
+
+/* AST_	0x7C : CRT Horizontal Retrace Start & End Register */
+#define CRT_V_RS_START(x)			(x)
+#define CRT_V_RS_END(x)				(x << 16)
+
+/* AST_CRT_OFFSET - 0x84 : CRT Display Offset & Terminal Count Register */
+#define CRT_GET_DISP_OFFSET(x)		(x & 0xffff)
+#define CRT_DISP_OFFSET(x)			(x)
+#define CRT_TERM_COUNT(x)			(x << 16)
+
+/* Default Threshold Seting */
+#ifdef AST_SOC_G5
+#define CRT_LOW_THRESHOLD_VALUE         0x24
+#define CRT_HIGH_THRESHOLD_VALUE        0x3C
+#else
+#define CRT_LOW_THRESHOLD_VALUE         0x12
+#define CRT_HIGH_THRESHOLD_VALUE        0x1E
+#endif
+//#define    CRT_LOW_THRESHOLD_VALUE             0x60
+//#define    CRT_HIGH_THRESHOLD_VALUE            0x78
+//for fix 1920X1080
+//#define    CRT_LOW_THRESHOLD_VALUE             0x16
+//#define    CRT_HIGH_THRESHOLD_VALUE            0x1E
+
+/* AST_CRT_THROD - 0x88 : CRT Threadhold Register */
+#define CRT_THROD_LOW(x)			(x)
+#define CRT_THROD_HIGH(x)			(x << 8)
+#define CRT_THROD_X_SCALING(x)		(x << 16)
+#define CRT_THROD_CRT2Y				(0x1 << 20)
+
+/* AST_CRT_XSCALING - 0x8C : CRT X Scaling-up Factor Register */
+
+
+/* AST_CRT_CURSOR0	: 0x90 - CRT Hardware Cursor X & Y Offset Register */
+#define CRT_HW_CURSOR_X_OFFSET(x)			(x)
+#define CRT_HW_CURSOR_Y_OFFSET(x)			(x << 16)
+
+/* AST_CRT_CURSOR1 : 0x94 - CRT Hardware Cursor X & Y Position Register */
+#define CRT_HW_CURSOR_X_POSITION(x)			(x)
+#define CRT_HW_CURSOR_Y_POSITION(x)			(x << 16)
+/***********************************************************************/
+
 struct ast_fb_cursor_set
 {
 	unsigned int xPos;
@@ -335,7 +499,6 @@ struct astfb_info {
 	struct platform_device 	*pdev;
 	struct fb_info			*info;
 	struct resource *reg_res;
-	struct resource *fb_res;
 	void __iomem *base;
 	phys_addr_t *cursor_phy;	
 	void __iomem *cursor_virt;
@@ -359,7 +522,7 @@ struct astfb_info {
 	u8 dac;	//0: disable , 1 : enable
 	u8 dvo;	//0: disable , 1 : enable
 	u8 xmiter;	//0: dvi, 1:hdmi;	
-	struct ast_fb_plat_data *fb_plat_data;
+//	struct ast_fb_plat_data *fb_plat_data;
 	 
 };
 
@@ -609,8 +772,10 @@ static int astfb_set_par(struct fb_info *info)
 	ASTFB_DBG("var->pixclock = %d \n",var->pixclock);
 
 #ifdef AST_SOC_G5
+	//AST2500 force d2 pll for support 800x600
+#if 0
 	if(sfb->fb_plat_data->set_pll) {
-		if(sfb->fb_plat_data->clock_src == 24000000) {
+		if(ast_get_clk_source() == 24000000) {
 			for(i=0; i<sizeof(pll_table)/sizeof(struct pixel_freq_pll_data); i++) {
 				if(pll_table[i].pixel_freq == var->pixclock) {
 					sfb->fb_plat_data->set_pll(pll_table[i].pll_set);
@@ -634,7 +799,9 @@ static int astfb_set_par(struct fb_info *info)
 			
 		}
 	}
+#endif	
 #else
+	
 	for(i=0; i<sizeof(pll_table)/sizeof(struct pixel_freq_pll_data); i++) {
 		if(pll_table[i].pixel_freq == var->pixclock) {
 			astfb_write(sfb, pll_table[i].pll_set, AST_CRT_PLL);
@@ -1127,6 +1294,7 @@ static int astfb_probe(struct platform_device *pdev)
 	struct astfb_info *sfb;
 	struct resource *res;
 	struct fb_info *info;
+	dma_addr_t fb_dma;
 #ifdef CONFIG_DISPLAY_SUPPORT	
 	struct ast_display_device *disp_dev;
 #endif	
@@ -1137,6 +1305,8 @@ static int astfb_probe(struct platform_device *pdev)
 	bool found = false;	
 
 	ASTFB_DBG("\n");
+	ast_scu_multi_func_crt();
+	ast_scu_init_crt();
 
 	info = framebuffer_alloc(sizeof(struct astfb_info), dev);
 	if (!info) {
@@ -1163,7 +1333,6 @@ static int astfb_probe(struct platform_device *pdev)
 	}
 	
 	sfb->pdev = pdev;	
-	sfb->fb_plat_data = (struct ast_fb_plat_data *)dev->platform_data;
 	strcpy(info->fix.id, sfb->pdev->name);
 
 	sfb->reg_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1176,12 +1345,6 @@ static int astfb_probe(struct platform_device *pdev)
 	sfb->irq = platform_get_irq(pdev, 0);
 		if (!sfb->irq) {
 				dev_err(dev, "unable to get irq\n");
-		ret = -ENXIO;
-		goto free_info;
-	}
-
-	if(!sfb->fb_plat_data) {
-		dev_err(dev, "unable to get ast fb platform data\n");
 		ret = -ENXIO;
 		goto free_info;
 	}
@@ -1210,7 +1373,7 @@ static int astfb_probe(struct platform_device *pdev)
 		dev_warn(dev, "cannot get fb boot options will use default !!!\n");
 	}
 
-#ifdef CONFIG_DISPLAY_SUPPORT
+#if 0 //def CONFIG_DISPLAY_SUPPORT
 	disp_dev = ast_display_device_select(sfb->fb_plat_data->disp_dev_no);
 	if(disp_dev) {
 		if(disp_dev->ops->getedid(disp_dev, sfb->edid)) {
@@ -1247,14 +1410,16 @@ static int astfb_probe(struct platform_device *pdev)
 	if (!mode_option && !found) {
 		//use default modes list 
 #ifdef AST_SOC_G5
+#if 0
 		if(sfb->fb_plat_data->set_pll) {
 			mode_option = "1920x1080-32@60";
 			if (sfb->fb_plat_data->clock_src == 24000000) {
 			} else {
 			}
 		} else {
+#endif		
 			mode_option = "800x600-32@60";
-		}
+//		}
 #else
 		//AST2500 always use 800x600-32@60
 		mode_option = "800x600-32@60";
@@ -1280,10 +1445,15 @@ static int astfb_probe(struct platform_device *pdev)
 				found = true;
 		}
 #endif
+/////
+		//use 2MB for FB dma because 800x600
+		info->screen_base = dma_alloc_coherent(&pdev->dev, SZ_2M,
+				&fb_dma, GFP_KERNEL);
+		if (!info->screen_base)
+			return -ENOMEM;
 
-		sfb->fb_res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-		info->fix.smem_start = sfb->fb_res->start;
-		info->fix.smem_len = sfb->fb_res->end - sfb->fb_res->start + 1;
+		info->fix.smem_start = fb_dma;
+		info->fix.smem_len = SZ_8M;
 
 	}
 
@@ -1307,21 +1477,9 @@ static int astfb_probe(struct platform_device *pdev)
 
 	printk("info->fix.smem_start = %x, len = %x , bpp = %d\n",info->fix.smem_start, info->fix.smem_len, info->var.bits_per_pixel);
 
-	if (!request_mem_region(info->fix.smem_start, info->fix.smem_len, pdev->name)) {
-		dev_err(dev, "cannot request CRT mem %s\n", pdev->name);
-		ret = -EBUSY;
-		goto free_io;
-	}
-
-	info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
-	if (!info->screen_base) {
-		dev_err(dev, "cannot map CRT mem %s\n", pdev->name);
-		ret = -ENOMEM;
-		goto free_addr;
-	}
 
 	printk(KERN_INFO "FB Phys:%x, Virtual:%x \n", info->fix.smem_start, info->screen_base);
-
+#if 0
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if(res) {
 		//no cursor frame buffer 
@@ -1334,6 +1492,7 @@ static int astfb_probe(struct platform_device *pdev)
 //			goto free_addr;
 		}
 	}	
+#endif	
 //
 
     info->fix.type          = FB_TYPE_PACKED_PIXELS;
@@ -1363,7 +1522,8 @@ static int astfb_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&wq);
 
-	ret = request_irq(sfb->irq, astfb_isr, IRQF_SHARED, pdev->name, sfb);
+	ret = devm_request_irq(&pdev->dev, sfb->irq, astfb_isr,
+						   0, dev_name(&pdev->dev), sfb);	
 	if (ret) {
 			dev_err(dev, "Can't request LCD irq");
 			ret = -EBUSY;
@@ -1446,32 +1606,26 @@ static int astfb_resume(struct platform_device *pdev)
 #define astfb_resume  NULL
 #endif
 
-/* driver ops */
-static struct platform_driver astfb_driver = {
-    .probe      = astfb_probe,
-    .remove     = astfb_remove,
-    .suspend    = astfb_suspend,
-    .resume     = astfb_resume,
-    .driver     = {
-        .name   = "ast-fb",
-        .owner  = THIS_MODULE,
-    },
-	
+static const struct of_device_id ast_gfx_of_matches[] = {
+	{ .compatible = "aspeed,ast-gfx", },
+	{},
 };
-int __init astfb_init(void)
-{
-    return platform_driver_register(&astfb_driver);
-}
+MODULE_DEVICE_TABLE(of, ast_gfx_of_matches);
 
-static void __exit astfb_cleanup(void)
-{
-	printk(KERN_DEBUG "astfb: astfb_remove_module is called \n");
+static struct platform_driver ast_gfx_driver = {
+	.probe 		= astfb_probe,
+	.remove 		= astfb_remove,
+#ifdef CONFIG_PM	
+	.suspend        = astfb_suspend,
+	.resume         = astfb_resume,
+#endif	
+	.driver         = {
+		.name   = KBUILD_MODNAME,
+		.of_match_table = ast_gfx_of_matches,
+	},
+};
 
-	platform_driver_unregister(&astfb_driver);
-}
-
-module_init(astfb_init);
-module_exit(astfb_cleanup);
+module_platform_driver(ast_gfx_driver);
 
 MODULE_AUTHOR("Ryan Chen");
 MODULE_DESCRIPTION("Framebuffer driver for the ASPEED");
