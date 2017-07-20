@@ -32,6 +32,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/io.h>
+#include <mach/ast-sdhci.h>
 
 /*******************************************************************/
 #define AST_SDHCI_INFO				0x00
@@ -50,13 +51,6 @@
 #define SDHCI_IRQ_DBUG(fmt, args...)
 #endif
 /*******************************************************************/
-struct ast_sdhci_irq {
-	void __iomem	*regs;
-	int			parent_irq;
-	int			slot_num;
-	struct irq_domain	*irq_domain;
-};
-
 void ast_sd_set_8bit_mode(struct ast_sdhci_irq *sdhci_irq, u8 mode)
 {
 	if(mode)
