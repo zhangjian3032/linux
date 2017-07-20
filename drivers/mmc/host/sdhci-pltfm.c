@@ -35,6 +35,7 @@
 #include <asm/machdep.h>
 #endif
 #include "sdhci-pltfm.h"
+#include <mach/ast-sdhci.h>
 
 unsigned int sdhci_pltfm_clk_get_max_clock(struct sdhci_host *host)
 {
@@ -68,9 +69,11 @@ static bool sdhci_of_wp_inverted(struct device_node *np)
 
 void sdhci_get_of_property(struct platform_device *pdev)
 {
+	struct device_node *pnode;
 	struct device_node *np = pdev->dev.of_node;
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct ast_sdhci_irq *sdhci_irq = sdhci_pltfm_priv(pltfm_host);
 	u32 bus_width;
 
 	if (of_get_property(np, "sdhci,auto-cmd12", NULL))
@@ -98,6 +101,12 @@ void sdhci_get_of_property(struct platform_device *pdev)
 	    of_device_is_compatible(np, "fsl,t4240-esdhc") ||
 	    of_device_is_compatible(np, "fsl,mpc8536-esdhc"))
 		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
+
+	if(of_device_is_compatible(np, "aspeed,sdhci-ast")) {
+		host->quirks |= SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN | SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
+		pnode = of_parse_phandle(np, "interrupt-parent", 0);
+		memcpy(sdhci_irq, pnode->data, sizeof(struct ast_sdhci_irq));
+	}
 
 	of_property_read_u32(np, "clock-frequency", &pltfm_host->clock);
 

@@ -16,9 +16,8 @@
 #include "sdhci-pltfm.h"
 #include <mach/irqs.h>
 #include <mach/platform.h>
-#include <plat/ast-scu.h>
-
-extern void ast_sd_set_8bit_mode(u8 mode);
+#include <mach/ast-scu.h>
+#include <mach/ast-sdhci.h>
 
 static void sdhci_ast_set_clock(struct sdhci_host *host, unsigned int clock)
 {
@@ -69,20 +68,23 @@ out:
 
 static void sdhci_ast_set_bus_width(struct sdhci_host *host, int width)
 {
+	struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
+	struct ast_sdhci_irq *sdhci_irq = sdhci_pltfm_priv(pltfm_priv);
+
 	u8 ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
 
 	if (width == MMC_BUS_WIDTH_8) {
-		ast_sd_set_8bit_mode(1);
+		ast_sd_set_8bit_mode(sdhci_irq, 1);
 	} else {
-		ast_sd_set_8bit_mode(0);
+		ast_sd_set_8bit_mode(sdhci_irq, 0);
 	}
-
 	if (width == MMC_BUS_WIDTH_4)
 		ctrl |= SDHCI_CTRL_4BITBUS;
 	else
 		ctrl &= ~SDHCI_CTRL_4BITBUS;
 		
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
+
 }
 
 static unsigned int sdhci_ast_get_max_clk(struct sdhci_host *host)
@@ -114,118 +116,32 @@ static struct sdhci_ops sdhci_ast_ops = {
 
 static struct sdhci_pltfm_data sdhci_ast_pdata = {
 	.ops = &sdhci_ast_ops,
-	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
-		SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12|
-//		SDHCI_QUIRK_BROKEN_DMA |
-		SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
-//		SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
-//		SDHCI_QUIRK_DELAY_AFTER_POWER,
 };
 
 static int sdhci_ast_probe(struct platform_device *pdev)
 {
-	return sdhci_pltfm_register(pdev, &sdhci_ast_pdata, 0);
+	return sdhci_pltfm_register(pdev, &sdhci_ast_pdata, sizeof(struct ast_sdhci_irq));
 }
 
-static int sdhci_ast_remove(struct platform_device *pdev)
-{
-	return sdhci_pltfm_unregister(pdev);
-}
+
+static const struct of_device_id sdhci_ast_of_match_table[] = {
+        { .compatible = "aspeed,sdhci-ast", .data = &sdhci_ast_pdata },
+        {}
+};
+
+MODULE_DEVICE_TABLE(of, sdhci_ast_of_match_table);
 
 static struct platform_driver sdhci_ast_driver = {
 	.driver		= {
 		.name	= "sdhci-ast",
-		.pm = &sdhci_pltfm_pmops,
+		.pm	= &sdhci_pltfm_pmops,
+		.of_match_table = sdhci_ast_of_match_table,
 	},
 	.probe		= sdhci_ast_probe,
-	.remove		= sdhci_ast_remove,
+	.remove		= sdhci_pltfm_unregister,
 };
 
-static u64 ast_sdhc_dma_mask = DMA_BIT_MASK(32);
-
-static struct resource ast_sdhci0_resource[] = {
-	[0] = {
-		.start = AST_SDHCI_SLOT0_BASE,
-		.end = AST_SDHCI_SLOT0_BASE + SZ_256 - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_SDHCI0_SLOT0,
-		.end = IRQ_SDHCI0_SLOT0,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device ast_sdhci_device0 = {
-	.name	= "sdhci-ast",		
-	.id = 0,
-	.dev = {
-		.dma_mask = &ast_sdhc_dma_mask,
-		.coherent_dma_mask = 0xffffffff,
-	},
-	.resource = ast_sdhci0_resource,
-	.num_resources = ARRAY_SIZE(ast_sdhci0_resource),
-};
-
-static struct resource ast_sdhci1_resource[] = {
-	[0] = {
-		.start = AST_SDHCI_SLOT1_BASE,
-		.end = AST_SDHCI_SLOT1_BASE + SZ_256 - 1 ,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_SDHCI0_SLOT1,
-		.end = IRQ_SDHCI0_SLOT1,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device ast_sdhci_device1 = {
-	.name	= "sdhci-ast",		
-	.id = 1,
-	.dev = {
-		.dma_mask = &ast_sdhc_dma_mask,
-		.coherent_dma_mask = 0xffffffff,
-	},
-	.resource = ast_sdhci1_resource,
-	.num_resources = ARRAY_SIZE(ast_sdhci1_resource),
-};
-
-static int __init ast_sdhci_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&sdhci_ast_driver);
-
-	if (!ret) {
-#ifdef CONFIG_AST_CAM_FPGA
-		platform_device_register(&ast_sdhci_device1);
-		ast_scu_multi_func_sdhc_slot(2);
-#else
-#ifdef CONFIG_8BIT_MODE
-		ast_scu_multi_func_sdhc_8bit_mode();
-		platform_device_register(&ast_sdhci_device0);
-#else
-		platform_device_register(&ast_sdhci_device0);
-		platform_device_register(&ast_sdhci_device1);
-#endif	
-		ast_scu_multi_func_sdhc_slot(3);
-#endif		
-	}
-
-	return ret;
-}
-
-static void __exit ast_sdhci_exit(void)
-{
-	platform_device_unregister(&ast_sdhci_device0);
-	platform_device_unregister(&ast_sdhci_device1);
-	platform_driver_unregister(&sdhci_ast_driver);
-}
-
-module_init(ast_sdhci_init);
-module_exit(ast_sdhci_exit);
-
+module_platform_driver(sdhci_ast_driver);
 
 MODULE_DESCRIPTION("SDHCI driver for AST SOC");
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
