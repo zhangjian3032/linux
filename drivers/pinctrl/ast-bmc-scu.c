@@ -39,23 +39,29 @@ CLK24M
 #include <mach/platform.h>
 #include <asm/io.h>
 
+#include <linux/io.h>
+#include <linux/init.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+
 #include <mach/hardware.h>
 
-#include <plat/ast-bmc-scu.h>
-#include <plat/regs-bmc-scu.h>
+#include <mach/ast-bmc-scu.h>
+#include <mach/regs-bmc-scu.h>
+#include <mach/ast_i2c.h>
 
 //#define ASPEED_SCU_LOCK
 //#define AST_BMC_SCU_DBG
 
 #ifdef AST_BMC_SCU_DBG
-#define BMC_SCUDBG(fmt, args...) printk("%s() " fmt, __FUNCTION__, ## args)
+#define BMC_SCUDBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt,__FUNCTION__, ## args)
 #else
 #define BMC_SCUDBG(fmt, args...)
 #endif
 
 #define BMC_SCUMSG(fmt, args...) printk(fmt, ## args)
 
-static u32 ast_scu_base = IO_ADDRESS(AST_SCU_BASE);
+void __iomem *ast_scu_base;
 
 spinlock_t ast_scu_lock;
 
@@ -64,7 +70,7 @@ ast_scu_read(u32 reg)
 {
 	u32 val;
 		
-	val = readl((void *)(ast_scu_base + reg));
+	val = readl(ast_scu_base + reg);
 	
 	BMC_SCUDBG("ast_scu_read : reg = 0x%08x, val = 0x%08x\n", reg, val);
 	
@@ -77,13 +83,13 @@ ast_scu_write(u32 val, u32 reg)
 	BMC_SCUDBG("ast_scu_write : reg = 0x%08x, val = 0x%08x\n", reg, val);
 #ifdef CONFIG_AST_SCU_LOCK
 	//unlock 
-	writel(SCU_PROTECT_UNLOCK, (void *)ast_scu_base);
-	writel(val, (void *) (ast_scu_base + reg));
+	writel(SCU_PROTECT_UNLOCK, ast_scu_base);
+	writel(val, ast_scu_base + reg);
 	//lock
 	writel(0xaa,ast_scu_base);	
 #else
-	writel(SCU_PROTECT_UNLOCK, (void *) ast_scu_base);
-	writel(val, (void *) (ast_scu_base + reg));
+	writel(SCU_PROTECT_UNLOCK, ast_scu_base);
+	writel(val, ast_scu_base + reg);
 #endif
 }
 
@@ -2161,6 +2167,18 @@ ast_scu_otp_read(u8 reg)
 EXPORT_SYMBOL(ast_scu_otp_read);
 #endif
 
+extern u32
+ast_get_dram_base(void)
+{
+#ifdef AST_SOC_G5
+	return 0x80000000;
+#else
+	return 0x40000000;
+#endif
+}
+
+EXPORT_SYMBOL(ast_get_dram_base);
+
 static irqreturn_t ast_scu_isr (int this_irq, void *dev_id)
 {
 	u32 sts = ast_scu_read(AST_SCU_INTR_CTRL);
@@ -2198,17 +2216,137 @@ static irqreturn_t ast_scu_isr (int this_irq, void *dev_id)
 	return IRQ_HANDLED;
 }		
 
-#if 0
-static int __init ast_scu_init(void)
+extern void ast_i2c_sram_buff_enable(struct ast_i2c_irq *i2c_irq);
+
+static int ast_bmc_scu_probe(struct platform_device *pdev)
 {
 	int ret = 0;
+	int irq = 0;
+	struct resource *res;
+	struct device_node *np;
+	u32 idx;
+
 	BMC_SCUDBG("\n");	
 
-	ret = request_irq(IRQ_SCU, ast_scu_isr, IRQF_SHARED, "ast-scu", &ret);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ast_scu_base = devm_ioremap_resource(&pdev->dev, res);
+	irq = platform_get_irq(pdev, 0);
+	ret = devm_request_irq(&pdev->dev, irq, ast_scu_isr,
+						   0, dev_name(&pdev->dev), NULL);
 	if (ret) {
 		printk("AST SCU Unable request IRQ \n");
 		goto out;
 	}
+
+	//UART scu reset for uart x
+	if(of_property_read_bool(pdev->dev.of_node, "uartx")) {
+		BMC_SCUDBG("uart x \n");
+		ast_scu_uartx_init();
+	}
+
+	//UART Setting 
+	for_each_compatible_node(np, NULL, "ns16550a") {
+		BMC_SCUDBG("np->name %s %s \n", np->name, np->properties->name);
+		
+		if (of_property_read_u32(np, "pinmux", &idx) == 0) {
+			BMC_SCUDBG("pinmux = %d \n", idx);
+			ast_scu_multi_func_uart(idx);
+		}
+	}
+
+	//SCU ADC CTRL Reset
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-adc")) {
+		printk("aspeed,ast-adc found in SCU \n");
+		ast_scu_init_adc();
+		
+	}
+
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-pwm-tacho")) {
+		printk("aspeed,ast-pwm-tacho found in SCU \n");
+		//SCU Pin-MUX	//PWM & TACHO 
+		ast_scu_multi_func_pwm_tacho();
+		
+		//SCU PWM CTRL Reset
+		ast_scu_init_pwm_tacho();	
+	}
+
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-peci")) {
+		printk("aspeed,ast-peci found in SCU \n");
+		//SCU PECI CTRL Reset
+		ast_scu_init_peci();	
+	}
+
+	for_each_compatible_node(np, NULL, "aspeed,ast-mac") {
+		printk("aspeed,ast-mac found in SCU, ");
+		
+		if (of_property_read_u32(np, "pinmux", &idx) == 0) {
+			printk("pinmux = %d \n", idx);
+			ast_scu_init_eth(idx);
+			ast_scu_multi_func_eth(idx);
+		}
+	}
+
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-uhci")) {
+		printk("aspeed,ast-uhci found in SCU \n");
+		ast_scu_init_uhci();
+		ast_scu_multi_func_usb_port1_mode(1);
+		ast_scu_multi_func_usb_port2_mode(2);
+//		ast_scu_multi_func_usb_port34_mode(1);
+	}
+
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-sdhci-irq")) {
+		printk("aspeed,ast-sdhci-irq found in SCU \n");
+		ast_scu_init_sdhci();
+	}
+
+	if(np = of_find_compatible_node(NULL, NULL, "aspeed,ast-i2c-irq")) {
+		printk("aspeed,ast-i2c-irq found in SCU \n");
+		//SCU I2C Reset 
+		ast_scu_init_i2c();
+		if(of_machine_is_compatible("aspeed,ast2500")) {
+			printk("aspeed,ast-adc found in SCU \n");
+#ifdef CONFIG_I2C_AST
+			//DMA, BUFF Mode enable 
+			ast_i2c_sram_buff_enable((struct ast_i2c_irq *)np->data);
+#endif
+		}
+	}
+	
+	for_each_compatible_node(np, NULL, "aspeed,ast-i2c") {
+		printk("aspeed,ast-i2c found in SCU, ");
+		if (of_property_read_u32(np, "bus", &idx) == 0) {
+			printk("bus = %d \n", idx);
+			ast_scu_multi_func_i2c(idx);
+		}
+	}
+
+	for_each_compatible_node(np, NULL, "aspeed,ast-sdhci") {
+		printk("aspeed,ast-ehci found in SCU, ");
+		if (of_property_read_u32(np, "port", &idx) == 0) {
+			printk("port = %d \n", idx);
+			ast_scu_multi_func_sdhc_slot(3);
+		}
+	}
+
+	
+
+	for_each_compatible_node(np, NULL, "aspeed,ast-ehci") {
+		printk("aspeed,ast-ehci found in SCU, ");
+		if (of_property_read_u32(np, "port", &idx) == 0) {
+			printk("port = %d \n", idx);
+			switch(idx) {
+				case 0:
+					ast_scu_init_usb_port1();					
+					break;
+				case 1:
+					ast_scu_init_usb_port2();						
+					break;
+				default:
+					break;
+			}
+		}
+	}
+
 
 	//SCU intr enable
 	ast_scu_write(0x003f0000,
@@ -2218,10 +2356,34 @@ static int __init ast_scu_init(void)
 				INTR_LPC_H_L_RESET_EN	| INTR_LPC_L_H_RESET_EN | INTR_PCIE_H_L_RESET_EN |
 				INTR_PCIE_L_H_RESET_EN |INTR_VGA_SCRATCH_CHANGE_EN | INTR_VGA_CURSOR_CHANGE_EN	,
 				AST_SCU_INTR_CTRL);
+	
+	ast_scu_show_system_info();
+
+#ifdef CONFIG_ARCH_AST3200
+	//AST3200 usb audio codec clock
+	ast_scu_osc_clk_output();
+#endif
 
 out:
 	return ret;
 }
 
-arch_initcall(ast_scu_init);
-#endif
+static const struct of_device_id ast_bmc_scu_of_match[] = {
+	{ .compatible = "aspeed,ast-bmc-scu", },
+	{ }
+};
+
+static struct platform_driver ast_bmc_scu_driver = {
+	.probe = ast_bmc_scu_probe,
+	.driver = {
+		.name = KBUILD_MODNAME,
+		.of_match_table = ast_bmc_scu_of_match,
+	},
+};
+
+static int ast_bmc_scu_init(void)
+{
+	return platform_driver_register(&ast_bmc_scu_driver);
+}
+
+core_initcall(ast_bmc_scu_init);

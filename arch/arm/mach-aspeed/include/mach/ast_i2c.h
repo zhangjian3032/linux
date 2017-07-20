@@ -7,7 +7,14 @@
  * the Free Software Foundation; either version 2 of the License, or (at
  * your option) any later version.
  */
-#include <plat/aspeed.h>
+#include "aspeed.h"
+
+struct ast_i2c_irq {
+	void __iomem	*regs;
+	int			parent_irq;
+	int			bus_num;
+	struct irq_domain	*irq_domain;
+};
 
 #if defined(CONFIG_ARCH_AST1070)
 #define AST_I2C_DMA_SIZE 4096

@@ -16,11 +16,17 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+
 #include <asm/io.h>
+#include <linux/io.h>
+#include <linux/init.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+
 #include <mach/irqs.h>
 #include <mach/hardware.h>
 #include <mach/ast-uart-dma.h>
-#include <plat/regs-uart-sdma.h>
+#include <mach/regs-uart-sdma.h>
 
 //#define AST_UART_SDMA_DEBUG
 
@@ -443,23 +449,27 @@ ast_uart_sdma_irq(int irq, void *dev_id)
 
 struct ast_sdma sdma;
 
-extern int
-ast_uart_sdma_init(void)
+static int ast_uart_sdma_probe(struct platform_device *pdev)
 {
+
     	int i, ret;
+	struct device	*dev = &pdev->dev;
+	struct resource	*res;	
 	struct ast_sdma *sdma = &ast_uart_sdma;	
 //	struct ast_sdma_ch *sdma_ch;
 	char	*rx_dma_virt_addr;
 	dma_addr_t	rx_dma_phy_addr;
 
-	sdma->dma_ch = kzalloc(sizeof(struct ast_sdma_ch), GFP_KERNEL);
+	sdma->dma_ch = devm_kzalloc(dev, sizeof(struct ast_sdma_ch), GFP_KERNEL);
 
 	if (!sdma->dma_ch) {
 		printk(KERN_ERR "%s: failed to ioremap()\n", __func__);
 		return -ENOMEM;
 	}
 
-	sdma->reg_base = ioremap(AST_UART_SDMA_BASE, 0x100);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	sdma->reg_base = devm_ioremap_resource(dev, res);
 	
 	if (!sdma->reg_base) {
 		printk(KERN_ERR "%s: failed to ioremap()\n", __func__);
@@ -508,11 +518,13 @@ ast_uart_sdma_init(void)
 	ast_uart_sdma_write(sdma, 0xfff, UART_RX_SDMA_ISR);
 	ast_uart_sdma_write(sdma, 0, UART_RX_SDMA_IER);
 
-	ret = request_irq(IRQ_UART_SDMA, 
-							ast_uart_sdma_irq, IRQF_SHARED, 
-							"ast_sdma_uart", sdma);
+	sdma->dma_irq = platform_get_irq(pdev, 0);
+
+	ret = devm_request_irq(dev, sdma->dma_irq, 
+							ast_uart_sdma_irq, 0, 
+							dev_name(&pdev->dev), sdma);
 	if (ret) {
-		printk ("Unable to get UART SDMA IRQ !!!!!!!!!!!!!!!!!!!!\n");
+		printk ("Unable to get UART SDMA IRQ %x\n", ret);
 		return -1;
 	}
 
@@ -523,4 +535,22 @@ ast_uart_sdma_init(void)
     return 0;
 }                                                                              
 
-EXPORT_SYMBOL(ast_uart_sdma_init);
+static const struct of_device_id ast_uart_sdma_of_match[] = {
+	{ .compatible = "aspeed,ast-uart-sdma", },
+	{ }
+};
+
+static struct platform_driver ast_bmc_scu_driver = {
+        .probe = ast_uart_sdma_probe,
+        .driver = {
+                .name = "ast-uart-sdma",
+                .of_match_table = ast_uart_sdma_of_match,
+        },
+};
+
+static int ast_uart_sdma_init(void)
+{
+	return platform_driver_register(&ast_bmc_scu_driver);
+}
+
+arch_initcall(ast_uart_sdma_init);

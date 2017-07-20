@@ -21,13 +21,10 @@
 ********************************************************************************/
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/delay.h>
-	
-#include <mach/platform.h>
+#include <linux/of_device.h>
+#include <linux/of.h>
 #include <asm/io.h>
-#include <mach/hardware.h>
-#include <plat/ast-ahbc.h>
-
+#include <mach/ast-ahbc.h>
 /***********************  Registers for AHBC ***************************/
 #define AST_AHBC_PROTECT		0x00	/* Protection Key Register */
 #define AST_AHBC_PRIORITY_CTRL		0x80	/* Priority Cortrol Register */
@@ -47,7 +44,6 @@
 #define AHBC_BOOT_REMAP			1
 #endif
 /**************************************************************/
-
 //#define AST_AHBC_DEBUG
 
 #ifdef AST_AHBC_DEBUG
@@ -55,7 +51,7 @@
 #else
 #define AHBCDBUG(fmt, args...)
 #endif
-
+/**************************************************************/
 void __iomem	*ast_ahbc_base = 0;
 
 static inline u32 
@@ -115,11 +111,36 @@ extern void ast_ahbc_lpc_plus_mapping(u8 enable)
 }
 #endif
 
-static int __init ast_ahbc_init(void)
+static int ast_ahbc_probe(struct platform_device *pdev)
 {
-	AHBCDBUG("\n");
-	ast_ahbc_base = ioremap(AST_AHBC_BASE , SZ_256);
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ast_ahbc_base = devm_ioremap_resource(&pdev->dev, res);
+
 	return 0;
 }
 
+static const struct of_device_id ast_ahbc_of_match[] = {
+	{ .compatible = "aspeed,ast-ahbc", },
+	{ }
+};
+
+static struct platform_driver ast_ahbc_driver = {
+	.probe = ast_ahbc_probe,
+	.driver = {
+		.name = "ast-ahbc",
+		.of_match_table = ast_ahbc_of_match,
+	},
+};
+
+static int ast_ahbc_init(void)
+{
+	return platform_driver_register(&ast_ahbc_driver);
+}
+
 subsys_initcall(ast_ahbc_init);
+
+MODULE_AUTHOR("Ryan Chen");
+MODULE_DESCRIPTION("ASPEED AHBC Driver");
+MODULE_LICENSE("GPL");
