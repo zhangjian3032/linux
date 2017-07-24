@@ -19,15 +19,9 @@
 
 #include <linux/platform_device.h>
 
-#include <plat/ast-scu.h>
-
-#if defined(CONFIG_COLDFIRE)
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/gpio.h>
-#else
-#include <plat/regs-gpio.h>
+#include <mach/ast-scu.h>
+#include <mach/regs-gpio.h>
 #include <mach/gpio.h>
-#endif
 
 //#define AST_SGPIO_DEBUG
 

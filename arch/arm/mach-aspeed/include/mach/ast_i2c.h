@@ -110,10 +110,7 @@ typedef enum i2c_slave_event_e {
 #define INC_DMA_MODE	3
 
 struct ast_i2c_driver_data {
-		u32		bus_clk;
-		u16		dma_size;
-		u8		master_dma;		//0,byte mode 1,Buffer pool mode 256 , or 2048 , 2: DMA mode
-		u8		slave_dma;		//0,byte mode 1,Buffer pool mode 256 , or 2048 , 2: DMA mode
+
 		u8 		(*request_pool_buff_page)(struct buf_page **page);		//0: ok , 1 fail
 //		struct buf_page * (*request_pool_buff_page1)(u8 num);
 		void 	(*free_pool_buff_page)(struct buf_page *page);

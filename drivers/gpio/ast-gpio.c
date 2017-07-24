@@ -15,16 +15,48 @@
 
 #include <asm/mach/irq.h>
 #include <mach/hardware.h>
+#include <linux/gpio/driver.h>
 
 #include <linux/platform_device.h>
 
-#if defined(CONFIG_COLDFIRE)
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/gpio.h>
-#else
-#include <plat/regs-gpio.h>
+#include <mach/regs-gpio.h>
 #include <mach/gpio.h>
+
+#include <asm/div64.h>
+#include <linux/clk.h>
+#include <linux/gpio/driver.h>
+#include <linux/hashtable.h>
+#include <linux/init.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/platform_device.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
+
+
+/*************************************************************/
+#if defined(CONFIG_ARCH_AST1010)
+#define GPIO_PORT_NUM		19
+#elif defined(CONFIG_ARCH_AST2000)
+#define GPIO_PORT_NUM		19
+#elif defined(CONFIG_ARCH_AST2100) 
+#define GPIO_PORT_NUM		19
+#elif defined(CONFIG_ARCH_AST2200) 
+#define GPIO_PORT_NUM		19
+#elif defined(CONFIG_ARCH_AST2300)
+#define GPIO_PORT_NUM		19
+#elif defined(AST_SOC_G4)
+#define GPIO_PORT_NUM		28
+#elif defined(AST_SOC_G5)
+#define GPIO_PORT_NUM		29
+#elif defined(AST_SOC_CAM)
+#define GPIO_PORT_NUM		12
+#else
+#err "no define for gpio irqs.h"
 #endif
+/*************************************************************/
 
 //#define AST_GPIO_DEBUG
 
@@ -38,8 +70,9 @@
 /*************************************************************/
 //GPIO group structure 
 struct ast_gpio_bank {
-    int 	irq;
-	u32  	base;	
+	int 		id;
+	int		irq;
+	u32  	base;
 //TODO remove base	
 	u32  	index;	
 	u32		data_offset;
@@ -49,24 +82,20 @@ struct ast_gpio_bank {
 	u32		int_sts_offset;	
 	u32		rst_tol_offset;		
 	u32		debounce_offset;	
-	u32		cmd_source_offset;		
-	struct gpio_chip chip;
-	
+	u32		cmd_source_offset;
+	struct ast_gpio	*gpio;	
 };
 
-int ast_gpio_to_irq(unsigned gpio)
-{
-	return (gpio + IRQ_GPIO_CHAIN_START);
-}
+struct ast_gpio {
+	void __iomem *reg_base;	
+	int irq;	
+	int num_bank;
+	struct ast_gpio_bank *bank;
+	spinlock_t lock;	
+	struct gpio_chip chip;
 
-EXPORT_SYMBOL(ast_gpio_to_irq);
-
-int ast_irq_to_gpio(unsigned irq)
-{
-	return (irq - IRQ_GPIO_CHAIN_START);
-}
-
-EXPORT_SYMBOL(ast_irq_to_gpio);
+	struct platform_device *pdev;	
+};
 
 static inline u32
 ast_gpio_read(struct ast_gpio_bank *ast_gpio ,u32 offset)
@@ -91,11 +120,13 @@ ast_gpio_write(struct ast_gpio_bank *ast_gpio , u32 val, u32 offset)
 static int
 ast_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct ast_gpio_bank *ast_gpio = container_of(chip, struct ast_gpio_bank, chip);
+	struct ast_gpio *gpio = gpiochip_get_data(chip);
+	struct ast_gpio_bank *bank = gpio->bank;
 	unsigned long flags;
 	u32 v;
 	int ret = -1;
 
+#if 0
 	GPIODBUG("dir_in %s[%d] \n",chip->label, offset);
 
 	local_irq_save(flags);
@@ -108,6 +139,7 @@ ast_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	ret = 0;
 
 	local_irq_restore(flags);
+#endif	
 	return ret;
 
 }
@@ -115,12 +147,14 @@ ast_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static int
 ast_gpio_direction_output(struct gpio_chip *chip, unsigned offset, int val)
 {
-   	struct ast_gpio_bank *ast_gpio = container_of(chip, struct ast_gpio_bank, chip);
+	struct ast_gpio *gpio = gpiochip_get_data(chip);
+	struct ast_gpio_bank *bank = gpio->bank;
+
     unsigned long flags;
     u32 v;
     int ret = -1;
 	GPIODBUG("dir_out %s[%d], val %d \n",chip->label, offset, val);
-
+#if 0
     local_irq_save(flags);
 
 	/* Drive as an output */
@@ -141,7 +175,7 @@ ast_gpio_direction_output(struct gpio_chip *chip, unsigned offset, int val)
 	ast_gpio_write(ast_gpio, v, ast_gpio->data_offset);
 
 	local_irq_restore(flags);
-	
+#endif	
 	ret = 0;	
 	return ret;
 }
@@ -149,12 +183,14 @@ ast_gpio_direction_output(struct gpio_chip *chip, unsigned offset, int val)
 static int
 ast_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-   	struct ast_gpio_bank *ast_gpio = container_of(chip, struct ast_gpio_bank, chip);
+	struct ast_gpio *gpio = gpiochip_get_data(chip);
+	struct ast_gpio_bank *bank = gpio->bank;
+
     unsigned long flags;
     u32 v;
 
 	GPIODBUG("Get %s[%d] \n",chip->label, offset);
-
+#if 0
     local_irq_save(flags);
 
     v = ast_gpio_read(ast_gpio, ast_gpio->data_offset);
@@ -167,18 +203,20 @@ ast_gpio_get(struct gpio_chip *chip, unsigned offset)
 		v = 0;
 
     local_irq_restore(flags);
-	
+#endif	
     return v;
 }
 
 static void
 ast_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 {
-   	struct ast_gpio_bank *ast_gpio = container_of(chip, struct ast_gpio_bank, chip);
+	struct ast_gpio *gpio = gpiochip_get_data(chip);
+	struct ast_gpio_bank *bank = gpio->bank;
+
     unsigned long flags;
     u32 v;
 	GPIODBUG("Set %s[%d] = %d\n",chip->label, offset, val);
-
+#if 0
 	local_irq_save(flags);
 
     /* Set the value */
@@ -193,6 +231,7 @@ ast_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 	ast_gpio_write(ast_gpio, v, ast_gpio->data_offset);
 
 	local_irq_restore(flags);
+#endif	
 }
 	
 
@@ -206,15 +245,7 @@ ast_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 		.int_sts_offset = int_sts, 					\
 		.rst_tol_offset = rst_tol,					\
 		.debounce_offset = debounce,				\
-		.cmd_source_offset = cmd_s,					\
-		.chip = {                            							\
-	        .label                  = name,  							\
-	        .direction_input        = ast_gpio_direction_input,         \
-	        .direction_output       = ast_gpio_direction_output,        \
-	        .get            = ast_gpio_get,  \
-	        .set            = ast_gpio_set,  \
-	        .ngpio          = GPIO_PER_PORT_PIN_NUM, \
-		}, \
+		.cmd_source_offset = cmd_s,				\
 	}
 
 #ifdef AST_SOC_CAM
@@ -437,12 +468,13 @@ ast_gpio_irq_handler(struct irq_desc *desc)
 {
 	u32 isr;
 	int i,j;
-	struct ast_gpio_bank *ast_gpio;
+	struct gpio_chip *g_chip = irq_desc_get_handler_data(desc);
+	struct ast_gpio_bank *ast_gpio = gpiochip_get_data(g_chip);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 
 	GPIODBUG("ast_gpio_irq_handler %d \n ", irq);
 //	GPIODBUG("[%s] ------\n ",ast_gpio->chip.label );
-	
+	printk("TODO ~~~ \n");
 	chained_irq_enter(chip, desc);
 
 	for (i = 0; i < GPIO_PORT_NUM; i++) {
@@ -451,6 +483,7 @@ ast_gpio_irq_handler(struct irq_desc *desc)
 //		GPIODBUG("isr %x \n", isr);
 		isr = (isr >> (8 * ast_gpio->index)) & 0xff;
 //		GPIODBUG("[%s] isr %x \n", ast_gpio->chip.label, isr);
+#if 0
 		if(isr != 0) {
 			//get gpio isr and --> to IRQ number ....
 			for (j=0; j<8;j++) {
@@ -461,7 +494,8 @@ ast_gpio_irq_handler(struct irq_desc *desc)
 				}
 			}
 //			GPIODBUG("isr -- ? %x \n",ast_gpio_read(ast_gpio, ast_gpio->int_sts_offset));
-		}		
+		}	
+#endif		
 	}
 
 	chained_irq_exit(chip, desc);
@@ -470,6 +504,7 @@ ast_gpio_irq_handler(struct irq_desc *desc)
 
 static void ast_gpio_ack_irq(struct irq_data *d)
 {
+#if 0
 	struct ast_gpio_bank *ast_gpio = irq_get_chip_data(d->irq);
 
 	unsigned int gpio_irq = (d->irq - IRQ_GPIO_CHAIN_START) % 8;
@@ -481,11 +516,12 @@ static void ast_gpio_ack_irq(struct irq_data *d)
 	ast_gpio_write(ast_gpio, 1<< (gpio_irq + (ast_gpio->index * 8)), ast_gpio->int_sts_offset);
 
 	GPIODBUG("read sts %x\n ",ast_gpio_read(ast_gpio, ast_gpio->int_sts_offset));
-
+#endif
 }
 
 static void ast_gpio_mask_irq(struct irq_data *d)
 {
+#if 0
 	struct ast_gpio_bank *ast_gpio = irq_get_chip_data(d->irq);
 	unsigned int gpio_irq = (d->irq - IRQ_GPIO_CHAIN_START) % 8;
 
@@ -494,10 +530,12 @@ static void ast_gpio_mask_irq(struct irq_data *d)
 	//disable irq
 	ast_gpio_write(ast_gpio, ast_gpio_read(ast_gpio, ast_gpio->int_en_offset) &
 			~(1<< (gpio_irq + (ast_gpio->index * 8))), ast_gpio->int_en_offset);
+#endif
 }
 
 static void ast_gpio_unmask_irq(struct irq_data *d)
 {
+#if 0
 	struct ast_gpio_bank *ast_gpio = irq_get_chip_data(d->irq);
 	unsigned int gpio_irq = (d->irq - IRQ_GPIO_CHAIN_START) % 8;
 
@@ -508,12 +546,13 @@ static void ast_gpio_unmask_irq(struct irq_data *d)
 
 	ast_gpio_write(ast_gpio, ast_gpio_read(ast_gpio, ast_gpio->int_en_offset) |
 			(1<< (gpio_irq + (ast_gpio->index * 8))), ast_gpio->int_en_offset);
-
+#endif
 }
 
 static int
 ast_gpio_irq_type(struct irq_data *d, unsigned int type)
 {
+#if 0
 	u32 type0, type1, type2;
 	struct ast_gpio_bank *ast_gpio = irq_get_chip_data(d->irq);
 	u32 gpio_irq = (d->irq - IRQ_GPIO_CHAIN_START) % 32;
@@ -564,131 +603,115 @@ ast_gpio_irq_type(struct irq_data *d, unsigned int type)
 	ast_gpio_write(ast_gpio, type2, ast_gpio->int_type_offset + 0x08);
 
 	return 0;
-
+#endif
 }
 
 static struct irq_chip ast_gpio_irq_chip = {
-	.name		= "GPIO",
+	.name		= "ast-gpio",
 	.irq_ack		= ast_gpio_ack_irq,
 	.irq_mask		= ast_gpio_mask_irq,
 	.irq_unmask	= ast_gpio_unmask_irq,
 	.irq_set_type	= ast_gpio_irq_type,
 };
 
+
 /*---------------------------------------------------------------------*/
-static int
+static int 
 ast_gpio_probe(struct platform_device *pdev)
 {
-	int i, j;
+	int i, j, rc;
 	struct resource *res;	
-	struct ast_gpio_bank *ast_gpio;
-	u32 gpio_base;
+	struct ast_gpio *gpio;
+	struct ast_gpio_bank *bank;
 
 	printk("AST GPIO Driver, (c) ASPEED Tech. Inc. \n");
+
+	gpio = devm_kzalloc(&pdev->dev, sizeof(struct ast_gpio), GFP_KERNEL);
+	if (!gpio)
+		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENXIO;
 	
-	if (!request_mem_region(res->start, resource_size(res), res->name))
-		return -EBUSY;
-
-	gpio_base = (u32) ioremap(res->start, resource_size(res));
-	if (!gpio_base)
+	gpio->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	if (!gpio->reg_base)
 		return -ENOMEM;
 
-	GPIODBUG("virt gpio_base = %x \n", gpio_base);
-	GPIODBUG("gpio port num %d, total gpio pin : %d\n",
-		GPIO_PORT_NUM, ARCH_NR_GPIOS);
+	gpio->num_bank = GPIO_PORT_NUM;
+	gpio->bank = ast_gpio_gp;
 
-	GPIODBUG("gpio chain start %d \n",IRQ_GPIO_CHAIN_START);
-	for (i = 0; i < GPIO_PORT_NUM; i++) {
-		ast_gpio = &ast_gpio_gp[i];
+	gpio->pdev = pdev;
+	platform_set_drvdata(pdev, gpio);
 
-		GPIODBUG("add gpio_chip [%s] : %d\n",ast_gpio->chip.label, i);
+	gpio->chip.parent = &pdev->dev;
+	gpio->chip.ngpio = gpio->num_bank * 8;
+	gpio->chip.direction_input = ast_gpio_direction_input;
+	gpio->chip.direction_output = ast_gpio_direction_output;
+#if 0
+	gpio->chip.get_direction = aspeed_gpio_get_direction;
+	gpio->chip.request = aspeed_gpio_request;
+	gpio->chip.free = aspeed_gpio_free;
+#endif
+	gpio->chip.get = ast_gpio_get;
+	gpio->chip.set = ast_gpio_set;
 
-		ast_gpio->base = gpio_base;
-		ast_gpio->chip.base = i*8;
-		ast_gpio->chip.ngpio = 8;
+	GPIODBUG("virt gpio_base = %x \n", gpio->reg_base);
+	GPIODBUG("gpio port num %d, total gpio pin : %d\n", gpio->num_bank, gpio->chip.ngpio);
 
-		gpiochip_add(&ast_gpio->chip);
 
+	for (i = 0; i < gpio->num_bank; i++) {
+		bank = &gpio->bank[i];
+		bank->id = i;
+		bank->gpio = gpio;
 		//Set Level Trigger
-		ast_gpio_write(ast_gpio, 0xffffffff, ast_gpio->int_type_offset);
-		ast_gpio_write(ast_gpio, 0xffffffff, ast_gpio->int_type_offset + 0x04);
-		ast_gpio_write(ast_gpio, 0, ast_gpio->int_type_offset + 0x08);
-
-		//remove clear direction for keep orignal state		
+//		ast_gpio_write(ast_gpio, 0xffffffff, ast_gpio->int_type_offset);
+//		ast_gpio_write(ast_gpio, 0xffffffff, ast_gpio->int_type_offset + 0x04);
+//		ast_gpio_write(ast_gpio, 0, ast_gpio->int_type_offset + 0x08);
+		//remove clear direction for keep orignal state 	
 //		ast_gpio_write(ast_gpio, 0, ast_gpio->dir_offset);
 		//Enable IRQ 
 //		ast_gpio_write(ast_gpio, 0xffffffff, ast_gpio->int_en_offset);
-
-		for(j=0;j<8;j++) {
-			GPIODBUG("inst chip data %d\n",i*8 + j + IRQ_GPIO_CHAIN_START); 
-			irq_set_chip_data(i*8 + j + IRQ_GPIO_CHAIN_START, ast_gpio);
-
-			irq_set_chip_and_handler(i*8 + j + IRQ_GPIO_CHAIN_START, &ast_gpio_irq_chip,
-						 handle_level_irq);
-			irq_clear_status_flags(i*8 + j + IRQ_GPIO_CHAIN_START, IRQ_NOREQUEST);
-		}
-		irq_set_chained_handler(IRQ_GPIO, ast_gpio_irq_handler);
-		
-		
 	}
+	
+	rc = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
+	if (rc < 0)
+		return rc;
+
+	gpio->irq = platform_get_irq(pdev, 0);
+	if (gpio->irq < 0)
+		return gpio->irq;
+
+//	set_irq_valid_mask(gpio);
+
+	rc = gpiochip_irqchip_add(&gpio->chip, &ast_gpio_irq_chip,
+			0, handle_bad_irq, IRQ_TYPE_NONE);
+	if (rc) {
+		dev_info(&pdev->dev, "Could not add irqchip\n");
+		return rc;
+	}
+
+	gpiochip_set_chained_irqchip(&gpio->chip, &ast_gpio_irq_chip,
+				     gpio->irq, ast_gpio_irq_handler);
 
 	return 0;
 }
 
+static const struct of_device_id ast_gpio_of_table[] = {
+	{ .compatible = "aspeed,ast-gpio",},// .data = &ast2400_config, },
+	{}
+};
+
+MODULE_DEVICE_TABLE(of, ast_gpio_of_table);
+
 static struct platform_driver ast_gpio_driver = {
-	.probe		= ast_gpio_probe,
-//	.remove		= __exit_p(ast_gpio_remove),
 	.driver		= {
-		.name	= "ast-gpio",
-		.owner	= THIS_MODULE,
+		.name	= KBUILD_MODNAME,
+		.of_match_table = ast_gpio_of_table,
 	},
 };
 
-static struct platform_device *ast_gpio_device;
-
-static int __init ast_gpio_init(void)
-{
-	int ret;
-
-	static const struct resource ast_gpio_resource[] = {
-		[0] = {
-			.start = AST_GPIO_BASE,
-			.end = AST_GPIO_BASE + SZ_512 - 1,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = IRQ_GPIO,
-			.end = IRQ_GPIO,
-			.flags = IORESOURCE_IRQ,
-		},
-	};
-
-	ret = platform_driver_register(&ast_gpio_driver);
-
-	if (!ret) {
-		ast_gpio_device = platform_device_register_simple("ast-gpio", 0,
-								ast_gpio_resource, ARRAY_SIZE(ast_gpio_resource));
-		if (IS_ERR(ast_gpio_device)) {
-			platform_driver_unregister(&ast_gpio_driver);
-			ret = PTR_ERR(ast_gpio_device);
-		}
-	}
-
-	return ret;
-}
-
-static void __exit ast_gpio_exit(void)
-{
-	platform_device_unregister(ast_gpio_device);
-	platform_driver_unregister(&ast_gpio_driver);
-}
-
-core_initcall(ast_gpio_init);
-//arch_initcall(ast_gpio_init);
+module_platform_driver_probe(ast_gpio_driver, ast_gpio_probe);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("GPIO driver for AST processors");

@@ -289,46 +289,6 @@ extern u8 request_pool_buff_page(struct buf_page **req_page) {return 0;}
 extern void free_pool_buff_page(struct buf_page *req_page) {}
 #endif
 /*******************************************************************/
-
-
-
-/*******************************************************************/
-
-
-
-#if 0
-#if defined (AST_I2C_POOL_BUFF_2048)
-	buf_pool= ioremap(AST_I2C_BASE+0x800, 2048);
-	if (!buf_pool) {
-		printk("buf_pool ERROR \n");
-		return -1;
-	}
-	pool_buff_page_init((u32)buf_pool); 
-	
-#elif defined (AST_I2C_POOL_BUFF_256)
-	buf_pool = ioremap(AST_I2C_BASE+0x200, 256);
-	if (!buf_pool) {
-		printk("buf_pool ERROR \n");
-		return -1;
-	}
-	pool_buff_page_init((u32)buf_pool); 
-
-#elif defined (AST_I2C_POOL_BUFF_16)
-	buf_pool = ioremap(AST_I2C_BASE+0x200, 224);
-	if (!buf_pool) {
-		printk("buf_pool ERROR \n");
-		return -1;
-	}
-	pool_buff_page_init((u32)buf_pool); 
-
-	
-#else
-	buf_pool = 0;
-#endif
-	
-	return 0;
-}
-#endif
 void ast_i2c_sram_buff_enable(struct ast_i2c_irq *i2c_irq) {
 	writel(I2C_SRAM_BUFF_EN, i2c_irq->regs + AST_I2CG_CTRL);
 };
@@ -386,6 +346,7 @@ static int __init ast_i2c_irq_of_init(struct device_node *node,
 					struct device_node *parent)
 {
 	struct ast_i2c_irq *i2c_irq;
+	u8 *buf_pool;
 
 	i2c_irq = kzalloc(sizeof(*i2c_irq), GFP_KERNEL);
 	if (!i2c_irq)
@@ -414,6 +375,12 @@ static int __init ast_i2c_irq_of_init(struct device_node *node,
 
 	irq_set_chained_handler_and_data(i2c_irq->parent_irq,
 					 ast_i2c_irq_handler, i2c_irq);
+
+
+	buf_pool = of_iomap(node, 1);
+	if (!buf_pool)
+		buf_pool = 0;
+	pool_buff_page_init((u32)buf_pool);
 
 	pr_info("i2c-irq controller registered, irq %d\n", i2c_irq->parent_irq);
 

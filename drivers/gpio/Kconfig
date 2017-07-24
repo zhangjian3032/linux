@@ -108,14 +108,14 @@ config GPIO_AMDPT
 config GPIO_AST
 	tristate "ASPEED GPIO support"
 	depends on PLAT_ASPEED
-	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
         help
           Say yes here to support GPIO functionality of AST SOC chip.
 
 config SGPIO_AST
         tristate "ASPEED SGPIO support"
 	depends on PLAT_ASPEED
-	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
         help
           Say yes here to support SGPIO functionality of AST SOC chip.
 
