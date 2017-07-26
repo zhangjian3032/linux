@@ -37,8 +37,9 @@
 #include <asm/irq.h>
 
 #include <linux/dma-mapping.h>
+#include <mach/ast-scu.h>
 
-#include <plat/ast-vhub.h>
+//#include <mach/ast-vhub.h>
 
 
 /*************************************************************************************/
@@ -258,7 +259,7 @@ struct ast_udc {
 static const char * const ast_ep_name[] = {
 	"ep0", "ep1", "ep2", "ep3", "ep4","ep5", "ep6", "ep7", "ep8", "ep9","ep10", "ep11", "ep12", "ep13", "ep14", "ep15"};
 
-//#define AST_UDC_DEBUG
+#define AST_UDC_DEBUG
 //#define AST_BUS_DEBUG
 //#define AST_SETUP_DEBUG
 //#define AST_EP_DEBUG
@@ -1161,18 +1162,21 @@ static int ast_udc_probe(struct platform_device *pdev)
 	struct resource	*res;
 
 	int i;
-
+printk("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ast_udc_probe \n");
 	UDC_DBG(" \n");
+
+	ast_scu_multi_func_usb_port1_mode(0);
+	ast_scu_init_usb_port1();
+
+	udc = devm_kzalloc(&pdev->dev, sizeof(struct ast_udc), GFP_KERNEL);
+	if (!udc)
+		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		pr_err("platform_get_resource error.\n");
 		return -ENODEV;
 	}
-
-	udc = devm_kzalloc(&pdev->dev, sizeof(struct ast_udc), GFP_KERNEL);
-	if (udc == NULL)
-		goto err_alloc;
 
 	udc->irq = platform_get_irq(pdev, 0);
 	if (!udc->irq) {
@@ -1190,10 +1194,10 @@ static int ast_udc_probe(struct platform_device *pdev)
 	udc->gadget.dev.parent = &pdev->dev;
 	udc->gadget.ops = &ast_udc_ops;
 	udc->gadget.ep0 = &udc->ep[0].ep;
-	udc->gadget.name = "ast_udc";
+	udc->gadget.name = "ast-udc";
 	udc->gadget.dev.init_name = "gadget";
 
-	udc->reg = ioremap(res->start, resource_size(res));
+	udc->reg = devm_ioremap_resource(&pdev->dev, res);
 	if (udc->reg == NULL) {
 		pr_err("ioremap error.\n");
 		goto err_map;
@@ -1245,7 +1249,9 @@ static int ast_udc_probe(struct platform_device *pdev)
 	ast_udc_init(udc);
 
 	/* request UDC and maybe VBUS irqs */
-	ret = request_irq(udc->irq, ast_udc_irq, IRQF_SHARED, "ast_udc", udc);
+	
+	ret = devm_request_irq(&pdev->dev, udc->irq, ast_udc_irq, 0,
+			      KBUILD_MODNAME, udc);
 	if (ret < 0) {
 		printk("request irq %d failed\n", udc->irq);
 		goto fail1;
@@ -1346,24 +1352,35 @@ static int ast_udc_resume(struct platform_device *pdev)
 	}
 	return 0;
 }
-#else
-#define	ast_udc_suspend	NULL
-#define	ast_udc_resume	NULL
 #endif
 
+static const struct of_device_id ast_udc_of_dt_ids[] = {
+        { .compatible = "aspeed,ast-udc", },
+        {}
+};
+
+MODULE_DEVICE_TABLE(of, ast_udc_of_dt_ids);
+
 static struct platform_driver ast_udc_driver = {
-	.remove		= __exit_p(ast_udc_remove),
+	.probe 		= ast_udc_probe,
+	.remove		= ast_udc_remove,
+#ifdef CONFIG_PM		
 	.suspend		= ast_udc_suspend,
 	.resume		= ast_udc_resume,
+#endif	
 	.driver		= {
-		.name	= "ast_udc",
-		.owner	= THIS_MODULE,
-		.of_match_table	= of_match_ptr(ast_udc_dt_ids),
+		.name	= KBUILD_MODNAME,
+		.of_match_table	= ast_udc_of_dt_ids,
 	},
 };
 
-static struct platform_device *ast_udc_device;
+module_platform_driver(ast_udc_driver);
 
+MODULE_DESCRIPTION("AST UDC driver");
+MODULE_AUTHOR("Ryan Chen");
+MODULE_LICENSE("GPL");
+
+#if 0
 /* hid descriptor for a keyboard */
 static struct hidg_func_descriptor my_keyboard_data = {
 	.subclass		= 0, /* No subclass */
@@ -1460,58 +1477,4 @@ static struct platform_device my_mouse_hid = {
         }
 };
 
-static int __init ast_udc_init(void)
-{
-	int ret;
-	
-	static const struct resource ast_vhub_resource[] = {
-		[0] = {
-			.start = AST_VHUB_BASE,
-			.end = AST_VHUB_BASE + SZ_1K,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = IRQ_VHUB,
-			.end = IRQ_VHUB,
-			.flags = IORESOURCE_IRQ,
-		},
-	};
-
-	ret = platform_driver_register(&ast_udc_driver);
-
-
-	ast_scu_multi_func_usb_port1_mode(0);
-	ast_scu_init_usb_port1();
-
-	platform_device_register(&my_keyboard_hid);
-	platform_device_register(&my_mouse_hid);
-
-	if (!ret) {
-		ast_udc_device = platform_device_register_simple("ast_udc", 0,
-								ast_vhub_resource, ARRAY_SIZE(ast_vhub_resource));
-		if (IS_ERR(ast_udc_device)) {
-			platform_driver_unregister(&ast_udc_driver);
-			ret = PTR_ERR(ast_udc_device);
-		}
-	}
-
-	return ret;
-}
-
-static void __exit ast_udc_exit(void)
-{
-	platform_device_unregister(&my_keyboard_hid);
-	platform_device_unregister(&my_mouse_hid);
-
-	platform_device_unregister(ast_udc_device);
-	platform_driver_unregister(&ast_udc_driver);
-}
-
-
-module_init(ast_udc_init);
-module_exit(ast_udc_exit);
-
-
-MODULE_DESCRIPTION("AST UDC driver");
-MODULE_AUTHOR("Ryan Chen");
-MODULE_LICENSE("GPL");
+#endif
