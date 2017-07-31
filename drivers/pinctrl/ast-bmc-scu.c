@@ -43,7 +43,6 @@ CLK24M
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-
 #include <mach/hardware.h>
 
 #include <mach/ast-bmc-scu.h>

@@ -39,10 +39,15 @@ CLK24M
 #include <mach/platform.h>
 #include <asm/io.h>
 
+#include <linux/io.h>
+#include <linux/init.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <mach/hardware.h>
 
-#include <plat/ast-cam-scu.h>
-#include <plat/regs-cam-scu.h>
+#include <mach/ast-cam-scu.h>
+#include <mach/regs-cam-scu.h>
+#include <mach/ast_i2c.h>
 
 //#define ASPEED_SCU_LOCK
 //#define ASPEED_SCU_DEBUG
@@ -55,7 +60,7 @@ CLK24M
 
 #define SCUMSG(fmt, args...) printk(fmt, ## args)
 
-static u32 ast_scu_base = IO_ADDRESS(AST_SCU_BASE);
+void __iomem *ast_scu_base;
 
 spinlock_t ast_scu_lock;
 
@@ -64,7 +69,7 @@ ast_scu_read(u32 reg)
 {
 	u32 val;
 		
-	val = readl((void *)(ast_scu_base + reg));
+	val = readl(ast_scu_base + reg);
 	
 	SCUDBUG("ast_scu_read : reg = 0x%08x, val = 0x%08x\n", reg, val);
 	
@@ -77,13 +82,13 @@ ast_scu_write(u32 val, u32 reg)
 	SCUDBUG("ast_scu_write : reg = 0x%08x, val = 0x%08x\n", reg, val);
 #ifdef CONFIG_AST_SCU_LOCK
 	//unlock 
-	writel(SCU_PROTECT_UNLOCK, (void *)ast_scu_base);
-	writel(val, (void *) (ast_scu_base + reg));
+	writel(SCU_PROTECT_UNLOCK, ast_scu_base);
+	writel(val, ast_scu_base + reg);
 	//lock
 	writel(0xaa,ast_scu_base);	
 #else
-	writel(SCU_PROTECT_UNLOCK, (void *) ast_scu_base);
-	writel(val, (void *) (ast_scu_base + reg));
+	writel(SCU_PROTECT_UNLOCK, ast_scu_base);
+	writel(val, ast_scu_base + reg);
 #endif
 }
 
@@ -180,7 +185,6 @@ ast_scu_init_eth(u8 num)
 	}		
 }
 
-#ifdef SCU_RESET_USB20
 extern void
 ast_scu_init_usb_port1(void)
 {
@@ -198,7 +202,6 @@ ast_scu_init_usb_port1(void)
 
 
 EXPORT_SYMBOL(ast_scu_init_usb_port1);
-#endif
 
 extern void
 ast_scu_init_sdhci(void)
@@ -404,6 +407,12 @@ EXPORT_SYMBOL(ast_scu_multi_func_i2c);
 extern void
 ast_scu_multi_func_usb_port1_mode(u8 mode)
 {
+	if(mode)
+		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_USB20_HOST, 
+					AST_SCU_FUN_PIN_CTRL5);
+	else
+		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) & ~SCU_FUC_PIN_USB20_HOST, 
+					AST_SCU_FUN_PIN_CTRL5);
 }	
 
 EXPORT_SYMBOL(ast_scu_multi_func_usb_port1_mode);
@@ -540,14 +549,153 @@ ast_scu_set_hw_random_type(u8 type)
 }
 EXPORT_SYMBOL(ast_scu_set_hw_random_type);
 
-#ifdef AST_SCU_OTP_READ_CTRL
-extern u8
-ast_scu_otp_read(u8 reg)
+extern void ast_i2c_sram_buff_enable(struct ast_i2c_irq *i2c_irq);
+
+static int ast_cam_scu_probe(struct platform_device *pdev)
 {
-        ast_scu_write(SCU_OTP_TRIGGER | SCU_OTP_READ_ADDR(reg), AST_SCU_OTP_READ_CTRL);
-        while(SCU_OTP_TRIGGER_STS & ast_scu_read(AST_SCU_OTP_READ_CTRL));
-        return (SCU_OTP_READ_DATA(ast_scu_read(AST_SCU_OTP_READ_CTRL)));
+	int ret = 0;
+	int irq = 0;
+	struct resource *res;
+	struct device_node *np;
+	u32 idx;
+
+	SCUDBUG("\n");	
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ast_scu_base = devm_ioremap_resource(&pdev->dev, res);
+//	irq = platform_get_irq(pdev, 0);
+	ast_scu_write(0x51515151, 0x44);
+	printk("SCU ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+
+	
+#if 0	
+	ret = devm_request_irq(&pdev->dev, irq, ast_scu_isr,
+						   0, dev_name(&pdev->dev), NULL);
+	if (ret) {
+		printk("AST SCU Unable request IRQ \n");
+		goto out;
+	}
+#endif
+
+#if 0
+	//UART Setting 
+	for_each_compatible_node(np, NULL, "ns16550a") {
+		SCUDBUG("np->name %s %s \n", np->name, np->properties->name);
+		
+		if (of_property_read_u32(np, "pinmux", &idx) == 0) {
+			SCUDBUG("pinmux = %d \n", idx);
+			ast_scu_multi_func_uart(idx);
+		}
+	}
+
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-pwm-tacho")) {
+		printk("aspeed,ast-pwm-tacho found in SCU \n");
+		//SCU Pin-MUX	//PWM & TACHO 
+//		ast_scu_multi_func_pwm_tacho();
+		
+		//SCU PWM CTRL Reset
+//		ast_scu_init_pwm_tacho();	
+	}
+
+	for_each_compatible_node(np, NULL, "aspeed,ast-mac") {
+		printk("aspeed,ast-mac found in SCU, ");
+		
+		if (of_property_read_u32(np, "pinmux", &idx) == 0) {
+			printk("pinmux = %d \n", idx);
+			ast_scu_init_eth(idx);
+			ast_scu_multi_func_eth(idx);
+		}
+	}
+
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-sdhci-irq")) {
+		printk("aspeed,ast-sdhci-irq found in SCU \n");
+		ast_scu_init_sdhci();
+	}
+
+	if(np = of_find_compatible_node(NULL, NULL, "aspeed,ast-i2c-irq")) {
+		printk("aspeed,ast-i2c-irq found in SCU \n");
+		//SCU I2C Reset 
+		ast_scu_init_i2c();
+		if(of_machine_is_compatible("aspeed,ast2500")) {
+			printk("aspeed,ast-adc found in SCU \n");
+#ifdef CONFIG_I2C_AST
+			//DMA, BUFF Mode enable 
+			ast_i2c_sram_buff_enable((struct ast_i2c_irq *)np->data);
+#endif
+		}
+	}
+	
+	for_each_compatible_node(np, NULL, "aspeed,ast-i2c") {
+		printk("aspeed,ast-i2c found in SCU, ");
+		if (of_property_read_u32(np, "bus", &idx) == 0) {
+			printk("bus = %d \n", idx);
+			ast_scu_multi_func_i2c(idx);
+		}
+	}
+
+	for_each_compatible_node(np, NULL, "aspeed,ast-sdhci") {
+		printk("aspeed,ast-ehci found in SCU, ");
+		if (of_property_read_u32(np, "port", &idx) == 0) {
+			printk("port = %d \n", idx);
+			ast_scu_multi_func_sdhc_slot(3);
+		}
+	}
+
+	
+
+	for_each_compatible_node(np, NULL, "aspeed,ast-ehci") {
+		printk("aspeed,ast-ehci found in SCU, ");
+		if (of_property_read_u32(np, "port", &idx) == 0) {
+
+			printk("port = %d \n", idx);
+			switch(idx) {
+				case 0:
+					ast_scu_init_usb_port1();					
+					break;
+				case 1:
+					ast_scu_init_usb_port2();						
+					break;
+				default:
+					break;
+			}
+
+		}
+	}
+#endif
+#if 0
+	//SCU intr enable
+	ast_scu_write(0x003f0000,
+				AST_SCU_INTR_CTRL);
+	
+	ast_scu_write(ast_scu_read(AST_SCU_INTR_CTRL) | 
+				INTR_LPC_H_L_RESET_EN	| INTR_LPC_L_H_RESET_EN | INTR_PCIE_H_L_RESET_EN |
+				INTR_PCIE_L_H_RESET_EN |INTR_VGA_SCRATCH_CHANGE_EN | INTR_VGA_CURSOR_CHANGE_EN	,
+				AST_SCU_INTR_CTRL);
+
+	ast_scu_show_system_info();
+#endif	
+
+out:
+	return ret;
 }
 
-EXPORT_SYMBOL(ast_scu_otp_read);
-#endif
+static const struct of_device_id ast_cam_scu_of_match[] = {
+	{ .compatible = "aspeed,ast-cam-scu", },
+	{ }
+};
+
+static struct platform_driver ast_cam_scu_driver = {
+	.probe = ast_cam_scu_probe,
+	.driver = {
+		.name = KBUILD_MODNAME,
+		.of_match_table = ast_cam_scu_of_match,
+	},
+};
+
+static int ast_cam_scu_init(void)
+{
+	return platform_driver_register(&ast_cam_scu_driver);
+}
+
+core_initcall(ast_cam_scu_init);
+
