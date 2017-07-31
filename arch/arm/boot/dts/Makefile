@@ -2,8 +2,7 @@ ifeq ($(CONFIG_OF),y)
 
 dtb-$(CONFIG_ARCH_ASPEED) += \
 	ast2500.dtb \
-	aspeed-bmc-opp-palmetto.dtb \
-	aspeed-ast2500-evb.dtb
+	ast1220.dtb 
 dtb-$(CONFIG_ARCH_ALPINE) += \
 	alpine-db.dtb
 dtb-$(CONFIG_MACH_ARTPEC6) += \

@@ -343,16 +343,14 @@ config ARCH_MULTIPLATFORM
 config ARCH_ASPEED
 	bool "ASPEED AST Family"
 	select ARM_AMBA
-	select PLAT_ASPEED
+	select FIQ
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select MIGHT_HAVE_PCI
 	select GENERIC_CLOCKEVENTS
-	select MULTI_IRQ_HANDLER
-	select IRQ_DOMAIN
+	select AST_VIC
 	select AST_TIMER
 	select COMMON_CLK
 	select PINCTRL
-	select AST_VIC
 
 config ARM_SINGLE_ARMV7M
 	bool "ARMv7-M based platforms (Cortex-M0/M3/M4)"
@@ -914,10 +912,6 @@ config ARCH_MPS2
 	  for the platform may vary, so adjustment of RAM base might be needed.
 
 # Definitions to make life easier
-config PLAT_ASPEED
-	bool
-	select FIQ
-
 config ARCH_ACORN
 	bool
 
