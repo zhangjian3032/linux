@@ -35,8 +35,7 @@ config AST_TIMER
         select CLKSRC_OF
         select MFD_SYSCON
         help
-          Enables support for the Faraday Technology timer block
-          FTTMR010.
+          Enables support for the ASPEED Technology timer.
 
 config BCM2835_TIMER
 	bool "BCM2835 timer driver" if COMPILE_TEST
