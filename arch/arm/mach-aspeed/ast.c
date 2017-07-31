@@ -20,15 +20,16 @@
 #include <asm/mach/arch.h>
 #include <mach/ast_wdt.h>
 
-static const char *const aspeed_dt_match[] __initconst = {
-		"aspeed,ast2400",
-		"aspeed,ast2500",
-		"aspeed,ast2600",		
-		NULL,
+static const char *const ast_dt_match[] __initconst = {
+	"aspeed,ast1220",
+	"aspeed,ast2400",
+	"aspeed,ast2500",
+	"aspeed,ast2600",
+	NULL,
 };
 
-DT_MACHINE_START(aspeed_dt, "ASpeed BMC SoC")
-	.dt_compat		= aspeed_dt_match,
+DT_MACHINE_START(ast_dt, "ASpeed BMC SoC")
+	.dt_compat		= ast_dt_match,
 #if defined(CONFIG_AST_WATCHDOG) || defined(CONFIG_AST_WATCHDOG_MODULE)
 	.restart			= ast_soc_wdt_reset,
 #endif

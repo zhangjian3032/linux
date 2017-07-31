@@ -96,7 +96,8 @@ choice
         default CONFIG_ARCH_AST1220
 
 config ARCH_AST1220
-        select CPU_V6
+	select CPU_V6
+        select USB_ARCH_HAS_EHCI
         bool "AST1220"
 
 endchoice
@@ -105,9 +106,6 @@ config AST_CAM_FPGA
 	bool "AST CAM FPGA"
 
 endif
-
-config AST_CVIC
-	bool "AST CVIC"
 
 config AST_SCU_LOCK
 	bool "AST SCU Protection Key"
