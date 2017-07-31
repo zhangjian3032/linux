@@ -475,7 +475,7 @@ config COH901327_WATCHDOG
 
 config AST_WATCHDOG
 	tristate "ASPEED watchdog"
-	depends on PLAT_ASPEED
+	depends on ARCH_ASPEED
 	select WATCHDOG_CORE 
 	help
 	  Watchdog timer for ASPEED chips.

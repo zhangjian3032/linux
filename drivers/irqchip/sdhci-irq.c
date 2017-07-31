@@ -22,7 +22,6 @@
 ********************************************************************************/
 #include <asm/io.h>
 #include <linux/irq.h>
-#include <mach/platform.h>
 #include <mach/ast-scu.h>
 
 #include <linux/irq.h>

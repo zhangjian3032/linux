@@ -8,6 +8,11 @@ config SDHCI_AST_IRQ
 config I2C_AST_IRQ
 	bool
 
+config AST_VIC
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	bool
+
 config ARM_GIC
 	bool
 	select IRQ_DOMAIN

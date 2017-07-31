@@ -2,7 +2,7 @@
 # MISC configuration for ASPEED SOCs
 #
 
-if PLAT_ASPEED
+if ARCH_ASPEED
 menuconfig AST_MISC
 	tristate 'ASPEED SOCs MISC drivers'
 	help
