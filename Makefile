@@ -1704,4 +1704,4 @@ FORCE:
 
 pub:
 	cp arch/arm/boot/uImage /tftpboot/
-	@[ -f arch/arm/boot/dts/ast2500.dtb ] && cp arch/arm/boot/dts/ast2500.dtb /tftpboot/ || echo "no dtb file"
+	cp arch/arm/boot/dts/*.dtb /tftpboot/
