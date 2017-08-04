@@ -87,6 +87,7 @@ ast_ahbc_write(u32 val, u32 reg)
 extern void ast_ahbc_boot_remap(void)
 {
 #if defined(AST_SOC_G5)
+#elif defined(AST_SOC_CAM)
 #else
 	ast_ahbc_write(ast_ahbc_read(AST_AHBC_ADDR_REMAP) | AHBC_BOOT_REMAP, AST_AHBC_ADDR_REMAP);	
 #endif
