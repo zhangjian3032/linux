@@ -55,8 +55,6 @@
 #include <mach/irqs.h>
 #include <mach/platform.h>
 
-#include <plat/ast-scu.h>
-
 #define AST_CRYPTO_IRQ
 //#define AST_CRYPTO_DEBUG
 //#define AST_HASH_DEBUG
@@ -2090,8 +2088,6 @@ static int ast_crypto_probe(struct platform_device *pdev)
 	int irq;
 	struct ast_crypto_dev *crypto_dev;
 
-	ast_scu_init_hace();
-	
 	crypto_dev = kzalloc(sizeof(struct ast_crypto_dev), GFP_KERNEL);
 	if (!crypto_dev) {
 		dev_err(dev, "unable to alloc data struct.\n");
@@ -2224,69 +2220,39 @@ static int ast_crypto_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ast_crypto_dev *crypto_dev = platform_get_drvdata(pdev);
-
+	return 0;
 //	return clk_enable(crypto_dev->clk);
 }
 
-static const struct dev_pm_ops ast_crypto_pm_ops = {
-	.suspend	= ast_crypto_suspend,
-	.resume		= ast_crypto_resume,
-};
 #endif /* CONFIG_PM */
+
+
+
+static const struct of_device_id ast_crypto_of_matches[] = {
+	{ .compatible = "aspeed,ast-crypto", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, ast_crypto_of_matches);
 
 static struct platform_driver ast_crypto_driver = {
 	.probe 		= ast_crypto_probe,
 	.remove		= ast_crypto_remove,
-	.driver		= {
-		.name	= "ast-crypto",
-#ifdef CONFIG_PM
-		.pm	= &ast_crypto_pm_ops,
-#endif /* CONFIG_PM */
+#ifdef CONFIG_PM	
+	.suspend	= ast_crypto_suspend,
+	.resume 	= ast_crypto_resume,
+#endif	
+	.driver         = {
+		.name   = KBUILD_MODNAME,
+		.of_match_table = ast_crypto_of_matches,
 	},
 };
 
-static struct platform_device *ast_crypto_device;
+module_platform_driver(ast_crypto_driver);
 
-static int __init ast_crypto_init(void)
-{
-	int ret;
-
-	static const struct resource ast_crypto_resource[] = {
-		[0] = {
-			.start	= AST_CRYPTO_BASE,
-			.end	= AST_CRYPTO_BASE + SZ_128 - 1,
-			.flags	= IORESOURCE_MEM,
-		},
-		[1] = {
-				.start = IRQ_CRYPTO,
-				.end = IRQ_CRYPTO,
-				.flags = IORESOURCE_IRQ,
-		},
-		
-	};
-
-	ret = platform_driver_register(&ast_crypto_driver);
-
-	if (!ret) {
-		ast_crypto_device = platform_device_register_simple("ast-crypto", 0,
-								ast_crypto_resource, ARRAY_SIZE(ast_crypto_resource));
-		if (IS_ERR(ast_crypto_device)) {
-			platform_driver_unregister(&ast_crypto_driver);
-			ret = PTR_ERR(ast_crypto_device);
-		}
-	}
-
-	return ret;
-}
-
-static void __exit ast_crypto_exit(void)
-{
-	platform_device_unregister(ast_crypto_device);
-	platform_driver_unregister(&ast_crypto_driver);
-}
-
-module_init(ast_crypto_init);
-module_exit(ast_crypto_exit);
+MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
+MODULE_DESCRIPTION("AST Crypto driver");
+MODULE_LICENSE("GPL");
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST Crypto driver");

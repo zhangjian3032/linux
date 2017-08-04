@@ -51,7 +51,6 @@
 #include <mach/irqs.h>
 #include <mach/platform.h>
 #include <mach/hardware.h>
-#include <mach/ast-scu.h>
 #include "aes.h"
 
 /*****************************************************************************************************************/
@@ -643,8 +642,6 @@ static int ast_crypto_probe(struct platform_device *pdev)
 	int ret = 0;
 	CRYPTO_DBUG("\n");	
 	
-	ast_scu_init_hace();
-	
 	ast_crypto = kzalloc(sizeof(struct ast_crypto_data), GFP_KERNEL);
 	if (ast_crypto == NULL) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
@@ -759,7 +756,6 @@ static const struct of_device_id ast_crypto_of_matches[] = {
 };
 
 MODULE_DEVICE_TABLE(of, ast_crypto_of_matches);
-
 
 static struct platform_driver ast_crypto_driver = {
 	.probe 		= ast_crypto_probe,
