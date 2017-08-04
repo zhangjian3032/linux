@@ -37,9 +37,6 @@
 #include <asm/irq.h>
 
 #include <linux/dma-mapping.h>
-#include <mach/ast-scu.h>
-
-//#include <mach/ast-vhub.h>
 
 
 /*************************************************************************************/
@@ -1162,11 +1159,9 @@ static int ast_udc_probe(struct platform_device *pdev)
 	struct resource	*res;
 
 	int i;
-printk("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ast_udc_probe \n");
+
 	UDC_DBG(" \n");
 
-	ast_scu_multi_func_usb_port1_mode(0);
-	ast_scu_init_usb_port1();
 
 	udc = devm_kzalloc(&pdev->dev, sizeof(struct ast_udc), GFP_KERNEL);
 	if (!udc)
