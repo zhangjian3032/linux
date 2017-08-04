@@ -28,9 +28,6 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
-
-#include <mach/ast-scu.h>
-
 /*************************************************************************************/
 #define AST_JTAG_DATA			0x00
 #define AST_JTAG_INST			0x04
@@ -844,8 +841,6 @@ static int ast_jtag_probe(struct platform_device *pdev)
 
 	JTAG_DBUG("ast_jtag_probe\n");	
 	
-	ast_scu_init_jtag();	
-
 	if (!(ast_jtag = devm_kzalloc(&pdev->dev, sizeof(struct ast_jtag_info), GFP_KERNEL))) {
 		return -ENOMEM;
 	}
