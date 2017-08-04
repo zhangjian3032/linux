@@ -39,6 +39,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <mach/aspeed.h>
 
 #include <mach/regs-iic.h>
 #include <mach/ast_i2c.h>
@@ -2254,6 +2255,7 @@ static int ast_i2c_probe(struct platform_device *pdev)
 				   "slave-dma", &i2c_bus->slave_dma);
 	
 	dev_dbg(&pdev->dev, "mast [%d] slave [%d]\n", i2c_bus->master_dma, i2c_bus->slave_dma);	
+
 	//master xfer mode 
 	if(i2c_bus->master_dma == BUFF_MODE) {
 		dev_dbg(&pdev->dev, "use buffer pool mode\n");	
@@ -2279,7 +2281,7 @@ static int ast_i2c_probe(struct platform_device *pdev)
 		//master_mode 0: use byte mode
 		dev_dbg(&pdev->dev, "use default byte mode \n");
 	}
-	
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
@@ -2302,7 +2304,14 @@ static int ast_i2c_probe(struct platform_device *pdev)
 
 	i2c_bus->dev = &pdev->dev;
 
-	i2c_bus->bus_id = pdev->id;
+	ret = of_property_read_u32(i2c_bus->dev->of_node,
+				   "bus", &i2c_bus->bus_id);
+	if (ret < 0) {
+		dev_err(i2c_bus->dev,
+			"Could not read i2c_bus->bus_id property\n");
+		ret = -ENOENT;
+		goto ereqirq;
+	}
 
  	/* Initialize the I2C adapter */
 	i2c_bus->adap.owner   = THIS_MODULE;
@@ -2345,7 +2354,7 @@ static int ast_i2c_probe(struct platform_device *pdev)
 	i2c_bus->adap.algo_data = i2c_bus;
 	i2c_bus->adap.dev.parent = &pdev->dev;
 
-	ret = i2c_add_numbered_adapter(&i2c_bus->adap);
+	ret = i2c_add_adapter(&i2c_bus->adap);
 	if (ret < 0) {
 		printk(KERN_INFO "I2C: Failed to add bus\n");
 		goto eadapt;

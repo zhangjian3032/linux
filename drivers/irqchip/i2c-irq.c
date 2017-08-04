@@ -29,7 +29,6 @@
 #include <linux/of_irq.h>
 #include <linux/io.h>
 #include <mach/ast_i2c.h>
-#include <mach/ast-scu.h>
 /*******************************************************************/
 #define AST_I2CG_ISR				0x00
 
@@ -50,7 +49,7 @@
 #define AST_I2C_DEV14_IRQ		(0x1 << 14)
 
 #define AST_I2CG_ISR_TARGET		0x08
-#ifdef AST_SOC_G5
+#if defined(AST_SOC_G5) || defined(AST_SOC_CAM)
 #define AST_I2CG_CTRL			0x0C
 #define I2C_SRAM_BUFF_EN	0x1
 #endif
