@@ -317,13 +317,13 @@ static int __init ast_timer_common_init(struct device_node *np, bool is_aspeed)
 	writel(0, timer->base + AST_TIMER_CTRL3);
 
 	ret = request_irq(irq, ast_timer_interrupt, IRQF_TIMER,
-			  "AST-TIMER1", &timer->clkevt);
+			  "timer0", &timer->clkevt);
 	if (ret) {
-		pr_err("AST-TIMER1 no IRQ\n");
+		pr_err("timer0 no IRQ\n");
 		goto out_unmap;
 	}
 
-	timer->clkevt.name = "AST-TIMER1";
+	timer->clkevt.name = "ast-timer0";
 	/* Reasonably fast and accurate clock event */
 	timer->clkevt.rating = 300;
 	timer->clkevt.features = CLOCK_EVT_FEAT_PERIODIC |
