@@ -5,7 +5,7 @@
 config NET_VENDOR_AST
 	bool "AST devices"
 	default y
-	depends on PLAT_ASPEED
+	depends on ARCH_ASPEED
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -24,13 +24,5 @@ config AST_MAC
         select PHYLIB
         help
           This driver supports the ASPEED Gigabit Ethernet controller.
-
-config FTGMAC100
-	tristate "Faraday FTGMAC100 Gigabit Ethernet support"
-	select PHYLIB
-	help
-	  This driver supports the FTGMAC100 Gigabit Ethernet controller
-	  from Faraday. It is used on Faraday A369, Andes AG102 and some
-	  other ARM/NDS32 SoC's.
 
 endif # NET_VENDOR_AST

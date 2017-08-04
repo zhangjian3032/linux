@@ -63,7 +63,6 @@
 
 #include <mach/irqs.h>
 #include <mach/platform.h>
-#include <plat/ast-scu.h>
 
 #include "ftgmac100_26.h"
 
@@ -1786,7 +1785,7 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
     return work_done;
 }
 
-static int __init ast_gmac_probe(struct platform_device *pdev)
+static int ast_gmac_probe(struct platform_device *pdev)
 {
     struct resource *res;
     struct net_device *netdev;
@@ -1964,93 +1963,22 @@ static int ast_gmac_remove(struct platform_device *pdev)
     return 0;
 }
 
+static const struct of_device_id ast_gmac_of_match[] = {
+	{ .compatible = "aspeed,ast-gmac" },		
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ast_gmac_of_match);
+
 static struct platform_driver ast_gmac_driver = {
-    .remove = ast_gmac_remove,
-    .driver = {
-    .name   = "ast_gmac",
-    .owner  = THIS_MODULE,
-    },
-};
-
-#ifdef AST_MAC0_BASE
-static u64 ast_eth_dmamask = 0xffffffffUL;
-static struct resource ast_mac0_resources[] = {
-	[0] = {
-		.start = AST_MAC0_BASE,
-		.end = AST_MAC0_BASE + SZ_128K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_MAC0,
-		.end = IRQ_MAC0,
-		.flags = IORESOURCE_IRQ,
+	.probe	= ast_gmac_probe,
+	.remove = ast_gmac_remove,
+	.driver	= {
+		.name		= KBUILD_MODNAME,
+		.of_match_table	= ast_gmac_of_match,
 	},
 };
+module_platform_driver(ast_gmac_driver);
 
-static struct platform_device ast_eth0_device = {
-	.name		= "ast_gmac",
-	.id		= 0,
-	.dev		= {
-				.dma_mask		= &ast_eth_dmamask,
-				.coherent_dma_mask	= 0xffffffff,
-	},
-	.resource	= ast_mac0_resources,
-	.num_resources = ARRAY_SIZE(ast_mac0_resources),
-};
-#endif
-
-#ifdef AST_MAC1_BASE
-static struct resource ast_mac1_resources[] = {
-	[0] = {
-		.start = AST_MAC1_BASE,
-		.end = AST_MAC1_BASE + SZ_128K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_MAC1,
-		.end = IRQ_MAC1,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device ast_eth1_device = {
-	.name		= "ast_gmac",
-	.id		= 1,
-	.dev		= {
-				.dma_mask		= &ast_eth_dmamask,
-				.coherent_dma_mask	= 0xffffffff,
-	},
-	.resource	= ast_mac1_resources,
-	.num_resources = ARRAY_SIZE(ast_mac1_resources),
-};
-#endif
-
-static int __init ast_gmac_init(void)
-{
-	ast_scu_init_eth(0);
-	ast_scu_multi_func_eth(0);
-
-	// We assume the Clock Stop register does not disable the MAC1 or MAC2 clock
-	// unless Reset Control also holds the MAC in reset.
-	platform_device_register(&ast_eth0_device);
-	
-#ifdef AST_MAC1_BASE
-	ast_scu_init_eth(1);
-	ast_scu_multi_func_eth(1);	
-
-	platform_device_register(&ast_eth1_device);	
-#endif
-
-    return platform_driver_probe(&ast_gmac_driver, ast_gmac_probe);
-}
-
-static void __exit ast_gmac_exit(void)
-{
-    platform_driver_unregister(&ast_gmac_driver);
-}
-
-module_init(ast_gmac_init)
-module_exit(ast_gmac_exit)
 
 MODULE_AUTHOR("ASPEED Technology Inc.");
 MODULE_DESCRIPTION("NIC driver for AST Series");
