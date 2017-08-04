@@ -7,6 +7,10 @@ menuconfig MEMORY
 
 if MEMORY
 
+config AST_CAM_SDMC
+	depends on ARCH_AST1220
+	bool "ASPEED CAM DRAM Controller"
+
 config AST_G5_SDMC
 	depends on (ARCH_AST2500 || ARCH_AST3200)
 	bool "ASPEED G5 DRAM Controller"
