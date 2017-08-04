@@ -41,8 +41,6 @@
 #include <mach/aspeed.h>
 #include <mach/ast_lcd.h>
 #include <mach/ast-scu.h>
-
-
 /***********************************************************************/
 /* CRT control registers */
 //0x00 ~ 0x5F Reserved - FB0 
