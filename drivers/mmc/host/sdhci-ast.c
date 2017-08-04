@@ -73,10 +73,12 @@ static void sdhci_ast_set_bus_width(struct sdhci_host *host, int width)
 
 	u8 ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
 
-	if (width == MMC_BUS_WIDTH_8) {
-		ast_sd_set_8bit_mode(sdhci_irq, 1);
-	} else {
-		ast_sd_set_8bit_mode(sdhci_irq, 0);
+	if(sdhci_irq->regs) {
+		if (width == MMC_BUS_WIDTH_8) {
+			ast_sd_set_8bit_mode(sdhci_irq, 1);
+		} else {
+			ast_sd_set_8bit_mode(sdhci_irq, 0);
+		}
 	}
 	if (width == MMC_BUS_WIDTH_4)
 		ctrl |= SDHCI_CTRL_4BITBUS;

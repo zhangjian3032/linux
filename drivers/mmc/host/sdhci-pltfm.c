@@ -104,8 +104,10 @@ void sdhci_get_of_property(struct platform_device *pdev)
 
 	if(of_device_is_compatible(np, "aspeed,sdhci-ast")) {
 		host->quirks |= SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN | SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
+		host->quirks2 |= SDHCI_QUIRK2_PRESET_VALUE_BROKEN |SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN;
 		pnode = of_parse_phandle(np, "interrupt-parent", 0);
-		memcpy(sdhci_irq, pnode->data, sizeof(struct ast_sdhci_irq));
+		if(pnode)
+			memcpy(sdhci_irq, pnode->data, sizeof(struct ast_sdhci_irq));
 	}
 
 	of_property_read_u32(np, "clock-frequency", &pltfm_host->clock);
