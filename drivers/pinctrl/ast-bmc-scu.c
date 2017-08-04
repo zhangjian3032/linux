@@ -2327,7 +2327,11 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 		}
 	}
 
-	
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-udc")) {
+		printk("aspeed,ast-udc found in SCU \n");
+		ast_scu_multi_func_usb_port1_mode(0);
+		ast_scu_init_usb_port1();
+	}
 
 	for_each_compatible_node(np, NULL, "aspeed,ast-ehci") {
 		printk("aspeed,ast-ehci found in SCU, ");
@@ -2346,6 +2350,15 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 		}
 	}
 
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-jtag")) {
+		printk("aspeed,ast-jtag found in SCU \n");
+		ast_scu_init_jtag();	
+	}
+
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-crypto")) {
+		printk("aspeed,ast-crypto found in SCU \n");
+		ast_scu_init_hace();
+	}
 
 	//SCU intr enable
 	ast_scu_write(0x003f0000,

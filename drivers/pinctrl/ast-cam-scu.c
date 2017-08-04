@@ -169,20 +169,16 @@ EXPORT_SYMBOL(ast_scu_init_uart);
 #endif
 
 extern void
-ast_scu_init_eth(u8 num)
+ast_scu_init_eth(void)
 {
-	switch(num) {
-		case 0:
-			ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_MAC0, 
-							AST_SCU_RESET);		
-			udelay(100);
-			ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_MAC_CLK_STOP_EN, 
-							AST_SCU_CLK_STOP);		
-			udelay(1000);
-			ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_MAC0, 
-							AST_SCU_RESET);		
-			break;
-	}		
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_MAC0, 
+					AST_SCU_RESET);		
+	udelay(100);
+	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_MAC_CLK_STOP_EN, 
+					AST_SCU_CLK_STOP);		
+	udelay(1000);
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_MAC0, 
+					AST_SCU_RESET);		
 }
 
 extern void
@@ -207,29 +203,15 @@ extern void
 ast_scu_init_sdhci(void)
 {
 	//SDHCI Host's Clock Enable and Reset
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_SDHCI, AST_SCU_RESET);
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_SDHCI | SCU_RESET_SDIO, AST_SCU_RESET);
 	
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_SDHCI_CLK_STOP_EN, AST_SCU_CLK_STOP);
+	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~(SCU_SDHCI_CLK_STOP_EN | SCU_SDIO_CLK_STOP_EN), AST_SCU_CLK_STOP);
 	mdelay(10);
 	
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_SDHCI, AST_SCU_RESET);
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~(SCU_RESET_SDHCI | SCU_RESET_SDIO), AST_SCU_RESET);
 }
 
 EXPORT_SYMBOL(ast_scu_init_sdhci);
-
-extern void
-ast_scu_init_sdio(void)
-{
-	//SDHCI Host's Clock Enable and Reset
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_SDIO, AST_SCU_RESET);
-	
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_SDIO_CLK_STOP_EN, AST_SCU_CLK_STOP);
-	mdelay(10);
-	
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_SDIO, AST_SCU_RESET);
-}
-
-EXPORT_SYMBOL(ast_scu_init_sdio);
 
 extern void
 ast_scu_init_i2c(void)
@@ -387,7 +369,7 @@ ast_scu_multi_func_uart(u8 uart)
 }
 
 extern void
-ast_scu_multi_func_eth(u8 num)
+ast_scu_multi_func_eth(void)
 {
 }
 
@@ -426,34 +408,13 @@ ast_scu_multi_func_usb_port2_mode(u8 mode)
 
 
 extern void
-ast_scu_multi_func_sdhc_slot(u8 slot)
+ast_scu_multi_func_sdhc_slot(void)
 {
-	switch(slot) {
-		case 1:
-			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_SD1, 
-						AST_SCU_FUN_PIN_CTRL5);						
-			break;
-		case 2:
-			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_SD2, 
-						AST_SCU_FUN_PIN_CTRL5);									
-			break;
-		case 3:
-			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_SD1 | SCU_FUC_PIN_SD2, 
-						AST_SCU_FUN_PIN_CTRL5);						
-			break;			
-	}
-}	
-
-EXPORT_SYMBOL(ast_scu_multi_func_sdhc_slot);
-
-extern void
-ast_scu_multi_func_sdio_slot(void)
-{
-	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_SDIO, 
+	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) |SCU_FUC_PIN_SDIO | SCU_FUC_PIN_SD1 | SCU_FUC_PIN_SD2, 
 				AST_SCU_FUN_PIN_CTRL5);						
 }	
 
-EXPORT_SYMBOL(ast_scu_multi_func_sdio_slot);
+EXPORT_SYMBOL(ast_scu_multi_func_sdhc_slot);
 
 extern void
 ast_scu_multi_nic_switch(u8 enable)
@@ -577,14 +538,12 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 	}
 #endif
 
-#if 0
 	//UART Setting 
 	for_each_compatible_node(np, NULL, "ns16550a") {
 		SCUDBUG("np->name %s %s \n", np->name, np->properties->name);
 		
 		if (of_property_read_u32(np, "pinmux", &idx) == 0) {
 			SCUDBUG("pinmux = %d \n", idx);
-			ast_scu_multi_func_uart(idx);
 		}
 	}
 
@@ -599,17 +558,14 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 
 	for_each_compatible_node(np, NULL, "aspeed,ast-mac") {
 		printk("aspeed,ast-mac found in SCU, ");
-		
-		if (of_property_read_u32(np, "pinmux", &idx) == 0) {
-			printk("pinmux = %d \n", idx);
-			ast_scu_init_eth(idx);
-			ast_scu_multi_func_eth(idx);
-		}
+		ast_scu_init_eth();
+		ast_scu_multi_func_eth();
 	}
 
-	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-sdhci-irq")) {
+	if(of_find_compatible_node(NULL, NULL, "aspeed,sdhci-ast")) {
 		printk("aspeed,ast-sdhci-irq found in SCU \n");
 		ast_scu_init_sdhci();
+		ast_scu_multi_func_sdhc_slot();
 	}
 
 	if(np = of_find_compatible_node(NULL, NULL, "aspeed,ast-i2c-irq")) {
@@ -617,7 +573,7 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 		//SCU I2C Reset 
 		ast_scu_init_i2c();
 		if(of_machine_is_compatible("aspeed,ast2500")) {
-			printk("aspeed,ast-adc found in SCU \n");
+			printk("aspeed,ast-i2c found in SCU \n");
 #ifdef CONFIG_I2C_AST
 			//DMA, BUFF Mode enable 
 			ast_i2c_sram_buff_enable((struct ast_i2c_irq *)np->data);
@@ -633,35 +589,28 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 		}
 	}
 
-	for_each_compatible_node(np, NULL, "aspeed,ast-sdhci") {
+
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-ehci")) {
 		printk("aspeed,ast-ehci found in SCU, ");
-		if (of_property_read_u32(np, "port", &idx) == 0) {
-			printk("port = %d \n", idx);
-			ast_scu_multi_func_sdhc_slot(3);
-		}
+		ast_scu_init_usb_port1();					
 	}
 
-	
-
-	for_each_compatible_node(np, NULL, "aspeed,ast-ehci") {
-		printk("aspeed,ast-ehci found in SCU, ");
-		if (of_property_read_u32(np, "port", &idx) == 0) {
-
-			printk("port = %d \n", idx);
-			switch(idx) {
-				case 0:
-					ast_scu_init_usb_port1();					
-					break;
-				case 1:
-					ast_scu_init_usb_port2();						
-					break;
-				default:
-					break;
-			}
-
-		}
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-udc")) {
+		printk("aspeed,ast-udc found in SCU \n");
+		ast_scu_multi_func_usb_port1_mode(0);
+		ast_scu_init_usb_port1();
 	}
-#endif
+
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-jpeg")) {
+		printk("aspeed,ast-jpeg found in SCU, ");
+		ast_scu_init_jpeg(0);
+	}
+
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-crypto")) {
+		printk("aspeed,ast-crypto found in SCU \n");
+		ast_scu_init_hace();
+	}
+
 #if 0
 	//SCU intr enable
 	ast_scu_write(0x003f0000,
