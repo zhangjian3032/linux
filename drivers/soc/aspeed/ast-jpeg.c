@@ -41,15 +41,13 @@
 #include <mach/irqs.h>
 #include <mach/platform.h>
 #include <mach/aspeed.h>
-#include <mach/ast-scu.h>
 
 #include <linux/dma-mapping.h>
 
 #define CONFIG_AST_JPEG_DEBUG
 
 #ifdef CONFIG_AST_JPEG_DEBUG
-	//#define JPEG_DBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt,__FUNCTION__, ## args)	
-	#define JPEG_DBG(fmt, args...) printk("%s() " fmt,__FUNCTION__, ## args)
+	#define JPEG_DBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt,__FUNCTION__, ## args)	
 #else
 	#define JPEG_DBG(fmt, args...)
 #endif
@@ -416,8 +414,6 @@ static irqreturn_t ast_jpeg_isr(int this_irq, void *dev_id)
 
 static void ast_jpeg_config(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_mode *jpeg_mode)
 {
-	u32 scan_line;
-
 	JPEG_DBG("x : %d, y : %d \n", jpeg_mode->x, jpeg_mode->y);
 	ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_H(jpeg_mode->x) | JPEG_COMPRESS_V(jpeg_mode->y), AST_JPEG_SIZE_SETTING);
 
@@ -456,7 +452,7 @@ static u32 ast_jpeg_compression(struct ast_jpeg_data *ast_jpeg, unsigned long *j
 		return 0;
 	} else {
 		*jpeg_size = ast_jpeg_read(ast_jpeg, AST_JPEG_STREAM_SIZE);
-		JPEG_DBG("compress size %d \n",*jpeg_size);
+//		JPEG_DBG("compress size %d \n",*jpeg_size);
 		return 1;
 	}	
 }
@@ -658,9 +654,14 @@ static void ast_jpeg_ctrl_init(struct ast_jpeg_data *ast_jpeg)
 /************************************************** SYS FS End ***********************************************************/
 static int ast_jpeg_probe(struct platform_device *pdev)
 {
-	struct resource *res0, *res1;
 	int ret=0;
+	struct resource *res0, *res1;
 	struct ast_jpeg_data *ast_jpeg;
+
+	ast_jpeg= devm_kzalloc(&pdev->dev, sizeof(struct ast_jpeg_data), GFP_KERNEL);
+	if (!ast_jpeg) {
+		return -ENOMEM;
+	}
 
 	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res0) {
@@ -669,38 +670,21 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	if (!request_mem_region(res0->start, resource_size(res0), res0->name)) {
-		dev_err(&pdev->dev, "cannot reserved region\n");
-		ret = -ENXIO;
-		goto out;
-	}
-
-	if(!(ast_jpeg = kzalloc(sizeof(struct ast_jpeg_data), GFP_KERNEL))) {
-		return -ENOMEM;
-		goto out;
-        }
-	
-	ast_jpeg->reg_base = ioremap(res0->start, resource_size(res0));
+	ast_jpeg->reg_base = devm_ioremap_resource(&pdev->dev, res0);
 	if (!ast_jpeg->reg_base) {
 		ret = -EIO;
 		goto out_region0;
 	}
-	
-	res1 = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+
+	res1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res1)
 		return -ENODEV;
 	
-	if (!request_mem_region(res1->start, resource_size(res1), res1->name)) {
-		dev_err(&pdev->dev, "cannot reserved region\n");
-		ret = -ENXIO;
-		goto out_region0;
-	}
-
 	ast_jpeg->jpeg_tbl_virt = dma_alloc_coherent(NULL,
 					 1024 * 4 * 12,
 					 &ast_jpeg->jpeg_tbl_dma_addr, GFP_KERNEL);
 
-	JPEG_DBG("JPEG TABLE DMA %x, virt = %x \n", ast_jpeg->jpeg_tbl_dma_addr, ast_jpeg->jpeg_tbl_virt);
+	JPEG_DBG("JPEG TABLE DMA %x, virt = %x \n", ast_jpeg->jpeg_tbl_dma_addr, (u32)ast_jpeg->jpeg_tbl_virt);
 	
 	//Phy assign
 	ast_jpeg->jpeg_mem_size = resource_size(res1);
@@ -726,7 +710,7 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 	        (u32)ast_jpeg->jpeg_phy, (u32)ast_jpeg->buff0_phy, (u32)ast_jpeg->buff1_phy);
 
 	//virt assign
-	ast_jpeg->jpeg_virt = ioremap(res1->start, resource_size(res1));
+	ast_jpeg->jpeg_virt = devm_ioremap_resource(&pdev->dev, res1);
 	if (!ast_jpeg->jpeg_virt) {
 	        ret = -EIO;
 	        goto out_region1;
@@ -759,7 +743,8 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 
 	ast_jpeg_ctrl_init(ast_jpeg);
 
-	ret = request_irq(ast_jpeg->irq, ast_jpeg_isr, IRQF_SHARED, "ast-jpeg", ast_jpeg);
+	ret = devm_request_irq(&pdev->dev, ast_jpeg->irq, ast_jpeg_isr,
+					   0, dev_name(&pdev->dev), ast_jpeg);
 	if (ret) {
 		printk(KERN_INFO "JPEG: Failed request irq %d\n", ast_jpeg->irq);
 		goto out_region1;
@@ -822,71 +807,30 @@ ast_jpeg_resume(struct platform_device *pdev)
 {
 	return 0;
 }
-
-#else
-#define ast_jpeg_suspend        NULL
-#define ast_jpeg_resume         NULL
 #endif
+
+static const struct of_device_id ast_jpeg_of_table[] = {
+	{ .compatible = "aspeed,ast-jpeg", },
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, ast_jpeg_of_table);
 
 static struct platform_driver ast_jpeg_driver = {
 	.probe	= ast_jpeg_probe,
 	.remove	= ast_jpeg_remove,
+#ifdef CONFIG_PM	
 	.suspend	= ast_jpeg_suspend, /* optional but recommended */
 	.resume	= ast_jpeg_resume,   /* optional but recommended */
-	.driver = {
-		.name = "ast-jpeg",
-		.owner  = THIS_MODULE,
+#endif	
+	.driver         = {
+		.name   = KBUILD_MODNAME,
+		.of_match_table = ast_jpeg_of_table,
 	},
 };
 
-static struct platform_device *ast_jpeg_device;
+module_platform_driver(ast_jpeg_driver);
 
-static int __init ast_jpeg_init(void)
-{
-	int ret;
-	static const struct resource jpeg_resources[] = {
-		[0] = {
-			.start = AST_JPEG_BASE,
-			.end = AST_JPEG_BASE + SZ_2K - 1,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = IRQ_JPEG,
-			.end = IRQ_JPEG,
-			.flags = IORESOURCE_IRQ,
-		},
-		[2] = {
-			.start = AST_JPEG_MEM,
-			.end = AST_JPEG_MEM + AST_JPEG_MEM_SIZE - 1,
-			.flags = IORESOURCE_DMA,
-		},	
-	};
-
-	ret = platform_driver_register(&ast_jpeg_driver);
-
-	ast_scu_init_jpeg(0);
-
-	if (!ret) {
-		ast_jpeg_device = platform_device_register_simple("ast-jpeg", 0,
-								jpeg_resources, ARRAY_SIZE(jpeg_resources));
-		if (IS_ERR(ast_jpeg_device)) {
-			platform_driver_unregister(&ast_jpeg_driver);
-			ret = PTR_ERR(ast_jpeg_device);
-		}
-	}
-
-	return ret;
-}
-
-static void __exit ast_jpeg_exit(void)
-{
-	JPEG_DBG("ast_jpeg_exit \n");
-	platform_device_unregister(ast_jpeg_device);
-	platform_driver_unregister(&ast_jpeg_driver);
-}
-
-module_init(ast_jpeg_init);
-module_exit(ast_jpeg_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST JPEG Encoder Device Driver");
