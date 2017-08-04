@@ -18,34 +18,5 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <mach/aspeed.h>
-#include <mach/ast_sdhci_irqs.h>
-#include <mach/ast_gpio_irqs.h>
-#include <mach/ast_pcie_irqs.h>
-//#include <mach/ast_lpc_irqs.h>
-#include <mach/ast_egfx_irqs.h>
-
-#if defined(CONFIG_ARCH_AST1010)
-#include <asm/ast1010_irqs.h>
-#elif defined(CONFIG_ARCH_AST1510)
-#include <mach/ast1510_irqs.h>
-#elif defined(CONFIG_ARCH_AST1520)
-#include <mach/ast1520_irqs.h>
-#elif defined(CONFIG_ARCH_AST2000)
-#include <mach/ast2000_irqs.h>
-#elif defined(CONFIG_ARCH_AST2100) 
-#include <mach/ast2100_irqs.h>
-#elif defined(CONFIG_ARCH_AST2200) 
-#include <mach/ast2200_irqs.h>
-#elif defined(AST_SOC_G3)
-#include <mach/ast_g4_irqs.h>
-#elif defined(AST_SOC_G4)
-#include <mach/ast_g4_irqs.h>
-#elif defined(AST_SOC_G5)
-#include <mach/ast_g5_irqs.h>
-#elif defined(AST_SOC_CAM)
-#include <mach/ast_cam_irqs.h>
-#else
-#err "no define for irqs.h"
-#endif
+#define NR_IRQS 							64
 

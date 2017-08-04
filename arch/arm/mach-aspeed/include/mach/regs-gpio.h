@@ -113,11 +113,8 @@
 #define AST_SIMPLE_GPIO4_INT_MASK			0x198
 #define AST_GPIO_INT_MASK					0x1d0
 #define AST_EXT_GPIO_INT_MASK				0x1d4
-#ifdef CONFIG_ARCH_AST1010
-#else
 #define AST_SIMPLE_GPIO_DATA4				0x1e0
 #define AST_SIMPLE_GPIO_DIR4				0x1e4
-#endif
 
 //Serial GPIO
 #define AST_SGPIO_DATA						0x00

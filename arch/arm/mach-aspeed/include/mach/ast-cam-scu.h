@@ -55,7 +55,6 @@ extern u32 ast_scu_get_vga_memsize(void);
 extern void ast_scu_init_uart(u8);
 extern void ast_scu_init_jpeg(u8 dynamic_en);
 extern void ast_scu_reset_jpeg(void);
-extern void ast_scu_init_eth(u8 num);
 extern void ast_scu_init_lpc(void);
 extern void ast_scu_reset_espi(void);
 extern u8 ast_scu_get_lpc_plus_enable(void);
@@ -81,7 +80,6 @@ extern void ast_scu_uartx_init(void);
 
 //Share pin
 extern void ast_scu_multi_func_uart(u8 uart);
-extern void ast_scu_multi_func_eth(u8 num);
 
 extern void ast_scu_multi_func_nor(void);
 
@@ -96,8 +94,6 @@ extern void ast_scu_multi_func_usb_port2_mode(u8 mode);
 //0 : gpioQ6,7 mode , 1: usb1.1 host port 4 mode
 extern void ast_scu_multi_func_usb_port34_mode(u8 mode);
 
-extern void ast_scu_multi_func_sdhc_slot(u8 slot);
-extern void ast_scu_multi_func_sdio_slot(void);
 
 extern void ast_scu_multi_func_crt(void);
 
