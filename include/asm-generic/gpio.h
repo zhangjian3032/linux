@@ -44,11 +44,8 @@
 
 static inline bool gpio_is_valid(int number)
 {
-#ifdef CONFIG_ARCH_ASPEED
-	return number >= 0 && number < (ARCH_NR_GPIOS + ARCH_NR_SGPIOS);
-#else
+	printk("TODO ~~~ gpio_is_valid number %d \n", number);
 	return number >= 0 && number < (ARCH_NR_GPIOS);
-#endif
 
 }
 
