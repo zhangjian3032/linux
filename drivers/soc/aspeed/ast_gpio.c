@@ -60,11 +60,11 @@ int __init gpio_module_init(void)
 	}
 	gpio_direction_input(GPIO);
 //	gpio_set_debounce(GPIO, 1);
-	printk("gpio_export \n");
+//	printk("gpio_export \n");
 	gpio_export(GPIO, 1); 
-	printk("gpio_to_irq \n");
+//	printk("gpio_to_irq \n");
 	gpio_irq = gpio_to_irq(GPIO);        // map your GPIO to an IRQ
-	printk("gpio_to_irq %d \n", gpio_irq);
+//	printk("gpio_to_irq %d \n", gpio_irq);
 	retVal = request_irq(gpio_irq,           // requested interrupt
 	                   (irq_handler_t) gpio_handler, // pointer to handler function
 	                   IRQF_TRIGGER_HIGH, // interrupt mode flag

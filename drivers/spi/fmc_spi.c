@@ -35,18 +35,17 @@
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
-#include <asm/io.h>
-#include <mach/ast_spi.h>
-#include <plat/regs-spi.h>
-#include <plat/regs-fmc.h>
-#include <plat/ast-scu.h>
+//#include <asm/io.h>
+//#include <mach/ast_spi.h>
+#include <mach/regs-spi.h>
+#include <mach/regs-fmc.h>
+#include <mach/ast-scu.h>
 
 //IN FMC SPI always control offset 0x00
 
 struct fmc_spi_host {
 	void __iomem		*reg;			
 	u32		buff[5];			
-	struct ast_spi_driver_data *spi_data;
 	struct spi_master *master;
 	struct spi_device *spi_dev;
 	struct device *dev;
@@ -65,6 +64,24 @@ static inline u32
 fmc_spi_read(struct fmc_spi_host *host, u32 reg)
 {
 	return readl(host->reg + reg + (host->spi_dev->chip_select*0x4) + 0x10);
+}
+
+static u32 ast_spi_calculate_divisor(u32 max_speed_hz)
+{
+	// [0] ->15 : HCLK , HCLK/16
+	u8 SPI_DIV[16] = {16, 7, 14, 6, 13, 5, 12, 4, 11, 3, 10, 2, 9, 1, 8, 0};
+	u32 i, hclk, spi_cdvr=0;
+
+	hclk = ast_get_ahbclk();
+	for(i=1;i<17;i++) {
+		if(max_speed_hz >= (hclk/i)) {
+			spi_cdvr = SPI_DIV[i-1];
+			break;
+		}
+	}
+		
+//	printk("hclk is %d, divisor is %d, target :%d , cal speed %d\n", hclk, spi_cdvr, spi->max_speed_hz, hclk/i);
+	return spi_cdvr;
 }
 
 /* the spi->mode bits understood by this driver: */
@@ -151,7 +168,7 @@ fmc_spi_setup(struct spi_device *spi)
 	 
 	if (spi->max_speed_hz) {
 		/* Set the SPI slaves select and characteristic control register */
-		divisor = host->spi_data->get_div(spi->max_speed_hz);
+		divisor = ast_spi_calculate_divisor(spi->max_speed_hz);
 	} else {
 		/* speed zero means "as slow as possible" */
 		divisor = 15;
@@ -277,9 +294,6 @@ static int fmc_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 //	spin_unlock(&host->lock);
 	spin_unlock_irqrestore(&host->lock, flags);
 
-	
-	
-
 	return 0;
 	
 }
@@ -297,15 +311,16 @@ static void fmc_spi_cleanup(struct spi_device *spi)
         spin_unlock_irqrestore(&host->lock, flags);
 }
 
+#define FMC_SPI_CS_NUM 	2
 static int fmc_spi_probe(struct platform_device *pdev)
 {
-	struct resource		*res0, *res1=0;
+	struct resource		*res;
 	struct fmc_spi_host *host;
 	struct spi_master *master;
 	int cs_num = 0;	
 	int err;
 
-	dev_dbg(&pdev->dev, "fmc_spi_probe() \n\n\n");
+	dev_dbg(&pdev->dev, "fmc_spi_probe() \n");
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct fmc_spi_host));
 	if (NULL == master) {
@@ -316,45 +331,42 @@ static int fmc_spi_probe(struct platform_device *pdev)
 	host = spi_master_get_devdata(master);
 	memset(host, 0, sizeof(struct fmc_spi_host));
 
-	/* Find and claim our resources */
-	host->spi_data = pdev->dev.platform_data;		
-
-	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res0) {
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
 		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM 0\n");		
 		err = -ENXIO;
 		goto err_no_io_res;
 	}
 
-	host->reg = ioremap(res0->start, resource_size(res0));
+	host->reg = devm_ioremap_resource(&pdev->dev, res);
 	if (!host->reg) {
 		dev_err(&pdev->dev, "cannot remap register\n");
 		err = -EIO;
-		goto release_mem;
+		goto err_no_io_res;
 	}	
 
-	dev_dbg(&pdev->dev, "remap phy %x, virt %x \n",(u32)res0->start, (u32)host->reg);
+	dev_dbg(&pdev->dev, "remap phy %x, virt %x \n",(u32)res->start, (u32)host->reg);
 
-	for(cs_num = 0; cs_num < host->spi_data->num_chipselect ; cs_num++) {
-		res1 = platform_get_resource(pdev, IORESOURCE_BUS, cs_num);
-		if (!res1) {
+	for(cs_num = 0; cs_num < FMC_SPI_CS_NUM ; cs_num++) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, cs_num + 1);
+		if (!res) {
 			dev_err(&pdev->dev, "cannot get IORESOURCE_IO 0\n");		
 			return -ENXIO;	
 		}
 
-		host->buff[cs_num] = (u32) ioremap(res1->start, resource_size(res1));
+		host->buff[cs_num] = (u32)devm_ioremap_resource(&pdev->dev, res);
 		if (!host->buff[cs_num]) {
 			dev_err(&pdev->dev, "cannot remap buffer \n");
 			err = -EIO;
-			goto release_mem;
+			goto err_no_io_res;
 		}		
 
-		dev_dbg(&pdev->dev, "remap io phy %x, virt %x \n",(u32)res1->start, (u32)host->buff[cs_num]);	
+		dev_dbg(&pdev->dev, "remap io phy %x, virt %x \n",(u32)res->start, (u32)host->buff[cs_num]);	
 	}
 	
 	host->master = spi_master_get(master);
 	host->master->bus_num = pdev->id;
-	host->master->num_chipselect = host->spi_data->num_chipselect;
+	host->master->num_chipselect = FMC_SPI_CS_NUM;
 	host->dev = &pdev->dev;
 
 	/* Setup the state for bitbang driver */
@@ -371,20 +383,16 @@ static int fmc_spi_probe(struct platform_device *pdev)
 			goto err_register;
 	}
 
-	dev_dbg(&pdev->dev, "fmc_spi_probe() return \n\n\n");
+	dev_dbg(&pdev->dev, "fmc_spi : driver load \n");
 
 	return 0;
 
 err_register:
 	spi_master_put(host->master);
 	iounmap(host->reg);
-	for(cs_num = 0; cs_num < host->spi_data->num_chipselect ; cs_num++) {	
+	for(cs_num = 0; cs_num < FMC_SPI_CS_NUM; cs_num++) {	
 		iounmap((void *)host->buff[cs_num]);	
 	}
-
-release_mem:
-	release_mem_region(res0->start, res0->end - res0->start + 1);	
-	release_mem_region(res1->start, res1->end - res1->start + 1);	
 
 err_no_io_res:
 	kfree(master);
@@ -398,7 +406,7 @@ err_nomem:
 static int 
 fmc_spi_remove(struct platform_device *pdev)
 {
-	struct resource 	*res0, *res1;
+	struct resource 	*res0;
 	struct fmc_spi_host *host = platform_get_drvdata(pdev);
 
 	dev_dbg(host->dev, "fmc_spi_remove()\n");
@@ -407,9 +415,7 @@ fmc_spi_remove(struct platform_device *pdev)
 		return -1;
 
 	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	res1 = platform_get_resource(pdev, IORESOURCE_BUS, 0);	
 	release_mem_region(res0->start, res0->end - res0->start + 1);
-	release_mem_region(res1->start, res1->end - res1->start + 1);	
 	iounmap(host->reg);
 	iounmap(host->buff);		
 
@@ -436,32 +442,25 @@ fmc_spi_resume(struct platform_device *pdev)
 #define fmc_spi_resume NULL
 #endif
 
+static const struct of_device_id fmc_spi_of_match[] = {
+	{ .compatible = "aspeed,fmc-spi" },
+	{ },
+};
+
 static struct platform_driver fmc_spi_driver = {
 	.probe = fmc_spi_probe,
 	.remove = fmc_spi_remove,
+#ifdef CONFIG_PM		
 	.suspend = fmc_spi_suspend,
 	.resume = fmc_spi_resume,
+#endif	
 	.driver = {
-		.name = "fmc-spi",
-		.owner = THIS_MODULE,
+		.name		= KBUILD_MODNAME,
+		.of_match_table = fmc_spi_of_match,
 	},
 };
 
-static int __init
-fmc_spi_init(void)
-{
-	return  platform_driver_register(&fmc_spi_driver);
-}
-
-static void __exit
-fmc_spi_exit(void)
-{
-	platform_driver_unregister(&fmc_spi_driver);
-}
-
-arch_initcall(fmc_spi_init);
-//module_init(fmc_spi_init);
-module_exit(fmc_spi_exit);
+module_platform_driver(fmc_spi_driver);
 
 MODULE_DESCRIPTION("FMC SPI Driver");
 MODULE_AUTHOR("Ryan Chen");

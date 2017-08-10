@@ -32,9 +32,6 @@
 #include <linux/miscdevice.h>
 #include <mach/irqs.h>
 #include <mach/platform.h>
-
-#include <mach/ast-scu.h>
-
 /***********************************************************************/
 /*AST PECI Register Definition */
 #define AST_PECI_CTRL		0x00

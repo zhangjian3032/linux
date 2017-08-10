@@ -28,6 +28,7 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
+#include <mach/ast-scu.h>
 /*************************************************************************************/
 #define AST_JTAG_DATA			0x00
 #define AST_JTAG_INST			0x04
