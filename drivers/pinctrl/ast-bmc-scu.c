@@ -2263,8 +2263,7 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-pwm-tacho")) {
 		printk("aspeed,ast-pwm-tacho found in SCU \n");
 		//SCU Pin-MUX	//PWM & TACHO 
-		ast_scu_multi_func_pwm_tacho();
-		
+		ast_scu_multi_func_pwm_tacho();		
 		//SCU PWM CTRL Reset
 		ast_scu_init_pwm_tacho();	
 	}
