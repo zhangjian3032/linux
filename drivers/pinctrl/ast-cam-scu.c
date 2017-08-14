@@ -190,7 +190,7 @@ ast_scu_init_usb_port1(void)
 	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_USB20, AST_SCU_RESET);
 
 	//enable USB20 clock
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) | SCU_USB20_PHY_CLK_EN, AST_SCU_CLK_STOP);
+	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_USB20_PHY_CLK_EN, AST_SCU_CLK_STOP);
 	mdelay(10);
 
 	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_USB20, AST_SCU_RESET);
