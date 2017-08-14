@@ -15,10 +15,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-
 #include <asm/mach/arch.h>
-#include <mach/ast_wdt.h>
+#include <asm/system_misc.h>
+
+/* Reset the system. It is called by machine_restart(). */
+static void ast_restart(enum reboot_mode mode, const char *cmd)
+{
+	/* We'll take a jump through zero as a poor second */
+	soft_restart(0);
+}
+
 
 static const char *const ast_dt_match[] __initconst = {
 	"aspeed,ast1220",
@@ -30,7 +36,6 @@ static const char *const ast_dt_match[] __initconst = {
 
 DT_MACHINE_START(ast_dt, "ASpeed BMC SoC")
 	.dt_compat		= ast_dt_match,
-#if defined(CONFIG_AST_WATCHDOG) || defined(CONFIG_AST_WATCHDOG_MODULE)
-	.restart			= ast_soc_wdt_reset,
-#endif
+	.restart			= ast_restart,
+
 MACHINE_END
