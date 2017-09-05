@@ -124,8 +124,9 @@ static int __init ast_sdhci_irq_of_init(struct device_node *node,
 		return -ENOMEM;
 
 	node->data = sdhci_irq;
+
 	if (of_property_read_u32(node, "slot_num", &sdhci_irq->slot_num) == 0) {
-		printk("sdhci_irq->slot_num = %d \n", sdhci_irq->slot_num);
+		SDHCI_IRQ_DBUG("sdhci_irq->slot_num = %d \n", sdhci_irq->slot_num);
 	}
 
 	sdhci_irq->regs = of_iomap(node, 0);

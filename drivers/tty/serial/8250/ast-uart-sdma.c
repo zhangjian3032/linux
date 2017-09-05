@@ -528,11 +528,11 @@ static int ast_uart_sdma_probe(struct platform_device *pdev)
 		return -1;
 	}
 
-
 	ast_uart_sdma_write(sdma, SDMA_SET_TX_BUFF_SIZE(SDMA_BUFF_SIZE_4KB) | SDMA_SET_RX_BUFF_SIZE(SDMA_BUFF_SIZE_64KB)
 					, UART_SDMA_CONF);
 
-    return 0;
+	printk(KERN_INFO "ast uart sdma: driver successfully loaded.\n");
+	return 0;
 }                                                                              
 
 static const struct of_device_id ast_uart_sdma_of_match[] = {
@@ -541,11 +541,11 @@ static const struct of_device_id ast_uart_sdma_of_match[] = {
 };
 
 static struct platform_driver ast_bmc_scu_driver = {
-        .probe = ast_uart_sdma_probe,
-        .driver = {
-                .name = "ast-uart-sdma",
-                .of_match_table = ast_uart_sdma_of_match,
-        },
+	.probe = ast_uart_sdma_probe,
+	.driver = {
+		.name = KBUILD_MODNAME,
+		.of_match_table = ast_uart_sdma_of_match,
+	},
 };
 
 static int ast_uart_sdma_init(void)

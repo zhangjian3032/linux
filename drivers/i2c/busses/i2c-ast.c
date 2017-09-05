@@ -2248,10 +2248,10 @@ static int ast_i2c_probe(struct platform_device *pdev)
 	}
 
 	//TODO ~~
-	ret = of_property_read_u32(pdev->dev.of_node,
+	ret = of_property_read_u8(pdev->dev.of_node,
 				   "master-dma", &i2c_bus->master_dma);
 
-	ret = of_property_read_u32(pdev->dev.of_node,
+	ret = of_property_read_u8(pdev->dev.of_node,
 				   "slave-dma", &i2c_bus->slave_dma);
 	
 	dev_dbg(&pdev->dev, "mast [%d] slave [%d]\n", i2c_bus->master_dma, i2c_bus->slave_dma);	
@@ -2362,8 +2362,8 @@ static int ast_i2c_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, i2c_bus);
 
-	printk(KERN_INFO "I2C: %s: AST I2C adapter [%d khz]\n",
-	       i2c_bus->adap.name,i2c_bus->bus_clk/1000);
+	printk(KERN_INFO "I2C: %s: AST I2C adapter [%d khz] xfer mode: M[%d], S[%d]\n",
+	       pdev->dev.of_node->name,i2c_bus->bus_clk/1000, i2c_bus->master_dma, i2c_bus->slave_dma);
 
 	return 0;
 

@@ -561,7 +561,7 @@ static const struct of_device_id of_ast_peci_match_table[] = {
 	{ .compatible = "aspeed,ast-peci", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, of_ast_peci_table);
+MODULE_DEVICE_TABLE(of, of_ast_peci_match_table);
 
 static struct platform_driver ast_peci_driver = {
 	.probe		= ast_peci_probe,

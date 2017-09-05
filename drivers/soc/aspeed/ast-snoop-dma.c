@@ -30,8 +30,8 @@
 #include <linux/dma-mapping.h>
 
 		
-#include <plat/ast-lpc.h>
-#include <plat/regs-lpc.h>
+#include <mach/ast-lpc.h>
+#include <mach/regs-lpc.h>
 
 #define CONFIG_AST_SNOOP_DMA_DEBUG
 

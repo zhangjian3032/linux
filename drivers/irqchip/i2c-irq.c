@@ -57,7 +57,6 @@
 //#define AST_I2C_IRQ_DEBUG
 
 #ifdef AST_I2C_IRQ_DEBUG
-#define DEBUG
 #define I2C_IRQ_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
 #else
 #define I2C_IRQ_DBUG(fmt, args...)
@@ -357,7 +356,7 @@ static int __init ast_i2c_irq_of_init(struct device_node *node,
 
 	node->data = i2c_irq;
 	if (of_property_read_u32(node, "bus_num", &i2c_irq->bus_num) == 0) {
-		printk("i2c_irq->bus_num = %d \n", i2c_irq->bus_num);
+		I2C_IRQ_DBUG("i2c_irq->bus_num = %d \n", i2c_irq->bus_num);
 	}
 
 	i2c_irq->parent_irq = irq_of_parse_and_map(node, 0);

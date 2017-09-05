@@ -920,6 +920,8 @@ static int ast_jtag_remove(struct platform_device *pdev)
 
 	JTAG_DBUG("ast_jtag_remove\n");
 
+	sysfs_remove_group(&pdev->dev.kobj, &jtag_attribute_group);
+	
 	misc_deregister(&ast_jtag_misc);
 
 	free_irq(ast_jtag->irq, ast_jtag);

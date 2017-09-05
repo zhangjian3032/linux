@@ -44,6 +44,29 @@
 #include <linux/dma-mapping.h>
 #include <mach/ast-uart-dma.h>
 
+#define AST_UART3_BASE					0x1E78E000	/* UART3 */
+#define AST_UART4_BASE					0x1E78F000	/* UART4 */
+#define AST_UART5_BASE					0x1E790000	/* UART6 */
+#define AST_UART6_BASE					0x1E791000	/* UART7 */
+#define AST_UART7_BASE					0x1E792000	/* UART8 */
+#define AST_UART8_BASE					0x1E793000	/* UART9 */
+#define AST_UART9_BASE					0x1E794000	/* UART10 */
+#define AST_UART10_BASE				0x1E795000	/* UART11 */
+#define AST_UART11_BASE				0x1E796000	/* UART12 */
+#define AST_UART12_BASE				0x1E797000	/* UART13 */
+
+#define IRQ_UART2                                               32                      /* UART 2 interrupt */
+#define IRQ_UART3                                               33                      /* UART 3 interrupt */
+#define IRQ_UART4                                               34                      /* UART 4 interrupt */
+#define IRQ_UART5                                               51                      /* UART 6 interrupt */
+#define IRQ_UART6                                               52                      /* UART 7 interrupt */
+#define IRQ_UART7                                               53                      /* UART 8 interrupt */
+#define IRQ_UART8                                               54                      /* UART 9 interrupt */
+#define IRQ_UART9                                               55                      /* UART 10 interrupt */
+#define IRQ_UART10                                              56                      /* UART 11 interrupt */
+#define IRQ_UART11                                              57                      /* UART 12 interrupt */
+#define IRQ_UART12                                              58                      /* UART 13 interrupt */
+
 //#define CONFIG_UART_DMA_DEBUG
 //#define CONFIG_UART_TX_DMA_DEBUG
 
@@ -105,15 +128,7 @@ struct ast_uart_port {
 	struct circ_buf		tx_dma_buf;
 	dma_addr_t			dma_rx_addr;	/* Mapped ADMA descr. table */
 	dma_addr_t			dma_tx_addr;	/* Mapped ADMA descr. table */
-#if defined(CONFIG_AST1070_UART_DMA)	
 	struct tasklet_struct	rx_tasklet;
-#elif defined(CONFIG_AST_UART_SDMA)	
-#ifdef SDDMA_RX_FIX
-	struct tasklet_struct	rx_tasklet;
-#else
-	struct timer_list		rx_timer;
-#endif
-#endif
 	struct tasklet_struct	tx_tasklet;
 	spinlock_t lock;
 	int tx_done;
@@ -233,65 +248,13 @@ static inline void _serial_dl_write(struct ast_uart_port *up, int value)
 #define serial_dl_read(up) _serial_dl_read(up)
 #define serial_dl_write(up, value) _serial_dl_write(up, value)
 
-#if defined(CONFIG_AST1070_UART_DMA)
-static void ast_uart_tx_1070_tasklet_func(unsigned long data)
-{
-	int i;
-	struct ast_uart_port *up = to_ast_dma_uart_port((struct uart_port *)data);
-	struct circ_buf *xmit = &up->port.state->xmit;	
-	struct ast_uart_dma_data *uart_dma_data = up->port.private_data;
-		
-	up->tx_done = 0;
-	UART_TX_DBG("line [%d], xmit->head =%d, xmit->tail = %d\n",up->port.line,xmit->head, xmit->tail);
-
-	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
-		up->tx_count = 0;
-		up->tx_done = 1;
-		return;
-	}
-
-	if (up->port.x_char) {
-		serial_outp(up, UART_TX, up->port.x_char);
-		up->port.icount.tx++;
-		up->port.x_char = 0;
-		return;
-	}
-#if 0	
-	printk("\n");	
-	for( i=0; i< up->tx_count;i++)
-		printk("%x ",readl(xmit->buf + i));
-
-	printk("\n");
-#endif	
-	up->tx_count = CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE);
-
-	if (up->tx_count > (UART_XMIT_SIZE - xmit->tail)) {
-		up->tx_count = UART_XMIT_SIZE - xmit->tail;
-	}
-
-	if (up->tx_count > 4095) {
-		printk("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TODO ....\n");
-		up->tx_count = 4095;
-	}
-
-	ast_uart_tx_dma_ctrl(uart_dma_data->chip_no, uart_dma_data->dma_ch, AST_UART_DMAOP_STOP);
-	ast_uart_tx_dma_enqueue(uart_dma_data->chip_no, uart_dma_data->dma_ch, up->dma_tx_addr, up->tx_count);
-	dma_sync_single_for_device(up->port.dev,
-				   up->dma_tx_addr,
-				   up->tx_count,
-				   DMA_TO_DEVICE);
-	ast_uart_tx_dma_ctrl(uart_dma_data->chip_no, uart_dma_data->dma_ch, AST_UART_DMAOP_TRIGGER);
-
-}
-
-#elif defined(CONFIG_AST_UART_SDMA)
 static void ast_uart_tx_sdma_tasklet_func(unsigned long data)
 {
 	struct ast_uart_port *up = to_ast_dma_uart_port((struct uart_port *)data);
 	struct circ_buf *xmit = &up->port.state->xmit;	
 	struct ast_uart_sdma_data *uart_dma_data = up->port.private_data;
 	u32 tx_pt;
-	int i =0;
+
 //	printk("line [%d], xmit->head =%d, xmit->tail = %d\n",up->port.line,xmit->head, xmit->tail);
 
 	spin_lock(&up->port.lock);
@@ -321,24 +284,17 @@ static void ast_uart_tx_sdma_tasklet_func(unsigned long data)
 #endif
 	spin_unlock(&up->port.lock);
 }
-#endif
 
 static void ast_uart_tx_buffdone(void *dev_id, u16 len)
 {
 	struct ast_uart_port *up = (struct ast_uart_port *) dev_id;
 	struct circ_buf *xmit = &up->port.state->xmit;
-	int i =0;
 	UART_TX_DBG("line [%d] : tx len = %d \n", up->port.line, len);	
 
 	spin_lock(&up->port.lock);
 	//-->get tail for update len 
-#if defined(CONFIG_AST1070_UART_DMA)	
-	xmit->tail = (xmit->tail + up->tx_count) & (UART_XMIT_SIZE - 1);
-	up->port.icount.tx += up->tx_count;
-#elif defined(CONFIG_AST_UART_SDMA)	
 	xmit->tail = len;
 	UART_TX_DBG(" line [%d], xmit->head =%d, xmit->tail = %d\n",up->port.line,xmit->head, xmit->tail);		
-#endif
 
 #if 0 
 	printk("xmit->head =%x, xmit->tail = %x \n", xmit->head, xmit->tail);	
@@ -356,89 +312,13 @@ static void ast_uart_tx_buffdone(void *dev_id, u16 len)
 	spin_unlock(&up->port.lock);
 }
 
-#if defined(CONFIG_AST1070_UART_DMA)
-static void ast_uart_rx_tasklet_func(unsigned long data)
-{
-	struct ast_uart_port *up = to_ast_dma_uart_port((struct uart_port *)data);
-	struct tty_port *port = &up->port.state->port;
-	struct circ_buf *rx_ring = &up->rx_dma_buf;
-	struct tty_struct *tty = up->port.state->port.tty;	
-	struct ast_uart_sdma_data *uart_dma_data = up->port.private_data;	
-
-	char flag;	
-	int count;
-	UART_DBG("line [%d], rx_ring->head = %d, rx_ring->tail = %d\n",up->port.line,rx_ring->head, rx_ring->tail);
-
-	spin_lock(&up->port.lock);
-
-//	printk("\n rx_ring->head %x  rx data : ",rx_ring->head);
-	while (rx_ring->head != rx_ring->tail) {
-//		printk("[%d] : %c", rx_ring->tail, rx_ring->buf[rx_ring->tail]);
-		uart_insert_char(&up->port, 0, UART_LSR_OE, rx_ring->buf[rx_ring->tail], TTY_NORMAL);
-		rx_ring->tail++;
-		rx_ring->tail &= (DMA_BUFF_SIZE - 1);
-		up->port.icount.rx++;
-	}
-
-	tty_flip_buffer_push(port);
-//	printk("update tail %x  \n", rx_ring->tail);
-	ast_uart_rx_sdma_update(uart_dma_data->dma_ch, rx_ring->tail);
-	spin_unlock(&up->port.lock);	
-
-}
-
-static void ast_uart_rx_buffdone(void *dev_id, u16 len)
-{
-	u16 remain_size;
-	struct ast_uart_port *up = (struct ast_uart_port *)dev_id;
-	struct circ_buf *rx_ring = &up->rx_dma_buf;
-	struct ast_uart_dma_data *uart_dma_data = up->port.private_data;
-
-	spin_lock(&up->port.lock);
-
-	UART_DBG("line [%d],head = %d, len : %d\n",up->port.line,up->rx_dma_buf.head, len);
-
-	//FOR NEXT ......
-	rx_ring->head += len;
-	if (rx_ring->head == up->dma_buf_size) {
-		rx_ring->head = 0;
-	}
-	remain_size = up->dma_buf_size - rx_ring->head;
-
-	//Trigger Next RX dma
-	UART_DBG("trigger next size = %d \n",remain_size);	
-
-	if(remain_size > DMA_BUFF_SIZE)
-		printk("Please check ---> \n");
-
-	ast_uart_rx_dma_ctrl(uart_dma_data->chip_no, 
-						uart_dma_data->dma_ch, AST_UART_DMAOP_STOP);
-
-	
-	if(remain_size != 0)  {
-		ast_uart_rx_dma_enqueue(uart_dma_data->chip_no, 
-							uart_dma_data->dma_ch, up->dma_rx_addr + up->rx_dma_buf.head, remain_size);
-	} 
-	ast_uart_rx_dma_ctrl(uart_dma_data->chip_no, 
-						uart_dma_data->dma_ch, AST_UART_DMAOP_TRIGGER);
-	
-	tasklet_schedule(&up->rx_tasklet);
-	
-	spin_unlock(&up->port.lock);
-
-}
-
-#elif defined(CONFIG_AST_UART_SDMA)
-#ifdef SDDMA_RX_FIX
 static void ast_uart_rx_sdma_tasklet_func(unsigned long data)
 {
 	struct ast_uart_port *up = to_ast_dma_uart_port((struct uart_port *)data);
 	struct tty_port *port = &up->port.state->port;
 	struct circ_buf *rx_ring = &up->rx_dma_buf;
-	struct tty_struct *tty = up->port.state->port.tty;	
 	struct ast_uart_sdma_data *uart_dma_data = up->port.private_data;	
 
-	char flag;	
 	int count;
 	int copy = 0;	
 	UART_DBG("line [%d], rx_ring->head = %d, rx_ring->tail = %d\n",up->port.line,rx_ring->head, rx_ring->tail);
@@ -492,10 +372,8 @@ static void ast_uart_rx_sdma_tasklet_func(unsigned long data)
 
 static void ast_uart_rx_buffdone(void *dev_id, u16 len)
 {
-	u16 remain_size;
 	struct ast_uart_port *up = (struct ast_uart_port *)dev_id;
 	struct circ_buf *rx_ring = &up->rx_dma_buf;
-	struct ast_uart_dma_data *uart_dma_data = up->port.private_data;
 
 	UART_DBG("line [%d],head = %d, len : %d\n",up->port.line,up->rx_dma_buf.head, len);
 
@@ -504,83 +382,6 @@ static void ast_uart_rx_buffdone(void *dev_id, u16 len)
 	spin_unlock(&up->port.lock);
 	tasklet_schedule(&up->rx_tasklet);
 }
-
-#else
-
-static void ast_uart_rx_timer_func(unsigned long data)
-{
-	struct ast_uart_port *up = to_ast_dma_uart_port((struct uart_port *)data);
-	struct tty_port *port = &up->port.state->port;
-	struct circ_buf *rx_ring = &up->rx_dma_buf;
-	struct tty_struct *tty = up->port.state->port.tty;	
-	struct ast_uart_sdma_data *uart_dma_data = up->port.private_data;	
-
-	char flag;	
-	int count = 0;
-	int copy = 0;
-	UART_DBG("line [%d], rx_ring->head = %d, rx_ring->tail = %d\n",up->port.line,rx_ring->head, rx_ring->tail);
-
-	rx_ring->head = ast_uart_get_rx_sdma_pt(uart_dma_data->dma_ch);
-
-	del_timer(&up->rx_timer);
-//	printk("\n");
-#if 0
-	while (rx_ring->head != rx_ring->tail) {
-//		if((count % 16) == 0)
-//			printk("[%d] : ", rx_ring->tail);
-		
-//		printk("%x", rx_ring->buf[rx_ring->tail]);	
-		uart_insert_char(&up->port, 0, UART_LSR_OE, rx_ring->buf[rx_ring->tail], TTY_NORMAL);
-		rx_ring->tail++;
-		rx_ring->tail &= (SDMA_RX_BUFF_SIZE - 1);
-		count++;	
-//		if((count % 16) == 0)
-//			printk("\n");
-	}
-#else
-
-	if(rx_ring->head > rx_ring->tail) {
-		ast_uart_set_sdma_time_out(0xffff);		
-		count = rx_ring->head - rx_ring->tail;
-//		printk("^^^^ count %d rx_ring->head %x ,  rx_ring->tail %x \n", count, rx_ring->head, rx_ring->tail);		
-		copy = tty_insert_flip_string(tty, rx_ring->buf + rx_ring->tail, count);
-	} else if (rx_ring->head < rx_ring->tail) {
-		ast_uart_set_sdma_time_out(0xffff);	
-		count = SDMA_RX_BUFF_SIZE - rx_ring->tail;
-//		printk("^^^^  ~~~~ count %d rx_ring->head %x ,  rx_ring->tail %x \n", count, rx_ring->head, rx_ring->tail);
-		copy = tty_insert_flip_string(tty, rx_ring->buf + rx_ring->tail, count);	
-	} else {
-		count = 0;
-		//printk("@@--%s--ch = 0x%x\n", __func__, ch);
-        }
-		
-	if(copy != count) printk("!!!!!!!! ERROR 111\n");
-	rx_ring->tail += count;
-	rx_ring->tail &= (SDMA_RX_BUFF_SIZE - 1);
-#endif
-
-	if(count) {
-//		printk("\n count = %d \n", count);	
-		up->port.icount.rx += count;
-		spin_lock(&up->port.lock);
-		tty_flip_buffer_push(port);
-		spin_unlock(&up->port.lock);	
-//		printk("update rx_ring->tail %x \n", rx_ring->tail);
-		ast_uart_rx_sdma_update(uart_dma_data->dma_ch, rx_ring->tail);
-		uart_dma_data->workaround = 1;
-	} else {
-		if(uart_dma_data->workaround) { 
-			uart_dma_data->workaround++;
-			if(uart_dma_data->workaround > 1) 
-				ast_uart_set_sdma_time_out(0);
-			else
-				ast_uart_set_sdma_time_out(0xffff);
-		}
-	}
-	add_timer(&up->rx_timer);
-}
-#endif
-#endif
 
 /*
  * FIFO support.
@@ -884,13 +685,8 @@ static int serial8250_startup(struct uart_port *port)
 	struct ast_uart_port *up = to_ast_dma_uart_port(port);
 	//TX DMA 
 	struct circ_buf *xmit = &up->port.state->xmit;
-#if defined(CONFIG_AST1070_UART_DMA)
-	struct ast_uart_dma_data *uart_dma_data = up->port.private_data;
-#elif defined(CONFIG_AST_UART_SDMA)
 	struct ast_uart_sdma_data *uart_dma_data = up->port.private_data;
-#else
-	
-#endif	
+
 	unsigned long flags;
 	unsigned char lsr, iir;
 	int retval;
@@ -971,36 +767,11 @@ static int serial8250_startup(struct uart_port *port)
 
 	up->tx_done = 1;
 	up->tx_count = 0;
-
-#if defined(CONFIG_AST1070_UART_DMA)
-	up->rx_dma_buf.buf = (unsigned char *)dma_alloc_coherent(NULL, 
-								up->dma_buf_size, &up->dma_rx_addr, GFP_KERNEL);
-
-	ast_uart_rx_dma_ctrl(uart_dma_data->chip_no, uart_dma_data->dma_ch, AST_UART_DMAOP_STOP);
-	ast_uart_rx_dma_enqueue(uart_dma_data->chip_no, uart_dma_data->dma_ch, up->dma_rx_addr, up->dma_buf_size);	
-	up->rx_tasklet_done = 1;
-	ast_uart_rx_dma_ctrl(uart_dma_data->chip_no, uart_dma_data->dma_ch, AST_UART_DMAOP_TRIGGER);
-
-	up->tx_dma_buf.head = 0;
-	up->tx_dma_buf.buf = xmit->buf;
-	up->dma_tx_addr = dma_map_single(port->dev,
-				       up->tx_dma_buf.buf,
-				       UART_XMIT_SIZE,
-				       DMA_TO_DEVICE);
 	
-#elif defined(CONFIG_AST_UART_SDMA)
 	up->rx_dma_buf.head = 0;
 	up->rx_dma_buf.tail = 0;	
-#ifdef SDDMA_RX_FIX
-#else
-	uart_dma_data->workaround = 0;
-#endif
 	ast_uart_rx_sdma_ctrl(uart_dma_data->dma_ch, AST_UART_DMAOP_STOP);
 	ast_uart_rx_sdma_ctrl(uart_dma_data->dma_ch, AST_UART_DMAOP_TRIGGER);
-#ifdef SDDMA_RX_FIX
-#else
-	add_timer(&up->rx_timer);
-#endif
 	up->tx_dma_buf.head = 0;
 	up->tx_dma_buf.tail = 0;	
 	up->tx_dma_buf.buf = xmit->buf;
@@ -1014,7 +785,6 @@ static int serial8250_startup(struct uart_port *port)
 	ast_uart_tx_sdma_enqueue(uart_dma_data->dma_ch, up->dma_tx_addr);
 	ast_uart_tx_sdma_update(uart_dma_data->dma_ch, 0);
 	ast_uart_tx_sdma_ctrl(uart_dma_data->dma_ch, AST_UART_DMAOP_TRIGGER);
-#endif	
 
 	return 0;
 }
@@ -1022,13 +792,7 @@ static int serial8250_startup(struct uart_port *port)
 static void serial8250_shutdown(struct uart_port *port)
 {
 	struct ast_uart_port *up = to_ast_dma_uart_port(port);
-#if defined(CONFIG_AST1070_UART_DMA)
-	struct ast_uart_dma_data *uart_dma_data = up->port.private_data;
-#elif defined(CONFIG_AST_UART_SDMA)
 	struct ast_uart_sdma_data *uart_dma_data = up->port.private_data;
-#else
-		
-#endif	
 		
 	unsigned long flags;
 	//int i;
@@ -1051,19 +815,8 @@ static void serial8250_shutdown(struct uart_port *port)
 
 	(void) ast_serial_in(up, UART_RX);
 
-#if defined(CONFIG_AST1070_UART_DMA)
-	ast_uart_rx_dma_ctrl(uart_dma_data->chip_no, uart_dma_data->dma_ch, AST_UART_DMAOP_STOP);
-	ast_uart_tx_dma_ctrl(uart_dma_data->chip_no, uart_dma_data->dma_ch, AST_UART_DMAOP_STOP);
-	dma_free_coherent(port->dev, up->dma_buf_size, 
-			up->rx_dma_buf.buf, up->dma_rx_addr);	
-#elif defined(CONFIG_AST_UART_SDMA)
 	ast_uart_rx_sdma_ctrl(uart_dma_data->dma_ch, AST_UART_DMAOP_PAUSE);
 	ast_uart_tx_sdma_ctrl(uart_dma_data->dma_ch, AST_UART_DMAOP_PAUSE);
-#ifdef SDDMA_RX_FIX
-#else
-	del_timer_sync(&up->rx_timer);
-#endif
-#endif
 
 	//Tx buffer will free by serial_core.c 
 	free_irq(up->port.irq, ast_uart_irq);
@@ -1391,13 +1144,12 @@ static struct uart_driver serial8250_reg = {
  * list is terminated with a zero flags entry, which means we expect
  * all entries to have at least UPF_BOOT_AUTOCONF set.
  */
-static int __init serial8250_probe(struct platform_device *dev)
+static int serial8250_probe(struct platform_device *dev)
 {
 	struct plat_serial8250_port *p = dev->dev.platform_data;
 	struct uart_port port;
 	struct ast_uart_sdma_data *uart_dma_data;
-		
-#endif	
+
 	int ret, i;
 
 	if(UART_XMIT_SIZE > DMA_BUFF_SIZE)
@@ -1428,41 +1180,18 @@ static int __init serial8250_probe(struct platform_device *dev)
 				p->irq, ret);
 		}
 
-#if defined(CONFIG_AST1070_UART_DMA)
-		ret = ast_uart_rx_dma_request(uart_dma_data->chip_no, uart_dma_data->dma_ch, ast_uart_rx_buffdone, &ast_uart_ports[i]);
-		if (ret < 0) {
-			printk("Error : failed to get rx dma channel[%d]\n", uart_dma_data->dma_ch);
-			goto out_ast_uart_unregister_port;
-		}
-
-		ret = ast_uart_tx_dma_request(uart_dma_data->chip_no, uart_dma_data->dma_ch, ast_uart_tx_buffdone, &ast_uart_ports[i]);
-		if (ret < 0) {
-			printk("Error : failed to get tx dma channel[%d]\n", uart_dma_data->dma_ch);
-			return ret;
-		}
-#elif defined(CONFIG_AST_UART_SDMA)
-#ifdef SDDMA_RX_FIX
 		ast_uart_ports[i].rx_dma_buf.buf = ast_uart_rx_sdma_request(uart_dma_data->dma_ch, ast_uart_rx_buffdone, &ast_uart_ports[i]);
 		if (ast_uart_ports[i].rx_dma_buf.buf < 0) {
 			printk("Error : failed to get rx dma channel[%d]\n", uart_dma_data->dma_ch);
 			goto out_ast_uart_unregister_port;
 		}
 
-#else
-		ast_uart_ports[i].rx_dma_buf.buf = ast_uart_rx_sdma_request(uart_dma_data->dma_ch, &ast_uart_ports[i]);
-		if (ast_uart_ports[i].rx_dma_buf.buf < 0) {
-			printk("Error : failed to get rx dma channel[%d]\n", uart_dma_data->dma_ch);
-			goto out_ast_uart_unregister_port;
-		}
-#endif
+
 		ret = ast_uart_tx_sdma_request(uart_dma_data->dma_ch, ast_uart_tx_buffdone, &ast_uart_ports[i]);
 		if (ret < 0) {
 			printk("Error : failed to get tx dma channel[%d]\n", uart_dma_data->dma_ch);
 			return ret;
 		}
-#else 
-
-#endif
 	}
 
 	return 0;
@@ -1481,7 +1210,7 @@ out_ast_uart_unregister_port:
 /*
  * Remove serial ports registered against a platform device.
  */
-static int __exit serial8250_remove(struct platform_device *dev)
+static int serial8250_remove(struct platform_device *dev)
 {
 	int i;
 
@@ -1624,27 +1353,10 @@ int ast_uart_register_port(struct uart_port *port)
 
 		spin_lock_init(&uart->lock);
 
-
-#if defined(CONFIG_AST1070_UART_DMA)
-		tasklet_init(&uart->rx_tasklet, ast_uart_rx_tasklet_func,
-				(unsigned long)uart);
-
-		tasklet_init(&uart->tx_tasklet, ast_uart_tx_1070_tasklet_func,
-				(unsigned long)uart);
-#elif defined(CONFIG_AST_UART_SDMA)
 		tasklet_init(&uart->tx_tasklet, ast_uart_tx_sdma_tasklet_func,
 				(unsigned long)uart);
-#ifdef SDDMA_RX_FIX
 		tasklet_init(&uart->rx_tasklet, ast_uart_rx_sdma_tasklet_func,
 				(unsigned long)uart);
-#else
-		uart->rx_timer.data = (unsigned long)uart;
-		uart->rx_timer.expires = jiffies + (HZ);
-		uart->rx_timer.function = ast_uart_rx_timer_func;
-		init_timer(&uart->rx_timer);
-#endif
-
-#endif
 	}
 
 	mutex_unlock(&ast_uart_mutex);
@@ -1677,6 +1389,179 @@ void ast_uart_unregister_port(int line)
 	mutex_unlock(&ast_uart_mutex);
 }
 EXPORT_SYMBOL(ast_uart_unregister_port);
+
+
+static struct ast_uart_sdma_data ast_uart0_dma_data = {
+	.dma_ch = 0,	
+};
+
+static struct ast_uart_sdma_data ast_uart1_dma_data = {
+	.dma_ch = 1,	
+};
+
+static struct ast_uart_sdma_data ast_uart2_dma_data = {
+	.dma_ch = 2,	
+};
+
+static struct ast_uart_sdma_data ast_uart3_dma_data = {
+	.dma_ch = 3,	
+};
+
+static struct ast_uart_sdma_data ast_uart4_dma_data = {
+	.dma_ch = 4,	
+};
+
+static struct ast_uart_sdma_data ast_uart5_dma_data = {
+	.dma_ch = 5,	
+};
+
+static struct ast_uart_sdma_data ast_uart6_dma_data = {
+	.dma_ch = 6,	
+};
+
+static struct ast_uart_sdma_data ast_uart7_dma_data = {
+	.dma_ch = 7,	
+};
+
+static struct ast_uart_sdma_data ast_uart8_dma_data = {
+	.dma_ch = 8,	
+};
+
+static struct ast_uart_sdma_data ast_uart9_dma_data = {
+	.dma_ch = 9,	
+};
+
+static struct ast_uart_sdma_data ast_uart10_dma_data = {
+	.dma_ch = 10,	
+};
+
+static struct ast_uart_sdma_data ast_uart11_dma_data = {
+	.dma_ch = 11,	
+};
+
+static struct plat_serial8250_port ast_dma_uart_data[] = {
+//If use UART1/2 must reset HICR9[5:4]
+/*
+	{
+		.mapbase	= AST_UART1_BASE,
+		.irq		= IRQ_UART1,
+		.uartclk	= (24*1000000L),
+		.regshift	= 2,
+		.iotype 	= UPIO_MEM,
+		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.private_data = &ast_uart0_dma_data,		
+	},	
+	{
+		.mapbase	= AST_UART2_BASE,
+		.irq		= IRQ_UART2,
+		.uartclk	= (24*1000000L),
+		.regshift	= 2,
+		.iotype 	= UPIO_MEM,
+		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.private_data = &ast_uart1_dma_data,				
+	},	
+*/	
+	{
+		.mapbase	= AST_UART3_BASE,
+		.irq		= IRQ_UART3,
+		.uartclk	= (24*1000000L),
+		.regshift	= 2,
+		.iotype 	= UPIO_MEM,
+		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.private_data = &ast_uart2_dma_data,						
+	},	
+	{
+		.mapbase	= AST_UART4_BASE,
+		.irq		= IRQ_UART4,
+		.uartclk	= (24*1000000L),
+		.regshift	= 2,
+		.iotype 	= UPIO_MEM,
+		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.private_data = &ast_uart3_dma_data,		
+	},	
+	{
+		.mapbase	= AST_UART5_BASE,
+		.irq		= IRQ_UART5,
+		.uartclk	= (24*1000000L),
+		.regshift	= 2,
+		.iotype 	= UPIO_MEM,
+		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.private_data = &ast_uart4_dma_data,		
+	},	
+	{
+		.mapbase	= AST_UART6_BASE,
+		.irq		= IRQ_UART6,
+		.uartclk	= (24*1000000L),
+		.regshift	= 2,
+		.iotype 	= UPIO_MEM,
+		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.private_data = &ast_uart5_dma_data,		
+	},	
+	{
+		.mapbase	= AST_UART7_BASE,
+		.irq		= IRQ_UART7,
+		.uartclk	= (24*1000000L),
+		.regshift	= 2,
+		.iotype 	= UPIO_MEM,
+		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.private_data = &ast_uart6_dma_data,		
+	},	
+	{
+		.mapbase	= AST_UART8_BASE,
+		.irq		= IRQ_UART8,
+		.uartclk	= (24*1000000L),
+		.regshift	= 2,
+		.iotype 	= UPIO_MEM,
+		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.private_data = &ast_uart7_dma_data,		
+	},	
+	{
+		.mapbase	= AST_UART9_BASE,
+		.irq		= IRQ_UART9,
+		.uartclk	= (24*1000000L),
+		.regshift	= 2,
+		.iotype 	= UPIO_MEM,
+		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.private_data = &ast_uart8_dma_data,		
+	},	
+	{
+		.mapbase	= AST_UART10_BASE,
+		.irq		= IRQ_UART10,
+		.uartclk	= (24*1000000L),
+		.regshift	= 2,
+		.iotype 	= UPIO_MEM,
+		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.private_data = &ast_uart9_dma_data,		
+	},	
+	{
+		.mapbase	= AST_UART11_BASE,
+		.irq		= IRQ_UART11,
+		.uartclk	= (24*1000000L),
+		.regshift	= 2,
+		.iotype 	= UPIO_MEM,
+		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.private_data = &ast_uart10_dma_data,		
+	},	
+	{
+		.mapbase	= AST_UART12_BASE,
+		.irq		= IRQ_UART12,
+		.uartclk	= (24*1000000L),
+		.regshift	= 2,
+		.iotype 	= UPIO_MEM,
+		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.private_data = &ast_uart11_dma_data,		
+	},	
+	{ },
+};
+
+struct platform_device ast_dma_uart_device = {
+	.name	= "ast-uart-dma",
+	.id		= PLAT8250_DEV_PLATFORM1,
+	.dev			= {
+		.platform_data	= ast_dma_uart_data,
+	},
+};
+
 
 static int __init ast_uart_init(void)
 {
@@ -1712,6 +1597,10 @@ static int __init ast_uart_init(void)
 	if (ret == 0)
 		goto out;
 
+
+	platform_device_register(&ast_dma_uart_device);	
+
+
 	platform_device_del(serial8250_isa_devs);
  put_dev:
 	platform_device_put(serial8250_isa_devs);
@@ -1746,6 +1635,6 @@ EXPORT_SYMBOL(serial8250_suspend_port);
 EXPORT_SYMBOL(serial8250_resume_port);
 #endif
 
+MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
+MODULE_DESCRIPTION("ASPEED DMA serial driver");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("AST DMA serial driver");
-MODULE_ALIAS_CHARDEV_MAJOR(TTY_MAJOR);

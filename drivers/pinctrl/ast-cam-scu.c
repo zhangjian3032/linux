@@ -591,7 +591,8 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-ehci")) {
-		printk("aspeed,ast-ehci found in SCU, ");
+		printk("aspeed,ast-ehci found in SCU \n");
+		ast_scu_multi_func_usb_port1_mode(1);
 		ast_scu_init_usb_port1();					
 	}
 

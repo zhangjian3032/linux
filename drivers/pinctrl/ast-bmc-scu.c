@@ -688,6 +688,7 @@ EXPORT_SYMBOL(ast_scu_init_crt);
 extern void
 ast_scu_uartx_init(void)
 {
+	//for UART (6-13) enable clock
 	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP2) &
 				~(SCU_UART_DIV13 | SCU_UARTXCLK_STOP),
 		AST_SCU_CLK_STOP2); 
@@ -2224,6 +2225,7 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device_node *np;
 	u32 idx;
+	u32 reset_mask;
 
 	BMC_SCUDBG("\n");	
 
@@ -2237,13 +2239,23 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	//UART scu reset for uart x
-	if(of_property_read_bool(pdev->dev.of_node, "uartx")) {
-		BMC_SCUDBG("uart x \n");
-		ast_scu_uartx_init();
+#ifdef CONFIG_AST_RUNTIME_DMA_UARTS
+	if(of_machine_is_compatible("aspeed,ast2500")) {
+		if((CONFIG_AST_RUNTIME_DMA_UARTS > 2) || (CONFIG_SERIAL_8250_RUNTIME_UARTS > 4)) {
+			ast_scu_uartx_init();
+		}
+	}
+#endif
+	
+	//UART Setting 
+	for_each_compatible_node(np, NULL, "ast-sdma-uart") {
+		BMC_SCUDBG("np->name %s %s \n", np->name, np->properties->name);
+		if (of_property_read_u32(np, "pinmux", &idx) == 0) {
+			BMC_SCUDBG("pinmux = %d \n", idx);
+			ast_scu_multi_func_uart(idx);
+		}
 	}
 
-	//UART Setting 
 	for_each_compatible_node(np, NULL, "ns16550a") {
 		BMC_SCUDBG("np->name %s %s \n", np->name, np->properties->name);
 		
@@ -2255,13 +2267,13 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 
 	//SCU ADC CTRL Reset
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-adc")) {
-		printk("aspeed,ast-adc found in SCU \n");
+		BMC_SCUDBG("aspeed,ast-adc found in SCU \n");
 		ast_scu_init_adc();
 		
 	}
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-pwm-tacho")) {
-		printk("aspeed,ast-pwm-tacho found in SCU \n");
+		BMC_SCUDBG("aspeed,ast-pwm-tacho found in SCU \n");
 		//SCU Pin-MUX	//PWM & TACHO 
 		ast_scu_multi_func_pwm_tacho();		
 		//SCU PWM CTRL Reset
@@ -2269,23 +2281,23 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 	}
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-peci")) {
-		printk("aspeed,ast-peci found in SCU \n");
+		BMC_SCUDBG("aspeed,ast-peci found in SCU \n");
 		//SCU PECI CTRL Reset
 		ast_scu_init_peci();	
 	}
 
 	for_each_compatible_node(np, NULL, "aspeed,ast-mac") {
-		printk("aspeed,ast-mac found in SCU, ");
+		BMC_SCUDBG("aspeed,ast-mac found in SCU, ");
 		
 		if (of_property_read_u32(np, "pinmux", &idx) == 0) {
-			printk("pinmux = %d \n", idx);
+			BMC_SCUDBG("pinmux = %d \n", idx);
 			ast_scu_init_eth(idx);
 			ast_scu_multi_func_eth(idx);
 		}
 	}
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-uhci")) {
-		printk("aspeed,ast-uhci found in SCU \n");
+		BMC_SCUDBG("aspeed,ast-uhci found in SCU \n");
 		ast_scu_init_uhci();
 		ast_scu_multi_func_usb_port1_mode(1);
 		ast_scu_multi_func_usb_port2_mode(2);
@@ -2293,49 +2305,51 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 	}
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-sdhci-irq")) {
-		printk("aspeed,ast-sdhci-irq found in SCU \n");
+		BMC_SCUDBG("aspeed,ast-sdhci-irq found in SCU \n");
 		ast_scu_init_sdhci();
 	}
 
 	if(np = of_find_compatible_node(NULL, NULL, "aspeed,ast-i2c-irq")) {
-		printk("aspeed,ast-i2c-irq found in SCU \n");
+		BMC_SCUDBG("aspeed,ast-i2c-irq found in SCU \n");
 		//SCU I2C Reset 
 		ast_scu_init_i2c();
 		if(of_machine_is_compatible("aspeed,ast2500")) {
-			printk("aspeed,ast-adc found in SCU \n");
 #ifdef CONFIG_I2C_AST
 			//DMA, BUFF Mode enable 
+			BMC_SCUDBG("ast-g5 dma/buff mode enable \n");
 			ast_i2c_sram_buff_enable((struct ast_i2c_irq *)np->data);
 #endif
 		}
 	}
 	
 	for_each_compatible_node(np, NULL, "aspeed,ast-i2c") {
-		printk("aspeed,ast-i2c found in SCU, ");
+		BMC_SCUDBG("aspeed,ast-i2c found in SCU, ");
 		if (of_property_read_u32(np, "bus", &idx) == 0) {
-			printk("bus = %d \n", idx);
+			BMC_SCUDBG("bus = %d ", idx);
 			ast_scu_multi_func_i2c(idx);
 		}
+		BMC_SCUDBG("\n");
 	}
 
 	for_each_compatible_node(np, NULL, "aspeed,ast-sdhci") {
-		printk("aspeed,ast-ehci found in SCU, ");
+		BMC_SCUDBG("aspeed,ast-shci found in SCU, ");
 		if (of_property_read_u32(np, "port", &idx) == 0) {
-			printk("port = %d \n", idx);
+			BMC_SCUDBG("slot = %d ", idx);
 			ast_scu_multi_func_sdhc_slot(3);
 		}
+		BMC_SCUDBG("\n");
 	}
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-udc")) {
-		printk("aspeed,ast-udc found in SCU \n");
+		BMC_SCUDBG("aspeed,ast-udc found in SCU \n");
 		ast_scu_multi_func_usb_port1_mode(0);
 		ast_scu_init_usb_port1();
 	}
 
 	for_each_compatible_node(np, NULL, "aspeed,ast-ehci") {
-		printk("aspeed,ast-ehci found in SCU, ");
+		BMC_SCUDBG("aspeed,ast-ehci found in SCU, ");
 		if (of_property_read_u32(np, "port", &idx) == 0) {
-			printk("port = %d \n", idx);
+			BMC_SCUDBG("port = %d ", idx);
 			switch(idx) {
 				case 0:
 					ast_scu_init_usb_port1();					
@@ -2347,16 +2361,23 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 					break;
 			}
 		}
+		BMC_SCUDBG("\n");
 	}
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-jtag")) {
-		printk("aspeed,ast-jtag found in SCU \n");
+		BMC_SCUDBG("aspeed,ast-jtag found in SCU \n");
 		ast_scu_init_jtag();	
 	}
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-crypto")) {
-		printk("aspeed,ast-crypto found in SCU \n");
+		BMC_SCUDBG("aspeed,ast-crypto found in SCU \n");
 		ast_scu_init_hace();
+	}
+
+	if(of_find_compatible_node(np, NULL, "aspeed,ast-g4-wdt")) {
+		if(of_property_read_u32(np, "reset_mask", &reset_mask))
+			ast_scu_write(reset_mask, AST_SCU_WDT_RESET);
+		BMC_SCUDBG("aspeed,ast-g4-wdt reset mask %x \n", reset_mask);
 	}
 
 	//SCU intr enable

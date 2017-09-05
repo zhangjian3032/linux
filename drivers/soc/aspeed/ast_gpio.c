@@ -33,10 +33,9 @@
 #include <linux/kernel.h>    // kernel stuff
 #include <linux/gpio.h>      // GPIO functions/macros
 #include <linux/interrupt.h> // interrupt functions/macros
+#include <mach/gpio.h>      // GPIO functions/macros
 
-//GPIOB1 
-#define GPIO 9
-#define GPIO_INT_NAME  "gpio_int"
+#define GPIO_INT_NAME  "gpioB1_int"
 
 static irqreturn_t gpio_handler ( int irq, void *dev_instance)
 {
@@ -51,19 +50,17 @@ int __init gpio_module_init(void)
 	int		retVal;
 	int 		gpio_irq;
 
-	printk("gpio irq init \n ");
-
-	if (gpio_request(GPIO, GPIO_INT_NAME )) 
+	if (gpio_request(PIN_GPIOB1, GPIO_INT_NAME )) 
 	{
 		printk("GPIO request failure: %s\n", GPIO_INT_NAME );
 		return 0;
 	}
-	gpio_direction_input(GPIO);
+	gpio_direction_input(PIN_GPIOB1);
 //	gpio_set_debounce(GPIO, 1);
 //	printk("gpio_export \n");
-	gpio_export(GPIO, 1); 
+	gpio_export(PIN_GPIOB1, 1); 
 //	printk("gpio_to_irq \n");
-	gpio_irq = gpio_to_irq(GPIO);        // map your GPIO to an IRQ
+	gpio_irq = gpio_to_irq(PIN_GPIOB1);        // map your GPIO to an IRQ
 //	printk("gpio_to_irq %d \n", gpio_irq);
 	retVal = request_irq(gpio_irq,           // requested interrupt
 	                   (irq_handler_t) gpio_handler, // pointer to handler function
@@ -86,4 +83,3 @@ module_exit (gpio_module_exit);
 MODULE_AUTHOR("Ryan Chen");
 MODULE_DESCRIPTION("GPIO IRQ test driver for BMC appliance");
 MODULE_LICENSE("GPL");
-

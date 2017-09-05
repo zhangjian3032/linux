@@ -26,64 +26,28 @@
 #define AST_TIMER_CTRL3			0x38
 
 #define TIMER1_COUNT		(0x00)
-#define TIMER1_LOAD		(0x04)
+#define TIMER1_LOAD			(0x04)
 #define TIMER1_MATCH1		(0x08)
 #define TIMER1_MATCH2		(0x0c)
 #define TIMER2_COUNT		(0x10)
-#define TIMER2_LOAD		(0x14)
+#define TIMER2_LOAD			(0x14)
 #define TIMER2_MATCH1		(0x18)
 #define TIMER2_MATCH2		(0x1c)
 #define TIMER3_COUNT		(0x20)
-#define TIMER3_LOAD		(0x24)
+#define TIMER3_LOAD			(0x24)
 #define TIMER3_MATCH1		(0x28)
 #define TIMER3_MATCH2		(0x2c)
-
-#define TIMER_1_CR_ENABLE	BIT(0)
-#define TIMER_1_CR_CLOCK	BIT(1)
-#define TIMER_1_CR_INT		BIT(2)
-#define TIMER_2_CR_ENABLE	BIT(3)
-#define TIMER_2_CR_CLOCK	BIT(4)
-#define TIMER_2_CR_INT		BIT(5)
-#define TIMER_3_CR_ENABLE	BIT(6)
-#define TIMER_3_CR_CLOCK	BIT(7)
-#define TIMER_3_CR_INT		BIT(8)
-#define TIMER_1_CR_UPDOWN	BIT(9)
-#define TIMER_2_CR_UPDOWN	BIT(10)
-#define TIMER_3_CR_UPDOWN	BIT(11)
 
 //Timer Ctrl 
 
 #define TIMER_CTRL_T1_ENABLE	(0x1)
 #define TIMER_CTRL_T1_EXT_REF	(0x1 << 1) 
+#define TIMER_CTRL_T1_OVER_INT	(0x1 << 2) 
 #define TIMER_CTRL_T2_ENABLE	(0x1 << 4) 
 #define TIMER_CTRL_T2_EXT_REF	(0x1 << 5) 
 #define TIMER_CTRL_T3_ENABLE	(0x1 << 8) 
 #define TIMER_CTRL_T3_EXT_REF	(0x1 << 9) 
 
-/*
- * The Aspeed AST2400 moves bits around in the control register
- * and lacks bits for setting the timer to count upwards.
- */
-#define TIMER_1_CR_ASPEED_ENABLE	BIT(0)
-#define TIMER_1_CR_ASPEED_CLOCK		BIT(1)
-#define TIMER_1_CR_ASPEED_INT		BIT(2)
-#define TIMER_2_CR_ASPEED_ENABLE	BIT(4)
-#define TIMER_2_CR_ASPEED_CLOCK		BIT(5)
-#define TIMER_2_CR_ASPEED_INT		BIT(6)
-#define TIMER_3_CR_ASPEED_ENABLE	BIT(8)
-#define TIMER_3_CR_ASPEED_CLOCK		BIT(9)
-#define TIMER_3_CR_ASPEED_INT		BIT(10)
-
-#define TIMER_1_INT_MATCH1	BIT(0)
-#define TIMER_1_INT_MATCH2	BIT(1)
-#define TIMER_1_INT_OVERFLOW	BIT(2)
-#define TIMER_2_INT_MATCH1	BIT(3)
-#define TIMER_2_INT_MATCH2	BIT(4)
-#define TIMER_2_INT_OVERFLOW	BIT(5)
-#define TIMER_3_INT_MATCH1	BIT(6)
-#define TIMER_3_INT_MATCH2	BIT(7)
-#define TIMER_3_INT_OVERFLOW	BIT(8)
-#define TIMER_INT_ALL_MASK	0x1ff
 
 struct ast_timer {
 	void __iomem *base;
@@ -166,7 +130,7 @@ static int ast_timer_shutdown(struct clock_event_device *evt)
 {
 	struct ast_timer *timer = to_ast_timer(evt);
 	u32 cr;
-	printk("%s\n", __FUNCTION__);
+//	printk("%s\n", __FUNCTION__);
 
 	/* Stop */
 #if 0	
@@ -272,7 +236,7 @@ static int __init ast_timer_common_init(struct device_node *np, bool is_aspeed)
 	struct clk *clk;
 	int ret;
 	u32 val;
-	printk("ast_timer_common_init ~~~~~~~~~~~~\n");
+
 #if 0
 	clk = of_clk_get_by_name(np, "PCLK");
 	if (IS_ERR(clk)) {
@@ -293,7 +257,7 @@ static int __init ast_timer_common_init(struct device_node *np, bool is_aspeed)
 	}
 
 	timer->tick_rate = AST_TIMER_EXT_CLK_1M;
-	printk("timer->tick_rate %d \n", timer->tick_rate);
+//	printk("timer->tick_rate %d \n", timer->tick_rate);
 
 	timer->base = of_iomap(np, 0);
 	if (!timer->base) {
@@ -309,8 +273,8 @@ static int __init ast_timer_common_init(struct device_node *np, bool is_aspeed)
 		goto out_unmap;
 	}
 
-	timer->t1_enable_val = TIMER_1_CR_ASPEED_ENABLE |
-		TIMER_1_CR_ASPEED_INT;
+	timer->t1_enable_val = TIMER_CTRL_T1_ENABLE |
+		TIMER_CTRL_T1_OVER_INT;
 
 	writel(0, timer->base + AST_TIMER_CTRL1);
 	writel(0, timer->base + AST_TIMER_CTRL2);

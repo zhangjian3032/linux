@@ -241,13 +241,11 @@ static int ast_mailbox_probe(struct platform_device *pdev)
 	int ret=0;
 
 	MBX_DBG(" \n");	
-	
-	ast_mbx = kzalloc(sizeof(struct ast_mailbox_data), GFP_KERNEL);
-	if(ast_mbx == NULL) {
-		printk("memalloc error");
-		goto out;
-	}
-	
+
+	ast_mbx = devm_kzalloc(&pdev->dev, sizeof(*ast_mbx), GFP_KERNEL);
+	if (!ast_mbx)
+		return -ENOMEM;
+		
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res) {
 		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
@@ -255,14 +253,7 @@ static int ast_mailbox_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-
-	if (!request_mem_region(res->start, resource_size(res), res->name)) {
-		dev_err(&pdev->dev, "cannot reserved region\n");
-		ret = -ENXIO;
-		goto out;
-	}
-
-	ast_mbx->reg_base = ioremap(res->start, resource_size(res));
+	ast_mbx->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (!ast_mbx->reg_base) {
 		ret = -EIO;
 		goto out_region;
@@ -275,9 +266,8 @@ static int ast_mailbox_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	ret = request_irq(ast_mbx->irq, ast_mailbox_handler, IRQF_SHARED,
-			  "ast-mailbox", ast_mbx);
-	
+	ret = devm_request_irq(&pdev->dev, ast_mbx->irq, ast_mailbox_handler,
+						   0, dev_name(&pdev->dev), NULL);	
 	if (ret) {
 		printk(KERN_INFO "MBX: Failed request irq %d\n", ast_mbx->irq);
 		goto out_region;

@@ -28,8 +28,8 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 	
-#include <plat/ast-lpc.h>
-#include <plat/regs-lpc.h>
+#include <mach/ast-lpc.h>
+#include <mach/regs-lpc.h>
 
 //#define CONFIG_AST_BT_DEBUG
 

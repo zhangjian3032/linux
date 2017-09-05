@@ -1139,6 +1139,7 @@ static int ast_espi_probe(struct platform_device *pdev)
 	static struct ast_espi_data *ast_espi;
 	struct resource *res;
 	int ret = 0;
+	u32 gpio_irq;
 
 	ESPI_DBUG("\n");	
 
@@ -1226,7 +1227,23 @@ static int ast_espi_probe(struct platform_device *pdev)
 		printk("AST ESPI Unable to get IRQ");
 		goto err_free_mem;
 	}
+#if 1
+	if (gpio_request(PIN_GPIOAC7, "GPIOAC7")) {
+		printk("GPIO request failure: GPIOAC7\n");
+		return err_free_mem;
+	}
+	gpio_direction_input(PIN_GPIOAC7);
+	gpio_set_debounce(PIN_GPIOAC7, 0x1);
+	gpio_export(PIN_GPIOAC7, 1); 
+	gpio_irq = gpio_to_irq(PIN_GPIOAC7);        // map your GPIO to an IRQ
+//	printk("gpio_to_irq %d \n", gpio_irq);
+	ret = request_irq(gpio_irq, ast_espi_reset_isr, IRQF_TRIGGER_FALLING, "gpioAC7", ast_espi);  
+	if (ret) {
+		printk("AST ESPI Unable to get IRQ");
+		goto err_free_mem;
+	}
 
+#else
 	ast_set_gpio_debounce(PIN_GPIOAC7, 0x1);
 	ast_set_gpio_debounce_timer(1, 0x100);
 	irq_set_irq_type(IRQ_GPIOAC7, IRQ_TYPE_EDGE_FALLING); 
@@ -1235,7 +1252,7 @@ static int ast_espi_probe(struct platform_device *pdev)
 		printk("AST ESPI Unable to get IRQ");
 		goto err_free_mem;
 	}
-
+#endif
 	ast_espi_ctrl_init(ast_espi);
 	
 	ret = misc_register(&ast_espi_misc);

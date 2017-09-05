@@ -46,6 +46,8 @@ In ICH7 or newer, choose any 2 of GENx_DEC, set 00040081h & 007C0C81h
 #include <mach/ast-lpc.h>
 #include <linux/miscdevice.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 //#define AST_LPC_DEBUG
 
@@ -1163,7 +1165,7 @@ static int ast_lpc_probe(struct platform_device *pdev)
 	int i = 0;
 	LPC_DBUG("\n");	
 
-	ast_lpc = kzalloc(sizeof(struct ast_lpc_data), GFP_KERNEL);
+	ast_lpc = devm_kzalloc(&pdev->dev, sizeof(struct ast_lpc_data), GFP_KERNEL);
 	if (ast_lpc == NULL) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
 		return -ENOMEM;
@@ -1178,14 +1180,7 @@ static int ast_lpc_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	res = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "failed to request memory resource\n");
-		ret = -EBUSY;
-		goto err_free;
-	}
-
-	ast_lpc->reg_base = ioremap(res->start, resource_size(res));
+	ast_lpc->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (ast_lpc->reg_base == NULL) {
 		dev_err(&pdev->dev, "failed to ioremap() registers\n");
 		ret = -ENODEV;
@@ -1199,29 +1194,13 @@ static int ast_lpc_probe(struct platform_device *pdev)
 		goto err_free_mem;
 	}
 
-	ret = request_irq(ast_lpc->irq, ast_lpc_isr, IRQF_SHARED, "ast-lpc", ast_lpc);
+	ret = devm_request_irq(&pdev->dev, ast_lpc->irq, ast_lpc_isr,
+			       0, dev_name(&pdev->dev), ast_lpc);
 	if (ret) {
 		printk("AST LPC Unable to get IRQ");
 		goto err_free_mem;
 	}
 
-#ifdef CONFIG_AST_LPC_MASTER
-	printk("LPC Scan Device... \n");
-#ifdef CONFIG_ARCH_AST1070			
-	for(i=0;i<ast_lpc->bus_info->scan_node;i++) {
-		ast1070_scu_init(i ,AST_LPC_BRIDGE + i*0x10000);
-		printk("C%d-[%x] ", i, ast1070_revision_id_info(i));
-		ast1070_vic_init(i, (AST_LPC_BRIDGE + i*0x10000), IRQ_C0_VIC_CHAIN + i, IRQ_C0_VIC_CHAIN_START + (i*AST_CVIC_NUM));
-		ast1070_i2c_irq_init(i, (AST_LPC_BRIDGE + i*0x10000), IRQ_C0_VIC_CHAIN + i, IRQ_C0_VIC_CHAIN_START + (i*AST_CVIC_NUM));
-		ast1070_scu_dma_init(i);
-		ast1070_uart_dma_init(i, AST_LPC_BRIDGE);
-		ast_add_device_cuart(i,AST_LPC_BRIDGE + i*0x10000);
-		ast_add_device_ci2c(i,AST_LPC_BRIDGE + i*0x10000);
-	}
-#endif			
-	printk("\n");
-	platform_set_drvdata(pdev, ast_lpc);
-#else
 	platform_set_drvdata(pdev, ast_lpc);
 
 	dev_set_drvdata(&pdev->dev, ast_lpc);
@@ -1252,8 +1231,6 @@ static int ast_lpc_probe(struct platform_device *pdev)
 	ast_lpc->ast_bt = kzalloc(sizeof(struct ast_bt_data) * AST_BT_NUM, GFP_KERNEL);
 #endif
 
-#endif
-	
 	return 0;
 
 err_free_mem:
@@ -1264,43 +1241,22 @@ err_free:
 	return ret;
 }
 
-static struct platform_driver ast_lpc_driver = {
-	.driver		= {
-		.name			= "ast-lpc",
-		.owner			= THIS_MODULE,
-	},
-	.probe 		= ast_lpc_probe,
+static const struct of_device_id ast_lpc_of_match[] = {
+	{ .compatible = "aspeed,ast-lpc", },
+	{ }
 };
 
-static struct platform_device *ast_lpc_device;
+static struct platform_driver ast_lpc_driver = {
+	.probe = ast_lpc_probe,
+	.driver = {
+		.name = KBUILD_MODNAME,
+		.of_match_table = of_match_ptr(ast_lpc_of_match),
+	},
+};
 
-static int __init ast_lpc_init(void)
+static int ast_lpc_init(void)
 {
-	int ret;
-
-	static struct resource ast_lpc_resource[] = {
-		[0] = {
-			.start = AST_LPC_BASE,
-			.end = AST_LPC_BASE + SZ_512 -1,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = IRQ_LPC,
-			.end = IRQ_LPC,
-			.flags = IORESOURCE_IRQ,
-		},
-	};
-
-	ret = platform_driver_register(&ast_lpc_driver);
-	if (!ret) {
-		ast_lpc_device = platform_device_register_simple("ast-lpc", 0,
-								ast_lpc_resource, ARRAY_SIZE(ast_lpc_resource));
-		if (IS_ERR(ast_lpc_device)) {
-			platform_driver_unregister(&ast_lpc_driver);
-			ret = PTR_ERR(ast_lpc_device);
-		}
-	}
-	return ret;	
+	return platform_driver_register(&ast_lpc_driver);
 }
 
 arch_initcall(ast_lpc_init);
