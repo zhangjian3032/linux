@@ -159,7 +159,7 @@ fmc_spi_setup(struct spi_device *spi)
 	u32 divisor;
 	
 //	dev_dbg(host->dev, "fmc_spi_setup() cs: %d, spi->mode %d \n", spi->chip_select, spi->mode);
-	printk("fmc_spi_setup() cs: %d, spi->mode %d spi->max_speed_hz %d , spi->bits_per_word %d \n", spi->chip_select, spi->mode, spi->max_speed_hz, spi->bits_per_word);
+//	printk("fmc_spi_setup() cs: %d, spi->mode %d spi->max_speed_hz %d , spi->bits_per_word %d \n", spi->chip_select, spi->mode, spi->max_speed_hz, spi->bits_per_word);
 			
 	switch(spi->chip_select) {
 		case 0:
@@ -248,7 +248,7 @@ fmc_spi_setup(struct spi_device *spi)
 	/* Configure SPI controller */	
 	writel(spi_ctrl, host->ctrl_reg);
 		
-	printk("ctrl  %x, ", spi_ctrl);
+//	printk("ctrl  %x, ", spi_ctrl);
 	return 0;
 }
 
@@ -263,7 +263,7 @@ static int fmc_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 	int i=0,j=0;
 
 //	dev_dbg(host->dev, "xfer %s \n", dev_name(&spi->dev));
-	printk("xfer spi->chip_select %d \n", spi->chip_select);
+//	printk("xfer spi->chip_select %d \n", spi->chip_select);
 
 	host->spi_dev = spi;
 	spin_lock_irqsave(&host->lock, flags);
@@ -357,7 +357,7 @@ static int fmc_spi_flash_read(struct spi_device *spi,
 	struct fmc_spi_host 	*host = spi_master_get_devdata(spi->master);
 	int ret = 0;
 
-	printk("read msg->from %x,  msg->len %x , msg->buf %x , msg->addr_width %d , msg->dummy_bytes %x , msg->read_opcode %x \n", msg->from, msg->len, msg->buf, msg->addr_width, msg->dummy_bytes, msg->read_opcode);
+//	printk("read msg->from %x,  msg->len %x , msg->buf %x , msg->addr_width %d , msg->dummy_bytes %x , msg->read_opcode %x \n", msg->from, msg->len, msg->buf, msg->addr_width, msg->dummy_bytes, msg->read_opcode);
 
 //	memcpy_fromio(msg->buf, b53spi->mmio_base + msg->from, msg->len);
 	msg->retlen = msg->len;
