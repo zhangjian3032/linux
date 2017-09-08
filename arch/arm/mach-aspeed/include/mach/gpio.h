@@ -182,8 +182,7 @@
 #define PIN_GPIOS5						(149)
 #define PIN_GPIOS6						(150)
 #define PIN_GPIOS7						(151)
-
-#if defined(AST_SOC_G4) || defined(CONFIG_AST2400_BMC)
+#if defined(AST_SOC_G4)
 #define PIN_GPIOT0						(152)
 #define PIN_GPIOT1						(153)
 #define PIN_GPIOT2						(154)

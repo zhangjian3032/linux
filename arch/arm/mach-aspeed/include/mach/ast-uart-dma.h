@@ -90,10 +90,6 @@ extern int ast1070_uart_dma_init(u8 chip, u32 lpc_base);
 #ifdef CONFIG_AST_UART_SDMA
 struct ast_uart_sdma_data {
 		u8		dma_ch;		//dma channel number 
-#ifdef SDDMA_RX_FIX		
-#else
-		u8		workaround;	
-#endif
 };
 
 struct ast_sdma_info {

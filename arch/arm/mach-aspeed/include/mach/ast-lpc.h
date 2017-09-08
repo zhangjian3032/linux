@@ -19,6 +19,7 @@
 #include <linux/platform_device.h> 
 #include <linux/miscdevice.h>
 #include <linux/interrupt.h>
+#include <mach/aspeed.h>
 
 
 /************************  SNOOP  ******************************************/
@@ -94,12 +95,13 @@ struct ast_bt_data {
 /************************  IPMI KCS ****************************************/
 #define AST_KCS_NUM	4
 
-#if defined(AST_SOC_G5) || defined(AST_SOC_G4)
+//todo need add to config data 
+#if defined(CONFIG_ARCH_AST2500) || defined(CONFIG_ARCH_AST2400)
 #define AST_IPMI_KCS0_REGSPACINGS			4	//any
 #define AST_IPMI_KCS1_REGSPACINGS			4	//any
 #define AST_IPMI_KCS2_REGSPACINGS			1	//fix
 #define AST_IPMI_KCS3_REGSPACINGS			1	//any
-#elif defined(AST_SOC_G3)
+#elif defined(CONFIG_ARCH_AST2300)
 #define AST_IPMI_KCS0_REGSPACINGS			4	//fix
 #define AST_IPMI_KCS1_REGSPACINGS			4	//fix
 #define AST_IPMI_KCS2_REGSPACINGS			1	//fix
