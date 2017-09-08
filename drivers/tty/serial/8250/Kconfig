@@ -167,10 +167,9 @@ config SERIAL_8250_RUNTIME_UARTS
 	  with the module parameter "nr_uarts", or boot-time parameter
 	  8250.nr_uarts
 
-config SERIAL_AST_VUART
+config SERIAL_8250_AST_VUART
         tristate "AST VUART driver"
-        depends on ARCH_ASPEED
-        select SERIAL_CORE
+        depends on ARCH_ASPEED && SERIAL_8250
         help
           The ASPEED VUART driver supporting. The device node is /dev/ttyS
 
