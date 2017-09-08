@@ -44,7 +44,7 @@
 #endif
 
 
-
+xx
 static struct flash_platform_data ast_spi_flash0_data = {
 #if defined(CONFIG_ARCH_AST2400) || defined(CONFIG_ARCH_AST2500)
 	.type 		  = "mx25l25635e",	//AST2400 A1
@@ -96,7 +96,7 @@ static struct spi_board_info ast_spi1_devices[] = {
 
 #if defined(AST_SPI1_BASE)
 static struct mtd_partition ast_spi_flash1_partitions[] = {
-		{
+	{
 			.name	= "bios",
 			.offset = 0,
 			.size	= MTDPART_SIZ_FULL,
