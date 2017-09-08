@@ -87,7 +87,6 @@ struct ast_wdt {
 };
 
 static int timeout = WDT_DEFAULT_TIMEOUT;
-static bool nowayout = WATCHDOG_NOWAYOUT;
 
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog time in seconds. (default="
@@ -180,6 +179,7 @@ static int ast_wdt_probe(struct platform_device *pdev)
 {
 	struct ast_wdt *wdt;
 	struct resource *res;
+	u32 reset_mask;
 	int ret;
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
@@ -202,7 +202,14 @@ static int ast_wdt_probe(struct platform_device *pdev)
 	// initial disable 
 	writel(WDT_CTRL_RESET_SOC | WDT_CTRL_1MHZ_CLK | WDT_CTRL_RESET_SYSTEM, 
 		wdt->base + WDT_CTRL);
-	
+
+	//g4 reset mask is in scu, g5 supoort in register
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-g5-wdt")) {	
+		if(of_property_read_u32(pdev->dev.of_node, "reset_mask", &reset_mask))
+			writel(reset_mask, wdt->base + WDT_RESET_MASK);
+//		printk("set reset mask %x \n", reset_mask);
+	}
+		
 	platform_set_drvdata(pdev, wdt);
 	watchdog_set_drvdata(&wdt->wdd, wdt);
 	ret = devm_watchdog_register_device(&pdev->dev, &wdt->wdd);
@@ -210,7 +217,8 @@ static int ast_wdt_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register\n");
 		return ret;
 	}
-	printk(KERN_INFO "AST WDT is installed.\n");
+
+	printk(KERN_INFO "ast_wdt[%s]: driver successfully loaded.\n", pdev->dev.of_node->name);
 
 	return 0;
 
@@ -218,6 +226,8 @@ static int ast_wdt_probe(struct platform_device *pdev)
 
 static const struct of_device_id ast_wdt_of_table[] = {
 	{ .compatible = "aspeed,ast-wdt" },
+	{ .compatible = "aspeed,ast-g5-wdt" },
+	{ .compatible = "aspeed,ast-g4-wdt" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ast_wdt_of_table);
