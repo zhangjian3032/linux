@@ -32,9 +32,59 @@
 
 #include <linux/irqchip/chained_irq.h>	
 #include <mach/hardware.h>
-#include <plat/regs-p2x.h>
-#include <plat/ast_p2x.h>
+#include <mach/regs-p2x.h>
+#include <mach/ast_p2x.h>
+//***********************************Information ***********************************
+/* Register for MCTP  */
+#define AST_P2X_CTRL			0x00		/*	Engine Status and Engine Control	*/
+#define AST_P2X_INT				0x04		/*	Interrupt Enable and Status Register */
+#define AST_P2X_ID				0x08		/*	Target ID and Mask */
+#define AST_P2X_TX_DESC3		0x10		/*	Sending Descriptor [127:96] */
+#define AST_P2X_TX_DESC2		0x14		/*	Sending Descriptor [95:64] */
+#define AST_P2X_TX_DESC1		0x18		/*	Sending Descriptor [63:32] */
+#define AST_P2X_TX_DESC0		0x1C		/*	Sending Descriptor [31:0] */
+#define AST_P2X_TX_DATA		0x20		/*	Sending Data Port */
+#define AST_P2X_RX_DESC3		0x40		/*	Received Descriptor [127:96] */
+#define AST_P2X_RX_DESC2		0x44		/*	Received Descriptor [95:64] */
+#define AST_P2X_RX_DESC1		0x48		/*	Received Descriptor [63:32] */
+#define AST_P2X_RX_DESC0		0x4C		/*	Received Descriptor [31:0] */
+#define AST_P2X_RX_DATA		0x50		/*	Received Data Port */
 
+#define AST_P2X_MSI_IER			0x70		/*	MSI interrupt enalbe */
+#define AST_P2X_MSI_ISR			0x74		/*	MSI interrupt sts */
+
+#define AST_P2X_DEC_ADDR		0x80		/*	ADDR */
+#define AST_P2X_DEC_MASK		0x84		/*	MASK */
+#define AST_P2X_DEC_TAG		0x88		/*	TAG */
+
+/*	AST_P2X_CTRL			0x00		Engine Status and Engine Control	*/
+#define P2X_CTRL_GET_RX_LEN(x)		(((x >> 18) & 0xf) * 4)
+#define P2X_CTRL_RX_IDLE			(1 << 17)
+#define P2X_CTRL_TX_IDLE			(1 << 16)
+
+#define P2X_CTRL_RX_MSI_EN			(1 << 5)
+#define P2X_CTRL_UNLOCK_RX_BUFF	(1 << 4)
+#define P2X_CTRL_RX_MATCH_EN		(1 << 3)
+#define P2X_CTRL_DROP_DIS			(1 << 2)
+#define P2X_CTRL_TX_TRIGGER		(1 << 1)
+#define P2X_CTRL_RX_EN				(1)
+
+/*	AST_P2X_INT			0x04		Interrupt Enable and Status Register */
+#define P2X_INTD_EN				(1 << 21)
+#define P2X_INTC_EN				(1 << 20)
+#define P2X_INTB_EN				(1 << 19)
+#define P2X_INTA_EN				(1 << 18)
+#define P2X_RX_INT_EN			(1 << 17)
+#define P2X_TX_INT_EN			(1 << 16)
+
+#define P2X_PCIE_MSI				(1 << 6)
+#define P2X_PCIE_INTD				(1 << 5)
+#define P2X_PCIE_INTC				(1 << 4)
+#define P2X_PCIE_INTB				(1 << 3)
+#define P2X_PCIE_INTA				(1 << 2)
+#define P2X_RX_COMPLETE			(1 << 1)
+#define P2X_TX_COMPLETE			(1)
+//***********************************Information ***********************************
 //#define AST_P2X_DEBUG 
 
 #ifdef AST_P2X_DEBUG
@@ -43,14 +93,21 @@
 #define P2XDBUG(fmt, args...)
 #endif
 
-void __iomem	*ast_p2x_base;
+struct ast_p2x_irq {
+	void __iomem	*ast_p2x_base;
+	int			parent_irq;
+	struct irq_domain	*irq_domain;
+};
+
+struct ast_p2x_irq 	*ast_p2x;
+
 static u8 txTag = 0;
 static inline u32 
 ast_p2x_read(u32 reg)
 {
 	u32 val;
 		
-	val = readl(ast_p2x_base + reg);
+	val = readl(ast_p2x->ast_p2x_base + reg);
 	
 //	P2XDBUG("reg = 0x%08x, val = 0x%08x\n", reg, val);
 	
@@ -62,7 +119,7 @@ ast_p2x_write(u32 val, u32 reg)
 {
 //	P2XDBUG("reg = 0x%08x, val = 0x%08x\n", reg, val);
 
-	writel(val, ast_p2x_base + reg);
+	writel(val, ast_p2x->ast_p2x_base + reg);
 }
 
 //***********************************Information ***********************************
@@ -172,6 +229,8 @@ ast_p2x_irq_handler(struct irq_desc *desc)
 {
 	u32 msi = 0;
 	u32 i;
+	printk("TODO \n");
+#if 0	
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	u32 sts = ast_p2x_read(AST_P2X_INT);
 
@@ -210,12 +269,13 @@ ast_p2x_irq_handler(struct irq_desc *desc)
 	}
 
 	chained_irq_exit(chip, desc);
+#endif	
 }
 
 
 static void ast_p2x_ack_irq(struct irq_data *d)
 {
-	unsigned int p2x_irq = d->irq - IRQ_PCIE_CHAIN_START;
+	unsigned int p2x_irq = d->hwirq;
 	if(p2x_irq > 3) {
 		p2x_irq -= 4;
 		ast_p2x_write(ast_p2x_read(AST_P2X_MSI_ISR) | (1 << p2x_irq) , AST_P2X_MSI_ISR);	
@@ -229,7 +289,7 @@ static void ast_p2x_ack_irq(struct irq_data *d)
 
 static void ast_p2x_mask_irq(struct irq_data *d)
 {
-	unsigned int p2x_irq = d->irq - IRQ_PCIE_CHAIN_START;
+	unsigned int p2x_irq = d->hwirq;
 
 	if(p2x_irq > 3) {
 		p2x_irq -= 4;
@@ -245,7 +305,7 @@ static void ast_p2x_mask_irq(struct irq_data *d)
 
 static void ast_p2x_unmask_irq(struct irq_data *d)
 {
-	unsigned int p2x_irq = d->irq - IRQ_PCIE_CHAIN_START;
+	unsigned int p2x_irq = d->hwirq;
 	
 	if(p2x_irq > 3) {
 		p2x_irq -= 4;
@@ -338,30 +398,58 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 #endif	// CONFIG_PCI_MSI
 
 #define PCIE_IRQ_NUM 4
+/////////////////////////////////////////
+#ifdef CONFIG_PCI_MSI
+#define AST_NUM_MSI_IRQS				32
+#else
+#define AST_NUM_MSI_IRQS				0
+#endif
 
-extern void __init
-ast_init_p2x_irq(void)
+static int ast_p2x_map_irq_domain(struct irq_domain *domain,
+					unsigned int irq, irq_hw_number_t hwirq)
 {
-	int i;
-	P2XDBUG("\n");
+	irq_set_chip_and_handler(irq, &ast_p2x_irq_chip, ast_p2x_irq_handler);
+	irq_set_chip_data(irq, domain->host_data);
 
-	for(i=0;i<ARCH_NR_PCIE + AST_NUM_MSI_IRQS;i++) {
-		irq_set_chip_and_handler(i + IRQ_PCIE_CHAIN_START, &ast_p2x_irq_chip,
-					 handle_level_irq);
-		irq_clear_status_flags(i + IRQ_PCIE_CHAIN_START, IRQ_NOREQUEST);
-	}
-
-	irq_set_chained_handler(IRQ_P2X, ast_p2x_irq_handler);
-}
-
-static int __init ast_p2x_init(void)
-{
-	P2XDBUG("\n");
-	ast_p2x_base = ioremap(AST_P2X_BASE , SZ_256);
-
-	ast_p2x_write(P2X_CTRL_DROP_DIS, AST_P2X_CTRL);	
-	ast_init_p2x_irq();
 	return 0;
 }
 
-subsys_initcall(ast_p2x_init);
+static const struct irq_domain_ops ast_p2x_irq_domain_ops = {
+	.map = ast_p2x_map_irq_domain,
+};
+
+static int __init ast_p2x_irq_of_init(void)
+{
+	P2XDBUG("\n");
+	int	parent_irq;
+
+	ast_p2x = kzalloc(sizeof(*i2c_irq), GFP_KERNEL);
+	if (!ast_p2x)
+		return -ENOMEM;
+	
+	ast_p2x->ast_p2x_base = of_iomap(node, 0);
+
+	ast_p2x->parent_irq = irq_of_parse_and_map(node, 0);
+	if (ast_p2x->parent_irq < 0)
+		return parent_irq;
+
+	ast_p2x->irq_domain = irq_domain_add_linear(
+			node, AST_NUM_MSI_IRQS + PCIE_IRQ_NUM,
+			&ast_p2x_irq_domain_ops, NULL);
+	if (ast_p2x->irq_domain)
+		return -ENOMEM;
+
+	ast_p2x->irq_domain->name = "ast-p2x-domain";
+
+	ast_p2x_write(P2X_CTRL_DROP_DIS, AST_P2X_CTRL);	
+
+
+	ast_p2x->irq_domain->name = "ast-p2x-domain";
+
+	irq_set_chained_handler_and_data(ast_p2x->parent_irq,
+					 ast_p2x_irq_handler, ast_p2x);
+
+	return 0;
+}
+
+IRQCHIP_DECLARE(ast_p2x, "aspeed,ast-p2x", ast_p2x_irq_of_init);

@@ -45,13 +45,69 @@
 #include <linux/msi.h>
 #include <linux/pci.h>
 
-#include <plat/regs-pcie.h>
-#include <plat/ast-scu.h>
-#include <plat/ast-ahbc.h>
-#include <plat/ast-sdmc.h>
-#include <plat/ast-pciarbiter.h>
-#include <plat/ast_p2x.h>
+#include <mach/ast-scu.h>
+#include <mach/ast-ahbc.h>
+#include <mach/ast-sdmc.h>
+#include <mach/ast-pciarbiter.h>
+#include <mach/ast_p2x.h>
+/*************************************************************************/
+/* Register for PCIE */
+#define AST_PCIE_CFG2			0x04
+#define AST_PCIE_GLOBAL			0x30
+#define AST_PCIE_CFG_DIN			0x50	
+#define AST_PCIE_CFG3			0x58
+#define AST_PCIE_LOCK			0x7C
 
+#define AST_PCIE_LINK			0xC0
+#define AST_PCIE_INT				0xC4
+
+/* 	AST_PCIE_CFG2			0x04		*/
+#define PCIE_CFG_CLASS_CODE(x)	(x << 8)
+#define PCIE_CFG_REV_ID(x)		(x)
+
+
+/*SSID: 1E6ED028h[19:4]*/
+/*SSVID: 1E6ED028h[3:0], 1E6ED024h[31:20]*/
+
+/* AST_PCIE_SSID_A			0x24		*/
+/* 31:20 */
+#define PCIE_SSVID_H(x)			(x)
+
+/* AST_PCIE_SSID_B			0x28		*/
+/* 19:14 */
+#define PCIE_SSID(x)			(x << 4)
+/* 3:0 */
+#define PCIE_SSVID_L(x)			(x)
+
+
+/* 	AST_PCIE_GLOBAL			0x30 	*/
+#define ROOT_COMPLEX_ID(x)		(x << 4)
+
+/* AST_PCIE_CFG3			0x58	*/
+#define PCIE_CFG_ADDR(x)			(x & 0xfff)
+#define PCIE_CFG_ADDR_MASK		(0xfff)
+#define PCIE_CFG_READ			(0x1 << 12)
+#define PCIE_CFG_WRITE			(0x1 << 13)
+#define PCIE_CFG_ACK				(0x1 << 14)
+#define PCIE_MSI_ACK				(0x1 << 15)
+
+/* 	AST_PCIE_LOCK			0x7C	*/
+#define PCIE_UNLOCK				0xa8
+
+/*	AST_PCIE_LINK			0xC0	*/
+#define PCIE_LINK_STS			(1 << 5)
+
+/*	AST_PCIE_INT			0xC4	*/
+#define PCIE_INTD				(1 << 16)
+#define PCIE_INTC				(1 << 15)
+#define PCIE_INTB				(1 << 14)
+#define PCIE_INTA				(1 << 13)
+
+#define AST_PCIE_NONP_MEM_BASE		AST_PCIE0_WIN_BASE0
+#define AST_PCIE_NONP_MEM_SIZE		AST_PCIE0_WIN_SIZE0
+#define AST_PCIE_PREF_MEM_BASE		0x0
+#define AST_PCIE_PREF_MEM_SIZE		0x0
+/*************************************************************************/
 //#define CONFIG_PCIE_DEBUG
 
 #ifdef CONFIG_PCIE_DEBUG
@@ -220,9 +276,6 @@ init_pcie_rc_bridge(void)
 	ast_pcie_write(PCIE_UNLOCK, AST_PCIE_LOCK);
 	ast_pcie_write(PCIE_CFG_CLASS_CODE(0x60400) | PCIE_CFG_REV_ID(4), AST_PCIE_CFG2);
 	ast_pcie_write(ROOT_COMPLEX_ID(0x3), AST_PCIE_GLOBAL);
-
-
-
 #if 0
 	ast_pcie_cfg_write(0, 0xf, PCI_COMMAND, 0x147);	
 #if 1
@@ -243,7 +296,6 @@ static struct hw_pci ast_pcie = {
 	.map_irq        = ast_pcie_map_irq,		
 	.setup          = ast_pcie_setup,	
 	.ops			= &ast_pcie_ops,	
-
 };
 
 /**
@@ -274,7 +326,7 @@ static int ast_pcie_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id ast_pcie_of_match[] = {
-	{ .compatible = "ast,ast-pcie", },
+	{ .compatible = "aspeed,ast-pcie", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ast_pcie_of_match);
@@ -283,76 +335,11 @@ static struct platform_driver ast_pcie_driver = {
 	.probe = ast_pcie_probe,
 	.driver = {
 		.name	= "ast-pcie",
-		.owner	= THIS_MODULE,
 		.of_match_table = ast_pcie_of_match,
 	},
 };
 
-/**
- * ast_pcie_rc_init() - Register PCIe Root Complex node.
- *
- * Invoked as subsystem initialization.
- *
- * IMPORTANT NOTE: We are relying on SoC/Board level code to check PCIESS
- * mode setting (RC/EP) and register the RC device only in RC mode.
- */
-
-static struct platform_device *ast_pcie_device;
-
-static int __init ast_pcie_rc_init(void)
-{
-	int ret;
-	static struct resource ast_pcie_resources[] = {
-		{
-			/* Register space */
-			.name		= "pcie-regs",
-			.start		= AST_PCIE_PLDA_BASE,
-			.end			= AST_PCIE_PLDA_BASE + SZ_16K - 1,
-			.flags		= IORESOURCE_MEM,
-		},
-#if 0	
-		{
-			/* Non-prefetch memory */
-			.name		= "pcie-nonprefetch",
-			.start		= AST_PCIE_WIN_BASE,
-			.end			= AST_PCIE_WIN_BASE + SZ_64K - 1,
-			.flags		= IORESOURCE_MEM,
-		},
-#endif	
-#if 0	
-		{
-			/* IO window */
-			.name		= "pcie-io",
-			.start		= AST_PCIE_IO_BASE,
-			.end		= AST_PCIE_IO_BASE + SZ_2M + SZ_1M - 1,
-			.flags		= IORESOURCE_IO,
-		},
-#endif
-#if 0
-		{
-			/* Inbound memory window */
-			.name		= "pcie-inbound0",
-			.start		= AST_DRAM_BASE,
-			.end			= AST_DRAM_BASE + SZ_2G - 1,
-			.flags		= IORESOURCE_MEM,
-		},
-#endif	
-	};
-
-	ret = platform_driver_register(&ast_pcie_driver);
-
-	if (!ret) {
-		ast_pcie_device = platform_device_register_simple("ast-pcie", 0,
-								ast_pcie_resources, ARRAY_SIZE(ast_pcie_resources));
-		if (IS_ERR(ast_pcie_device)) {
-			platform_driver_unregister(&ast_pcie_driver);
-			ret = PTR_ERR(ast_pcie_device);
-		}
-	}
-	return ret;
-}
-
-module_init(ast_pcie_rc_init);
+builtin_platform_driver(ast_pcie_driver);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST PCIE Host driver");
