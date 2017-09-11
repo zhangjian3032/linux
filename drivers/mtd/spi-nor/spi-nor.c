@@ -1188,17 +1188,30 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	for (i = 0; i < len; ) {
 		ssize_t written;
+		/* Porting from kernel-4.13 for modify warning message
+		loff_t addr = to + i;
 
-		page_offset = (to + i) & (nor->page_size - 1);
-		WARN_ONCE(page_offset,
-			  "Writing at offset %zu into a NOR page. Writing partial pages may decrease reliability and increase wear of NOR flash.",
-			  page_offset);
+		/*
+		 * If page_size is a power of two, the offset can be quickly
+		 * calculated with an AND operation. On the other cases we
+		 * need to do a modulus operation (more expensive).
+		 * Power of two numbers have only one bit set and we can use
+		 * the instruction hweight32 to detect if we need to do a
+		 * modulus (do_div()) or not.
+		 */
+		if (hweight32(nor->page_size) == 1) {
+			page_offset = addr & (nor->page_size - 1);
+		} else {
+			uint64_t aux = addr;
+
+			page_offset = do_div(aux, nor->page_size);
+		}
 		/* the size of data remaining on the first page */
 		page_remain = min_t(size_t,
 				    nor->page_size - page_offset, len - i);
 
 		write_enable(nor);
-		ret = nor->write(nor, to + i, page_remain, buf + i);
+		ret = nor->write(nor, addr, page_remain, buf + i);
 		if (ret < 0)
 			goto write_err;
 		written = ret;
