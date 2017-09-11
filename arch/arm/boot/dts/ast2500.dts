@@ -23,6 +23,7 @@
 		serial0 = &uart0;
 		serial1 = &uart3;
 		serial2 = &uart4;
+		serial3 = &vuart;
 	};
 #endif
 
@@ -71,16 +72,6 @@
 			reg = <0x1e620000 0x100 0x20000000 0x20 0x28000000 0x20>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-#if 0
-			spi_flash: m25p80@0 {
-				compatible = "m25p80", "jedec,spi-nor";
-		                #address-cells = <1>;
-                		#size-cells = <1>;
-                		reg = <0>;
-		                spi-max-frequency = <50000000>;
-		                m25p,fast-read;
-		        };
-#else
 			flash@0 {
 			        compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
 			        reg = <0x0>;
@@ -113,7 +104,6 @@
 					reg = <0x800000 0x0>; 
 				};
 			};
-#endif
 		};
                 mac0: ethernet@1e660000 {
 			compatible = "aspeed,ast-mac";
@@ -679,16 +669,3 @@
 	};
 
 };
-
-#if 0
-&fmc_spi {
-	spi_flash: m25p80@0 {
-		compatible = "mx25l25635e", "jedec,spi-nor";
-		spi-max-frequency = <50000000>;
-                #address-cells = <1>;
-                #size-cells = <1>;
-
-
-        };
-};
-#endif
