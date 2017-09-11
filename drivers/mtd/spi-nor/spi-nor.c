@@ -1188,7 +1188,7 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	for (i = 0; i < len; ) {
 		ssize_t written;
-		/* Porting from kernel-4.13 for modify warning message
+		/* Porting from kernel-4.13 for modify warning message*/
 		loff_t addr = to + i;
 
 		/*
