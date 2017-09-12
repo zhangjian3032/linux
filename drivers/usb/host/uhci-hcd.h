@@ -578,7 +578,7 @@ static inline int uhci_aspeed_reg(unsigned int reg)
 	case USBPORTSC4:
 		return 0x94;
 	default:
-		pr_warn("UHCI: Unsupported register 0x%02x on Aspeed\n", reg);
+//		pr_warn("UHCI: Unsupported register 0x%02x on Aspeed\n", reg);
 		/* Return an unimplemented register */
 		return 0x10;
 	}
