@@ -98,14 +98,14 @@
 			};
 		};
                 mac0: ethernet@1e660000 {
-			compatible = "aspeed,ast-mac";
+			compatible = "aspeed,ast-gmac";
 			reg = <0x1e660000 0x180>;
 			interrupts = <2>;
 			pinmux = <0>;
 			#status = "disabled";
 		};
 		mac1: ethernet@1e680000 {
-			compatible = "aspeed,ast-mac";
+			compatible = "aspeed,ast-gmac";
 			reg = <0x1e680000 0x180>;
 			interrupts = <3>;
 			pinmux = <1>;
