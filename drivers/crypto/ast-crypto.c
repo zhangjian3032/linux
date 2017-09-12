@@ -1871,6 +1871,7 @@ static struct ahash_alg ast_ahash_alg[] = {
 		.digest 		= ast_sha_digest,
 		.halg = {
 			.digestsize = MD5_DIGEST_SIZE,
+			.statesize	= sizeof(struct ast_sham_reqctx),
 			.base	= {
 				.cra_name		= "md5",
 				.cra_driver_name	= "ast-md5",
@@ -1897,6 +1898,7 @@ static struct ahash_alg ast_ahash_alg[] = {
 		.digest 		= ast_sha_digest,
 		.halg = {
 			.digestsize = SHA1_DIGEST_SIZE,
+			.statesize = sizeof(struct ast_sham_reqctx),
 			.base	= {
 				.cra_name		= "sha1",
 				.cra_driver_name	= "ast-sha1",
@@ -1922,6 +1924,7 @@ static struct ahash_alg ast_ahash_alg[] = {
 		.digest 		= ast_sha_digest,
 		.halg = {
 			.digestsize = SHA256_DIGEST_SIZE,
+			.statesize = sizeof(struct ast_sham_reqctx),
 			.base	= {
 				.cra_name		= "sha256",
 				.cra_driver_name	= "ast-sha256",
@@ -1947,6 +1950,7 @@ static struct ahash_alg ast_ahash_alg[] = {
 		.digest		= ast_sha_digest,
 		.halg = {
 			.digestsize	= SHA224_DIGEST_SIZE,
+			.statesize = sizeof(struct ast_sham_reqctx),
 			.base	= {
 				.cra_name		= "sha224",
 				.cra_driver_name	= "ast-sha224",
@@ -1971,21 +1975,24 @@ static struct ahash_alg ast_ahash_alg[] = {
 		.finup		= ast_sha_finup,
 		.digest		= ast_sha_digest,
 		.setkey		= ast_sham_setkey,
-		.halg.digestsize	= MD5_DIGEST_SIZE,
-		.halg.base	= {
-			.cra_name		= "hmac(md5)",
-			.cra_driver_name	= "ast-hmac-md5",
-			.cra_priority		= 300,
-			.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
-							CRYPTO_ALG_ASYNC |
-							CRYPTO_ALG_NEED_FALLBACK |
-							CRYPTO_ALG_KERN_DRIVER_ONLY,
-			.cra_blocksize		= MD5_HMAC_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct ast_sham_ctx),
-			.cra_alignmask	= 0,
-			.cra_module		= THIS_MODULE,
-			.cra_init		= ast_sha_cra_md5_init,
-			.cra_exit		= ast_sham_cra_exit,
+		.halg = {
+			.digestsize	= MD5_DIGEST_SIZE,
+			.statesize = sizeof(struct ast_sham_reqctx),
+			.base	= {
+				.cra_name		= "hmac(md5)",
+				.cra_driver_name	= "ast-hmac-md5",
+				.cra_priority		= 300,
+				.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
+								CRYPTO_ALG_ASYNC |
+								CRYPTO_ALG_NEED_FALLBACK |
+								CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize		= MD5_HMAC_BLOCK_SIZE,
+				.cra_ctxsize		= sizeof(struct ast_sham_ctx),
+				.cra_alignmask	= 0,
+				.cra_module		= THIS_MODULE,
+				.cra_init		= ast_sha_cra_md5_init,
+				.cra_exit		= ast_sham_cra_exit,
+			}
 		}
 	},	
 	{
@@ -1995,21 +2002,24 @@ static struct ahash_alg ast_ahash_alg[] = {
 		.finup		= ast_sha_finup,
 		.digest		= ast_sha_digest,
 		.setkey		= ast_sham_setkey,
-		.halg.digestsize	= SHA1_DIGEST_SIZE,
-		.halg.base	= {
-			.cra_name		= "hmac(sha1)",
-			.cra_driver_name	= "ast-hmac-sha1",
-			.cra_priority		= 300,
-			.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
-							CRYPTO_ALG_ASYNC |
-							CRYPTO_ALG_NEED_FALLBACK |
-							CRYPTO_ALG_KERN_DRIVER_ONLY,
-			.cra_blocksize		= SHA1_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct ast_sham_ctx),
-			.cra_alignmask	= 0,
-			.cra_module		= THIS_MODULE,
-			.cra_init		= ast_sha_cra_sha1_init,
-			.cra_exit		= ast_sham_cra_exit,
+		.halg = {
+			.digestsize	= SHA1_DIGEST_SIZE,
+			.statesize = sizeof(struct ast_sham_reqctx),
+			.base	= {
+				.cra_name		= "hmac(sha1)",
+				.cra_driver_name	= "ast-hmac-sha1",
+				.cra_priority		= 300,
+				.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
+								CRYPTO_ALG_ASYNC |
+								CRYPTO_ALG_NEED_FALLBACK |
+								CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize		= SHA1_BLOCK_SIZE,
+				.cra_ctxsize		= sizeof(struct ast_sham_ctx),
+				.cra_alignmask	= 0,
+				.cra_module		= THIS_MODULE,
+				.cra_init		= ast_sha_cra_sha1_init,
+				.cra_exit		= ast_sham_cra_exit,
+			}
 		}
 	},
 	{
@@ -2019,21 +2029,24 @@ static struct ahash_alg ast_ahash_alg[] = {
 		.finup		= ast_sha_finup,
 		.digest 		= ast_sha_digest,
 		.setkey 		= ast_sham_setkey,
-		.halg.digestsize	= SHA224_DIGEST_SIZE,
-		.halg.base	= {
-			.cra_name		= "hmac(sha224)",
-			.cra_driver_name	= "ast-hmac-sha224",
-			.cra_priority		= 300,
-			.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
-							CRYPTO_ALG_ASYNC |
-							CRYPTO_ALG_NEED_FALLBACK |
-							CRYPTO_ALG_KERN_DRIVER_ONLY,
-			.cra_blocksize		= SHA224_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct ast_sham_ctx),
-			.cra_alignmask	= 0,
-			.cra_module 	= THIS_MODULE,
-			.cra_init		= ast_sha_cra_sha224_init,
-			.cra_exit		= ast_sham_cra_exit,
+		.halg = {
+			.digestsize	= SHA224_DIGEST_SIZE,
+			.statesize = sizeof(struct ast_sham_reqctx),
+			.base	= {
+				.cra_name		= "hmac(sha224)",
+				.cra_driver_name	= "ast-hmac-sha224",
+				.cra_priority		= 300,
+				.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
+								CRYPTO_ALG_ASYNC |
+								CRYPTO_ALG_NEED_FALLBACK |
+								CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize		= SHA224_BLOCK_SIZE,
+				.cra_ctxsize		= sizeof(struct ast_sham_ctx),
+				.cra_alignmask	= 0,
+				.cra_module 	= THIS_MODULE,
+				.cra_init		= ast_sha_cra_sha224_init,
+				.cra_exit		= ast_sham_cra_exit,
+			}
 		}
 	},
 	{
@@ -2043,21 +2056,24 @@ static struct ahash_alg ast_ahash_alg[] = {
 		.finup		= ast_sha_finup,
 		.digest 		= ast_sha_digest,
 		.setkey 		= ast_sham_setkey,
-		.halg.digestsize	= SHA256_DIGEST_SIZE,
-		.halg.base	= {
-			.cra_name		= "hmac(sha256)",
-			.cra_driver_name	= "ast-hmac-sha256",
-			.cra_priority		= 300,
-			.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
-							CRYPTO_ALG_ASYNC |
-							CRYPTO_ALG_NEED_FALLBACK |
-							CRYPTO_ALG_KERN_DRIVER_ONLY,
-			.cra_blocksize		= SHA256_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct ast_sham_ctx),
-			.cra_alignmask	= 0,
-			.cra_module 	= THIS_MODULE,
-			.cra_init		= ast_sha_cra_sha256_init,
-			.cra_exit		= ast_sham_cra_exit,
+		.halg = {
+			.digestsize	= SHA256_DIGEST_SIZE,
+			.statesize = sizeof(struct ast_sham_reqctx),
+			.base	= {
+				.cra_name		= "hmac(sha256)",
+				.cra_driver_name	= "ast-hmac-sha256",
+				.cra_priority		= 300,
+				.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
+								CRYPTO_ALG_ASYNC |
+								CRYPTO_ALG_NEED_FALLBACK |
+								CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize		= SHA256_BLOCK_SIZE,
+				.cra_ctxsize		= sizeof(struct ast_sham_ctx),
+				.cra_alignmask	= 0,
+				.cra_module 	= THIS_MODULE,
+				.cra_init		= ast_sha_cra_sha256_init,
+				.cra_exit		= ast_sham_cra_exit,
+			}
 		}
 	},
 };
@@ -2088,7 +2104,7 @@ static int ast_crypto_probe(struct platform_device *pdev)
 	int irq;
 	struct ast_crypto_dev *crypto_dev;
 
-	crypto_dev = kzalloc(sizeof(struct ast_crypto_dev), GFP_KERNEL);
+	crypto_dev = devm_kzalloc(&pdev->dev, sizeof(struct ast_crypto_dev), GFP_KERNEL);
 	if (!crypto_dev) {
 		dev_err(dev, "unable to alloc data struct.\n");
 		return -ENOMEM;
@@ -2113,7 +2129,7 @@ static int ast_crypto_probe(struct platform_device *pdev)
 		dev_err(dev, "no MEM resource info\n");
 		err = -ENODEV;
 	}
-	crypto_dev->regs = ioremap(res->start, resource_size(res));
+	crypto_dev->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (!(crypto_dev->regs)) {
 		dev_err(dev, "can't ioremap\n");
 		return -ENOMEM;
@@ -2125,7 +2141,7 @@ static int ast_crypto_probe(struct platform_device *pdev)
 	}
 
 #ifdef AST_CRYPTO_IRQ
-	if (request_irq(irq, ast_crypto_irq, IRQF_SHARED, "ast-crypto", crypto_dev)) {
+	if (devm_request_irq(&pdev->dev, irq, ast_crypto_irq, 0, dev_name(&pdev->dev), crypto_dev)) {
 		dev_err(dev, "unable to request aes irq.\n");
 		return -EBUSY;
 	}
@@ -2183,7 +2199,7 @@ static int ast_crypto_probe(struct platform_device *pdev)
 			printk("ast_ahash_alg~~~ ERROR ~~~\n");
 	}	
 
-	printk(KERN_INFO "%s: AST CRYPTO Driver \n", pdev->name);
+	printk(KERN_INFO "AST crypto driver successfully loaded \n");
 
 	return 0;
 }
