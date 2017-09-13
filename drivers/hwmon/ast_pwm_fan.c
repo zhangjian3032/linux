@@ -53,14 +53,9 @@
 #include <linux/sysfs.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 
-#include <asm/irq.h>
-#include <asm/io.h>
-
-#include <mach/irqs.h>
-#include <mach/platform.h>
 #include <mach/ast-scu.h>
-
 /*********************************************************************************************/
 /*AST PWM & FAN Register Definition */
 #define AST_PTCR_CTRL			0x00

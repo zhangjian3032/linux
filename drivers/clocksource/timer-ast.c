@@ -98,9 +98,8 @@ static int ast_timer_set_next_event(unsigned long cycles,
 				       struct clock_event_device *evt)
 {
 	struct ast_timer *timer = to_ast_timer(evt);
-	u32 cr;
-	printk("%s\n", __FUNCTION__);
 #if 0
+	u32 cr;
 	/* Stop */
 	cr = readl(timer->base + TIMER_CR);
 	cr &= ~timer->t1_enable_val;
@@ -129,18 +128,8 @@ static int ast_timer_set_next_event(unsigned long cycles,
 static int ast_timer_shutdown(struct clock_event_device *evt)
 {
 	struct ast_timer *timer = to_ast_timer(evt);
-	u32 cr;
-//	printk("%s\n", __FUNCTION__);
-
-	/* Stop */
-#if 0	
-	cr = readl(timer->base + TIMER_CR);
-	cr &= ~timer->t1_enable_val;
-	writel(cr, timer->base + TIMER_CR);
-#else
 	writel(~TIMER_CTRL_T1_ENABLE & readl(timer->base + AST_TIMER_CTRL1), timer->base + AST_TIMER_CTRL1);	
 
-#endif
 	return 0;
 }
 

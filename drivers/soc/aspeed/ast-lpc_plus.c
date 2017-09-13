@@ -25,7 +25,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 
-#include <mach/platform.h>
 #include <asm/io.h>
 #include <linux/interrupt.h>
 

@@ -27,11 +27,9 @@
 #include <linux/interrupt.h>
 #include <asm/uaccess.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/miscdevice.h>
-#include <mach/irqs.h>
-#include <mach/platform.h>
 /***********************************************************************/
 /*AST PECI Register Definition */
 #define AST_PECI_CTRL		0x00

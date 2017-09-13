@@ -61,9 +61,6 @@
 #include <linux/skbuff.h>
 #include <linux/dma-mapping.h>
 
-#include <mach/irqs.h>
-#include <mach/platform.h>
-
 #include "ftgmac100_26.h"
 
 #if defined(CONFIG_ARM)

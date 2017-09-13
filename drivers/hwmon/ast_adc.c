@@ -34,8 +34,8 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <asm/io.h>
-#include <mach/platform.h>
 #include <mach/ast-scu.h>
+#include <mach/aspeed.h>
 /****************************************************************************************/
 #if defined(AST_SOC_G3)
 #define MAX_CH_NO		12

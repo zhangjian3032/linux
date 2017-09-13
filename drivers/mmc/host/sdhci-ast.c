@@ -14,8 +14,6 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include "sdhci-pltfm.h"
-#include <mach/irqs.h>
-#include <mach/platform.h>
 #include <mach/ast-scu.h>
 #include <mach/ast-sdhci.h>
 

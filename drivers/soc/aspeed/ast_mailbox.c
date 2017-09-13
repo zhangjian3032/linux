@@ -32,11 +32,9 @@
 #include <linux/slab.h>
 
 #include <linux/sched.h>  
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/miscdevice.h>
-#include <mach/irqs.h>
-#include <mach/platform.h>
 /***********************************************************************/
 #define AST_MBX_DAT0				0x00
 #define AST_MBX_DAT1				0x04

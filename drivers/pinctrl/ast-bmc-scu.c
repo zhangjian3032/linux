@@ -39,11 +39,12 @@ CLK24M
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <mach/hardware.h>
+#include <mach/aspeed.h>
 
 #include <mach/ast-bmc-scu.h>
 #include <mach/regs-bmc-scu.h>
 #include <mach/ast_i2c.h>
+
 
 //#define ASPEED_SCU_LOCK
 //#define AST_BMC_SCU_DBG

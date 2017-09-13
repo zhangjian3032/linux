@@ -52,9 +52,6 @@
 #include <linux/slab.h>
 #include <linux/timer.h>
 
-#include <mach/irqs.h>
-#include <mach/platform.h>
-
 #define AST_CRYPTO_IRQ
 //#define AST_CRYPTO_DEBUG
 //#define AST_HASH_DEBUG
@@ -1308,7 +1305,7 @@ static int ast_sham_init(struct ahash_request *req)
 static int ast_sha_update(struct ahash_request *req)
 {
 	struct ast_sham_reqctx *ctx = ahash_request_ctx(req);
-	struct ast_crypto_dev *ast_crypto = ctx->crypto_dev;
+//	struct ast_crypto_dev *ast_crypto = ctx->crypto_dev;
 
 	if (!req->nbytes)
 		return -1;
@@ -1335,8 +1332,6 @@ static int ast_sha_final(struct ahash_request *req)
 	struct ast_sham_reqctx *ctx = ahash_request_ctx(req);
 	struct ast_sham_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
 	struct ast_crypto_dev *ast_crypto = tctx->crypto_dev;
-	
-	int err = 0;
 
 	ctx->flags = 1;
 	ctx->op = 2;
@@ -1353,7 +1348,7 @@ static int ast_sha_final(struct ahash_request *req)
 
 static int ast_sha_finup(struct ahash_request *req)
 {
-	struct ast_sham_reqctx *ctx = ahash_request_ctx(req);
+//	struct ast_sham_reqctx *ctx = ahash_request_ctx(req);
 	int err1, err2;
 
 	HASH_DBUG("Final up TODO ...\n");
@@ -1385,10 +1380,10 @@ static int ast_sham_setkey(struct crypto_ahash *tfm, const u8 *key,
 			  unsigned int keylen)
 {
 	struct ast_sham_ctx *ctx = crypto_ahash_ctx(tfm);
-	int bs = crypto_shash_blocksize(ctx->base_hash);
-	int ds = crypto_shash_digestsize(ctx->base_hash);
+//	int bs = crypto_shash_blocksize(ctx->base_hash);
+//	int ds = crypto_shash_digestsize(ctx->base_hash);
 	struct ast_crypto_dev *ast_crypto = NULL, *tmp;
-	int err=0, i;
+	int err=0;
 
 	HASH_DBUG("keylen %d\n", keylen);
 

@@ -13,8 +13,6 @@
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
 
-#include <mach/platform.h>
-
 #define IO_ADDRESS(x)  (x - 0x1e600000 + 0xF8000000) 
 
 //PCIE
