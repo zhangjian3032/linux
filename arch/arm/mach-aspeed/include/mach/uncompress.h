@@ -9,30 +9,29 @@
 #ifndef __ASM_ARCH_UNCOMPRESS_H
 #define __ASM_ARCH_UNCOMPRESS_H
 
-#include <mach/platform.h>
-#include <mach/aspeed_serial.h>
+#include <linux/serial_reg.h>
 
-#define UART_PUT_CHAR   (*(volatile unsigned char *)(AST_UART0_BASE + UART_THR))
-#define UART_GET_LSR   (*(volatile unsigned char *)(AST_UART0_BASE + UART_LSR))
+static volatile unsigned long * const UART = (unsigned long *)CONFIG_DEBUG_UART_PHYS;
 
-static void putc(int c)
+/*
+ * The following code assumes the serial port has already been
+ * initialized by the bootloader.  If you didn't setup a port in
+ * your bootloader then nothing will appear (which might be desired).
+ */
+static inline void putc(char c)
 {
-
-	/* wait for space in the UART's transmitter */
-	while (!(UART_GET_LSR & UART_LSR_THRE))
+	while (!(UART[UART_LSR] & UART_LSR_THRE))
 		barrier();
-	
-	/* send the character out. */
-	UART_PUT_CHAR = c;
+	UART[UART_TX] = c;
 }
 
 static inline void flush(void)
 {
-	while (UART_GET_LSR & (1 << 3))
-			 barrier();
 }
 
+/*
+ * nothing to do
+ */
 #define arch_decomp_setup()
-#define arch_decomp_wdog()
 
 #endif /* __ASM_ARCH_UNCOMPRESS_H */

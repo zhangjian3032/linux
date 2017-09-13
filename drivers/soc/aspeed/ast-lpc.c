@@ -34,12 +34,8 @@ In ICH7 or newer, choose any 2 of GENx_DEC, set 00040081h & 007C0C81h
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-
-#include <mach/platform.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/interrupt.h>
-
-#include <mach/hardware.h>
 #include <linux/dma-mapping.h>
 
 #include <mach/regs-lpc.h>

@@ -17,12 +17,6 @@
 #ifndef _AST_PLATFORM_H_
 #define _AST_PLATFORM_H_                 1
 
-#include "aspeed.h"
-
-#define AST_PLL_25MHZ			25000000
-#define AST_PLL_24MHZ			24000000
-#define AST_PLL_12MHZ			12000000
-
 /*********************************************************************************/
 #if defined(CONFIG_ARCH_AST1010)
 #include "ast1010_platform.h"
