@@ -22,11 +22,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/hwmon-sysfs.h>
 
-#include <mach/platform.h>
-#include <mach/hardware.h>
 #include <mach/ast-sdmc.h>
 /************************************  Registers for SDMC ****************************************/ 
 #define AST_SDMC_PROTECT				0x00		/*	protection key register	*/
@@ -124,15 +124,6 @@ ast_sdmc_get_ecc(void)
 		return 0;
 }
 
-extern void
-ast_sdmc_set_ecc(u8 enable)
-{
-	if(enable) 
-		ast_sdmc_write(ast_sdmc_read(AST_SDMC_CONFIG) | SDMC_CONFIG_EEC_EN, AST_SDMC_CONFIG);
-	else
-		ast_sdmc_write(ast_sdmc_read(AST_SDMC_CONFIG) & ~SDMC_CONFIG_EEC_EN, AST_SDMC_CONFIG);	
-}
-
 extern u8
 ast_sdmc_get_dram(void)
 {
@@ -203,21 +194,7 @@ static ssize_t show_cache(struct device *dev, struct device_attribute *attr, cha
 	return sprintf(buf, "%d: %s\n", ast_sdmc_get_cache(), ast_sdmc_get_cache()? "Enable":"Disable");
 }
 
-static ssize_t store_cache(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	u32 val;	
-	val = simple_strtoul(buf, NULL, 10);
-
-	if(val)
-		ast_sdmc_set_cache(1);
-	else
-		ast_sdmc_set_cache(0);
-	
-	return count;
-}
-
-static DEVICE_ATTR(cache, S_IRUGO | S_IWUSR, show_cache, store_cache); 
+static DEVICE_ATTR(cache, S_IRUGO | S_IWUSR, show_cache, NULL); 
 
 static ssize_t show_ecc(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -225,22 +202,7 @@ static ssize_t show_ecc(struct device *dev,
 	return sprintf(buf, "%d: %s\n", ast_sdmc_get_ecc(), ast_sdmc_get_ecc()? "Enable":"Disable");
 }
 
-static ssize_t store_ecc(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	u32 val;	
-
-	val = simple_strtoul(buf, NULL, 10);
-
-	if(val)
-		ast_sdmc_set_ecc(1);
-	else
-		ast_sdmc_set_ecc(0);
-	
-	return count;
-}
-
-static DEVICE_ATTR(ecc, S_IRUGO | S_IWUSR, show_ecc, store_ecc); 
+static DEVICE_ATTR(ecc, S_IRUGO | S_IWUSR, show_ecc, NULL); 
 
 static ssize_t show_ecc_counter(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -289,12 +251,14 @@ static const struct attribute_group sdmc_attribute_group = {
 //***********************************Information ***********************************
 static struct kobject *ast_sdmc_kobj;
 
-static int __init ast_sdmc_init(void)
+static int ast_g5_sdmc_probe(struct platform_device *pdev)
 {
+	struct resource *res;
 	int ret;
 
 	SDMCDBUG("\n");
-	ast_sdmc_base = ioremap(AST_SDMC_BASE , SZ_256);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ast_sdmc_base = devm_ioremap_resource(&pdev->dev, res);
 
 	//show in /sys/kernel/dram
 	ast_sdmc_kobj = kobject_create_and_add("dram", kernel_kobj);
@@ -306,4 +270,22 @@ static int __init ast_sdmc_init(void)
 	return ret;
 }
 
-core_initcall(ast_sdmc_init);
+static const struct of_device_id ast_g5_sdmc_of_match[] = {
+	{ .compatible = "aspeed,ast-g5-sdmc", },
+	{ }
+};
+
+static struct platform_driver ast_g5_sdmc_driver = {
+	.probe = ast_g5_sdmc_probe,
+	.driver = {
+		.name = KBUILD_MODNAME,
+		.of_match_table = ast_g5_sdmc_of_match,
+	},
+};
+
+static int ast_g5_sdmc_init(void)
+{
+	return platform_driver_register(&ast_g5_sdmc_driver);
+}
+
+core_initcall(ast_g5_sdmc_init);

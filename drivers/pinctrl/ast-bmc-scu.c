@@ -35,10 +35,6 @@ CLK24M
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-
-#include <mach/platform.h>
-#include <asm/io.h>
-
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/of.h>
@@ -2309,7 +2305,8 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 		ast_scu_init_sdhci();
 	}
 
-	if(np = of_find_compatible_node(NULL, NULL, "aspeed,ast-i2c-irq")) {
+	np = of_find_compatible_node(NULL, NULL, "aspeed,ast-i2c-irq");
+	if(np) {
 		BMC_SCUDBG("aspeed,ast-i2c-irq found in SCU \n");
 		//SCU I2C Reset 
 		ast_scu_init_i2c();

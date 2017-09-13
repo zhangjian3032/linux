@@ -98,14 +98,14 @@
 			};
 		};
                 mac0: ethernet@1e660000 {
-			compatible = "aspeed,ast-mac";
+			compatible = "aspeed,ast-gmac";
 			reg = <0x1e660000 0x180>;
 			interrupts = <2>;
 			pinmux = <0>;
 			#status = "disabled";
 		};
 		mac1: ethernet@1e680000 {
-			compatible = "aspeed,ast-mac";
+			compatible = "aspeed,ast-gmac";
 			reg = <0x1e680000 0x180>;
 			interrupts = <3>;
 			pinmux = <1>;
@@ -192,10 +192,6 @@
                         interrupts = <31>;
                         clocks = <&clk_apb>;
                 };
-		pcie_host: pcie_host@1e6ed000 {
-			#compatible = "aspeed,ast-pcie";
-			#reg = <0x1e6ed000 0xd0>;
-		};
 		espi: espi@1e6ee000 {
 			#compatible = "aspeed,ast-espi";
 			#reg = <0x1e6ee000 0x200>;
@@ -209,7 +205,7 @@
 		};
 		sram@1e720000 {
                         compatible = "mmio-sram";
-                        reg = <0x1e720000 0x9000>;      // 36K
+                        reg = <0x1e720000 0x9000>;      /* 36K */
                 };
 		sdhci_irq: sdhci_irq {
 			compatible = "aspeed,ast-sdhci-irq";

@@ -184,10 +184,6 @@
                         interrupts = <31>;
                         clocks = <&clk_apb>;
                 };
-		pcie_host: pcie_host@1e6ed000 {
-			#compatible = "aspeed,ast-pcie";
-			#reg = <0x1e6ed000 0xd0>;
-		};
 		espi: espi@1e6ee000 {
 			#compatible = "aspeed,ast-espi";
 			#reg = <0x1e6ee000 0x200>;
