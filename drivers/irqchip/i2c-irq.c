@@ -28,6 +28,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/io.h>
+#include <mach/aspeed.h>
 #include <mach/ast_i2c.h>
 /*******************************************************************/
 #define AST_I2CG_ISR				0x00
@@ -287,10 +288,12 @@ extern u8 request_pool_buff_page(struct buf_page **req_page) {return 0;}
 extern void free_pool_buff_page(struct buf_page *req_page) {}
 #endif
 /*******************************************************************/
+#ifdef AST_SOC_G5
 void ast_i2c_sram_buff_enable(struct ast_i2c_irq *i2c_irq) {
 	writel(I2C_SRAM_BUFF_EN, i2c_irq->regs + AST_I2CG_CTRL);
 };
 EXPORT_SYMBOL(ast_i2c_sram_buff_enable);
+#endif
 
 static void ast_i2c_irq_handler(struct irq_desc *desc)
 {

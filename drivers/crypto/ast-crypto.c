@@ -2174,9 +2174,9 @@ static int ast_crypto_probe(struct platform_device *pdev)
 	crypto_dev->hash_digst = crypto_dev->hash_src + AST_HASH_BUFF_SIZE;
 	crypto_dev->hash_digst_dma = crypto_dev->hash_src_dma + AST_HASH_BUFF_SIZE;
 
-	printk("Crypto ctx %x , in : %x, out: %x\n", crypto_dev->ctx_dma_addr, crypto_dev->dma_addr_in, crypto_dev->dma_addr_out);
+//	printk("Crypto ctx %x , in : %x, out: %x\n", crypto_dev->ctx_dma_addr, crypto_dev->dma_addr_in, crypto_dev->dma_addr_out);
 
-	printk("Hash key %x , src : %x, digst: %x\n", crypto_dev->hash_key_dma, crypto_dev->hash_src_dma, crypto_dev->hash_digst_dma);
+//	printk("Hash key %x , src : %x, digst: %x\n", crypto_dev->hash_key_dma, crypto_dev->hash_src_dma, crypto_dev->hash_digst_dma);
 
 	///Ctrl init 
 	ast_crypto_write(crypto_dev, crypto_dev->ctx_dma_addr, AST_HACE_CONTEXT);

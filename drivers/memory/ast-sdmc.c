@@ -26,12 +26,14 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/hwmon-sysfs.h>
-
+	
 #include <mach/ast-sdmc.h>
 /***********************  Registers for SDMC ***************************/ 
 #define AST_SDMC_PROTECT	0x00		/*	protection key register	*/
 #define AST_SDMC_CONFIG		0x04		/*	Configuration register */
 #define AST_SDMC_MEM_REQ		0x08		/*	Graphics Memory Protection register */
+
+#define AST_SDMC_ISR					0x50		/*	Interrupt Control/Status Register */
 
 /*	AST_SDMC_PROTECT: 0x00  - protection key register */
 #define SDMC_PROTECT_UNLOCK			0xFC600309
@@ -156,31 +158,15 @@ ast_sdmc_get_mem_size(void)
 	return size;
 }
 
+EXPORT_SYMBOL(ast_sdmc_get_mem_size);
 /************************************************** SYS FS **************************************************************/
-static DEVICE_ATTR(cache, S_IRUGO | S_IWUSR, show_cache, NULL); 
-
 static ssize_t show_ecc(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d: %s\n", ast_sdmc_get_ecc(), ast_sdmc_get_ecc()? "Enable":"Disable");
 }
 
-static ssize_t store_ecc(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	u32 val;	
-
-	val = simple_strtoul(buf, NULL, 10);
-
-	if(val)
-		ast_sdmc_set_ecc(1);
-	else
-		ast_sdmc_set_ecc(0);
-	
-	return count;
-}
-
-static DEVICE_ATTR(ecc, S_IRUGO | S_IWUSR, show_ecc, store_ecc); 
+static DEVICE_ATTR(ecc, S_IRUGO | S_IWUSR, show_ecc, NULL); 
 
 static ssize_t show_ecc_counter(struct device *dev,
 	struct device_attribute *attr, char *buf)

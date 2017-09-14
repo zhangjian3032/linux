@@ -188,6 +188,7 @@ ast_sdmc_get_mem_size(void)
 	return size;
 }
 
+EXPORT_SYMBOL(ast_sdmc_get_mem_size);
 /************************************************** SYS FS **************************************************************/
 static ssize_t show_cache(struct device *dev, struct device_attribute *attr, char *buf)
 {

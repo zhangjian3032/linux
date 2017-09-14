@@ -45,7 +45,6 @@ CLK24M
 #include <mach/regs-bmc-scu.h>
 #include <mach/ast_i2c.h>
 
-
 //#define ASPEED_SCU_LOCK
 //#define AST_BMC_SCU_DBG
 
@@ -1705,12 +1704,9 @@ ast_scu_multi_func_usb_port2_mode(u8 mode)
 	if(mode == 0)
 		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) & ~SCU_FUC_PIN_USB11_PORT2, 
 					AST_SCU_FUN_PIN_CTRL5);
-	else if (mode == 1)
-		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_USB11_PORT2, 
+	else if ((mode == 1) || (mode == 2))
+		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_USB11_PORT2 | SCU_FUC_PIN_USB20_HOST, 
 			AST_SCU_FUN_PIN_CTRL5);
-	else if (mode == 2)
-		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_USB20_HOST, 
-					AST_SCU_FUN_PIN_CTRL5);
 	else {
 		printk("nothing\n");
 	}
@@ -2213,8 +2209,9 @@ static irqreturn_t ast_scu_isr (int this_irq, void *dev_id)
 	return IRQ_HANDLED;
 }		
 
+#ifdef CONFIG_I2C_AST
 extern void ast_i2c_sram_buff_enable(struct ast_i2c_irq *i2c_irq);
-
+#endif
 static int ast_bmc_scu_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -2298,7 +2295,9 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 		ast_scu_init_uhci();
 		ast_scu_multi_func_usb_port1_mode(1);
 		ast_scu_multi_func_usb_port2_mode(2);
-//		ast_scu_multi_func_usb_port34_mode(1);
+#ifdef AST_SOC_G4		
+		ast_scu_multi_func_usb_port34_mode(1);
+#endif
 	}
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-sdhci-irq")) {
@@ -2311,6 +2310,7 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 		BMC_SCUDBG("aspeed,ast-i2c-irq found in SCU \n");
 		//SCU I2C Reset 
 		ast_scu_init_i2c();
+#ifdef AST_SOC_G5		
 		if(of_machine_is_compatible("aspeed,ast2500")) {
 #ifdef CONFIG_I2C_AST
 			//DMA, BUFF Mode enable 
@@ -2318,6 +2318,7 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 			ast_i2c_sram_buff_enable((struct ast_i2c_irq *)np->data);
 #endif
 		}
+#endif		
 	}
 	
 	for_each_compatible_node(np, NULL, "aspeed,ast-i2c") {

@@ -144,6 +144,7 @@
 			compatible = "aspeed,ast-uhci", "generic-uhci";
 			reg = <0x1e6b0000 0x100>;
 			interrupts = <14>;
+			#ports = <2>;
 		};
 #else
 		udc: udc@0x1e6a0000 {
