@@ -33,6 +33,9 @@ if [ "$2" == "bmc" ]; then
 	rm -f $1/arch/arm/configs/ast2500_ramfs_defconfig
 	rm -f $1/arch/arm/configs/ast2500_squashfs_defconfig
 	rm -f $1/arch/arm/configs/ast2400_defconfig
+	rm -f $1/arch/arm/boot/dts/ast1220.dts
+	rm -f $1/arch/arm/boot/dts/ast2400.dts
+	rm -f $1/arch/arm/boot/dts/ast2500.dts
 fi
 
 #CAM
@@ -41,10 +44,13 @@ if [ "$2" == "cam" ]; then
         find $1/. -name  '*.bmc' | while read filename; do rm -f "${filename}"; done
 	rm -f $1/arch/arm/plat-aspeed/ast1070*.*
 	rm -f $1/arch/arm/plat-aspeed/include/plat/ast1070*.*
+	rm -f $1/arch/arm/boot/dts/ast2400*.dts
+	rm -f $1/arch/arm/boot/dts/ast2500*.dts
 	rm -f $1/drivers/pci/host/*ast*.c
 	rm -f $1/drivers/tty/serial/8250/ast*.c
 fi
 
+rm -rf $1/arch/arm/plat-aspeed
 rm -f $1/arch/arm/configs/ast1520_defconfig
 rm -f $1/arch/arm/configs/ast1520_pci_defconfig
 rm -f $1/arch/arm/configs/ast2509_defconfig
@@ -60,6 +66,9 @@ rm -f $1/arch/m68k/coldfire/vic.c
 rm -f $1/arch/m68k/include/asm/ast1010_irqs.h
 rm -f $1/arch/m68k/include/asm/regs-intr.h
 rm -f $1/arch/arm/plat-aspeed/include/plat/regs-cat6613.h
+rm -f $1/drivers/clocksource/timer-fttmr010.c
+rm -f $1/drivers/memory/ast-cam-sdmc.c
+rm -f $1/drivers/pinctrl/ast-cam-scu.c
 rm -f $1/drivers/video/fbdev/aspeed/astvgafb.c
 rm -f $1/drivers/soc/aspeed/adc_cat9883.c
 rm -f $1/drivers/soc/aspeed/ast_rfx.c
