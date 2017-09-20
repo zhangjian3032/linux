@@ -2702,7 +2702,7 @@ static const struct attribute_group compress_attribute_groups[] = {
 };
 
 /************************************************** SYS FS End ***********************************************************/
-#define CONFIG_AST_VIDEO_MEM_SIZE	0x2800000;		
+#define CONFIG_AST_VIDEO_MEM_SIZE	0x2800000
 static int ast_video_probe(struct platform_device *pdev)
 {
 	struct resource *res0;
@@ -2712,7 +2712,7 @@ static int ast_video_probe(struct platform_device *pdev)
 	u32 vga = ast_scu_get_vga_memsize();
 	u32 dram = ast_sdmc_get_mem_size();
 	u32 dram_base = ast_get_dram_base();
-	u32 video_base = dram - vga + dram_base;
+	u32 video_base = dram - vga - CONFIG_AST_VIDEO_MEM_SIZE + dram_base;
 
 	ast_scu_init_video(0);
 	ast_scu_multi_func_video();
