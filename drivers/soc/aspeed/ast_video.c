@@ -2719,7 +2719,7 @@ static int ast_video_probe(struct platform_device *pdev)
 
 	if(!(ast_video = devm_kzalloc(&pdev->dev, sizeof(struct ast_video_data), GFP_KERNEL))) {
 		return -ENOMEM;
-    }
+	}
 
 	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res0) {
@@ -2750,7 +2750,7 @@ static int ast_video_probe(struct platform_device *pdev)
 	        (u32)ast_video->stream_phy, (u32)ast_video->buff0_phy, (u32)ast_video->buff1_phy, (u32)ast_video->bcd_phy, (u32)ast_video->jpeg_phy, (u32)ast_video->jpeg_tbl_phy);
 
 	//virt assign
-	ast_video->stream_virt = ioremap(video_base + dram_base, ast_video->video_mem_size);
+	ast_video->stream_virt = ioremap(video_base, ast_video->video_mem_size);
 	if (!ast_video->stream_virt) {
 		ret = -EIO;
 		goto out_region0;

@@ -213,7 +213,7 @@
 		video: video@1e700000 {
 			compatible = "aspeed,ast-video";
 			/* 184MB : 40MB*/
-			reg = <0x1e700000 0x300 0x8b800000 0x2800000>;
+			reg = <0x1e700000 0x300>;
 			interrupts = <7>;
 		};
 		sram@1e720000 {
