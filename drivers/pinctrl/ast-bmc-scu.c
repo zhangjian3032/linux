@@ -2259,11 +2259,17 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 		}
 	}
 
+	//SCU Video Reset
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-video")) {
+		BMC_SCUDBG("aspeed,ast-video found in SCU \n");
+		ast_scu_init_video(0);
+		ast_scu_multi_func_video();
+	}
+
 	//SCU ADC CTRL Reset
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-adc")) {
 		BMC_SCUDBG("aspeed,ast-adc found in SCU \n");
 		ast_scu_init_adc();
-		
 	}
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-pwm-tacho")) {
@@ -2382,12 +2388,12 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 	//SCU intr enable
 	ast_scu_write(0x003f0000,
 				AST_SCU_INTR_CTRL);
-	
+#if 0	
 	ast_scu_write(ast_scu_read(AST_SCU_INTR_CTRL) | 
 				INTR_LPC_H_L_RESET_EN	| INTR_LPC_L_H_RESET_EN | INTR_PCIE_H_L_RESET_EN |
 				INTR_PCIE_L_H_RESET_EN |INTR_VGA_SCRATCH_CHANGE_EN | INTR_VGA_CURSOR_CHANGE_EN	,
 				AST_SCU_INTR_CTRL);
-	
+#endif	
 	ast_scu_show_system_info();
 
 #ifdef CONFIG_ARCH_AST3200

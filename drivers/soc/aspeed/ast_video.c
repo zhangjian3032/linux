@@ -2714,9 +2714,6 @@ static int ast_video_probe(struct platform_device *pdev)
 	u32 dram_base = ast_get_dram_base();
 	u32 video_base = dram - vga - CONFIG_AST_VIDEO_MEM_SIZE + dram_base;
 
-	ast_scu_init_video(0);
-	ast_scu_multi_func_video();
-
 	if(!(ast_video = devm_kzalloc(&pdev->dev, sizeof(struct ast_video_data), GFP_KERNEL))) {
 		return -ENOMEM;
 	}
