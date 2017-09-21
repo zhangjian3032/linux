@@ -20,7 +20,6 @@ if [ "$2" == "bmc" ]; then
 	find $1/. -name  '*_cam_*.h' | while read filename; do rm -f "${filename}"; done
 	find $1/. -name  '*_cam_*.c' | while read filename; do rm -f "${filename}"; done
 	rm -f $1/arch/arm/configs/ast2500_cam_defconfig
-	rm -f $1/drivers/crypto/ast-crypto.c
 	rm -f $1/drivers/usb/gadget/udc/ast_udc.c
 	rm -f $1/drivers/soc/aspeed/ast-jpeg.c
 	rm -f $1/arch/arm/configs/ast1220_defconfig
