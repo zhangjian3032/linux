@@ -22,11 +22,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/hwmon-sysfs.h>
 
-#include <mach/platform.h>
-#include <mach/hardware.h>
 #include <mach/ast-sdmc.h>
 /************************************  Registers for SDMC ****************************************/ 
 #define AST_SDMC_PROTECT				0x00		/*	protection key register	*/
@@ -111,25 +111,33 @@ ast_sdmc_get_mem_size(void)
 /************************************************** SYS FS **************************************************************/
 
 //***********************************Information ***********************************
-static struct kobject *ast_sdmc_kobj;
-
-static int __init ast_sdmc_init(void)
+static int ast_cam_sdmc_probe(struct platform_device *pdev)
 {
-	int ret;
+	struct resource *res;
 
 	SDMCDBUG("\n");
-	ast_sdmc_base = ioremap(AST_SDMC_BASE , SZ_256);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ast_sdmc_base = devm_ioremap_resource(&pdev->dev, res);
 
-	//show in /sys/kernel/dram
-#if 0	
-	ast_sdmc_kobj = kobject_create_and_add("dram", kernel_kobj);
-	if (!ast_sdmc_kobj)
-		return -ENOMEM;
-	ret = sysfs_create_group(ast_sdmc_kobj, &sdmc_attribute_group);
-	if (ret)
-			kobject_put(ast_sdmc_kobj);
-#endif	
-	return ret;
+	return 0;
 }
 
-core_initcall(ast_sdmc_init);
+static const struct of_device_id ast_cam_sdmc_of_match[] = {
+	{ .compatible = "aspeed,ast-cam-sdmc", },
+	{ }
+};
+
+static struct platform_driver ast_cam_sdmc_driver = {
+	.probe = ast_cam_sdmc_probe,
+	.driver = {
+		.name = KBUILD_MODNAME,
+		.of_match_table = ast_cam_sdmc_of_match,
+	},
+};
+
+static int ast_cam_sdmc_init(void)
+{
+	return platform_driver_register(&ast_cam_sdmc_driver);
+}
+
+core_initcall(ast_cam_sdmc_init);

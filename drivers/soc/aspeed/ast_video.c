@@ -37,7 +37,6 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
-//#include <mach/ast_video.h>
 #include <mach/hardware.h>
 #include <mach/aspeed.h>
 #include <mach/ast-sdmc.h>

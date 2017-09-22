@@ -38,11 +38,9 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <mach/hardware.h>
-#include <mach/irqs.h>
-#include <mach/platform.h>
 #include <mach/aspeed.h>
-
 #include <linux/dma-mapping.h>
+/***********************************************************************/
 
 #define CONFIG_AST_JPEG_DEBUG
 

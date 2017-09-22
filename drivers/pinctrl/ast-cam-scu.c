@@ -35,15 +35,11 @@ CLK24M
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-
-#include <mach/platform.h>
-#include <asm/io.h>
-
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <mach/hardware.h>
+#include <mach/aspeed.h>
 
 #include <mach/ast-cam-scu.h>
 #include <mach/regs-cam-scu.h>
@@ -519,22 +515,25 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device_node *np;
 	u32 idx;
+	u32 reset_mask;
 
 	SCUDBUG("\n");	
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ast_scu_base = devm_ioremap_resource(&pdev->dev, res);
 //	irq = platform_get_irq(pdev, 0);
-	ast_scu_write(0x51515151, 0x44);
-	printk("SCU ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
-
-	
-#if 0	
-	ret = devm_request_irq(&pdev->dev, irq, ast_scu_isr,
-						   0, dev_name(&pdev->dev), NULL);
+//	ret = devm_request_irq(&pdev->dev, irq, ast_scu_isr,
+//						   0, dev_name(&pdev->dev), NULL);
 	if (ret) {
 		printk("AST SCU Unable request IRQ \n");
 		goto out;
+	}
+
+#if 0 //def CONFIG_AST_RUNTIME_DMA_UARTS
+	if(of_machine_is_compatible("aspeed,ast2500")) {
+		if((CONFIG_AST_RUNTIME_DMA_UARTS > 2) || (CONFIG_SERIAL_8250_RUNTIME_UARTS > 4)) {
+			ast_scu_uartx_init();
+		}
 	}
 #endif
 
@@ -545,15 +544,6 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 		if (of_property_read_u32(np, "pinmux", &idx) == 0) {
 			SCUDBUG("pinmux = %d \n", idx);
 		}
-	}
-
-	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-pwm-tacho")) {
-		printk("aspeed,ast-pwm-tacho found in SCU \n");
-		//SCU Pin-MUX	//PWM & TACHO 
-//		ast_scu_multi_func_pwm_tacho();
-		
-		//SCU PWM CTRL Reset
-//		ast_scu_init_pwm_tacho();	
 	}
 
 	for_each_compatible_node(np, NULL, "aspeed,ast-mac") {
@@ -576,7 +566,7 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 			printk("aspeed,ast-i2c found in SCU \n");
 #ifdef CONFIG_I2C_AST
 			//DMA, BUFF Mode enable 
-			ast_i2c_sram_buff_enable((struct ast_i2c_irq *)np->data);
+//			ast_i2c_sram_buff_enable((struct ast_i2c_irq *)np->data);
 #endif
 		}
 	}
@@ -648,4 +638,3 @@ static int ast_cam_scu_init(void)
 }
 
 core_initcall(ast_cam_scu_init);
-
