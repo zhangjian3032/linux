@@ -35,6 +35,7 @@ if [ "$2" == "bmc" ]; then
 	rm -f $1/arch/arm/boot/dts/ast1220.dts
 	rm -f $1/arch/arm/boot/dts/ast2400.dts
 	rm -f $1/arch/arm/boot/dts/ast2500.dts
+	rm -f $1/drivers/memory/ast-cam-sdmc.c
 fi
 
 #CAM
@@ -66,8 +67,6 @@ rm -f $1/arch/m68k/include/asm/ast1010_irqs.h
 rm -f $1/arch/m68k/include/asm/regs-intr.h
 rm -f $1/arch/arm/plat-aspeed/include/plat/regs-cat6613.h
 rm -f $1/drivers/clocksource/timer-fttmr010.c
-rm -f $1/drivers/memory/ast-cam-sdmc.c
-rm -f $1/drivers/pinctrl/ast-cam-scu.c
 rm -f $1/drivers/video/fbdev/aspeed/astvgafb.c
 rm -f $1/drivers/soc/aspeed/adc_cat9883.c
 rm -f $1/drivers/soc/aspeed/ast_rfx.c

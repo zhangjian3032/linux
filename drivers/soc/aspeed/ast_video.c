@@ -528,6 +528,7 @@ struct ast_mode_detection
 //IOCTL ..
 #define VIDEOIOC_BASE       'V'
 
+#define AST_VIDEO_RESET							_IO(VIDEOIOC_BASE, 0x0)
 #define AST_VIDEO_IOC_GET_VGA_SIGNAL			_IOR(VIDEOIOC_BASE, 0x1, unsigned char)
 #define AST_VIDEO_GET_MEM_SIZE_IOCRX			_IOR(VIDEOIOC_BASE, 0x2, unsigned long)
 #define AST_VIDEO_GET_JPEG_OFFSET_IOCRX		_IOR(VIDEOIOC_BASE, 0x3, unsigned long)
@@ -541,7 +542,9 @@ struct ast_mode_detection
 #define AST_VIDEO_COMPRESSION_TRIGGER		_IOWR(VIDEOIOC_BASE, 0x9, unsigned long)
 
 #define AST_VIDEO_SET_VGA_DISPLAY				_IOW(VIDEOIOC_BASE, 0xa, int)
-#define AST_VIDEO_SET_CRT_COMPRESSION		_IO(VIDEOIOC_BASE, 0xb)
+#define AST_VIDEO_SET_ENCRYPTION				_IOW(VIDEOIOC_BASE, 0xb, int)
+#define AST_VIDEO_SET_ENCRYPTION_KEY			_IOW(VIDEOIOC_BASE, 0xc, unsigned char*)
+#define AST_VIDEO_SET_CRT_COMPRESSION		_IO(VIDEOIOC_BASE, 0xd)
 /***********************************************************************/
 typedef struct {
 	u16	HorizontalActive;
@@ -2135,6 +2138,7 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 	struct ast_video_config video_config;
 	
 	int vga_enable = 0;
+	int encrypt_en = 0;
 	int compression_source = 0;
 	struct ast_mode_detection mode_detection;	
 	struct ast_auto_mode auto_mode;	
@@ -2142,6 +2146,14 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 
 
 	switch (cmd) {
+		case AST_VIDEO_RESET:
+			ast_scu_reset_video();
+			//rc4 init reset ..
+			ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_CTRL) | VIDEO_CTRL_RC4_RST , AST_VIDEO_CTRL);
+			ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_CTRL) & ~VIDEO_CTRL_RC4_RST , AST_VIDEO_CTRL);
+			ast_video_ctrl_init(ast_video);		
+			ret = 0;
+			break;
 		case AST_VIDEO_IOC_GET_VGA_SIGNAL:
 			ret = put_user(ast_get_vga_signal(ast_video), (unsigned long __user *)arg);
 			break;
@@ -2185,10 +2197,28 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 			ret = __get_user(vga_enable, (int __user *)arg);
 			ast_scu_set_vga_display(vga_enable);
 			break;
+		case AST_VIDEO_SET_ENCRYPTION:
+			ret = __get_user(encrypt_en, (int __user *)arg);
+			if(encrypt_en) {
+				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_COMPRESS_CTRL) | VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);		
+			} else {
+				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_COMPRESS_CTRL) & ~VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);
+			}
+			break;
+		case AST_VIDEO_SET_ENCRYPTION_KEY:
+			memset(ast_video->EncodeKeys, 0, 256);
+			//due to system have enter key must be remove
+			ret = copy_from_user(ast_video->EncodeKeys, argp, 256 - 1);
+			printk("encryption key '%s' \n", ast_video->EncodeKeys);
+//			memcpy(ast_video->EncodeKeys, key, strlen(key) - 1);
+			ast_video_encryption_key_setup(ast_video);
+			ret = 0;
+			break;
 		case AST_VIDEO_SET_CRT_COMPRESSION:
 #ifdef CONFIG_FB_AST				
 			ast_set_crt_compression(ast_video);
 #endif
+			ret = 0;
 			break;			
 		default:
 			ret = 3;
