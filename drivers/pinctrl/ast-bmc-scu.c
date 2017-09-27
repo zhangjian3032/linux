@@ -406,7 +406,7 @@ ast_scu_init_mctp(void)
 {
 	//Notice : Must after Host reset 
 	spin_lock(&ast_scu_lock);
-//	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_MCTP, AST_SCU_RESET);
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_MCTP, AST_SCU_RESET);
 	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_MCTP, AST_SCU_RESET);
 	spin_unlock(&ast_scu_lock);
 }
