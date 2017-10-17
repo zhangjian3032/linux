@@ -2,6 +2,7 @@ ifeq ($(CONFIG_OF),y)
 
 dtb-$(CONFIG_ARCH_ASPEED) += \
 	ast1220.dtb \
+	ast1220_fpga.dtb \
 	ast2400.dtb \
 	ast2400_evb.dtb \
 	ast2500.dtb \
