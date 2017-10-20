@@ -1760,11 +1760,11 @@ extern void
 ast_scu_multi_func_sdhc_slot(u8 slot)
 {
 	switch(slot) {
-		case 1:
+		case 0:
 			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_SD1, 
 						AST_SCU_FUN_PIN_CTRL5);						
 			break;
-		case 2:
+		case 1:
 			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_SD2, 
 						AST_SCU_FUN_PIN_CTRL5);									
 			break;
@@ -2336,11 +2336,11 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 		BMC_SCUDBG("\n");
 	}
 
-	for_each_compatible_node(np, NULL, "aspeed,ast-sdhci") {
-		BMC_SCUDBG("aspeed,ast-shci found in SCU, ");
-		if (of_property_read_u32(np, "port", &idx) == 0) {
+	for_each_compatible_node(np, NULL, "aspeed,sdhci-ast") {
+		BMC_SCUDBG("aspeed,sdhci-ast found in SCU, ");
+		if (of_property_read_u32(np, "slot", &idx) == 0) {
 			BMC_SCUDBG("slot = %d ", idx);
-			ast_scu_multi_func_sdhc_slot(3);
+			ast_scu_multi_func_sdhc_slot(idx);
 		}
 		BMC_SCUDBG("\n");
 	}

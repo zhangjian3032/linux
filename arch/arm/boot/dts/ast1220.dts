@@ -211,7 +211,7 @@
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e760200 0x100>;
 			interrupts = <1>;
-                        interrupt-parent = <&sdhci_irq>;
+            interrupt-parent = <&sdhci_irq>;
 			sdhci,auto-cmd12;
 		};
 		gpio: gpio@1e780000 {

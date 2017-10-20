@@ -213,6 +213,7 @@
 			reg = <0x1e740100 0x100>;
 			interrupts = <0>;
 			interrupt-parent = <&sdhci_irq>;
+			slot = <0>;
 			sdhci,auto-cmd12;
 		};
 		sdhci_slot1: sdhci_slot1@1e740200 {
@@ -220,6 +221,7 @@
 			reg = <0x1e740200 0x100>;
 			interrupts = <1>;
                         interrupt-parent = <&sdhci_irq>;
+			slot = <1>;
 			sdhci,auto-cmd12;
 		};
 		gpio: gpio@1e780000 {
