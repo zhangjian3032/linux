@@ -122,7 +122,7 @@ config MMC_SDHCI_OF_AST
 	tristate "SDHCI OF support for the ASPEED SDHCI controller"
 	depends on MMC_SDHCI_PLTFM
 	depends on OF
-	select SDHCI_AST_IRQ
+	select ASPEED_SDHCI_IRQCHIP
 	help
 	  This selects the ASPEED Secure Digital Host Controller Interface.
 

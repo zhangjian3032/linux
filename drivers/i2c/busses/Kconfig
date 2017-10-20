@@ -345,7 +345,7 @@ config I2C_AT91
 
 config I2C_AST
         tristate "ASPEED AST I2C adapter "
-	select I2C_AST_IRQ
+	select ASPEED_I2C_IRQCHIP
 #        depends on ARCH_ASPEED
         help
           If you have devices in the AST I2C bus, say yes to this option.
