@@ -1,17 +1,24 @@
 /*
- *  i2c_adap_ast.c
+ * ipmb-ast.c - IPMB I2C driver for the Aspeed SoC
  *
- *  I2C adapter for the ASPEED I2C bus access.
+ * Copyright (C) ASPEED Technology Inc.
+ * Ryan Chen <ryan_chen@aspeedtech.com>
  *
- *  Copyright (C) 2012-2020  ASPEED Technology Inc.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation;
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *  History:
- *    2012.07.26: Initial version [Ryan Chen]
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
  */
+
 //#define DEBUG
 
 #include <linux/kernel.h>

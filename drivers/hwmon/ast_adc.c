@@ -1,18 +1,23 @@
 /*
- *  ast_adc.c
+ * ast-adc.c - ADC driver for the Aspeed SoC
  *
- *  ASPEED ADC controller driver
+ * Copyright (C) ASPEED Technology Inc.
+ * Ryan Chen <ryan_chen@aspeedtech.com>
  *
- *  Copyright (C) 2012-2020  ASPEED Technology Inc.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation;
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *  History:
- *    2012.11.26: Initial version [Ryan Chen]
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
  */
-
 /* attr ADC sysfs 0~max adc channel 
 *	 0 - show/store enable
 *	 3 - show value
