@@ -50,43 +50,44 @@
 			reg = <0x1e600000 0x100>;
 		};
 		fmc_spi: fmc_spi@1e620000 {
-			status = "okay";
+			status = "ok";
 			compatible = "aspeed,fmc-spi";
+			number_of_chip_select = /bits/ 8  <2>;
 			/* reg : cs0 : cs1 : cs2 : cs3 : cs4 : cs5 */
 			reg = <0x1e620000 0x100 0x20000000 0x20 0x28000000 0x20>;
-			flash: m25p80@0 {
-				#address-cells = <1>;
-                                #size-cells = <1>;
-				compatible = "m25p80", "jedec,spi-nor";
-				spi-max-frequency = <50000000>;
-#if 1
-				partition@0 {
-					label = "fullpart";
-					reg = <0x00000000 0x02000000>;	
-				};			
-				partition@1 {
-					label = "U-Boota";
-					reg = <0x00000000 0x00060000>;
-					read-only;
-				};
+			#address-cells = <1>;
+			#size-cells = <0>;
+			flash@0 {
+			        compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
+			        reg = <0x0>;
+			        #address-cells = <0x1>;
+			        #size-cells = <0x1>;
+			        spi-max-frequency = <50000000>;
+				m25p,fast-read;
+		                partition@0 {
+		                        label = "u-boot";
+		                        reg = <0x000000 0x060000>; /* 384 KiB */
+		                };
+		                partition@1 {
+		                        label = "u-boot-env";
+		                        reg = <0x060000 0x010000>; /* 64 KiB */
+		                };
 				partition@2 {
-					label = "env";
-					reg = <0x00060000 0x00020000>;
+					label = "dts";
+					reg = <0x070000 0x010000>; /* 64 Kib */
 				};
-				partition@3 {
-					label = "uImage";
-					reg = <0x00080000 0x00400000>;
-					read-only;
-				};
-				partition@4 {
-					label = "Rootfs";
-					reg = <0x00400000 0x00300000>;
-				};
+		                partition@3 {
+		                        label = "kernel";
+		                        reg = <0x080000 0x380000>; /* 3.5 MiB */
+		                };
+		                partition@4 {
+		                        label = "rootfs";
+		                        reg = <0x400000 0x400000>; /* 4 MiB */
+		                };
 				partition@5 {
-					label = "PD Rootfs";
-					reg = <0x00700000 0x02000000>;
+					label = "pd_rootfs";
+					reg = <0x800000 0x0>; 
 				};
-#endif
 			};
 		};
 		isp0: isp@1e640000 {
@@ -134,7 +135,7 @@
 			#status = "disabled";
 		};
 #endif		
-#if 1
+#if 0
 		ehci0: ehci@0x1e6a1000 {
 			compatible = "aspeed,ast-ehci", "generic-ehci";
 			reg = <0x1e6a1000 0x100>;
