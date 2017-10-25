@@ -63,6 +63,14 @@ config SENSORS_AST_PWM_FAN
           This driver provides support for the ASPEED PWM & FAN Tacho
           Controller, which provides an Sensor, fan control.
 
+config SENSORS_AST_PWM
+        tristate "ASPEED PWM Controller Driver"
+        depends on ARCH_ASPEED
+        default n
+        help
+          This driver provides support for the ASPEED PWM 
+          Controller, which provides an Sensor, fan control.
+
 config SENSORS_AB8500
 	tristate "AB8500 thermal monitoring"
 	depends on AB8500_GPADC && AB8500_BM

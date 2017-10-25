@@ -46,6 +46,7 @@ obj-$(CONFIG_SENSORS_ADT7475)	+= adt7475.o
 obj-$(CONFIG_SENSORS_APPLESMC)	+= applesmc.o
 obj-$(CONFIG_SENSORS_AST_ADC)	+= ast_adc.o
 obj-$(CONFIG_SENSORS_AST1010_ADC)	+= ast1010_adc.o
+obj-$(CONFIG_SENSORS_AST_PWM)	+= ast_pwm.o
 obj-$(CONFIG_SENSORS_AST_PWM_FAN)	+= ast_pwm_fan.o
 obj-$(CONFIG_SENSORS_ARM_SCPI)	+= scpi-hwmon.o
 obj-$(CONFIG_SENSORS_ASC7621)	+= asc7621.o

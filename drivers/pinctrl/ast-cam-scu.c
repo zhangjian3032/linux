@@ -211,6 +211,18 @@ ast_scu_init_i2c(void)
 EXPORT_SYMBOL(ast_scu_init_i2c);
 
 extern void
+ast_scu_init_pwm(void)
+{
+	spin_lock(&ast_scu_lock);
+
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_PWM, AST_SCU_RESET);
+	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_PWM, AST_SCU_RESET);
+	
+	spin_unlock(&ast_scu_lock);	
+}
+
+EXPORT_SYMBOL(ast_scu_init_pwm);
+
 ast_scu_init_hace(void)
 {
 	//enable YCLK for HAC
@@ -367,6 +379,16 @@ ast_scu_multi_func_i2c(u8 bus_no)
 }	
 
 EXPORT_SYMBOL(ast_scu_multi_func_i2c);
+
+extern void
+ast_scu_multi_func_pwm(void)
+{
+	spin_lock(&ast_scu_lock);	
+	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL3) | 0xff, AST_SCU_FUN_PIN_CTRL3);
+	spin_unlock(&ast_scu_lock);	
+}	
+
+EXPORT_SYMBOL(ast_scu_multi_func_pwm);
 
 //0 : usb 2.0 hub mode, 1:usb 2.0 host2 controller
 extern void
@@ -537,6 +559,14 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 		printk("aspeed,ast-mac found in SCU, ");
 		ast_scu_init_eth();
 		ast_scu_multi_func_eth();
+	}
+
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-cam-pwm")) {
+		BMC_SCUDBG("aspeed,ast-cam-pwm found in SCU \n");
+		//SCU Pin-MUX	//PWM & TACHO 
+		ast_scu_multi_func_pwm();		
+		//SCU PWM CTRL Reset
+		ast_scu_init_pwm();
 	}
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,sdhci-ast")) {

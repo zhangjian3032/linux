@@ -265,12 +265,10 @@
 			clocks = <&clk_uart>;
 			no-loopback-test;
 		};
-		pwm_techo: pwm_techo@1e7866000 {
-                        compatible = "aspeed,ast-pwm-tacho";
-                        reg = <0x1e786000 0x80>;
-                        interrupts = <34>;
-                        clocks = <&clk_apb>;
-                };
+		pwm: pwm@1e786000 {
+			compatible = "aspeed,ast-pwm";
+			reg = <0x1e786000 0x100>;
+		};
 		d3d: d3d@1e787000 {
 			compatible = "aspeed,ast-3d";
 			reg = <0x1e788000 0x200>;
