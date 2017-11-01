@@ -4,18 +4,10 @@
  * Copyright (C) ASPEED Technology Inc.
  * Ryan Chen <ryan_chen@aspeedtech.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
  *
  */
 #include <linux/irq.h>
@@ -25,32 +17,10 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/io.h>
-#include <mach/aspeed.h>
-#include <mach/ast_i2c.h>
 /*******************************************************************/
-#define AST_I2CG_ISR				0x00
-
-#define AST_I2C_DEV0_IRQ		0x1 
-#define AST_I2C_DEV1_IRQ		(0x1 << 1)
-#define AST_I2C_DEV2_IRQ		(0x1 << 2)
-#define AST_I2C_DEV3_IRQ		(0x1 << 3)
-#define AST_I2C_DEV4_IRQ		(0x1 << 4)
-#define AST_I2C_DEV5_IRQ		(0x1 << 5)
-#define AST_I2C_DEV6_IRQ		(0x1 << 6)
-#define AST_I2C_DEV7_IRQ		(0x1 << 7)
-#define AST_I2C_DEV8_IRQ		(0x1 << 8)
-#define AST_I2C_DEV9_IRQ		(0x1 << 9)
-#define AST_I2C_DEV10_IRQ		(0x1 << 10)
-#define AST_I2C_DEV11_IRQ		(0x1 << 11)
-#define AST_I2C_DEV12_IRQ		(0x1 << 12)
-#define AST_I2C_DEV13_IRQ		(0x1 << 13)
-#define AST_I2C_DEV14_IRQ		(0x1 << 14)
-
-#define AST_I2CG_ISR_TARGET		0x08
-#if defined(AST_SOC_G5) || defined(AST_SOC_CAM)
-#define AST_I2CG_CTRL			0x0C
+#define AST_I2CG_ISR		0x00
+#define AST_I2CG_CTRL		0x0C
 #define I2C_SRAM_BUFF_EN	0x1
-#endif
 /*******************************************************************/
 //#define AST_I2C_IRQ_DEBUG
 
@@ -61,8 +31,14 @@
 #endif
 
 /*******************************************************************/
+struct ast_i2c_irq {
+	void __iomem	*regs;
+	int			parent_irq;
+	int			bus_num;
+	struct irq_domain	*irq_domain;
+};
 /*******************************************************************/
-
+#if 0
 #if defined (AST_SOC_CAM)
 struct buf_page page_info;
 
@@ -277,20 +253,15 @@ extern void free_pool_buff_page(struct buf_page *req_page)
 	req_page->flag = 0;
 	req_page = NULL;
 }
-
-#else 
-//DO nothing
-static void pool_buff_page_init(void) {}
-extern u8 request_pool_buff_page(struct buf_page **req_page) {return 0;}
-extern void free_pool_buff_page(struct buf_page *req_page) {}
+#endif
 #endif
 /*******************************************************************/
-#ifdef AST_SOC_G5
+
+/* only support in ast-g5 platform */
 void ast_i2c_sram_buff_enable(struct ast_i2c_irq *i2c_irq) {
 	writel(I2C_SRAM_BUFF_EN, i2c_irq->regs + AST_I2CG_CTRL);
 };
 EXPORT_SYMBOL(ast_i2c_sram_buff_enable);
-#endif
 
 static void ast_i2c_irq_handler(struct irq_desc *desc)
 {
@@ -340,6 +311,36 @@ static const struct irq_domain_ops ast_i2c_irq_domain_ops = {
 	.map = ast_i2c_map_irq_domain,
 };
 
+#if 0
+static const struct ast_i2c_config ast_g3_i2c_config = { 
+	.dma_size = 0, 
+	.page_size = 256,
+	.page_no = 5,
+	.bus_num = 9,
+};
+
+static const struct ast_i2c_config ast_g4_i2c_config = { 
+	.dma_size = 0, 
+	.page_size = 256, 
+	.page_no = 8,
+	.bus_num = 14,
+};
+
+static const struct ast_i2c_config ast_g5_i2c_config = { 
+	.dma_size = 4095, 
+	.page_size = 16, 
+	.page_no = 14,
+	.bus_num = 14,
+};
+
+static const struct of_device_id ast_i2c_of_config[] = {
+	{ .compatible = "aspeed,ast-g3-i2c",	.data = &ast_g3_i2c_config, },
+	{ .compatible = "aspeed,ast-g4-i2c",	.data = &ast_g4_i2c_config, },
+	{ .compatible = "aspeed,ast-g5-i2c",	.data = &ast_g5_i2c_config, },
+	{}
+};
+
+#endif	
 static int __init ast_i2c_irq_of_init(struct device_node *node,
 					struct device_node *parent)
 {
@@ -348,7 +349,7 @@ static int __init ast_i2c_irq_of_init(struct device_node *node,
 
 	i2c_irq = kzalloc(sizeof(*i2c_irq), GFP_KERNEL);
 	if (!i2c_irq)
-		return -ENOMEM;
+		return -ENOMEM;	
 
 	i2c_irq->regs = of_iomap(node, 0);
 	if (IS_ERR(i2c_irq->regs))
@@ -374,12 +375,13 @@ static int __init ast_i2c_irq_of_init(struct device_node *node,
 	irq_set_chained_handler_and_data(i2c_irq->parent_irq,
 					 ast_i2c_irq_handler, i2c_irq);
 
-
+#if 0
 	buf_pool = of_iomap(node, 1);
 	if (!buf_pool)
 		buf_pool = 0;
+	
 	pool_buff_page_init((u32)buf_pool);
-
+#endif
 	pr_info("i2c-irq controller registered, irq %d\n", i2c_irq->parent_irq);
 
 	return 0;
