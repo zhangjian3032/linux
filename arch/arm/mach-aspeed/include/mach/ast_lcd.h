@@ -1,26 +1,14 @@
- /********************************************************************************
-* File Name     : drivers/video/ast_lcd.h
-* Author         : Ryan Chen
-* Description   : ASPEED LCD Panel Timing 
+/*
+* ast_lcd.h - ASPEED LCD Panel Timing 
 *
-* Copyright (C) ASPEED Tech. Inc.
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by the Free Software Foundation;
-* either version 2 of the License, or (at your option) any later version.
-* 
-* This program is distributed in the hope that it will be useful,  but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-* 
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
-* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-*   History      :
-*    1. 2012/12/27 Ryan Chen create this file
-*        
+* Copyright (C) ASPEED Technology Inc.
+* Ryan Chen <ryan_chen@aspeedtech.com>
 *
-********************************************************************************/
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version
+* 2 of the License, or (at your option) any later version.
+*/
 #include <linux/fb.h>
 
 //# Define IO __ for control 
@@ -53,7 +41,7 @@ struct ast_monitor_info {
 };
 
 struct ast_fb_plat_data {
-#ifdef AST_SOC_G5	
+#ifdef AST_SOC_G5
 	void (*set_pll)(u32 pll_setting);
 	u32 clock_src;	//0: 24Mhz, 1: 25Mhz
 #endif

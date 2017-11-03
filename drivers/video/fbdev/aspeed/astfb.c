@@ -4,18 +4,10 @@
  * Copyright (C) ASPEED Technology Inc.
  * Ryan Chen <ryan_chen@aspeedtech.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
  *
  */
 #include <linux/module.h>
@@ -171,13 +163,13 @@
 #define CRT_TERM_COUNT(x)			(x << 16)
 
 /* Default Threshold Seting */
-#ifdef AST_SOC_G5
-#define CRT_LOW_THRESHOLD_VALUE         0x24
-#define CRT_HIGH_THRESHOLD_VALUE        0x3C
-#else
+//ast-g5 soc
+#define G5_CRT_LOW_THRESHOLD_VALUE         0x24
+#define G5_CRT_HIGH_THRESHOLD_VALUE        0x3C
+//old version soc 
 #define CRT_LOW_THRESHOLD_VALUE         0x12
 #define CRT_HIGH_THRESHOLD_VALUE        0x1E
-#endif
+
 //#define    CRT_LOW_THRESHOLD_VALUE             0x60
 //#define    CRT_HIGH_THRESHOLD_VALUE            0x78
 //for fix 1920X1080
@@ -313,27 +305,22 @@ struct pixel_freq_pll_data {
 #16: VCLK88_75  #    _1 *71  /20  # 0Eh             15h             15h             0Eh             013h         00h         46h
 #17: VCLK119    #    _1 *57  /12  # 0Eh             15h             15h             0Eh             00Bh         00h         38h
 #18: VCLK85_5   #    _1 *65  /19  # 0Eh             15h             15h             0Eh             012h         00h         40h
-
-
-
-
 **************************************************************************************************************************************/
-#ifdef AST_SOC_G5
-static struct pixel_freq_pll_data pll_table[] = {
+static struct pixel_freq_pll_data ast_g5_pll_table[] = {
 #if 1
 //AST2500A1
-	{39721, 		((0x0E << 27) | (0x15 << 22) | (0x3D << 13) | (0x40)) },		/* 00: VCLK25_175		*/		
-	{35308, 		((0x0E << 27) | (0x15 << 22) | (0x31 << 13) | (0x3A)) },		/* 01: VCLK28_322		*/
-	{31746, 		((0x0E << 27) | (0x15 << 22) | (0x2F << 13) | (0x3E)) },		/* 02: VCLK31_5 		*/
-	{27777, 		((0x0E << 27) | (0x15 << 22) | (0x23 << 13) | (0x35))}, 		/* 03: VCLK36			*/	
-	{25000, 		((0x0E << 27) | (0x15 << 22) | (0x1D << 13) | (0x31))}, 		/* 04: VCLK40			*/
-	{20202, 		((0x0E << 27) | (0x15 << 22) | (0x1F << 13) | (0x41))}, 		/* 05: VCLK49_5 		*/
-	{20000, 		((0x0E << 27) | (0x15 << 22) | (0x17 << 13) | (0x31))}, 		/* 06: VCLK50			*/
-	{17777, 		((0x0E << 27) | (0x15 << 22) | (0x1F << 13) | (0x4A))}, 		/* 07: VCLK56_25		*/
-	{15384, 		((0x0E << 27) | (0x15 << 22) | (0x17 << 13) | (0x40))}, 		/* 08: VCLK65			*/
-	{13333, 		((0x0E << 27) | (0x15 << 22) | (0x0F << 13) | (0x31))}, 		/* 09: VCLK75			*/
-	{12690, 		((0x0E << 27) | (0x15 << 22) | (0x11 << 13) | (0x3A))}, 		/* 0A: VCLK78_75		*/
-	{10582, 		((0x0E << 27) | (0x15 << 22) | (0x0F << 13) | (0x3E))}, 		/* 0B: VCLK94_5 		*/
+	{39721, 	((0x0E << 27) | (0x15 << 22) | (0x3D << 13) | (0x40)) },		/* 00: VCLK25_175		*/		
+	{35308, 	((0x0E << 27) | (0x15 << 22) | (0x31 << 13) | (0x3A)) },		/* 01: VCLK28_322		*/
+	{31746, 	((0x0E << 27) | (0x15 << 22) | (0x2F << 13) | (0x3E)) },		/* 02: VCLK31_5 		*/
+	{27777, 	((0x0E << 27) | (0x15 << 22) | (0x23 << 13) | (0x35))}, 		/* 03: VCLK36			*/	
+	{25000, 	((0x0E << 27) | (0x15 << 22) | (0x1D << 13) | (0x31))}, 		/* 04: VCLK40			*/
+	{20202, 	((0x0E << 27) | (0x15 << 22) | (0x1F << 13) | (0x41))}, 		/* 05: VCLK49_5 		*/
+	{20000, 	((0x0E << 27) | (0x15 << 22) | (0x17 << 13) | (0x31))}, 		/* 06: VCLK50			*/
+	{17777, 	((0x0E << 27) | (0x15 << 22) | (0x1F << 13) | (0x4A))}, 		/* 07: VCLK56_25		*/
+	{15384, 	((0x0E << 27) | (0x15 << 22) | (0x17 << 13) | (0x40))}, 		/* 08: VCLK65			*/
+	{13333, 	((0x0E << 27) | (0x15 << 22) | (0x0F << 13) | (0x31))}, 		/* 09: VCLK75			*/
+	{12690, 	((0x0E << 27) | (0x15 << 22) | (0x11 << 13) | (0x3A))}, 		/* 0A: VCLK78_75		*/
+	{10582, 	((0x0E << 27) | (0x15 << 22) | (0x0F << 13) | (0x3E))}, 		/* 0B: VCLK94_5 		*/
 	{9259,		((0x0E << 27) | (0x15 << 22) | (0x0B << 13) | (0x35))}, 		/* 0C: VCLK108			*/
 	{7407,		((0x0E << 27) | (0x15 << 22) | (0x0A << 13) | (0x3D))}, 		/* 0D: VCLK135			*/
 	{6349,		((0x0E << 27) | (0x15 << 22) | (0x0B << 13) | (0x4E))}, 		/* 0E: VCLK157_5		*/
@@ -349,11 +336,11 @@ static struct pixel_freq_pll_data pll_table[] = {
 	{11696,		((0x0E << 27) | (0x15 << 22) | (0x0F << 13) | (0x38))}, 		/* 18: VCLK85_5		*/	
 #else
 //AST2500A0
-	{39721, 		((0x15 << 27) | (0x0E << 22) | (0x3D << 13) | (0x40)) }, 	/* 00: VCLK25_175		*/		
-	{35308, 		((0x15 << 27) | (0x0E << 22) | (0x31 << 13) | (0x3A)) },		/* 01: VCLK28_322		*/
-	{31746,  		((0x12 << 27) | (0x0B << 22) | (0x1F << 13) | (0x29)) },		/* 02: VCLK31_5 		*/
-	{27777, 		((0x12 << 27) | (0x0B << 22) | (0x1B << 13) | (0x29))},		/* 03: VCLK36			*/	
-	{25000,  		((0x15 << 27) | (0x0E << 22) | (0x1D << 13) | (0x31))},		/* 04: VCLK40			*/
+	{39721, 	((0x15 << 27) | (0x0E << 22) | (0x3D << 13) | (0x40)) }, 	/* 00: VCLK25_175		*/		
+	{35308, 	((0x15 << 27) | (0x0E << 22) | (0x31 << 13) | (0x3A)) },		/* 01: VCLK28_322		*/
+	{31746,  	((0x12 << 27) | (0x0B << 22) | (0x1F << 13) | (0x29)) },		/* 02: VCLK31_5 		*/
+	{27777, 	((0x12 << 27) | (0x0B << 22) | (0x1B << 13) | (0x29))},		/* 03: VCLK36			*/	
+	{25000,  	((0x15 << 27) | (0x0E << 22) | (0x1D << 13) | (0x31))},		/* 04: VCLK40			*/
 	{20202,		((0x15 << 27) | (0x0E << 22) | (0x1F << 13) | (0x41))},		/* 05: VCLK49_5 		*/
 	{20000,		((0x15 << 27) | (0x0E << 22) | (0x17 << 13) | (0x31))},		/* 06: VCLK50			*/
 	{17777,		((0x15 << 27) | (0x0E << 22) | (0x1F << 13) | (0x4A))},		/* 07: VCLK56_25		*/
@@ -369,18 +356,18 @@ static struct pixel_freq_pll_data pll_table[] = {
 };
 
 static struct pixel_freq_pll_data pll25M_table[] = {
-	{39721, 		((0x0E << 27) | (0x15 << 22) | (0x3D << 13) | (0x40)) },		/* 00: VCLK25_175		*/		
-	{35308, 		((0x0E << 27) | (0x15 << 22) | (0x31 << 13) | (0x3A)) },		/* 01: VCLK28_322		*/
-	{31746, 		((0x0E << 27) | (0x15 << 22) | (0x2F << 13) | (0x3E)) },		/* 02: VCLK31_5 		*/
-	{27777, 		((0x0E << 27) | (0x15 << 22) | (0x23 << 13) | (0x35))}, 		/* 03: VCLK36			*/	
-	{25000, 		((0x0E << 27) | (0x15 << 22) | (0x1D << 13) | (0x31))}, 		/* 04: VCLK40			*/
-	{20202, 		((0x0E << 27) | (0x15 << 22) | (0x1F << 13) | (0x41))}, 		/* 05: VCLK49_5 		*/
-	{20000, 		((0x0E << 27) | (0x15 << 22) | (0x17 << 13) | (0x31))}, 		/* 06: VCLK50			*/
-	{17777, 		((0x0E << 27) | (0x15 << 22) | (0x1F << 13) | (0x4A))}, 		/* 07: VCLK56_25		*/
-	{15384, 		((0x0E << 27) | (0x15 << 22) | (0x17 << 13) | (0x40))}, 		/* 08: VCLK65			*/
-	{13333, 		((0x0E << 27) | (0x15 << 22) | (0x0F << 13) | (0x31))}, 		/* 09: VCLK75			*/
-	{12690, 		((0x0E << 27) | (0x15 << 22) | (0x11 << 13) | (0x3A))}, 		/* 0A: VCLK78_75		*/
-	{10582, 		((0x0E << 27) | (0x15 << 22) | (0x0F << 13) | (0x3E))}, 		/* 0B: VCLK94_5 		*/
+	{39721, 	((0x0E << 27) | (0x15 << 22) | (0x3D << 13) | (0x40)) },		/* 00: VCLK25_175		*/		
+	{35308, 	((0x0E << 27) | (0x15 << 22) | (0x31 << 13) | (0x3A)) },		/* 01: VCLK28_322		*/
+	{31746, 	((0x0E << 27) | (0x15 << 22) | (0x2F << 13) | (0x3E)) },		/* 02: VCLK31_5 		*/
+	{27777, 	((0x0E << 27) | (0x15 << 22) | (0x23 << 13) | (0x35))}, 		/* 03: VCLK36			*/	
+	{25000, 	((0x0E << 27) | (0x15 << 22) | (0x1D << 13) | (0x31))}, 		/* 04: VCLK40			*/
+	{20202, 	((0x0E << 27) | (0x15 << 22) | (0x1F << 13) | (0x41))}, 		/* 05: VCLK49_5 		*/
+	{20000, 	((0x0E << 27) | (0x15 << 22) | (0x17 << 13) | (0x31))}, 		/* 06: VCLK50			*/
+	{17777, 	((0x0E << 27) | (0x15 << 22) | (0x1F << 13) | (0x4A))}, 		/* 07: VCLK56_25		*/
+	{15384, 	((0x0E << 27) | (0x15 << 22) | (0x17 << 13) | (0x40))}, 		/* 08: VCLK65			*/
+	{13333, 	((0x0E << 27) | (0x15 << 22) | (0x0F << 13) | (0x31))}, 		/* 09: VCLK75			*/
+	{12690, 	((0x0E << 27) | (0x15 << 22) | (0x11 << 13) | (0x3A))}, 		/* 0A: VCLK78_75		*/
+	{10582, 	((0x0E << 27) | (0x15 << 22) | (0x0F << 13) | (0x3E))}, 		/* 0B: VCLK94_5 		*/
 	{9259,		((0x0E << 27) | (0x15 << 22) | (0x0B << 13) | (0x35))}, 		/* 0C: VCLK108			*/
 	{7407,		((0x0E << 27) | (0x15 << 22) | (0x0A << 13) | (0x3D))}, 		/* 0D: VCLK135			*/
 	{6349,		((0x0E << 27) | (0x15 << 22) | (0x0B << 13) | (0x4E))}, 		/* 0E: VCLK157_5		*/
@@ -396,13 +383,12 @@ static struct pixel_freq_pll_data pll25M_table[] = {
 	{11696,		((0x0E << 27) | (0x15 << 22) | (0x0F << 13) | (0x38))}, 		/* 18: VCLK85_5		*/	
 };
 
-#else
-static struct pixel_freq_pll_data pll_table[] = {
-	{39721, 		0x00046515}, 		/* 00: VCLK25_175	*/		
-	{35308, 		0x00047255},		/* 01: VCLK28_322	*/
-	{31746,  		0x0004682a},		/* 02: VCLK31_5 		*/
-	{27777, 		0x0004672a},		/* 03: VCLK36		*/	
-	{25000,  		0x00046c50},		/* 04: VCLK40		*/
+static struct pixel_freq_pll_data ast_pll_table[] = {
+	{39721, 	0x00046515}, 		/* 00: VCLK25_175	*/		
+	{35308, 	0x00047255},		/* 01: VCLK28_322	*/
+	{31746,  	0x0004682a},		/* 02: VCLK31_5 		*/
+	{27777, 	0x0004672a},		/* 03: VCLK36		*/	
+	{25000,  	0x00046c50},		/* 04: VCLK40		*/
 	{20202,		0x00046842},		/* 05: VCLK49_5 	*/
 	{20000,		0x00006c32},		/* 06: VCLK50			*/
 	{17777,		0x00006a2f},		/* 07: VCLK56_25		*/
@@ -415,7 +401,7 @@ static struct pixel_freq_pll_data pll_table[] = {
 	{6349,		0x0000472e},		/* 0E: VCLK157_5		*/
 	{6172,		0x00004836},		/* 0F: VCLK162			*/
 };
-#endif
+
 // ARGB4444 format
 unsigned short cursor_8x8[] = {
 	0x0FFF, 0x1FFF, 0x2FFF, 0x3777, 0x4777, 0x5777, 0x6777, 0x7888, 
@@ -495,6 +481,7 @@ struct astfb_info {
 	struct fb_info			*info;
 	struct resource *reg_res;
 	void __iomem *base;
+	u8	ast_g5;
 	phys_addr_t *cursor_phy;	
 	void __iomem *cursor_virt;
 	int addr_assign;
@@ -754,11 +741,11 @@ static int astfb_set_par(struct fb_info *info)
 			var->bits_per_pixel = 16;
 			break;;
 	}
-#ifdef AST_SOC_G5
-	t_count =(var->xres * var->bits_per_pixel + 127) / 128;	
-#else
-	t_count =(var->xres * var->bits_per_pixel + 63) / 64;
-#endif
+	if(sfb->ast_g5)
+		t_count =(var->xres * var->bits_per_pixel + 127) / 128;	
+	else
+		t_count =(var->xres * var->bits_per_pixel + 63) / 64;
+
 //	ASTFB_DBG("t_count %d \n",t_count);
 	astfb_write(sfb, CRT_DISP_OFFSET(d_offset) | CRT_TERM_COUNT(t_count), AST_CRT_OFFSET);
 
@@ -766,7 +753,8 @@ static int astfb_set_par(struct fb_info *info)
 	//S3 : DCLK
 	ASTFB_DBG("var->pixclock = %d \n",var->pixclock);
 
-#ifdef AST_SOC_G5
+	if(sfb->ast_g5) {
+
 	//AST2500 force d2 pll for support 800x600
 #if 0
 	if(sfb->fb_plat_data->set_pll) {
@@ -795,20 +783,17 @@ static int astfb_set_par(struct fb_info *info)
 		}
 	}
 #endif	
-#else
-	
-	for(i=0; i<sizeof(pll_table)/sizeof(struct pixel_freq_pll_data); i++) {
-		if(pll_table[i].pixel_freq == var->pixclock) {
-			astfb_write(sfb, pll_table[i].pll_set, AST_CRT_PLL);
-			ASTFB_DBG("find pixclk in table set 0x%x \n",pll_table[i].pll_set);
-			break;
+	}else {
+		for(i=0; i<sizeof(ast_pll_table)/sizeof(struct pixel_freq_pll_data); i++) {
+			if(ast_pll_table[i].pixel_freq == var->pixclock) {
+				astfb_write(sfb, ast_pll_table[i].pll_set, AST_CRT_PLL);
+				ASTFB_DBG("find pixclk in table set 0x%x \n",pll_table[i].pll_set);
+				break;
+			}
 		}
-	}
-	if(i == sizeof(pll_table)/sizeof(struct pixel_freq_pll_data))
-		printk("ERROR pixclk in table ... FIXME \n");
-	
-#endif
-	
+		if(i == sizeof(ast_pll_table)/sizeof(struct pixel_freq_pll_data))
+			printk("ERROR pixclk in table ... FIXME \n");
+	}	
 
 	//S4
 	astfb_write(sfb, sfb->info->fix.smem_start, AST_CRT_ADDR);
@@ -818,7 +803,11 @@ static int astfb_set_par(struct fb_info *info)
 	astfb_write(sfb, sfb->cursor_phy, AST_CRT_CURSOR2);
 #endif
 
-	thshld = CRT_THROD_HIGH(CRT_HIGH_THRESHOLD_VALUE) | CRT_THROD_LOW(CRT_LOW_THRESHOLD_VALUE);
+	if(sfb->ast_g5)
+		thshld = CRT_THROD_HIGH(G5_CRT_HIGH_THRESHOLD_VALUE) | CRT_THROD_LOW(G5_CRT_LOW_THRESHOLD_VALUE);
+	else
+		thshld = CRT_THROD_HIGH(CRT_HIGH_THRESHOLD_VALUE) | CRT_THROD_LOW(CRT_LOW_THRESHOLD_VALUE);
+	
 	astfb_write(sfb, thshld, AST_CRT_THROD);
 
 	
@@ -1309,6 +1298,11 @@ static int astfb_probe(struct platform_device *pdev)
 			return -ENOMEM;
 	}
 
+	if(of_device_is_compatible(pdev->dev.of_node, "aspeed,ast-g5-gfx"))
+		sfb->ast_g5 = 1;
+	else 
+		sfb->ast_g5 = 0;
+
 	sfb = info->par;
 	sfb->info = info;
 
@@ -1404,21 +1398,19 @@ static int astfb_probe(struct platform_device *pdev)
 
 	if (!mode_option && !found) {
 		//use default modes list 
-#ifdef AST_SOC_G5
+		if(sfb->ast_g5) {
 #if 0
-		if(sfb->fb_plat_data->set_pll) {
-			mode_option = "1920x1080-32@60";
-			if (sfb->fb_plat_data->clock_src == 24000000) {
+			if(sfb->fb_plat_data->set_pll) {
+				mode_option = "1920x1080-32@60";
+				if (sfb->fb_plat_data->clock_src == 24000000) {
+				} else {
+				}
 			} else {
-			}
-		} else {
-#endif		
-			mode_option = "800x600-32@60";
-//		}
-#else
-		//AST2500 always use 800x600-32@60
-		mode_option = "800x600-32@60";
 #endif
+			//AST2500 always use 800x600-32@60
+			mode_option = "800x600-32@60";
+		}
+
 		printk("use default mode : %s \n", mode_option);
 
 #if 0			
@@ -1603,6 +1595,7 @@ static int astfb_resume(struct platform_device *pdev)
 
 static const struct of_device_id ast_gfx_of_matches[] = {
 	{ .compatible = "aspeed,ast-gfx", },
+	{ .compatible = "aspeed,ast-g5-gfx", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ast_gfx_of_matches);
