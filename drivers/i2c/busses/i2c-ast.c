@@ -1333,7 +1333,7 @@ static int ast_i2c_slave_ioctl_xfer(struct i2c_adapter *adap, struct i2c_msg *ms
 	struct ast_i2c_bus *i2c_bus = adap->algo_data;
 	struct i2c_msg *slave_rx_msg = &i2c_bus->slave_rx_msg[i2c_bus->slave_ioctl_idx];
 	int ret=0;
-	int i;
+//	int i;
 	switch(msgs->flags) {
 		case 0:
 			if((slave_rx_msg->addr == 0) && (slave_rx_msg->flags == BUFF_FULL)) {
@@ -2116,22 +2116,22 @@ static int ast_i2c_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-			dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
-			ret = -ENOENT;
-			goto free_mem;
+		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
+		ret = -ENODEV;
+		goto free_mem;
 	}
 	
 	i2c_bus->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (!i2c_bus->reg_base) {
-			ret = -EIO;
-			goto release_mem;
+		ret = -EIO;
+		goto release_mem;
 	}
 	
 	i2c_bus->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (i2c_bus->irq < 0) {
-			dev_err(&pdev->dev, "no irq specified\n");
-			ret = -ENOENT;
-			goto free_irq;
+		dev_err(&pdev->dev, "no irq specified\n");
+		ret = -i2c_bus->irq;
+		goto free_irq;
 	}
 
 	match = of_match_node(ast_i2c_bus_of_table, pdev->dev.of_node);
@@ -2193,18 +2193,17 @@ static int ast_i2c_probe(struct platform_device *pdev)
 		i2c_bus->do_slave_xfer = ast_i2c_do_inc_dma_xfer;
 		i2c_bus->dma_buf = dma_alloc_coherent(NULL, AST_I2C_DMA_SIZE, &i2c_bus->dma_addr, GFP_KERNEL);
 		if (!i2c_bus->dma_buf) {
-			printk("unable to allocate tx Buffer memory\n");
+			dev_err(&pdev->dev, "unable to allocate tx Buffer memory\n");
 			ret = -ENOMEM;
 			goto free_mem;
 		}
 		if(i2c_bus->dma_addr%4 !=0) {
-			printk("not 4 byte boundary \n");
+			dev_err(&pdev->dev, "not 4 byte boundary \n");
 			ret = -ENOMEM;
 			goto free_mem;	
 		}				
-		dev_dbg(&pdev->dev, "dma_buf = [0x%x] dma_addr = [0x%x], please check 4byte boundary \n",(u32)i2c_bus->dma_buf,i2c_bus->dma_addr);	
+		dev_dbg(&pdev->dev, "dma enable dma_buf = [0x%x] dma_addr = [0x%x], please check 4byte boundary \n",(u32)i2c_bus->dma_buf,i2c_bus->dma_addr);	
 		memset (i2c_bus->dma_buf, 0, AST_I2C_DMA_SIZE);
-		dev_dbg(&pdev->dev, "ast_i2c dma mode enable");
 	} 
 	
 	dev_dbg(&pdev->dev, "master mode  [%d] slave mode [%d]\n", i2c_bus->master_dma, i2c_bus->slave_dma);
