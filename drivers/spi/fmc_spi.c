@@ -10,11 +10,9 @@
  * 2 of the License, or (at your option) any later version.
  *
  */
-
-//#define DEBUG
-
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/clk.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
@@ -112,25 +110,25 @@ struct fmc_spi_host {
 	struct spi_master *master;
 	struct spi_device *spi_dev;
 	struct device *dev;
-	spinlock_t				lock;
+	u32					ahb_clk;
+	spinlock_t			lock;
 };
 
 
-static u32 ast_spi_calculate_divisor(u32 max_speed_hz)
+static u32 ast_spi_calculate_divisor(struct fmc_spi_host *host, u32 max_speed_hz)
 {
 	// [0] ->15 : HCLK , HCLK/16
 	u8 SPI_DIV[16] = {16, 7, 14, 6, 13, 5, 12, 4, 11, 3, 10, 2, 9, 1, 8, 0};
-	u32 i, hclk, spi_cdvr=0;
+	u32 i, spi_cdvr=0;
 
-	hclk = ast_get_ahbclk();
 	for(i=1;i<17;i++) {
-		if(max_speed_hz >= (hclk/i)) {
+		if(max_speed_hz >= (host->ahb_clk/i)) {
 			spi_cdvr = SPI_DIV[i-1];
 			break;
 		}
 	}
 		
-//	printk("hclk is %d, divisor is %d, target :%d , cal speed %d\n", hclk, spi_cdvr, spi->max_speed_hz, hclk/i);
+//	printk("hclk is %d, divisor is %d, target :%d , cal speed %d\n", host->ahb_clk, spi_cdvr, spi->max_speed_hz, hclk/i);
 	return spi_cdvr;
 }
 
@@ -198,7 +196,7 @@ fmc_spi_setup(struct spi_device *spi)
 	 
 	if (spi->max_speed_hz) {
 		/* Set the SPI slaves select and characteristic control register */
-		divisor = ast_spi_calculate_divisor(spi->max_speed_hz);
+		divisor = ast_spi_calculate_divisor(host, spi->max_speed_hz);
 	} else {
 		/* speed zero means "as slow as possible" */
 		divisor = 15;
@@ -355,9 +353,10 @@ static int fmc_spi_flash_read(struct spi_device *spi,
 
 static int fmc_spi_probe(struct platform_device *pdev)
 {
-	struct resource		*res;
+	struct resource	*res;
 	struct fmc_spi_host *host;
 	struct spi_master *master;
+	struct clk *clk;
 	int cs_num = 0;	
 	int err;
 
@@ -398,6 +397,13 @@ static int fmc_spi_probe(struct platform_device *pdev)
 		err = -EIO;
 		goto err_no_io_res;
 	}	
+
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "no clock defined\n");
+		return -ENODEV;
+	}
+	host->ahb_clk = clk_get_rate(clk);
 
 	dev_dbg(&pdev->dev, "remap phy %x, virt %x \n",(u32)res->start, (u32)host->base);
 
