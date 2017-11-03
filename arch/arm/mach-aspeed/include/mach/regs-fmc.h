@@ -12,17 +12,6 @@
 
 #ifndef __ASM_ARCH_REGS_FMC_H
 #define __ASM_ARCH_REGS_FMC_H __FILE__
-
-#if defined(AST_SOC_G5)
-#define AST_FMC_CS_NUM 			3
-#define AST_FMC_SPIx_CS_NUM	2
-#elif defined(AST_SOC_G4) || defined(AST_SOC_G3)
-#define AST_FMC_CS_NUM 			5
-#define AST_FMC_SPIx_CS_NUM	5
-#else 
-#define AST_FMC_CS_NUM 			0
-#endif
-
 #define FMC_CE_TYPE				0x00
 #define FMC_CE_CTRL				0x04
 #define FMC_INTR_CTRL			0x08

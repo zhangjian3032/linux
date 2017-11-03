@@ -4,18 +4,10 @@
  * Copyright (C) ASPEED Technology Inc.
  * Ryan Chen <ryan_chen@aspeedtech.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
  *
  */
 
@@ -45,12 +37,10 @@
 
 /******************************************************************************/
 /* AST_SPI_CONFIG 0x00 : SPI00 CE Type Setting Register */
-#ifdef AST_SOC_G5
-#define SPI_CONF_CE1_WEN		(0x1 << 17)
-#define SPI_CONF_CE0_WEN		(0x1 << 16)
-#else
+#define SOC_G5_SPI_CONF_CE1_WEN		(0x1 << 17)
+#define SOC_G5_SPI_CONF_CE0_WEN		(0x1 << 16)
+
 #define SPI_CONF_CE0_WEN		(0x1)
-#endif
 
 /* Register offsets */
 #define FMC_SPI_CONFIG			0x00
