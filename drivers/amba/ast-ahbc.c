@@ -4,18 +4,10 @@
  * Copyright (C) ASPEED Technology Inc.
  * Ryan Chen <ryan_chen@aspeedtech.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
  *
  */
 #include <linux/kernel.h>
@@ -26,7 +18,7 @@
 #include <mach/ast-ahbc.h>
 /***********************  Registers for AHBC ***************************/
 #define AST_AHBC_PROTECT		0x00	/* Protection Key Register */
-#define AST_AHBC_PRIORITY_CTRL		0x80	/* Priority Cortrol Register */
+#define AST_AHBC_PRIORITY_CTRL	0x80	/* Priority Cortrol Register */
 #define AST_AHBC_ADDR_REMAP		0x8C	/* Address Remapping Register */
 
 /* AST_AHBC_PROTECT	0x00		Protection Key Register 	*/
@@ -36,12 +28,11 @@
 #define AHBC_PCI_REMAP1			(1 << 5)
 #define AHBC_PCI_REMAP0			(1 << 4)
 
-#if defined(AST_SOC_G5)
+//support soc-g5
 #define AHBC_PCIE_MAP			(1 << 5)
 #define AHBC_LPC_PLUS_MAP		(1 << 4)
-#else
+//support for old version
 #define AHBC_BOOT_REMAP			1
-#endif
 /**************************************************************/
 //#define AST_AHBC_DEBUG
 
@@ -80,20 +71,14 @@ ast_ahbc_write(u32 val, u32 reg)
 #endif
 
 }
-
 //***********************************Information ***********************************
-
+//old soc have remap
 extern void ast_ahbc_boot_remap(void)
 {
-#if defined(AST_SOC_G5)
-#elif defined(AST_SOC_CAM)
-#else
 	ast_ahbc_write(ast_ahbc_read(AST_AHBC_ADDR_REMAP) | AHBC_BOOT_REMAP, AST_AHBC_ADDR_REMAP);	
-#endif
-	
 }
 
-#ifdef AST_SOC_G5
+//only support ast-g5
 extern void ast_ahbc_peie_mapping(u8 enable)
 {
 	if(enable)
@@ -102,6 +87,7 @@ extern void ast_ahbc_peie_mapping(u8 enable)
 		ast_ahbc_write(ast_ahbc_read(AST_AHBC_ADDR_REMAP) & ~AHBC_PCIE_MAP, AST_AHBC_ADDR_REMAP);	
 }
 
+//only support ast-g5
 extern void ast_ahbc_lpc_plus_mapping(u8 enable)
 {
 	if(enable)
@@ -109,7 +95,6 @@ extern void ast_ahbc_lpc_plus_mapping(u8 enable)
 	else
 		ast_ahbc_write(ast_ahbc_read(AST_AHBC_ADDR_REMAP) & ~AHBC_LPC_PLUS_MAP, AST_AHBC_ADDR_REMAP);	
 }
-#endif
 
 static int ast_ahbc_probe(struct platform_device *pdev)
 {
