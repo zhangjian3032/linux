@@ -4,9 +4,6 @@
  * Copyright (C) ASPEED Technology Inc.
  * Ryan Chen <ryan_chen@aspeedtech.com>
  *
- * Copyright (C) ASPEED Technology Inc.
- * Ryan Chen <ryan_chen@aspeedtech.com>
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
@@ -41,7 +38,8 @@
 *  2 - show/store unit
 *  3 - show/store division
 *  4 - show/store limit */
-
+#include <linux/clk.h>
+#include <linux/of.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
@@ -55,8 +53,6 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-
-#include <mach/ast-scu.h>
 /*********************************************************************************************/
 /*AST PWM & FAN Register Definition */
 #define AST_PTCR_CTRL			0x00
@@ -89,18 +85,11 @@
 #define RISE_EDGE					(0x1)
 #define BOTH_EDGE					(0x2)
 
-#ifdef CONFIG_ARCH_AST1010
-#define PWM_TYPE_NUM		2
-#define PWM_TYPE_M			0x0
-#define PWM_TYPE_N			0x1
-#define PWM_TYPE_MASK		0x1
-#else
 #define PWM_TYPE_NUM		3
 #define PWM_TYPE_M			0x0
 #define PWM_TYPE_N			0x1
 #define PWM_TYPE_O			0x2
 #define PWM_TYPE_MASK		0x3
-#endif
 
 #define TACHO_NUM	16
 #define PWM_CH_NUM	8
@@ -206,8 +195,8 @@
 #define TACH_PWM_SOURCE_BIT01(x)					(x*2)
 #define TACH_PWM_SOURCE_BIT2(x)						(x*2)
 
-#define TACH_PWM_SOURCE_MASK_BIT01(x)						(0x3<<(x*2))
-#define TACH_PWM_SOURCE_MASK_BIT2(x)						(0x1<<(x*2))
+#define TACH_PWM_SOURCE_MASK_BIT01(x)				(0x3<<(x*2))
+#define TACH_PWM_SOURCE_MASK_BIT2(x)				(0x1<<(x*2))
 
 // AST_PTCR_TRIGGER : 0x28 - Trigger Register
 #define TRIGGER_READ_FAN_NUM(x)						(0x1<<x)
@@ -281,13 +270,12 @@
 #define DUTY_CTRL3_PWMG_RISE_POINT					(0)
 #define DUTY_CTRL3_PWMG_RISE_POINT_MASK				(0xff)
 /*********************************************************************************************/
-
-//#define MCLK	1
-
 struct ast_pwm_tacho_data {
-	struct device			*hwmon_dev;
-	void __iomem			*reg_base;			/* virtual */
-	int 					irq;				
+	struct device		*hwmon_dev;
+	void __iomem		*reg_base;			/* virtual */
+	int 				irq;
+	u8					clk_source;			//0: 24Mhz, 1:mpll	
+	u32					mpll_clk;
 };
 
 struct ast_pwm_tacho_data *ast_pwm_tacho;
@@ -373,13 +361,10 @@ static void ast_pwm_taco_init(void)
 
 	//PWM A~D -> Disable , type M, 
 	//Tacho 0~15 Disable
-	//CLK source 24Mhz
-#ifdef MCLK
-	ast_pwm_tacho_write(ast_pwm_tacho, AST_PTCR_CTRL_CLK_MCLK | AST_PTCR_CTRL_CLK_EN, AST_PTCR_CTRL);
-#else
-	ast_pwm_tacho_write(ast_pwm_tacho, AST_PTCR_CTRL_CLK_EN, AST_PTCR_CTRL);
-#endif
-	
+	if(ast_pwm_tacho->clk_source)
+		ast_pwm_tacho_write(ast_pwm_tacho, AST_PTCR_CTRL_CLK_MCLK | AST_PTCR_CTRL_CLK_EN, AST_PTCR_CTRL);
+	else
+		ast_pwm_tacho_write(ast_pwm_tacho, AST_PTCR_CTRL_CLK_EN, AST_PTCR_CTRL);
 }
 
 /*index 0 : clk_en , 1: clk_source*/
@@ -446,9 +431,9 @@ ast_show_clk(struct device *dev, struct device_attribute *attr, char *sysfsbuf)
 			break;
 		case 1: //clk_source
 			if(AST_PTCR_CTRL_CLK_MCLK & ast_pwm_tacho_read(ast_pwm_tacho, AST_PTCR_CTRL))
-					return sprintf(sysfsbuf, "1: MCLK \n");
+					return sprintf(sysfsbuf, "1: MCLK :  %d \n", ast_pwm_tacho->mpll_clk);
 				else
-					return sprintf(sysfsbuf, "0: 24Mhz\n");
+					return sprintf(sysfsbuf, "0: 24000000 hz\n");
 
 			break;
 		default:
@@ -461,10 +446,9 @@ static u32
 ast_get_tacho_measure_period(struct ast_pwm_tacho_data *ast_pwm_tacho, u8 pwm_type)
 {
 	u32 clk,clk_unit,div_h,div_l,tacho_unit,tacho_div;
-	//TODO ... 266
+	//mpll
 	if(AST_PTCR_CTRL_CLK_MCLK & ast_pwm_tacho_read(ast_pwm_tacho, AST_PTCR_CTRL)) {
-		//TODO .....
-		clk = ast_get_h_pll_clk();
+		clk = ast_pwm_tacho->mpll_clk;
 	} else
 		clk = 24*1000*1000;
 	
@@ -1123,12 +1107,11 @@ ast_get_pwm_clock(struct ast_pwm_tacho_data *ast_pwm_tacho, u8 pwm_type)
 		div_low = 1;
 	else
 		div_low = div_low*2;
-	//TODO 266
 
 	if(AST_PTCR_CTRL_CLK_MCLK & ast_pwm_tacho_read(ast_pwm_tacho, AST_PTCR_CTRL))
-			clk_source = ast_get_h_pll_clk();
-		else
-			clk_source = 24*1000*1000;
+		clk_source = ast_pwm_tacho->mpll_clk;
+	else
+		clk_source = 24*1000*1000;
 
 //	printk("%d, %d, %d, %d \n",clk_source,div_high,div_low,unit);
 	return (clk_source/(div_high*div_low*(unit+1)));
@@ -1170,7 +1153,6 @@ ast_get_pwm_en(struct ast_pwm_tacho_data *ast_pwm_tacho, u8 pwm_ch)
     }
 
 	return tmp;
-
 }
 
 static void 
@@ -1185,8 +1167,7 @@ ast_set_pwm_en(struct ast_pwm_tacho_data *ast_pwm_tacho, u8 pwm_ch, u8 enable)
 		else
 			ast_pwm_tacho_write(ast_pwm_tacho,
 					ast_pwm_tacho_read(ast_pwm_tacho, AST_PTCR_CTRL) & ~AST_PTCR_CTRL_PWMA_EN, 
-					AST_PTCR_CTRL);
-			
+					AST_PTCR_CTRL);			
 		break;
 	case PWMB:
 		if(enable)		
@@ -1206,8 +1187,7 @@ ast_set_pwm_en(struct ast_pwm_tacho_data *ast_pwm_tacho, u8 pwm_ch, u8 enable)
 		else
 			ast_pwm_tacho_write(ast_pwm_tacho,	
 					(ast_pwm_tacho_read(ast_pwm_tacho, AST_PTCR_CTRL) & ~AST_PTCR_CTRL_PWMC_EN),
-					AST_PTCR_CTRL);
-			
+					AST_PTCR_CTRL);			
 		break;
 	case PWMD:
 		if(enable)
@@ -1217,8 +1197,7 @@ ast_set_pwm_en(struct ast_pwm_tacho_data *ast_pwm_tacho, u8 pwm_ch, u8 enable)
 		else
 			ast_pwm_tacho_write(ast_pwm_tacho,	
 					(ast_pwm_tacho_read(ast_pwm_tacho, AST_PTCR_CTRL) & ~AST_PTCR_CTRL_PWMD_EN),
-					AST_PTCR_CTRL);
-			
+					AST_PTCR_CTRL);			
 		break;
 	case PWME:
 		if(enable)
@@ -1228,8 +1207,7 @@ ast_set_pwm_en(struct ast_pwm_tacho_data *ast_pwm_tacho, u8 pwm_ch, u8 enable)
 		else
 			ast_pwm_tacho_write(ast_pwm_tacho,
 					(ast_pwm_tacho_read(ast_pwm_tacho, AST_PTCR_CTRL_EXT) & ~AST_PTCR_CTRL_PWME_EN),
-					AST_PTCR_CTRL_EXT);
-			
+					AST_PTCR_CTRL_EXT);			
 		break;
 	case PWMF:
 		if(enable)
@@ -1239,8 +1217,7 @@ ast_set_pwm_en(struct ast_pwm_tacho_data *ast_pwm_tacho, u8 pwm_ch, u8 enable)
 		else
 			ast_pwm_tacho_write(ast_pwm_tacho,
 					(ast_pwm_tacho_read(ast_pwm_tacho, AST_PTCR_CTRL_EXT) & ~AST_PTCR_CTRL_PWMF_EN),
-					AST_PTCR_CTRL_EXT);
-			
+					AST_PTCR_CTRL_EXT);			
 		break;
 	case PWMG:
 		if(enable)
@@ -1250,8 +1227,7 @@ ast_set_pwm_en(struct ast_pwm_tacho_data *ast_pwm_tacho, u8 pwm_ch, u8 enable)
 		else
 			ast_pwm_tacho_write(ast_pwm_tacho,
 					(ast_pwm_tacho_read(ast_pwm_tacho, AST_PTCR_CTRL_EXT) & ~AST_PTCR_CTRL_PWMG_EN),
-					AST_PTCR_CTRL_EXT);
-			
+					AST_PTCR_CTRL_EXT);			
 		break;
 	case PWMH:
 		if(enable)
@@ -1262,7 +1238,6 @@ ast_set_pwm_en(struct ast_pwm_tacho_data *ast_pwm_tacho, u8 pwm_ch, u8 enable)
 			ast_pwm_tacho_write(ast_pwm_tacho,
 					(ast_pwm_tacho_read(ast_pwm_tacho, AST_PTCR_CTRL_EXT) & ~AST_PTCR_CTRL_PWMH_EN),
 					AST_PTCR_CTRL_EXT);
-
 		break;
 	default:
 		printk("error channel ast_get_pwm_type %d \n",pwm_ch);
@@ -1615,7 +1590,6 @@ ast_show_pwm_type_clock(struct device *dev, struct device_attribute *attr, char 
 	struct sensor_device_attribute_2 *sensor_attr =
 						to_sensor_dev_attr_2(attr);
 
-
 	//sensor_attr->index : M/N/O#
 	//sensor_attr->nr : attr#
 	switch(sensor_attr->nr) 
@@ -1627,31 +1601,24 @@ ast_show_pwm_type_clock(struct device *dev, struct device_attribute *attr, char 
 			return sprintf(sysfsbuf, "%d (0~15) \n", ast_get_pwm_clock_division_l(ast_pwm_tacho,sensor_attr->index));
 			break;
 		case 2: //division_h
-			return sprintf(sysfsbuf, "%d (0~15) \n", ast_get_pwm_clock_division_h(ast_pwm_tacho,sensor_attr->index));
-			
+			return sprintf(sysfsbuf, "%d (0~15) \n", ast_get_pwm_clock_division_h(ast_pwm_tacho,sensor_attr->index));			
 			break;			
 		case 3: //expect clock
-
-			return sprintf(sysfsbuf, "%d  \n", ast_get_pwm_clock(ast_pwm_tacho,sensor_attr->index));
-			
+			return sprintf(sysfsbuf, "%d  \n", ast_get_pwm_clock(ast_pwm_tacho,sensor_attr->index));			
 			break;			
-
 		default:
 			return -EINVAL;
 			break;
 	}
 
 	return sprintf(sysfsbuf, "%d : %d\n", sensor_attr->nr,sensor_attr->index);
-
-
 }
 
 static ssize_t 
 ast_store_pwm_type_clock(struct device *dev, struct device_attribute *attr, const char *sysfsbuf, size_t count)
 {
 	u32 input_val;
-	struct sensor_device_attribute_2 *sensor_attr =
-						to_sensor_dev_attr_2(attr);
+	struct sensor_device_attribute_2 *sensor_attr = to_sensor_dev_attr_2(attr);
 
 	input_val = simple_strtoul(sysfsbuf, NULL, 10);
 
@@ -1880,8 +1847,6 @@ ast_store_tacho_speed(struct device *dev, struct device_attribute *attr, const c
 						to_sensor_dev_attr_2(attr);
 
 	input_val = simple_strtoul(sysfsbuf, NULL, 10);
-
-
 	//sensor_attr->index : tacho_ch#
 	//sensor_attr->nr : attr#
 	switch(sensor_attr->nr) 
@@ -2159,6 +2124,7 @@ static int
 ast_pwm_tacho_probe(struct platform_device *pdev)
 {
 	struct resource *res;
+	struct clk *clk;
 	int err;
 	int ret=0;
 	int i;
@@ -2190,6 +2156,17 @@ ast_pwm_tacho_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto out_region;
 	}
+
+	ret = of_property_read_u8(pdev->dev.of_node, "clock_source", &ast_pwm_tacho->clk_source);
+	if(ret < 0)
+		ast_pwm_tacho->clk_source = 0;
+
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "no clock defined\n");
+		return -ENODEV;
+	}
+	ast_pwm_tacho->mpll_clk = clk_get_rate(clk);
 
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&pdev->dev.kobj, &clk_attribute_groups);
@@ -2316,10 +2293,10 @@ MODULE_DEVICE_TABLE(of, of_ast_pwm_tacho_match_table);
 
 static struct platform_driver ast_pwm_tacho_driver = {
 	.probe 		= ast_pwm_tacho_probe,
-	.remove 		= ast_pwm_tacho_remove,
+	.remove 	= ast_pwm_tacho_remove,
 #ifdef CONFIG_PM	
-	.suspend        = ast_pwm_tacho_suspend,
-	.resume         = ast_pwm_tacho_resume,
+	.suspend	= ast_pwm_tacho_suspend,
+	.resume		= ast_pwm_tacho_resume,
 #endif	
 	.driver		= {
 		.name	= KBUILD_MODNAME,
