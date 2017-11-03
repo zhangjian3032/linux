@@ -4,18 +4,10 @@
  * Copyright (C) ASPEED Technology Inc.
  * Ryan Chen <ryan_chen@aspeedtech.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
  *
  */
 #include <linux/sysfs.h>
@@ -61,23 +53,24 @@
 #define BUS_NO(x)				((x & 0xff) << 24)
 #define DEV_NO(x)				((x & 0x1f) << 19)
 #define FUN_NO(x)				((x & 0x7) << 16)
-#ifdef AST_SOC_G5
+
+//ast-g5 
 /* 0: route to RC, 1: route by ID, 2/3: broadcast from RC */
-#define ROUTING_TYPE_L(x)			((x & 0x1) << 14)
-#define ROUTING_TYPE_H(x)			(((x & 0x2) >> 1) << 12)
-#else
+#define G5_ROUTING_TYPE_L(x)			((x & 0x1) << 14)
+#define G5_ROUTING_TYPE_H(x)			(((x & 0x2) >> 1) << 12)
+//ast old version
 #define ROUTING_TYPE(x)			((x & 0x1) << 14)
-#endif
+
 #define TAG_OWN					(1 << 13)
 #define PKG_SIZE(x)				((x & 0x7ff) << 2) 
 #define PADDING_LEN(x)			(x & 0x3)
 //TX CMD desc1
 #define LAST_CMD				(1 << 31)
-#ifdef AST_SOC_G5
-#define TX_DATA_ADDR(x)			(((x >> 7) & 0x7fffff) << 8)
-#else
+//ast-g5
+#define G5_TX_DATA_ADDR(x)			(((x >> 7) & 0x7fffff) << 8)
+//ast old version
 #define TX_DATA_ADDR(x)			(((x >> 6) & 0x7fffff) << 8)
-#endif
+
 #define DEST_EP_ID(x)			(x & 0xff)
 /*************************************************************************************/
 //RX CMD desc0
@@ -131,6 +124,7 @@ struct ast_mctp_xfer {
 struct ast_mctp_info {
 	void __iomem	*reg_base;	
 	int irq;				//MCTP IRQ number 	
+	u8	ast_g5_mctp;
 	u32 dram_base;	
 	wait_queue_head_t mctp_wq;	
 	u8 *mctp_dma;
@@ -213,17 +207,17 @@ static void ast_mctp_tx_xfer(struct ast_mctp_info *ast_mctp, struct ast_mctp_xfe
 	
 	MCTP_DBUG("xfer_len = %d, padding len = %d , 4byte align %d\n",mctp_xfer->xfer_len, padding_len, xfer_len);
 
-#ifdef AST_SOC_G5
-	//routing type [desc0 bit 12, desc0 bit 14]
-	//bit 15 : interrupt enable 
-	//set default tag owner = 1;
-	ast_mctp->tx_cmd_desc->desc0 = 0x0000a000 | ROUTING_TYPE_H(mctp_xfer->rt) | ROUTING_TYPE_L(mctp_xfer->rt) | PKG_SIZE(xfer_len) |BUS_NO(mctp_xfer->bus_no) | DEV_NO(mctp_xfer->dev_no) | FUN_NO(mctp_xfer->fun_no) | PADDING_LEN(padding_len);
-#else
-	//routing type bit 14
-	//bit 15 : interrupt enable
-	//set default tag owner = 1;
-	ast_mctp->tx_cmd_desc->desc0 = 0x0000a000 | ROUTING_TYPE(mctp_xfer->rt) | PKG_SIZE(xfer_len) |BUS_NO(mctp_xfer->bus_no) | DEV_NO(mctp_xfer->dev_no) | FUN_NO(mctp_xfer->fun_no) | PADDING_LEN(padding_len);
-#endif
+	if(ast_mctp->ast_g5_mctp) {
+		//routing type [desc0 bit 12, desc0 bit 14]
+		//bit 15 : interrupt enable 
+		//set default tag owner = 1;
+		ast_mctp->tx_cmd_desc->desc0 = 0x0000a000 | G5_ROUTING_TYPE_H(mctp_xfer->rt) | G5_ROUTING_TYPE_L(mctp_xfer->rt) | PKG_SIZE(xfer_len) |BUS_NO(mctp_xfer->bus_no) | DEV_NO(mctp_xfer->dev_no) | FUN_NO(mctp_xfer->fun_no) | PADDING_LEN(padding_len);
+	} else {	
+		//routing type bit 14
+		//bit 15 : interrupt enable
+		//set default tag owner = 1;
+		ast_mctp->tx_cmd_desc->desc0 = 0x0000a000 | ROUTING_TYPE(mctp_xfer->rt) | PKG_SIZE(xfer_len) |BUS_NO(mctp_xfer->bus_no) | DEV_NO(mctp_xfer->dev_no) | FUN_NO(mctp_xfer->fun_no) | PADDING_LEN(padding_len);
+	}
 
 	//set dest ep id = 0;			
 	ast_mctp->tx_cmd_desc->desc1 |= LAST_CMD | DEST_EP_ID(0);
@@ -368,8 +362,11 @@ static void ast_mctp_ctrl_init(struct ast_mctp_info *ast_mctp)
 	for(i=0;i<1024;i++) {
 		ast_mctp->tx_data[i] = i;
 	}
-	
-	ast_mctp->tx_cmd_desc->desc1 |=TX_DATA_ADDR(ast_mctp->tx_data_dma);
+
+	if(ast_mctp->ast_g5_mctp)
+		ast_mctp->tx_cmd_desc->desc1 |= G5_TX_DATA_ADDR(ast_mctp->tx_data_dma);
+	else
+		ast_mctp->tx_cmd_desc->desc1 |= TX_DATA_ADDR(ast_mctp->tx_data_dma);
 	
 	MCTP_DBUG("tx data %x , tx data dma %x \n", (u32)ast_mctp->tx_data, (u32)ast_mctp->tx_data_dma);
 
@@ -517,6 +514,11 @@ static int ast_mctp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	if(of_device_is_compatible(pdev->dev.of_node, "aspeed,ast-g5-mctp"))
+		ast_mctp->ast_g5_mctp = 1;
+	else 
+		ast_mctp->ast_g5_mctp = 0;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res) {
 		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
@@ -631,6 +633,7 @@ ast_mctp_resume(struct platform_device *pdev)
 
 static const struct of_device_id ast_mctp_of_matches[] = {
 	{ .compatible = "aspeed,ast-mctp", },
+	{ .compatible = "aspeed,ast-g5-mctp", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ast_mctp_of_matches);
