@@ -24,7 +24,7 @@ void __init aspeed_clk_common_init(struct device_node *node,
 	const char *parent_name;
 	struct aspeed_clk *aspeed_clk;
 	struct clk_init_data init;
-printk("aspeed_clk_common_init ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+
 	aspeed_clk = kzalloc(sizeof(*aspeed_clk), GFP_KERNEL);
 	if (!aspeed_clk)
 		return;
@@ -42,7 +42,11 @@ printk("aspeed_clk_common_init ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		pr_err("%s: no reg property found\n", node->full_name);
 		goto err;
 	}
-	printk("aspeed_clk->reg %x \n", aspeed_clk->reg);
+//	printk("aspeed_clk->reg %x \n", aspeed_clk->reg);
+
+	of_property_read_u32(node, "ext_reg", &aspeed_clk->ext_reg);
+
+//	printk("aspeed_clk->ext_reg %x \n", aspeed_clk->ext_reg);
 	init.name = name;
 	init.ops = ops;
 	init.parent_names = parent_name ? &parent_name : NULL;
