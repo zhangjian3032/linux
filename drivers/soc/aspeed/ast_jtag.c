@@ -19,6 +19,7 @@
  *
  */
 #include <linux/sysfs.h>
+#include <linux/clk.h>
 #include <linux/fs.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -29,10 +30,9 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-
+#include <linux/reset.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <mach/ast-scu.h>
 /*************************************************************************************/
 #define AST_JTAG_DATA			0x00
 #define AST_JTAG_INST			0x04
@@ -143,6 +143,9 @@ struct ast_jtag_info {
 	void __iomem	*reg_base;	
 	u8 			sts;			//0: idle, 1:irpause 2:drpause
 	int 			irq;				//JTAG IRQ number 	
+	struct reset_control *reset;
+	struct clk 			*clk;
+	u32					apb_clk;	
 	u32 			flag;	
 	wait_queue_head_t jtag_wq;	
 	bool 			is_open;
@@ -178,7 +181,7 @@ void ast_jtag_set_freq(struct ast_jtag_info *ast_jtag, unsigned int freq)
 	u16 i;
 	for(i = 0; i < 0x7ff; i++) {
 //		JTAG_DBUG("[%d] : freq : %d , target : %d \n", i, ast_get_pclk()/(i + 1), freq);
-		if((ast_get_pclk()/(i + 1) ) <= freq)
+		if((ast_jtag->apb_clk/(i + 1) ) <= freq)
 			break;
 	}
 //	printk("div = %x \n", i);
@@ -188,7 +191,7 @@ void ast_jtag_set_freq(struct ast_jtag_info *ast_jtag, unsigned int freq)
 
 unsigned int ast_jtag_get_freq(struct ast_jtag_info *ast_jtag)
 {
-	return ast_get_pclk() / (JTAG_GET_TCK_DIVISOR(ast_jtag_read(ast_jtag, AST_JTAG_TCK)) + 1);
+	return ast_jtag->apb_clk / (JTAG_GET_TCK_DIVISOR(ast_jtag_read(ast_jtag, AST_JTAG_TCK)) + 1);
 }
 /******************************************************************************/
 void dummy(struct ast_jtag_info *ast_jtag, unsigned int cnt)
@@ -653,7 +656,7 @@ static long jtag_ioctl(struct file *file, unsigned int cmd,
 			break;			
 		case AST_JTAG_SIOCFREQ:
 //			printk("set freq = %d , pck %d \n",config.freq, ast_get_pclk());
-			if((unsigned int)arg > ast_get_pclk())
+			if((unsigned int)arg > ast_jtag->apb_clk)
 				ret = -EFAULT;
 			else
 				ast_jtag_set_freq(ast_jtag, (unsigned int)arg);
@@ -795,7 +798,7 @@ static ssize_t show_frequency(struct device *dev,
 	struct ast_jtag_info *ast_jtag = dev_get_drvdata(dev);
 //	printk("PCLK = %d \n", ast_get_pclk());
 //	printk("DIV  = %d \n", JTAG_GET_TCK_DIVISOR(ast_jtag_read(ast_jtag, AST_JTAG_TCK)) + 1);
-	return sprintf(buf, "Frequency : %d\n", ast_get_pclk() / (JTAG_GET_TCK_DIVISOR(ast_jtag_read(ast_jtag, AST_JTAG_TCK)) + 1));
+	return sprintf(buf, "Frequency : %d\n", ast_jtag->apb_clk / (JTAG_GET_TCK_DIVISOR(ast_jtag_read(ast_jtag, AST_JTAG_TCK)) + 1));
 }
 
 static ssize_t store_frequency(struct device *dev,
@@ -869,6 +872,24 @@ static int ast_jtag_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto out_region;
 	}
+
+	ast_jtag->reset = devm_reset_control_get(&pdev->dev, "jtag");
+	if (IS_ERR(ast_jtag->reset)) {
+		dev_err(&pdev->dev, "can't get jtag reset\n");
+		return PTR_ERR(ast_jtag->reset);
+	}
+
+	ast_jtag->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(ast_jtag->clk)) {
+		dev_err(&pdev->dev, "no clock defined\n");
+		return -ENODEV;
+	}
+	ast_jtag->apb_clk = clk_get_rate(ast_jtag->clk);
+
+	//scu init
+	reset_control_assert(ast_jtag->reset);
+	udelay(3);
+	reset_control_deassert(ast_jtag->reset);
 
 	ast_jtag_write(ast_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN ,AST_JTAG_CTRL); //Eanble Clock
 	ast_jtag_write(ast_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO, AST_JTAG_SW);
