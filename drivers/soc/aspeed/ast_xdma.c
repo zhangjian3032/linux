@@ -30,13 +30,10 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-
 #include <linux/dma-mapping.h>
-
+#include <linux/reset.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <mach/ast-scu.h>
-
 /* register ************************************************************************************/
 #define AST_XDMA_HOST_CMDQ_LOW 		0x00
 #define AST_XDMA_HOST_CMDQ_ENDP 		0x04
@@ -157,6 +154,7 @@ struct ast_xdma_xfer {
 struct ast_xdma_info {
 	void __iomem	*reg_base;	
 	int irq;				//XDMA IRQ number 	
+	struct reset_control *reset;
 	u32 dram_base;	
 	wait_queue_head_t xdma_wq;	
 
@@ -421,8 +419,6 @@ static int ast_xdma_probe(struct platform_device *pdev)
 
 	XDMA_DBUG("\n");	
 
-	ast_scu_init_xdma();
-
 	if (!(ast_xdma = devm_kzalloc(&pdev->dev, sizeof(struct ast_xdma_info), GFP_KERNEL))) {
 		return -ENOMEM;
 	}
@@ -446,6 +442,15 @@ static int ast_xdma_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto out_region;
 	}
+
+	ast_xdma->reset = devm_reset_control_get(&pdev->dev, "xdma");
+	if (IS_ERR(ast_xdma->reset)) {
+		dev_err(&pdev->dev, "can't get xmda reset\n");
+		return PTR_ERR(ast_xdma->reset);
+	}
+
+	//scu init
+	reset_control_deassert(ast_xdma->reset);
 
 	ret = devm_request_irq(&pdev->dev, ast_xdma->irq, ast_xdma_isr, 0, dev_name(&pdev->dev), ast_xdma);
 	if (ret) {
