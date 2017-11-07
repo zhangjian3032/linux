@@ -11,27 +11,24 @@
  *
  */
 #include <linux/sysfs.h>
-#include <linux/fs.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/platform_device.h>
-
+#include <linux/reset.h>
 #include <linux/dma-mapping.h>
-
-#include <asm/io.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
+#include <linux/of_device.h>
+#include <linux/io.h>
 #include <asm/uaccess.h>
-#include <mach/ast-scu.h>
-
 /* register ************************************************************************************/
 #define AST_MCTP_CTRL 		0x00
-#define AST_MCTP_TX_CMD	0x04
-#define AST_MCTP_RX_CMD	0x08
+#define AST_MCTP_TX_CMD		0x04
+#define AST_MCTP_RX_CMD		0x08
 #define AST_MCTP_ISR 		0x0c
 #define AST_MCTP_IER 		0x10
 #define AST_MCTP_EID 		0x14
@@ -124,6 +121,7 @@ struct ast_mctp_xfer {
 struct ast_mctp_info {
 	void __iomem	*reg_base;	
 	int irq;				//MCTP IRQ number 	
+	struct reset_control *reset;
 	u8	ast_g5_mctp;
 	u32 dram_base;	
 	wait_queue_head_t mctp_wq;	
@@ -334,6 +332,7 @@ static irqreturn_t ast_mctp_isr(int this_irq, void *dev_id)
 static void ast_mctp_ctrl_init(struct ast_mctp_info *ast_mctp) 
 {
 	int i=0;
+	
 	MCTP_DBUG("dram base %x \n", ast_mctp->dram_base);
 	ast_mctp_write(ast_mctp, ast_mctp->dram_base, AST_MCTP_EID);
 	//4K size memory 
@@ -508,8 +507,6 @@ static int ast_mctp_probe(struct platform_device *pdev)
 
 	MCTP_DBUG("\n");	
 
-	ast_scu_init_mctp();
-
 	if (!(ast_mctp = devm_kzalloc(&pdev->dev, sizeof(struct ast_mctp_info), GFP_KERNEL))) {
 		return -ENOMEM;
 	}
@@ -548,6 +545,16 @@ static int ast_mctp_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
+	ast_mctp->reset = devm_reset_control_get(&pdev->dev, "mctp");
+	if (IS_ERR(ast_mctp->reset)) {
+		dev_err(&pdev->dev, "can't get mctp reset\n");
+		return PTR_ERR(ast_mctp->reset);
+	}
+
+	//scu init
+	reset_control_assert(ast_mctp->reset);
+	reset_control_deassert(ast_mctp->reset);
+
 	ast_mctp->flag = 0;
 	init_waitqueue_head(&ast_mctp->mctp_wq);
 
@@ -566,7 +573,7 @@ static int ast_mctp_probe(struct platform_device *pdev)
 						   0, dev_name(&pdev->dev), ast_mctp);
 	if (ret) {
 		printk("MCTP Unable to get IRQ");
-		goto out_region;
+		goto out_irq;
 	}
 	
 #if 0
