@@ -26,7 +26,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <asm/uaccess.h>
-
+#include <linux/reset.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/miscdevice.h>
@@ -160,6 +160,7 @@ static struct ast_peci_data {
 	struct device			*misc_dev;
 	void __iomem			*reg_base;			/* virtual */
 	int 					irq;				//PECI IRQ number 
+	struct reset_control *reset;
 	int 				open_count;	
 	struct completion		xfer_complete;	
 	u32					sts;
@@ -495,6 +496,17 @@ static int ast_peci_probe(struct platform_device *pdev)
 		printk(KERN_INFO "PECI: Failed request irq %d\n", ast_peci.irq);
 		goto out_region;
 	}
+
+	ast_peci.reset = devm_reset_control_get(&pdev->dev, "peci");
+	if (IS_ERR(ast_peci.reset)) {
+		dev_err(&pdev->dev, "can't get peci reset\n");
+		return PTR_ERR(ast_peci.reset);
+	}
+
+	//scu init
+	reset_control_assert(ast_peci.reset);
+	udelay(3);
+	reset_control_deassert(ast_peci.reset);
 	
 	ret = misc_register(&ast_peci_misc);
 	if (ret){		
