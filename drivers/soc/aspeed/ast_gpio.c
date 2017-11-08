@@ -62,7 +62,7 @@ int __init gpio_module_init(void)
 //	printk("gpio_to_irq \n");
 	gpio_irq = gpio_to_irq(PIN_GPIOB1);        // map your GPIO to an IRQ
 //	printk("gpio_to_irq %d \n", gpio_irq);
-	retVal = request_irq(gpio_irq,           // requested interrupt
+	ret = request_irq(gpio_irq,           // requested interrupt
 	                   (irq_handler_t) gpio_handler, // pointer to handler function
 	                   IRQF_TRIGGER_HIGH, // interrupt mode flag
 	                   "gpio_pin_irq",        // used in /proc/interrupts
