@@ -443,7 +443,7 @@ static int ast_xdma_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	ast_xdma->reset = devm_reset_control_get(&pdev->dev, "xdma");
+	ast_xdma->reset = devm_reset_control_get_exclusive(&pdev->dev, "xdma");
 	if (IS_ERR(ast_xdma->reset)) {
 		dev_err(&pdev->dev, "can't get xmda reset\n");
 		return PTR_ERR(ast_xdma->reset);
