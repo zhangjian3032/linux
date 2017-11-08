@@ -30,11 +30,11 @@
 #include <crypto/hash.h>
 #include <crypto/md5.h>
 #include <crypto/internal/hash.h>
-#include <linux/completion.h>
-
-
 #include <crypto/internal/skcipher.h>
+
+#include <linux/completion.h>
 #include <linux/clk.h>
+#include <linux/reset.h>
 #include <linux/crypto.h>
 #include <linux/cryptohash.h>
 #include <linux/delay.h>
@@ -111,10 +111,6 @@
 #define HACE_CRYPTO_ISR				(0x1 << 12)
 #define HACE_RSA_ISR					(0x1 << 13)
 
-
-
-
-
 /* 	AST_HACE_CMD					0x10		*/
 #define HACE_CMD_SINGLE_DES				(0)
 #define HACE_CMD_TRIPLE_DES				(0x1 << 17)
@@ -183,6 +179,9 @@ struct ast_crypto_req {
 	bool				is_encrypt;
 	unsigned			ctx_id;
 	dma_addr_t			src_addr, dst_addr;
+	struct reset_control *reset;
+	struct clk 			*clk;
+	u32					apb_clk;	
 
 	/* AEAD specific bits. */
 	u8				*giv;
@@ -200,6 +199,10 @@ struct ast_crypto_dev {
 
 	struct completion		cmd_complete;
 	u32 					isr;
+	struct reset_control *reset;
+	struct clk 			*clk;
+	u32					yclk;	
+	
 	spinlock_t			lock;
 
 	//crypto
@@ -2095,7 +2098,6 @@ static irqreturn_t ast_crypto_irq(int irq, void *dev)
 }
 #endif
 
-
 static int ast_crypto_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;	
@@ -2110,7 +2112,7 @@ static int ast_crypto_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	
-	crypto_dev->dev		= dev;
+	crypto_dev->dev = dev;
 
 	platform_set_drvdata(pdev, crypto_dev);
 
@@ -2140,6 +2142,24 @@ static int ast_crypto_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	crypto_dev->reset = devm_reset_control_get_exclusive(&pdev->dev, "crypto");
+	//crypto_dev->reset = devm_reset_control_get(&pdev->dev, "crypto");
+	if (IS_ERR(crypto_dev->reset)) {
+		dev_err(&pdev->dev, "can't get crypto reset\n");
+		return PTR_ERR(crypto_dev->reset);
+	}
+
+	crypto_dev->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(crypto_dev->clk)) {
+		dev_err(&pdev->dev, "no clock defined\n");
+		return -ENODEV;
+	}
+
+	//scu init
+	clk_prepare_enable(crypto_dev->clk);
+	mdelay(1);
+	reset_control_deassert(crypto_dev->reset);
+	
 #ifdef AST_CRYPTO_IRQ
 	if (devm_request_irq(&pdev->dev, irq, ast_crypto_irq, 0, dev_name(&pdev->dev), crypto_dev)) {
 		dev_err(dev, "unable to request aes irq.\n");
