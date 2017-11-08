@@ -30,12 +30,12 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <mach/hardware.h>
-#include <mach/ast-scu.h>
 #include <mach/gpio.h>
-#include <mach/irqs.h>
-#include <mach/platform.h>
+#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/reset.h>
+
 #include <linux/irqdomain.h>
 
 /*************************************************************************************/
@@ -260,6 +260,7 @@ struct ast_espi_data {
 	struct platform_device 	*pdev;
 	void __iomem			*reg_base;			/* virtual */	
 	int 					irq;					//LPC IRQ number 
+	struct reset_control 	*reset;	
 	u32 					irq_sts;					
 	u32 					vw_gpio;	
 	u32					sys_event;
@@ -527,7 +528,9 @@ static irqreturn_t ast_espi_reset_isr(int this_irq, void *dev_id)
 
 	sw_mode = ast_espi_read(ast_espi, AST_ESPI_CTRL) & ESPI_CTRL_SW_FLASH_READ;
 
-	ast_scu_reset_espi();
+	//scu init
+	reset_control_assert(ast_espi->reset);
+	reset_control_deassert(ast_espi->reset);
 	ast_espi_ctrl_init(ast_espi);
 
 	ast_espi_write(ast_espi, ast_espi_read(ast_espi, AST_ESPI_CTRL) | sw_mode, AST_ESPI_CTRL);
@@ -1227,10 +1230,17 @@ static int ast_espi_probe(struct platform_device *pdev)
 		printk("AST ESPI Unable to get IRQ");
 		goto err_free_mem;
 	}
+
+	ast_espi->reset = devm_reset_control_get(&pdev->dev, "espi");
+	if (IS_ERR(ast_espi->reset)) {
+		dev_err(&pdev->dev, "can't get espi reset\n");
+		return PTR_ERR(ast_espi->reset);
+	}
+	
 #if 1
 	if (gpio_request(PIN_GPIOAC7, "GPIOAC7")) {
 		printk("GPIO request failure: GPIOAC7\n");
-		return err_free_mem;
+		goto err_free_mem;
 	}
 	gpio_direction_input(PIN_GPIOAC7);
 	gpio_set_debounce(PIN_GPIOAC7, 0x1);
@@ -1295,7 +1305,7 @@ static int ast_espi_remove(struct platform_device *pdev)
 	if (ast_espi == NULL)
 		return -ENODEV;
 
-	free_irq(IRQ_GPIOAC7, ast_espi);
+	free_irq(PIN_GPIOAC7, ast_espi);
 	free_irq(ast_espi->irq, ast_espi);
 	iounmap(ast_espi->reg_base);
 	sysfs_remove_group(&pdev->dev.kobj, &espi_attribute_group);
