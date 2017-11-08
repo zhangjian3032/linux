@@ -873,7 +873,7 @@ static int ast_jtag_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	ast_jtag->reset = devm_reset_control_get(&pdev->dev, "jtag");
+	ast_jtag->reset = devm_reset_control_get_exclusive(&pdev->dev, "jtag");
 	if (IS_ERR(ast_jtag->reset)) {
 		dev_err(&pdev->dev, "can't get jtag reset\n");
 		return PTR_ERR(ast_jtag->reset);
