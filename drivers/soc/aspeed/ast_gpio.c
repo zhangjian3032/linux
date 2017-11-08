@@ -47,7 +47,7 @@ static irqreturn_t gpio_handler ( int irq, void *dev_instance)
 
 int __init gpio_module_init(void)
 {
-	int		retVal;
+	int		ret;
 	int 		gpio_irq;
 
 	if (gpio_request(PIN_GPIOB1, GPIO_INT_NAME )) 
@@ -67,6 +67,10 @@ int __init gpio_module_init(void)
 	                   IRQF_TRIGGER_HIGH, // interrupt mode flag
 	                   "gpio_pin_irq",        // used in /proc/interrupts
 	                   NULL);               // the *dev_id shared interrupt lines, NULL is okay
+	if (ret) {
+		printk("AST Unable to request GPIO IRQ %d\n", ret);
+		return ret;
+	}
 
 	return 0;       /* Return 1 to not load the module */
 }
