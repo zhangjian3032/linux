@@ -1231,7 +1231,7 @@ static int ast_espi_probe(struct platform_device *pdev)
 		goto err_free_mem;
 	}
 
-	ast_espi->reset = devm_reset_control_get(&pdev->dev, "espi");
+	ast_espi->reset = devm_reset_control_get_exclusive(&pdev->dev, "espi");
 	if (IS_ERR(ast_espi->reset)) {
 		dev_err(&pdev->dev, "can't get espi reset\n");
 		return PTR_ERR(ast_espi->reset);
@@ -1249,7 +1249,7 @@ static int ast_espi_probe(struct platform_device *pdev)
 //	printk("gpio_to_irq %d \n", gpio_irq);
 	ret = request_irq(gpio_irq, ast_espi_reset_isr, IRQF_TRIGGER_FALLING, "gpioAC7", ast_espi);  
 	if (ret) {
-		printk("AST ESPI Unable to get IRQ");
+		printk("AST ESPI Unable to get IRQ %d\n", ret);
 		goto err_free_mem;
 	}
 
