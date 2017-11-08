@@ -19,6 +19,7 @@
 *	 5 - show/store lower  */
 
 #include <linux/delay.h>
+#include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -38,8 +39,6 @@
 #define MAX_CH_NO		12
 #elif defined(AST_SOC_G4) || defined(AST_SOC_G5) 
 #define MAX_CH_NO		16
-#elif defined(CONFIG_ARCH_AST1010)
-#define MAX_CH_NO		8
 #else
 #err "ADC NO define MAX CHANNEL NO"
 #endif
@@ -52,9 +51,6 @@
 #define AST_ADC_CTRL			0x00
 #define AST_ADC_IER				0x04
 #define AST_ADC_VGA				0x08
-#if defined(CONFIG_ARCH_AST1010)
-#define AST_ADC_TRIM			0x08
-#endif
 #define AST_ADC_CLK				0x0c
 #define AST_ADC_CH0_1			0x10
 #define AST_ADC_CH2_3			0x14
@@ -131,12 +127,6 @@
 #define AST_ADC_CTRL_COMPEN			(0x1 << 5)
 #else
 #err "ERROR define COMPEN ADC"
-#endif
-
-#if defined(CONFIG_ARCH_AST1010)
-#define AST_ADC_CTRL_OTP			(0x1 << 3)
-#define AST_ADC_CTRL_PWR_DWN		(0x1 << 2)
-#define AST_ADC_CTRL_TEST			(0x1 << 1)
 #endif
 
 #define AST_ADC_CTRL_NORMAL			(0x7 << 1)
@@ -246,6 +236,8 @@ struct ast_adc_data {
 	void __iomem			*reg_base;			/* virtual */
 	int 	irq;				//ADC IRQ number 
 	int	compen_value;		//Compensating value
+	struct clk 			*clk;
+	u32					pclk;		
 };
 
 static inline void
@@ -265,7 +257,6 @@ ast_adc_read(struct ast_adc_data *ast_adc, u32 reg)
 
 static void ast_adc_ctrl_init(struct ast_adc_data *ast_adc)
 {
-	u32 pclk;
 #ifdef AST_SOC_G5
 	u8 trim;
 #endif
@@ -274,8 +265,6 @@ static void ast_adc_ctrl_init(struct ast_adc_data *ast_adc)
 	// --> 0.0325s	= 12 * 2 * (0x3e7 + 1) *(64+1) / 48000000
 	// --> 0.0005s	= 12 * 2 * (0x3e7 + 1) / 48000000	
 	
-	pclk = ast_get_pclk();
-
 #if defined(AST_SOC_G3)
 	ast_adc_write(ast_adc, 0x3e7, AST_ADC_CLK); 
 
@@ -943,6 +932,13 @@ ast_adc_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto out_region;
 	}
+
+	ast_adc->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(ast_adc->clk)) {
+		dev_err(&pdev->dev, "no clock defined\n");
+		return -ENODEV;
+	}
+	ast_adc->pclk = clk_get_rate(ast_adc->clk);
 
 	/* Register sysfs hooks */
 	ast_adc->dev = hwmon_device_register(&pdev->dev);
