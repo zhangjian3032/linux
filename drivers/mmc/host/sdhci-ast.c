@@ -25,9 +25,9 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
-#include "sdhci-pltfm.h"
-#include <mach/ast-scu.h>
 #include <mach/ast-sdhci.h>
+#include "sdhci-pltfm.h"
+
 
 static void sdhci_ast_set_clock(struct sdhci_host *host, unsigned int clock)
 {
@@ -101,25 +101,29 @@ static void sdhci_ast_set_bus_width(struct sdhci_host *host, int width)
 
 static unsigned int sdhci_ast_get_max_clk(struct sdhci_host *host)
 {
-	return ast_get_sd_clock_src();
+	struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
+
+	return clk_get_rate(pltfm_priv->clk);;
 }
 
 static unsigned int sdhci_ast_get_timeout_clk(struct sdhci_host *host)
 {
-	return ast_get_sd_clock_src()/1000000;
+	struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
+
+	return (clk_get_rate(pltfm_priv->clk)/1000000);
 }
 
 /*
 	AST2300/AST2400 : SDMA/PIO
 	AST2500 : ADMA/SDMA/PIO
 */
-static struct sdhci_ops sdhci_ast_ops = {
+static struct sdhci_ops  sdhci_ast_ops= {
 #ifdef CONFIG_RT360_CAM
 	.set_clock = sdhci_set_clock,
 #else
 	.set_clock = sdhci_ast_set_clock,
 #endif	
-	.get_max_clock	= sdhci_ast_get_max_clk,
+	.get_max_clock = sdhci_ast_get_max_clk,
 	.set_bus_width = sdhci_ast_set_bus_width,
 	.get_timeout_clock = sdhci_ast_get_timeout_clk,
 	.reset = sdhci_reset,
@@ -132,7 +136,44 @@ static struct sdhci_pltfm_data sdhci_ast_pdata = {
 
 static int sdhci_ast_probe(struct platform_device *pdev)
 {
-	return sdhci_pltfm_register(pdev, &sdhci_ast_pdata, sizeof(struct ast_sdhci_irq));
+	struct sdhci_host *host;
+	struct device_node *pnode;
+	struct device_node *np = pdev->dev.of_node;
+	struct sdhci_pltfm_host *pltfm_host;
+	struct ast_sdhci_irq *sdhci_irq;
+
+	int ret;
+
+	host = sdhci_pltfm_init(pdev, &sdhci_ast_pdata, sizeof(struct ast_sdhci_irq));
+	if (IS_ERR(host))
+		return PTR_ERR(host);
+
+	pltfm_host = sdhci_priv(host);
+	sdhci_irq = sdhci_pltfm_priv(pltfm_host);
+	
+	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
+
+	if (!IS_ERR(pltfm_host->clk))
+		clk_prepare_enable(pltfm_host->clk);
+
+	pnode = of_parse_phandle(np, "interrupt-parent", 0);
+	if(pnode)
+		memcpy(sdhci_irq, pnode->data, sizeof(struct ast_sdhci_irq));
+
+	ret = mmc_of_parse(host->mmc);
+	if (ret)
+		goto err_sdhci_add;
+
+	ret = sdhci_add_host(host);
+	if (ret)
+		goto err_sdhci_add;
+
+	return 0;
+
+err_sdhci_add:
+	clk_disable_unprepare(pltfm_host->clk);
+	sdhci_pltfm_free(pdev);
+	return ret;
 }
 
 
