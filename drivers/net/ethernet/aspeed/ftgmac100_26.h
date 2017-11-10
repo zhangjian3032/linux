@@ -364,6 +364,8 @@ struct AstMacHwConfig {
 #define LINK_DOWN       0
 
 struct ftgmac100_priv {
+	struct reset_control *reset;
+	struct clk 			*clk;
 
     // these are things that the kernel wants me to keep, so users
     // can find out semi-useless statistics of how well the card is
