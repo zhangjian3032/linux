@@ -18,22 +18,22 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-#include <asm/io.h>
-#include <linux/irq.h>
-#include <mach/ast-scu.h>
-
+#include <linux/platform_device.h>
+#include <linux/module.h>
+#include <linux/delay.h>
+#include <linux/reset.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/io.h>
 #include <mach/ast-sdhci.h>
-
 /*******************************************************************/
 #define AST_SDHCI_INFO				0x00
-#define AST_SDHCI_BLOCK			0x04
+#define AST_SDHCI_BLOCK				0x04
 #define AST_SDHCI_ISR				0xFC
 
 /* #define AST_SDHCI_INFO			0x00*/
@@ -49,7 +49,7 @@
 #endif
 /*******************************************************************/
 void ast_sd_set_8bit_mode(struct ast_sdhci_irq *sdhci_irq, u8 mode)
-{
+{	
 	if(mode)
 		writel( (1 << 24) | readl(sdhci_irq->regs), sdhci_irq->regs);
 	else
@@ -92,7 +92,7 @@ struct irq_chip sdhci_irq_chip = {
 	.irq_ack	= noop,
 	.irq_mask	= noop,
 	.irq_unmask	= noop,
-	.irq_set_type	= noop_ret,	
+//	.irq_set_type	= noop_ret,	
 	.flags		= IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -110,8 +110,7 @@ static const struct irq_domain_ops ast_sdhci_irq_domain_ops = {
 	.map = ast_sdhci_map_irq_domain,
 };
 
-static int __init ast_sdhci_irq_of_init(struct device_node *node,
-					struct device_node *parent)
+static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 {
 	struct ast_sdhci_irq *sdhci_irq;
 	
@@ -121,22 +120,45 @@ static int __init ast_sdhci_irq_of_init(struct device_node *node,
 	if (!sdhci_irq)
 		return -ENOMEM;
 
-	node->data = sdhci_irq;
+	platform_set_drvdata(pdev, sdhci_irq);
+	//node->data = sdhci_irq;
+	pdev->dev.of_node->data = sdhci_irq;
 
-	if (of_property_read_u32(node, "slot_num", &sdhci_irq->slot_num) == 0) {
+	if (of_property_read_u32(pdev->dev.of_node, "slot_num", &sdhci_irq->slot_num) == 0) {
 		SDHCI_IRQ_DBUG("sdhci_irq->slot_num = %d \n", sdhci_irq->slot_num);
 	}
 
-	sdhci_irq->regs = of_iomap(node, 0);
+	sdhci_irq->regs = of_iomap(pdev->dev.of_node, 0);
 	if (IS_ERR(sdhci_irq->regs))
 		return PTR_ERR(sdhci_irq->regs);
 
-	sdhci_irq->parent_irq = irq_of_parse_and_map(node, 0);
+	sdhci_irq->reset = devm_reset_control_get_exclusive(&pdev->dev, "sdhci");
+	if (IS_ERR(sdhci_irq->reset)) {
+		dev_err(&pdev->dev, "can't get sdhci reset\n");
+		return PTR_ERR(sdhci_irq->reset);
+	}
+	sdhci_irq->clk = devm_clk_get(&pdev->dev, NULL);
+	
+	if (IS_ERR(sdhci_irq->clk)) {
+		dev_err(&pdev->dev, "no clock defined\n");
+		
+		return -ENODEV;
+	}		
+
+	//SDHCI Host's Clock Enable and Reset
+	reset_control_assert(sdhci_irq->reset);
+	mdelay(10);
+	clk_prepare_enable(sdhci_irq->clk);
+	clk_enable(sdhci_irq->clk);	
+	mdelay(10);
+	reset_control_deassert(sdhci_irq->reset);
+
+	sdhci_irq->parent_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (sdhci_irq->parent_irq < 0)
 		return sdhci_irq->parent_irq;
 
 	sdhci_irq->irq_domain = irq_domain_add_linear(
-			node, sdhci_irq->slot_num,
+			pdev->dev.of_node, sdhci_irq->slot_num,
 			&ast_sdhci_irq_domain_ops, NULL);
 	if (!sdhci_irq->irq_domain)
 		return -ENOMEM;
@@ -151,4 +173,26 @@ static int __init ast_sdhci_irq_of_init(struct device_node *node,
 	return 0;
 }
 
-IRQCHIP_DECLARE(ast_sdhci_irq, "aspeed,ast-sdhci-irq", ast_sdhci_irq_of_init);
+static const struct of_device_id irq_aspeed_sdhci_dt_ids[] = {
+	{ .compatible = "aspeed,ast-sdhci-irq", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, irq_aspeed_sdhci_dt_ids);
+
+static struct platform_driver irq_aspeed_sdhci_device_driver = {
+	.probe		= irq_aspeed_sdhci_probe,
+	.driver		= {
+		.name   = KBUILD_MODNAME,
+		.of_match_table	= irq_aspeed_sdhci_dt_ids,
+	}
+};
+
+static int __init irq_aspeed_sdhci_init(void)
+{
+	return platform_driver_register(&irq_aspeed_sdhci_device_driver);
+}
+core_initcall(irq_aspeed_sdhci_init);
+
+MODULE_AUTHOR("Ryan Chen");
+MODULE_DESCRIPTION("AST SOC SDHCI IRQ Driver");
+MODULE_LICENSE("GPL v2");
