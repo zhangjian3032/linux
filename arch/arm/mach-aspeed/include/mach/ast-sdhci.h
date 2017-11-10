@@ -18,11 +18,18 @@
 #ifndef __AST_SDHCI_H_INCLUDED
 #define __AST_SDHCI_H_INCLUDED
 
+#include <linux/clk.h>
+#include <linux/reset.h>
+
 struct ast_sdhci_irq {
 	void __iomem	*regs;
 	int			parent_irq;
 	int			slot_num;
+	
 	struct irq_domain	*irq_domain;
+	struct reset_control *reset;
+	struct clk 			*clk;
+	u32				sd_clk;	
 };
 
 extern void ast_sd_set_8bit_mode(struct ast_sdhci_irq *sdhci_irq, u8 mode);
