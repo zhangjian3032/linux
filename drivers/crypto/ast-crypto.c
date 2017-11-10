@@ -2156,6 +2156,7 @@ static int ast_crypto_probe(struct platform_device *pdev)
 	}
 
 	//scu init
+	reset_control_assert(crypto_dev->reset);
 	clk_prepare_enable(crypto_dev->clk);
 	mdelay(1);
 	reset_control_deassert(crypto_dev->reset);
