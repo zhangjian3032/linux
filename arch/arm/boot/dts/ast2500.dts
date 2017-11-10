@@ -118,7 +118,14 @@
 				reg = <0x28 0x0>;
 				ext_reg = <0x130 0x0>;
 				clocks = <&clk_clkin>;
-            };        
+            };
+			clk_sd: clk_sd@08 {
+				#clock-cells = <0>;
+				compatible = "aspeed,g5-sdclock";
+				reg = <0x08 0x0>;
+				ext_reg = <0x0C 0x0>;
+				clocks = <&clk_hpll>;
+			};        
             clk_ahb: clk_ahb@70 {
                 #clock-cells = <0>;
                 compatible = "aspeed,g5-ahb-clock";
@@ -137,6 +144,16 @@
                 reg = <0x0C 0x0>;
                 clocks = <&clk_mpll>;
             };            
+            clk_mac0: clk_mac0@0c {
+                #clock-cells = <0>;
+                compatible = "aspeed,g5-mac0-clock";
+                reg = <0x0C 0x0>;
+            };                        
+            clk_mac1: clk_mac1@0c {
+                #clock-cells = <0>;
+                compatible = "aspeed,g5-mac1-clock";
+                reg = <0x0C 0x0>;
+            };                                    
             clk_uart: clk_uart@2c {
                 #clock-cells = <0>;
                 compatible = "aspeed,g5-uart-clock";
@@ -207,6 +224,9 @@
 			reg = <0x1e660000 0x180>;
 			interrupts = <2>;
 			pinmux = <0>;
+			resets = <&sys_reset 11>;
+			reset-names = "mac";
+			clocks = <&clk_mac0>;
 			#status = "disabled";
 		};
 		mac1: ethernet@1e680000 {
@@ -214,6 +234,9 @@
 			reg = <0x1e680000 0x180>;
 			interrupts = <3>;
 			pinmux = <1>;
+			resets = <&sys_reset 12>;
+			reset-names = "mac";
+			clocks = <&clk_mac1>;
 			#status = "disabled";
 		};
 #if 0
@@ -307,6 +330,8 @@
             reg = <0x1e6e9000 0xb0>;
             interrupts = <31>;
             clocks = <&clk_apb>;
+			resets = <&sys_reset 23>;
+			reset-names = "adc";            
         };
 		pcie_host: pcie_host@1e6ed000 {
 			#compatible = "aspeed,ast-pcie";
@@ -336,6 +361,9 @@
 			reg = <0x1e740000 0x100>;
 			interrupts = <26>;
 			slot_num = <2>;
+			resets = <&sys_reset 16>;
+			reset-names = "sdhci";
+			clocks = <&clk_sd>;
 		};
 		sdhci_slot0: sdhci_slot0@1e740100 {
 			compatible = "aspeed,sdhci-ast";
@@ -344,14 +372,16 @@
 			interrupt-parent = <&sdhci_irq>;
 			slot = <0>;
 			sdhci,auto-cmd12;
+			clocks = <&clk_sd>;
 		};
 		sdhci_slot1: sdhci_slot1@1e740200 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e740200 0x100>;
 			interrupts = <1>;
-                        interrupt-parent = <&sdhci_irq>;
+			interrupt-parent = <&sdhci_irq>;
 			slot = <1>;
 			sdhci,auto-cmd12;
+			clocks = <&clk_sd>;
 		};
 		gpio: gpio@1e780000 {
                         #gpio-cells = <2>;
@@ -409,6 +439,8 @@
             reg = <0x1e786000 0x80>;
             interrupts = <28>;
             clocks = <&clk_mpll>;
+			resets = <&sys_reset 9>;
+			reset-names = "ast_pwm_tacho";
         };
 		vuart: vuart@1e787000 {
 			compatible = "aspeed,ast-vuart";
@@ -591,6 +623,8 @@
 		interrupts = <12>;
 		interrupt-controller;
 		bus_num = <14>;
+		resets = <&sys_reset 2>;
+		reset-names = "i2c";		
 	};
 #if 1
 	i2c0: i2c@40 {
