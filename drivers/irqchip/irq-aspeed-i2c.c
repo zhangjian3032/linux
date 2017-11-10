@@ -166,8 +166,6 @@ static int __init irq_aspeed_i2c_init(void)
 }
 core_initcall(irq_aspeed_i2c_init);
 
-module_exit(irq_aspeed_i2c_exit);
-
 MODULE_AUTHOR("Ryan Chen");
 MODULE_DESCRIPTION("AST SOC I2C IRQ Driver");
 MODULE_LICENSE("GPL v2");
