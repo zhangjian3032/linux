@@ -153,9 +153,10 @@ static int sdhci_ast_probe(struct platform_device *pdev)
 	
 	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
 
-	if (!IS_ERR(pltfm_host->clk))
-		clk_prepare_enable(pltfm_host->clk);
+	//don't have to enable clk
+	//clk_prepare_enable(pltfm_host->clk);
 
+//	pnode = of_node_get(np->parent);
 	pnode = of_parse_phandle(np, "interrupt-parent", 0);
 	if(pnode)
 		memcpy(sdhci_irq, pnode->data, sizeof(struct ast_sdhci_irq));
