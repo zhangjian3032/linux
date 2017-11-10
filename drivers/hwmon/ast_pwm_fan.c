@@ -52,6 +52,7 @@
 #include <linux/sysfs.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/reset.h>
 #include <linux/io.h>
 /*********************************************************************************************/
 /*AST PWM & FAN Register Definition */
@@ -274,6 +275,7 @@ struct ast_pwm_tacho_data {
 	struct device		*hwmon_dev;
 	void __iomem		*reg_base;			/* virtual */
 	int 				irq;
+	struct reset_control *reset;	
 	u8					clk_source;			//0: 24Mhz, 1:mpll	
 	u32					mpll_clk;
 };
@@ -2156,6 +2158,16 @@ ast_pwm_tacho_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto out_region;
 	}
+
+	ast_pwm_tacho->reset = devm_reset_control_get_exclusive(&pdev->dev, "ast_pwm_tacho");
+	if (IS_ERR(ast_pwm_tacho->reset)) {
+		dev_err(&pdev->dev, "can't get ast_pwm_tacho reset\n");
+		return PTR_ERR(ast_pwm_tacho->reset);
+	}
+
+	//scu init
+	reset_control_assert(ast_pwm_tacho->reset);
+	reset_control_deassert(ast_pwm_tacho->reset);
 
 	ret = of_property_read_u8(pdev->dev.of_node, "clock_source", &ast_pwm_tacho->clk_source);
 	if(ret < 0)
