@@ -154,9 +154,8 @@ MODULE_DEVICE_TABLE(of, irq_aspeed_i2c_dt_ids);
 
 static struct platform_driver irq_aspeed_i2c_device_driver = {
 	.probe		= irq_aspeed_i2c_probe,
-//	.remove 	= irqc_remove,
 	.driver 	= {
-		.name	= "aspeed,ast-i2c-irq",
+		.name   = KBUILD_MODNAME,
 		.of_match_table = irq_aspeed_i2c_dt_ids,
 	}
 };
@@ -167,10 +166,6 @@ static int __init irq_aspeed_i2c_init(void)
 }
 core_initcall(irq_aspeed_i2c_init);
 
-static void __exit irq_aspeed_i2c_exit(void)
-{
-	platform_driver_unregister(&irq_aspeed_i2c_device_driver);
-}
 module_exit(irq_aspeed_i2c_exit);
 
 MODULE_AUTHOR("Ryan Chen");
