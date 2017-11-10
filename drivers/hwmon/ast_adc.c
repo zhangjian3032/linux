@@ -32,6 +32,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <asm/io.h>
+#include <linux/reset.h>
 #include <mach/ast-scu.h>
 #include <mach/aspeed.h>
 /****************************************************************************************/
@@ -236,6 +237,7 @@ struct ast_adc_data {
 	void __iomem			*reg_base;			/* virtual */
 	int 	irq;				//ADC IRQ number 
 	int	compen_value;		//Compensating value
+	struct reset_control *reset;	
 	struct clk 			*clk;
 	u32					pclk;		
 };
@@ -932,6 +934,16 @@ ast_adc_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto out_region;
 	}
+
+	ast_adc->reset = devm_reset_control_get_exclusive(&pdev->dev, "adc");
+	if (IS_ERR(ast_adc->reset)) {
+		dev_err(&pdev->dev, "can't get adc reset\n");
+		return PTR_ERR(ast_adc->reset);
+	}
+
+	//scu init
+	reset_control_assert(ast_adc->reset);
+	reset_control_deassert(ast_adc->reset);
 
 	ast_adc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ast_adc->clk)) {
