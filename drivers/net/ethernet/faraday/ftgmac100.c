@@ -35,6 +35,8 @@
 #include <linux/crc32.h>
 #include <linux/if_vlan.h>
 #include <linux/of_net.h>
+#include <linux/reset.h>
+#include <linux/clk.h>
 #include <net/ip.h>
 #include <net/ncsi.h>
 
@@ -62,6 +64,8 @@ struct ftgmac100 {
 	/* Registers */
 	struct resource *res;
 	void __iomem *base;
+	struct reset_control *reset;
+	struct clk 			*clk;
 
 	/* Rx ring */
 	unsigned int rx_q_entries;
@@ -1800,6 +1804,25 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 	np = pdev->dev.of_node;
 	if (np && (of_device_is_compatible(np, "aspeed,ast-mac"))) {
+		priv->clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(priv->clk)) {
+			dev_err(&pdev->dev, "no clock defined\n");
+			return -ENODEV;
+		}
+		//scu init
+		priv->reset = devm_reset_control_get_exclusive(&pdev->dev, "mac");
+		if (IS_ERR(priv->reset)) {
+			dev_err(&pdev->dev, "can't get mac reset\n");
+			return PTR_ERR(priv->reset);
+		}
+
+		//scu init
+		reset_control_assert(priv->reset);
+		udelay(100);
+		clk_prepare_enable(priv->clk);
+		udelay(1000);	
+		reset_control_deassert(priv->reset);
+
 		priv->rxdes0_edorr_mask = BIT(30);
 		priv->txdes0_edotr_mask = BIT(30);
 		priv->is_aspeed = true;
