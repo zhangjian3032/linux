@@ -126,7 +126,12 @@ static struct platform_driver aspeed_reset_driver = {
 		.of_match_table	= aspeed_reset_dt_ids,
 	},
 };
-module_platform_driver(aspeed_reset_driver);
+//module_platform_driver(aspeed_reset_driver);
+static int __init reset_aspeed_init(void)
+{
+	return platform_driver_register(&aspeed_reset_driver);
+}
+core_initcall(reset_aspeed_init);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
