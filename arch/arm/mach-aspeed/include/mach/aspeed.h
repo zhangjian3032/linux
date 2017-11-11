@@ -25,26 +25,14 @@
 #define AST_PLL_12MHZ			12000000
 
 #if defined(CONFIG_ARCH_AST1220)
-#define AST_MACH_NAME 		"AST-CAM"
 #define AST_SOC_CAM
-
 #elif defined(CONFIG_ARCH_AST2500) || defined(CONFIG_ARCH_AST1520)
-#define AST_MACH_NAME 		"AST-G5"
 #define AST_SOC_G5
-
-#undef AST_CRT1_BASE
-#undef AST_CRT2_BASE
-#undef AST_CRT3_BASE
-
 #elif defined(CONFIG_ARCH_AST3200) 
-#define AST_MACH_NAME 		"AST-G5"
 #define AST_SOC_G5
-
 #elif defined(CONFIG_ARCH_AST1400) || defined(CONFIG_ARCH_AST2400) || defined(CONFIG_ARCH_AST3100)
-#define AST_MACH_NAME 		"AST-G4"
 #define AST_SOC_G4
 #elif defined(CONFIG_ARCH_AST1300) || defined(CONFIG_ARCH_AST2300) || defined(CONFIG_ARCH_AST1510)
-#define AST_MACH_NAME 		"AST-G3"
 #define AST_SOC_G3
 #elif defined(CONFIG_ARCH_AST2150) || defined(CONFIG_ARCH_AST2200)
 #define AST_SOC_G2_5
@@ -53,7 +41,6 @@
 #elif defined(CONFIG_ARCH_AST2000) || defined(CONFIG_ARCH_AST1000)
 #define AST_SOC_G1
 #elif defined(CONFIG_ARCH_AST1010)
-#define AST_MACH_NAME 		"AST-Coldfire"
 #define AST_SOC_COLDFIRE
 #else
 #error "Not define SoC generation"
