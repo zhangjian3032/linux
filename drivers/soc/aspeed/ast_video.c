@@ -21,6 +21,8 @@
 
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/clk.h>
+#include <linux/reset.h>
 
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -2799,6 +2801,8 @@ static int ast_video_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto out_region0;
 	}
+	
+	ast_scu_init_video(0);
 
 	// default config 
 	ast_video->input_source = VIDEO_SOURCE_INT_VGA;
