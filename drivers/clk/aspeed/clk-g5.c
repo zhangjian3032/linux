@@ -16,9 +16,12 @@
 #include <linux/regmap.h>
 
 #include "clk-aspeed.h"
+#define AST_CLK_DEBUG
 
 #ifdef AST_CLK_DEBUG
-#define CLK_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
+//#define CLK_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
+#define CLK_DBUG(fmt, args...) printk( "%s() " fmt, __FUNCTION__, ## args)
+
 #else
 #define CLK_DBUG(fmt, args...)
 #endif
@@ -184,8 +187,8 @@ static unsigned long aspeed_clk_mpll_recalc_rate(struct clk_hw *hw,
 }
 
 /*	AST_SCU_D_PLL : 0x28 - D-PLL Parameter  register	*/
-#define SCU_D_PLL_GET_SIP(x)				((x >>27) & 0x1f)
-#define SCU_D_PLL_GET_SIC(x)				((x >>22) & 0x1f)
+#define SCU_D_PLL_GET_SIP(x)			((x >>27) & 0x1f)
+#define SCU_D_PLL_GET_SIC(x)			((x >>22) & 0x1f)
 #define SCU_D_PLL_GET_ODNUM(x)			((x >>19) & 0x7)
 #define SCU_D_PLL_GET_PNUM(x)			((x >>13) & 0x3f)
 #define SCU_D_PLL_GET_NNUM(x)			((x >>8) & 0x1f)
@@ -525,6 +528,134 @@ static unsigned long aspeed_sdclk_disable(struct clk_hw *hw)
 	return 0;
 }
 
+#define SCU_USB11CLK_STOP_EN		(0x1 << 9)
+
+static unsigned long aspeed_usb11clk_enable(struct clk_hw *hw)
+{
+	struct aspeed_clk *usb11clk = to_aspeed_clk(hw);
+	int ret;
+	u32 reg;
+
+	CLK_DBUG("aspeed_usb11clk_enable ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+	/* SCU0C: USB11 EN Register */
+	ret = regmap_read(usb11clk->map, usb11clk->reg, &reg);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	
+	ret = regmap_write(usb11clk->map, usb11clk->reg, reg & ~SCU_USB11CLK_STOP_EN);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	return 0;	
+}
+
+static unsigned long aspeed_usb11clk_disable(struct clk_hw *hw)
+{
+	struct aspeed_clk *usb11clk = to_aspeed_clk(hw);
+	int ret;
+	u32 reg;
+
+	CLK_DBUG("aspeed_usb11clk_disable ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+	/* SCU0C: usb11clk EN Register */
+	ret = regmap_read(usb11clk->map, usb11clk->reg, &reg);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	
+	ret = regmap_write(usb11clk->map, usb11clk->reg, reg | SCU_USB11CLK_STOP_EN);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	return 0;
+}
+
+#define SCU_CLK_VIDEO_SLOW_EN		(0x1 << 31)
+
+#define SCU_ECLK_SOURCE(x)			(x << 2)
+#define SCU_ECLK_SOURCE_MASK		(0x3 << 2)
+
+#define SCU_CLK_VIDEO_SLOW_SET(x)	(x << 28)
+#define SCU_CLK_VIDEO_SLOW_MASK		(0x7 << 28)
+
+static unsigned long aspeed_eclk_prepare(struct clk_hw *hw)
+{
+	struct aspeed_clk *eclk = to_aspeed_clk(hw);
+	int ret;
+	u32 ext_reg;
+	CLK_DBUG("aspeed_eclk_prepare \n");
+
+	ret = regmap_read(eclk->map, eclk->ext_reg, &ext_reg);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	//  Enable Clock & ECLK = inverse of (M-PLL / 2)
+	if(of_machine_is_compatible("aspeed,ast2500")) {
+		ext_reg =ext_reg & ~(SCU_ECLK_SOURCE_MASK | SCU_CLK_VIDEO_SLOW_MASK | SCU_CLK_VIDEO_SLOW_EN);
+	} else {
+		ext_reg = (ext_reg & ~(SCU_ECLK_SOURCE_MASK | SCU_CLK_VIDEO_SLOW_EN)) | SCU_ECLK_SOURCE(2);
+	}
+
+	ret = regmap_write(eclk->map, eclk->ext_reg, ext_reg);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	return 0;	
+}
+
+#define SCU_ECLK_STOP_EN			(0x1 << 0)
+#define SCU_VCLK_STOP_EN			(0x1 << 3)
+
+static unsigned long aspeed_eclk_enable(struct clk_hw *hw)
+{
+	struct aspeed_clk *eclk = to_aspeed_clk(hw);
+	int ret;
+	u32 reg;
+
+	CLK_DBUG("aspeed_eclk_enable ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+	/* SCU0C: ECLK EN Register */
+	ret = regmap_read(eclk->map, eclk->reg, &reg);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	
+	ret = regmap_write(eclk->map, eclk->reg, reg & ~(SCU_ECLK_STOP_EN | SCU_VCLK_STOP_EN));
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	return 0;	
+}
+
+static unsigned long aspeed_eclk_disable(struct clk_hw *hw)
+{
+	struct aspeed_clk *eclk = to_aspeed_clk(hw);
+	int ret;
+	u32 reg;
+
+	/* SCU0C: ECLK DIS Register */
+	ret = regmap_read(eclk->map, eclk->reg, &reg);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	
+	ret = regmap_write(eclk->map, eclk->reg, reg | SCU_ECLK_STOP_EN | SCU_VCLK_STOP_EN);
+
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	return 0;
+}
+
 #define SCU_RSACLK_STOP_EN			(0x1 << 24)
 #define SCU_YCLK_STOP_EN			(0x1 << 16)
 
@@ -674,6 +805,92 @@ static unsigned long aspeed_mac0_clk_disable(struct clk_hw *hw)
 	return 0;	
 }
 
+#define SCU_USB20_PHY_CLK_EN		(0x1 << 14)
+
+static unsigned long aspeed_usb20p1_clk_enable(struct clk_hw *hw)
+{
+	struct aspeed_clk *usb20p1_clk = to_aspeed_clk(hw);
+	int ret;
+	u32 reg;
+
+	ret = regmap_read(usb20p1_clk->map, usb20p1_clk->reg, &reg);
+	
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+
+	ret = regmap_write(usb20p1_clk->map, usb20p1_clk->reg, reg & ~SCU_USB20_PHY_CLK_EN);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	return 0;
+}
+
+static unsigned long aspeed_usb20p1_clk_disable(struct clk_hw *hw)
+{
+	struct aspeed_clk *usb20p1_clk = to_aspeed_clk(hw);
+	int ret;
+	u32 reg;
+
+	ret = regmap_read(usb20p1_clk->map, usb20p1_clk->reg, &reg);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+
+	ret = regmap_write(usb20p1_clk->map, usb20p1_clk->reg, reg | SCU_USB20_PHY_CLK_EN);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	return 0;	
+}
+
+#define SCU_USB_P1_STOP_EN			(0x1 << 7)
+
+static unsigned long aspeed_usb20p2_clk_enable(struct clk_hw *hw)
+{
+	struct aspeed_clk *usb20p2_clk = to_aspeed_clk(hw);
+	int ret;
+	u32 reg;
+
+	ret = regmap_read(usb20p2_clk->map, usb20p2_clk->reg, &reg);
+	
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+
+	ret = regmap_write(usb20p2_clk->map, usb20p2_clk->reg, reg & ~SCU_USB_P1_STOP_EN);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	return 0;
+}
+
+static unsigned long aspeed_usb20p2_clk_disable(struct clk_hw *hw)
+{
+	struct aspeed_clk *usb20p2_clk = to_aspeed_clk(hw);
+	int ret;
+	u32 reg;
+
+	ret = regmap_read(usb20p2_clk->map, usb20p2_clk->reg, &reg);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+
+	ret = regmap_write(usb20p2_clk->map, usb20p2_clk->reg, reg | SCU_USB_P1_STOP_EN);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	return 0;	
+}
+
 static const struct clk_ops aspeed_clk_clkin_ops = {
 	.recalc_rate = aspeed_clk_clkin_recalc_rate,
 };
@@ -708,6 +925,17 @@ static const struct clk_ops aspeed_sdclk_ops = {
 	.enable = aspeed_sdclk_enable,
 	.disable = aspeed_sdclk_disable,
 };
+static const struct clk_ops aspeed_usb11clk_ops = {
+	.enable = aspeed_usb11clk_enable,
+	.disable = aspeed_usb11clk_disable,
+};
+
+static const struct clk_ops aspeed_eclk_ops = {
+	.prepare = aspeed_eclk_prepare,
+	.enable = aspeed_eclk_enable,
+	.disable = aspeed_eclk_disable,
+};
+	
 static const struct clk_ops aspeed_yclk_ops = {
 	.recalc_rate = aspeed_yclk_recalc_rate,
 	.enable = aspeed_yclk_enable,
@@ -722,6 +950,16 @@ static const struct clk_ops aspeed_mac1_clk_ops = {
 static const struct clk_ops aspeed_mac0_clk_ops = {
 	.enable = aspeed_mac0_clk_enable,
 	.disable = aspeed_mac0_clk_disable,
+};
+
+static const struct clk_ops aspeed_usb20p1_clk_ops = {
+	.enable = aspeed_usb20p1_clk_enable,
+	.disable = aspeed_usb20p1_clk_disable,
+};
+
+static const struct clk_ops aspeed_usb20p2_clk_ops = {
+	.enable = aspeed_usb20p2_clk_enable,
+	.disable = aspeed_usb20p2_clk_disable,
 };
 
 static void __init aspeed_clk_clkin_init(struct device_node *node)
@@ -772,6 +1010,16 @@ static void __init aspeed_sdclk_init(struct device_node *node)
 	aspeed_clk_common_init(node, &aspeed_sdclk_ops);
 }
 CLK_OF_DECLARE(aspeed_sdclk, "aspeed,g5-sdclock", aspeed_sdclk_init);
+static void __init aspeed_usb11clk_init(struct device_node *node)
+{
+	aspeed_clk_common_init(node, &aspeed_usb11clk_ops);
+}
+CLK_OF_DECLARE(aspeed_usb11clk, "aspeed,g5-usb11clock", aspeed_usb11clk_init);
+static void __init aspeed_eclk_init(struct device_node *node)
+{
+	aspeed_clk_common_init(node, &aspeed_eclk_ops);
+}
+CLK_OF_DECLARE(aspeed_eclk, "aspeed,g5-eclock", aspeed_eclk_init);
 static void __init aspeed_yclk_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_yclk_ops);
@@ -786,4 +1034,14 @@ static void __init aspeed_mac0_clk_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_mac0_clk_ops);
 }
-CLK_OF_DECLARE(aspeed_mac0, "aspeed,g5-mac0-clock", aspeed_mac0_clk_init);
+CLK_OF_DECLARE(aspeed_mac0_clk, "aspeed,g5-mac0-clock", aspeed_mac0_clk_init);
+static void __init aspeed_usb20p1_clk_init(struct device_node *node)
+{
+	aspeed_clk_common_init(node, &aspeed_usb20p1_clk_ops);
+}
+CLK_OF_DECLARE(aspeed_usb20p1_clk, "aspeed,g5-usb20p1clock", aspeed_usb20p1_clk_init);
+static void __init aspeed_usb20p2_clk_init(struct device_node *node)
+{
+	aspeed_clk_common_init(node, &aspeed_usb20p2_clk_ops);
+}
+CLK_OF_DECLARE(aspeed_usb20p2_clk, "aspeed,g5-usb20p2clock", aspeed_usb20p2_clk_init);
