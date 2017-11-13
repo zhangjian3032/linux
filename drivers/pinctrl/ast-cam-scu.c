@@ -30,7 +30,6 @@
 
 #include <mach/ast-cam-scu.h>
 #include <mach/regs-cam-scu.h>
-#include <mach/ast_i2c.h>
 
 //#define ASPEED_SCU_LOCK
 //#define ASPEED_SCU_DEBUG
@@ -515,8 +514,6 @@ ast_scu_set_hw_random_type(u8 type)
 }
 EXPORT_SYMBOL(ast_scu_set_hw_random_type);
 
-extern void ast_i2c_sram_buff_enable(struct ast_i2c_irq *i2c_irq);
-
 static int ast_cam_scu_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -562,7 +559,7 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 	}
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-cam-pwm")) {
-		BMC_SCUDBG("aspeed,ast-cam-pwm found in SCU \n");
+		printk("aspeed,ast-cam-pwm found in SCU \n");
 		//SCU Pin-MUX	//PWM & TACHO 
 		ast_scu_multi_func_pwm();		
 		//SCU PWM CTRL Reset
