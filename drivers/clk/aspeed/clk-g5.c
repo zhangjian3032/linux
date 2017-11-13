@@ -813,6 +813,8 @@ static unsigned long aspeed_usb20p1_clk_enable(struct clk_hw *hw)
 	int ret;
 	u32 reg;
 
+	CLK_DBUG("aspeed_usb20p1_clk_enable ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+
 	ret = regmap_read(usb20p1_clk->map, usb20p1_clk->reg, &reg);
 	
 	if (ret) {
@@ -855,6 +857,8 @@ static unsigned long aspeed_usb20p2_clk_enable(struct clk_hw *hw)
 	struct aspeed_clk *usb20p2_clk = to_aspeed_clk(hw);
 	int ret;
 	u32 reg;
+
+	CLK_DBUG("aspeed_usb20p2_clk_enable ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 
 	ret = regmap_read(usb20p2_clk->map, usb20p2_clk->reg, &reg);
 	
