@@ -6,6 +6,8 @@
  * This file is based on uhci-grlib.c
  * (C) Copyright 2004-2007 Alan Stern, stern@rowland.harvard.edu
  */
+#include <linux/clk.h>
+#include <linux/reset.h>
 
 #include <linux/of.h>
 #include <linux/device.h>
@@ -70,6 +72,8 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 	struct uhci_hcd	*uhci;
 	struct resource *res;
 	int ret;
+	struct reset_control *reset;
+	struct clk 			*clk;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -97,6 +101,26 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
 
+	if (of_device_is_compatible(np, "aspeed,ast-uhci")) {
+		reset = devm_reset_control_get_exclusive(&pdev->dev, "uhci");
+		if (IS_ERR(reset)) {
+			dev_err(&pdev->dev, "can't get uhci reset\n");
+			return PTR_ERR(reset);
+		}
+		
+		clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(clk)) {
+			dev_err(&pdev->dev, "no clock defined\n");
+			return -ENODEV;
+		}
+		//scu init
+		reset_control_assert(reset);
+		udelay(100);
+		clk_prepare_enable(clk);
+		mdelay(10);
+		reset_control_deassert(reset);		
+	}
+	
 	uhci = hcd_to_uhci(hcd);
 
 	uhci->regs = hcd->regs;
