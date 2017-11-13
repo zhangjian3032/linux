@@ -456,13 +456,13 @@
 			reg = <0x1e785040 0x1c>;
 		};
 		pwm_techo: pwm_techo@1e7866000 {
-            compatible = "aspeed,ast-pwm-tacho";
-            reg = <0x1e786000 0x80>;
-            interrupts = <28>;
-            clocks = <&clk_mpll>;
+			compatible = "aspeed,ast-pwm-tacho";
+			reg = <0x1e786000 0x80>;
+			interrupts = <28>;
+			clocks = <&clk_mpll>;
 			resets = <&sys_reset 9>;
 			reset-names = "ast_pwm_tacho";
-        };
+		};
 		vuart: vuart@1e787000 {
 			compatible = "aspeed,ast-vuart";
 			reg = <0x1e787000 0x200>;
