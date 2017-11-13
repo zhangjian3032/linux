@@ -20,10 +20,6 @@
 #ifndef _ASPEED_H
 #define _ASPEED_H
 
-#define AST_PLL_25MHZ			25000000
-#define AST_PLL_24MHZ			24000000
-#define AST_PLL_12MHZ			12000000
-
 #if defined(CONFIG_ARCH_AST1220)
 #define AST_SOC_CAM
 #elif defined(CONFIG_ARCH_AST2500) || defined(CONFIG_ARCH_AST1520)
