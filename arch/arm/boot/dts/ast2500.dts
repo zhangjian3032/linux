@@ -73,120 +73,120 @@
 			compatible = "aspeed,g5-scu", "syscon", "simple-mfd";
 			reg = <0x1e6e2000 0x200>;
 			ranges;
-            pinctrl: pinctrl@1e6e2000 {
-                compatible = "aspeed,g5-pinctrl";
-            };
+			pinctrl: pinctrl@1e6e2000 {
+				compatible = "aspeed,g5-pinctrl";
+			};
 			sys_reset: sys_reset@04 {
 				#reset-cells = <1>;
 				compatible = "aspeed,ast-reset";
 				reg = <0x04 0x04>;
 				syscon = <&syscon>;
 			};
-            clk_clkin: clk_clkin@70 {
-                #clock-cells = <0>;
-                compatible = "aspeed,g5-clkin-clock";
-                reg = <0x70 0x0>;
-            };
-            clk_mpll: clk_mpll@20 {
+			clk_clkin: clk_clkin@70 {
+				#clock-cells = <0>;
+				compatible = "aspeed,g5-clkin-clock";
+				div = <0x70 0x0>;
+			};
+			clk_mpll: clk_mpll@20 {
 				#clock-cells = <0>;
 				compatible = "aspeed,g5-mpll-clock";
-				reg = <0x20 0x0>;
+				div = <0x20 0x0>;
 				clocks = <&clk_clkin>;
-            };            
-            clk_d2pll: clk_d2pll@1c {
+			};
+			clk_d2pll: clk_d2pll@1c {
 				#clock-cells = <0>;
 				compatible = "aspeed,g5-d2pll-clock";
-				reg = <0x1c 0x0>;
-				ext_reg = <0x13c 0x0>;
+				div = <0x1c 0x0>;
+				enable = <0x13c 0x0>;
 				clocks = <&clk_clkin>;
-            };            
-            clk_hpll: clk_hpll@24 {
-                #clock-cells = <0>;
-                compatible = "aspeed,g5-hpll-clock";
-                reg = <0x24 0x0>;
-                clocks = <&clk_clkin>;
-            };
-            clk_lhpll: clk_lhpll@08 {
-                #clock-cells = <0>;
-                compatible = "aspeed,g5-lhpll-clock";
-                reg = <0x08 0x0>;
-                clocks = <&clk_hpll>;
-            };            
-            clk_dpll: clk_dpll@28 {
+			};
+			clk_hpll: clk_hpll@24 {
+				#clock-cells = <0>;
+				compatible = "aspeed,g5-hpll-clock";
+				div = <0x24 0x0>;
+				clocks = <&clk_clkin>;
+			};
+			clk_lhpll: clk_lhpll@08 {
+				#clock-cells = <0>;
+				compatible = "aspeed,g5-lhpll-clock";
+				div = <0x08 0x0>;
+				clocks = <&clk_hpll>;
+			};
+			clk_dpll: clk_dpll@28 {
 				#clock-cells = <0>;
 				compatible = "aspeed,g5-dpll-clock";
-				reg = <0x28 0x0>;
-				ext_reg = <0x130 0x0>;
+				div = <0x28 0x0>;
+				enable = <0x130 0x0>;
 				clocks = <&clk_clkin>;
-            };
+			};
 			clk_sd: clk_sd@08 {
 				#clock-cells = <0>;
 				compatible = "aspeed,g5-sdclock";
-				reg = <0x08 0x0>;
-				ext_reg = <0x0C 0x0>;
+				div = <0x08 0x0>;
+				enable = <0x0C 0x0>;
 				clocks = <&clk_hpll>;
 			};        
 			clk_e: clk_e@08 {
 				#clock-cells = <0>;
 				compatible = "aspeed,g5-eclock";
-				reg = <0x0C 0x0>;
-				ext_reg = <0x08 0x0>;
+				enable = <0x0C 0x0>;
+				div = <0x08 0x0>;
 			};        			
 			clk_usb11: clk_usb11@0C {
 				#clock-cells = <0>;
 				compatible = "aspeed,g5-usb11clock";
-				reg = <0x0C 0x0>;
+				enable = <0x0C 0x0>;
 			};        
 			clk_usb20p1: clk_usb20p1@0C {
 				#clock-cells = <0>;
 				compatible = "aspeed,g5-usb20p1clock";
-				reg = <0x0C 0x0>;
+				enable = <0x0C 0x0>;
 			};        
 			clk_usb20p2: clk_usb20p2@0C {
 				#clock-cells = <0>;
 				compatible = "aspeed,g5-usb20p2clock";
-				reg = <0x0C 0x0>;
+				enable = <0x0C 0x0>;
 			};        			
-            clk_ahb: clk_ahb@70 {
-                #clock-cells = <0>;
-                compatible = "aspeed,g5-ahb-clock";
-                reg = <0x70 0x0>;
-                clocks = <&clk_hpll>;
-            };
-            clk_apb: clk_apb@08 {
-                #clock-cells = <0>;
-                compatible = "aspeed,g5-apb-clock";
-                reg = <0x08 0x0>;
-                clocks = <&clk_hpll>;
-            };
-            clk_y: clk_y@0c {
-                #clock-cells = <0>;
-                compatible = "aspeed,g5-yclock";
-                reg = <0x0C 0x0>;
-                clocks = <&clk_mpll>;
-            };            
-            clk_mac0: clk_mac0@0c {
-                #clock-cells = <0>;
-                compatible = "aspeed,g5-mac0-clock";
-                reg = <0x0C 0x0>;
-            };                        
-            clk_mac1: clk_mac1@0c {
-                #clock-cells = <0>;
-                compatible = "aspeed,g5-mac1-clock";
-                reg = <0x0C 0x0>;
-            };                                    
-            clk_uart: clk_uart@2c {
-                #clock-cells = <0>;
-                compatible = "aspeed,g5-uart-clock";
-                reg = <0x2c 0x0>;
-            };
-            hwrng@1e6e2078 {
-                compatible = "timeriomem_rng";
-                reg = <0x78 0x4>;
-                period = <1>;
-                quality = <100>;
-            };
-        };
+			clk_ahb: clk_ahb@70 {
+				#clock-cells = <0>;
+				compatible = "aspeed,g5-ahb-clock";
+				div = <0x70 0x0>;
+				clocks = <&clk_hpll>;
+			};
+			clk_apb: clk_apb@08 {
+				#clock-cells = <0>;
+				compatible = "aspeed,g5-apb-clock";
+				div = <0x08 0x0>;
+				clocks = <&clk_hpll>;
+			};
+			clk_y: clk_y@0c {
+				#clock-cells = <0>;
+				compatible = "aspeed,g5-yclock";
+				enable = <0x0C 0x0>;
+				clocks = <&clk_mpll>;
+			};            
+			clk_mac0: clk_mac0@0c {
+				#clock-cells = <0>;
+				compatible = "aspeed,g5-mac0-clock";
+				enable = <0x0C 0x0>;
+			};                        
+			clk_mac1: clk_mac1@0c {
+				#clock-cells = <0>;
+				compatible = "aspeed,g5-mac1-clock";
+				enable = <0x0C 0x0>;
+			};                                    
+			clk_uart: clk_uart@2c {
+				#clock-cells = <0>;
+				compatible = "aspeed,g5-uart-clock";
+				reg = <0x2c 0x0>;
+			};
+			hwrng@1e6e2078 {
+				compatible = "timeriomem_rng";
+				reg = <0x78 0x4>;
+				period = <1>;
+				quality = <100>;
+			};
+		};
 		scu_irq: scu_irq {
 			compatible = "aspeed,ast-scu-irq";
 			interrupt-controller;
@@ -207,7 +207,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&clk_ahb>;
-			flash@0 {
+			flash: m25p80@0 {				
 			        compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
 			        reg = <0x0>;
 			        #address-cells = <0x1>;
@@ -310,8 +310,7 @@
 		scu: scu@1e6e2000 {
 			compatible = "aspeed,ast-bmc-scu";
 			reg = <0x1e6e2000 0x200>;
-			interrupts = <21>;
-        };
+		};
 		hace: hace@1e6e3000 {
 			compatible = "aspeed,ast-crypto";
 			reg = <0x1e6e3000 0x200>;
