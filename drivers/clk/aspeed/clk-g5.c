@@ -33,16 +33,16 @@ static unsigned long aspeed_clk_clkin_recalc_rate(struct clk_hw *hw,
 	struct aspeed_clk *clkin = to_aspeed_clk(hw);
 	unsigned long rate;
 	int ret;
-	u32 reg;
+	u32 div;
 
 	/* SCU70: Hardware Strapping Register  */
-	ret = regmap_read(clkin->map, clkin->reg, &reg);
+	ret = regmap_read(clkin->map, clkin->div, &div);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	if (reg & CLK_25M_IN)
+	if (div & CLK_25M_IN)
 		rate = 25 * 1000 * 1000;
 	else
 		rate = 24 * 1000 * 1000;
@@ -64,25 +64,25 @@ static unsigned long aspeed_clk_hpll_recalc_rate(struct clk_hw *hw,
 	struct aspeed_clk *hpll = to_aspeed_clk(hw);
 	unsigned long rate;
 	int ret;
-	u32 reg;
+	u32 div;
 	int p, m, n;
 
 	/* SCU24: H-PLL Parameter Register */
-	ret = regmap_read(hpll->map, hpll->reg, &reg);
+	ret = regmap_read(hpll->map, hpll->div, &div);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	if(reg & SCU_H_PLL_OFF)
+	if(div & SCU_H_PLL_OFF)
 		return 0;
 
-	if(reg & SCU_H_PLL_BYPASS_EN)
+	if(div & SCU_H_PLL_BYPASS_EN)
 		return clkin_rate;
 
-	p = SCU_H_PLL_GET_PNUM(reg); 
-	m = SCU_H_PLL_GET_MNUM(reg);
-	n = SCU_H_PLL_GET_NNUM(reg);
+	p = SCU_H_PLL_GET_PNUM(div); 
+	m = SCU_H_PLL_GET_MNUM(div);
+	n = SCU_H_PLL_GET_NNUM(div);
 
 	//hpll = clkin * [(M+1) /(N+1)] / (P+1)
 	rate = clkin_rate * ((m + 1) / (n + 1)) / (p + 1);
@@ -98,12 +98,12 @@ static unsigned long aspeed_clk_ahb_recalc_rate(struct clk_hw *hw,
 	struct aspeed_clk *ahb = to_aspeed_clk(hw);
 	unsigned long rate;
 	int ret;
-	u32 reg;
+	u32 div;
 	u32 axi_div, ahb_div;
 	
 
 	/* Strap register SCU70 */
-	ret = regmap_read(ahb->map, ahb->reg, &reg);
+	ret = regmap_read(ahb->map, ahb->div, &div);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -111,7 +111,7 @@ static unsigned long aspeed_clk_ahb_recalc_rate(struct clk_hw *hw,
 
 	//AST2500 fix axi_div = 2
 	axi_div = 2;
-	ahb_div = (SCU_HW_STRAP_GET_AXI_AHB_RATIO(reg) + 1); 
+	ahb_div = (SCU_HW_STRAP_GET_AXI_AHB_RATIO(div) + 1); 
 
 	rate = (hpll_rate / axi_div) / ahb_div;
 
@@ -129,19 +129,19 @@ static unsigned long aspeed_clk_apb_recalc_rate(struct clk_hw *hw,
 	unsigned long rate;
 	int ret;
 	u32 div;
-	u32 reg;
+	u32 apb_div;
 
 	/* Clock selection register SCU08 */
-	ret = regmap_read(apb->map, apb->reg, &reg);
+	ret = regmap_read(apb->map, apb->div, &div);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	div = SCU_GET_PCLK_DIV(reg);
-	div = (div+1) << 2;
+	apb_div = SCU_GET_PCLK_DIV(div);
+	apb_div = (apb_div+1) << 2;
 
-	rate = hpll_rate / div;
+	rate = hpll_rate / apb_div;
 
 	return rate;
 }
@@ -160,25 +160,25 @@ static unsigned long aspeed_clk_mpll_recalc_rate(struct clk_hw *hw,
 	struct aspeed_clk *mpll = to_aspeed_clk(hw);
 	unsigned long rate;
 	int ret;
-	u32 reg;
+	u32 div;
 	int p, m, n;
 
 	/* SCU20: M-PLL Parameter Register */
-	ret = regmap_read(mpll->map, mpll->reg, &reg);
+	ret = regmap_read(mpll->map, mpll->div, &div);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	if(reg & SCU_M_PLL_OFF)
+	if(div & SCU_M_PLL_OFF)
 		return 0;
 
-	if(reg & SCU_M_PLL_BYPASS)
+	if(div & SCU_M_PLL_BYPASS)
 		return clkin_rate;
 
-	p = SCU_M_PLL_GET_PNUM(reg); 
-	m = SCU_M_PLL_GET_MNUM(reg);
-	n = SCU_M_PLL_GET_NNUM(reg);
+	p = SCU_M_PLL_GET_PNUM(div); 
+	m = SCU_M_PLL_GET_MNUM(div);
+	n = SCU_M_PLL_GET_NNUM(div);
 
 	//mpll = clkin * [(M+1) /(N+1)] / (P+1)
 	rate = clkin_rate * ((m + 1) / (n + 1)) / (p + 1);
@@ -206,34 +206,34 @@ static unsigned long aspeed_clk_dpll_recalc_rate(struct clk_hw *hw,
 	struct aspeed_clk *dpll = to_aspeed_clk(hw);
 	unsigned long rate;
 	int ret;
-	u32 reg;
-	u32 ext_reg;
+	u32 div;
+	u32 enable;
 	int p, m, n, od;
 
 	/* SCU28: D-PLL Parameter Register */
-	ret = regmap_read(dpll->map, dpll->reg, &reg);
+	ret = regmap_read(dpll->map, dpll->div, &div);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
 	/* SCU130: D-PLL Parameter Register */
-	ret = regmap_read(dpll->map, dpll->ext_reg, &ext_reg);
+	ret = regmap_read(dpll->map, dpll->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	if(ext_reg & SCU_D_PLL_OFF)
+	if(enable & SCU_D_PLL_OFF)
 		return 0;
 
-	if(ext_reg & SCU_D_PLL_BYPASS)
+	if(enable & SCU_D_PLL_BYPASS)
 		return clkin_rate;
 
-	m = SCU_D_PLL_GET_MNUM(reg);
-	n = SCU_D_PLL_GET_NNUM(reg);
-	p = SCU_D_PLL_GET_PNUM(reg);
-	od = SCU_D_PLL_GET_ODNUM(reg);
+	m = SCU_D_PLL_GET_MNUM(div);
+	n = SCU_D_PLL_GET_NNUM(div);
+	p = SCU_D_PLL_GET_PNUM(div);
+	od = SCU_D_PLL_GET_ODNUM(div);
 
 	//dpll = clkin * [(M + 1) /(N + 1)] / (P + 1) / (OD + 1)
 	rate = (clkin_rate * (m + 1)) / (n + 1) / (p + 1) / (od + 1);
@@ -268,34 +268,34 @@ static unsigned long aspeed_clk_d2pll_recalc_rate(struct clk_hw *hw,
 	struct aspeed_clk *d2pll = to_aspeed_clk(hw);
 	unsigned long rate;
 	int ret;
-	u32 reg;
-	u32 ext_reg;
+	u32 div;
+	u32 enable;
 	int p, m, n, od;
 
 	/* SCU1C: D2-PLL Parameter Register */
-	ret = regmap_read(d2pll->map, d2pll->reg, &reg);
+	ret = regmap_read(d2pll->map, d2pll->div, &div);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
 	/* SCU13C: D2-PLL Parameter Register */
-	ret = regmap_read(d2pll->map, d2pll->ext_reg, &ext_reg);
+	ret = regmap_read(d2pll->map, d2pll->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	if(ext_reg & SCU_D2_PLL_OFF)
+	if(enable & SCU_D2_PLL_OFF)
 		return 0;
 
-	if(ext_reg & SCU_D2_PLL_BYPASS) 
+	if(enable & SCU_D2_PLL_BYPASS) 
 		return clkin_rate;
 
-	m = SCU_D2_PLL_GET_MNUM(reg);
-	n = SCU_D2_PLL_GET_NNUM(reg);
-	p= SCU_D2_PLL_GET_PNUM(reg);
-	od = SCU_D2_PLL_GET_ODNUM(reg);
+	m = SCU_D2_PLL_GET_MNUM(div);
+	n = SCU_D2_PLL_GET_NNUM(div);
+	p= SCU_D2_PLL_GET_PNUM(div);
+	od = SCU_D2_PLL_GET_ODNUM(div);
 
 	//d2pll = clkin * [(M + 1) /(N + 1)] / (P + 1) / (OD + 1)
 	rate = (clkin_rate * (m + 1)) / (n + 1) / (p + 1) / (od + 1);
@@ -316,19 +316,19 @@ static int aspeed_clk_d2pll_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct aspeed_clk *d2pll = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
-	u32 ext_reg;
+	u32 div;
+	u32 enable;
 	int p, m, n, od;
 	CLK_DBUG("TODO aspeed_clk_d2pll_set_rate \n");
 	/* SCU1C: D2-PLL Parameter Register */
-	ret = regmap_read(d2pll->map, d2pll->reg, &reg);
+	ret = regmap_read(d2pll->map, d2pll->div, &div);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 	
 	/* SCU13C: D2-PLL Parameter Register */
-	ret = regmap_read(d2pll->map, d2pll->reg, &ext_reg);
+	ret = regmap_read(d2pll->map, d2pll->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -360,22 +360,23 @@ static unsigned long aspeed_clk_lhpll_recalc_rate(struct clk_hw *hw,
 	struct aspeed_clk *lhpll = to_aspeed_clk(hw);
 	unsigned long rate;
 	int ret;
-	u32 reg;
 	u32 div;
+	u32 hlpll_div;
 
-	/* SCU1C: D2-PLL Parameter Register */
-	ret = regmap_read(lhpll->map, lhpll->reg, &reg);
+	/* SCU1C:  Parameter Register */
+	ret = regmap_read(lhpll->map, lhpll->div, &div);
 	
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	if(SCU_LHCLK_SOURCE_EN & reg) {
-		div = SCU_GET_LHCLK_DIV(reg);
-		div = (div+1) << 2;
-		rate = (clkin_rate/div);
+	if(SCU_LHCLK_SOURCE_EN & div) {
+		hlpll_div = SCU_GET_LHCLK_DIV(div);
+		hlpll_div = (hlpll_div+1) << 2;
+		rate = (clkin_rate/hlpll_div);
 	} else { 
+		printk("TODO come from external source lhpll\n");
 		// come from external source
 		rate = 0; 
 	}
@@ -385,86 +386,52 @@ static unsigned long aspeed_clk_lhpll_recalc_rate(struct clk_hw *hw,
 
 #define SCU_CLK_SD_DIV(x)			(x << 12)
 #define SCU_CLK_SD_GET_DIV(x)		((x >> 12) & 0x7)
-#define SCU_CLK_SD_MASK				(0x7 << 12)
+#define SCU_CLK_SD_MASK			(0x7 << 12)
+//0x08
+#define SCU_SDCLK_STOP_EN			(0x1 << 27)
 
 static unsigned long aspeed_sdclk_recalc_rate(struct clk_hw *hw,
 						unsigned long clkin_rate)
 {
-	struct aspeed_clk *sdpll = to_aspeed_clk(hw);
+	struct aspeed_clk *sdclk = to_aspeed_clk(hw);
 	unsigned long rate;
 	int ret;
-	u32 reg;
 	u32 div;
+	u32 enable;
+	u32 sd_div;
 
-	ret = regmap_read(sdpll->map, sdpll->reg, &reg);
+	ret = regmap_read(sdclk->map, sdclk->div, &div);
 	
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	div = SCU_CLK_SD_GET_DIV(reg);
-	div = (div+1) << 2;
-	rate = clkin_rate /= div;
+	/* SCU0C: SD EN Register */
+	ret = regmap_read(sdclk->map, sdclk->enable, &enable);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+
+	if(enable & SCU_SDCLK_STOP_EN)
+		return 0;
+
+	sd_div = SCU_CLK_SD_GET_DIV(div);
+	sd_div = (sd_div+1) << 2;
+	rate = clkin_rate /= sd_div;
 		
 	return rate;
 }						
-
-static long aspeed_sdclk_round_rate(struct clk_hw *hw,
-			unsigned long drate, unsigned long *prate)
-{
-//	struct aspeed_clk *sdclk = to_aspeed_clk(hw);
-	printk("TODO aspeed_sdclk_round_rate \n");
-	return 0;
-}
-			
-static int aspeed_sdclk_set_rate(struct clk_hw *hw, unsigned long rate,
-							unsigned long parent_rate)
+		
+static int aspeed_sdclk_prepare(struct clk_hw *hw)
 {
 	struct aspeed_clk *sdclk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
-	u32 ext_reg;
-	int p, m, n, od;
-	printk("TODO aspeed_sdclk_set_rate \n");
-	/* SCU: 08 SD CLK DIV Register */
-	ret = regmap_read(sdclk->map, sdclk->reg, &reg);
-	if (ret) {
-		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
-	}
-	
-	/* SCU0C: SD EN Register */
-	ret = regmap_read(sdclk->map, sdclk->ext_reg, &ext_reg);
-	if (ret) {
-		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
-	}
-	printk("TODO ~~ \n");
-#if 0	
-	//Off D2-PLL
-//	ast_scu_write(ast_scu_read(AST_SCU_D2_PLL_EXTEND) |  SCU_D2_PLL_OFF | SCU_D2_PLL_RESET , AST_SCU_D2_PLL_EXTEND);
-	ast_scu_write(0x585, AST_SCU_D2_PLL_EXTEND);
-
-	//set D2-PLL parameter 
-	ast_scu_write(pll_setting, AST_SCU_D2_PLL);
-
-	//enable D2-PLL
-//	ast_scu_write(ast_scu_read(AST_SCU_D2_PLL_EXTEND) &  ~(SCU_D2_PLL_OFF | SCU_D2_PLL_RESET) , AST_SCU_D2_PLL_EXTEND);
-	ast_scu_write(0x580, AST_SCU_D2_PLL_EXTEND);
-#endif	
-	return 0;
-
-}
-
-static unsigned long aspeed_sdclk_prepare(struct clk_hw *hw)
-{
-	struct aspeed_clk *sdclk = to_aspeed_clk(hw);
-	int ret;
-	u32 reg;
+	u32 div;
 	CLK_DBUG("aspeed_sdclk_prepare \n");
 
-	ret = regmap_read(sdclk->map, sdclk->ext_reg, &reg);
+	ret = regmap_read(sdclk->map, sdclk->div, &div);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -472,10 +439,10 @@ static unsigned long aspeed_sdclk_prepare(struct clk_hw *hw)
 
 #ifdef CONFIG_ARCH_AST3200	
 	// SDCLK = H-PLL / 12
-	ret = regmap_write(sdclk->map, sdclk->ext_reg, (reg & ~SCU_CLK_SD_MASK) | SCU_CLK_SD_DIV(7));
+	ret = regmap_write(sdclk->map, sdclk->div, (div & ~SCU_CLK_SD_MASK) | SCU_CLK_SD_DIV(7));
 #else
 	// SDCLK = G4  H-PLL / 4, G5 = H-PLL /8
-	ret = regmap_write(sdclk->map, sdclk->ext_reg, (reg & ~SCU_CLK_SD_MASK) | SCU_CLK_SD_DIV(1));
+	ret = regmap_write(sdclk->map, sdclk->div, (div & ~SCU_CLK_SD_MASK) | SCU_CLK_SD_DIV(1));
 #endif
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
@@ -484,22 +451,21 @@ static unsigned long aspeed_sdclk_prepare(struct clk_hw *hw)
 	return 0;	
 }
 
-#define SCU_SDCLK_STOP_EN			(0x1 << 27)
-static unsigned long aspeed_sdclk_enable(struct clk_hw *hw)
+static int aspeed_sdclk_enable(struct clk_hw *hw)
 {
 	struct aspeed_clk *sdclk = to_aspeed_clk(hw);
 	int ret;
-	u32 ext_reg;
+	u32 enable;
 
-	CLK_DBUG("aspeed_sdclk_enable ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+	CLK_DBUG("aspeed_sdclk_enable \n");
 	/* SCU0C: SD EN Register */
-	ret = regmap_read(sdclk->map, sdclk->ext_reg, &ext_reg);
+	ret = regmap_read(sdclk->map, sdclk->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 	
-	ret = regmap_write(sdclk->map, sdclk->ext_reg, ext_reg & ~SCU_SDCLK_STOP_EN);
+	ret = regmap_write(sdclk->map, sdclk->enable, enable & ~SCU_SDCLK_STOP_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -507,44 +473,44 @@ static unsigned long aspeed_sdclk_enable(struct clk_hw *hw)
 	return 0;	
 }
 
-static unsigned long aspeed_sdclk_disable(struct clk_hw *hw)
+static void aspeed_sdclk_disable(struct clk_hw *hw)
 {
 	struct aspeed_clk *sdclk = to_aspeed_clk(hw);
 	int ret;
-	u32 ext_reg;
+	u32 enable;
 
 	/* SCU0C: SD EN Register */
-	ret = regmap_read(sdclk->map, sdclk->ext_reg, &ext_reg);
+	ret = regmap_read(sdclk->map, sdclk->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
 	
-	ret = regmap_write(sdclk->map, sdclk->ext_reg, ext_reg | SCU_SDCLK_STOP_EN);
+	ret = regmap_write(sdclk->map, sdclk->enable, enable | SCU_SDCLK_STOP_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
-	return 0;
+
 }
 
 #define SCU_USB11CLK_STOP_EN		(0x1 << 9)
 
-static unsigned long aspeed_usb11clk_enable(struct clk_hw *hw)
+static int aspeed_usb11clk_enable(struct clk_hw *hw)
 {
 	struct aspeed_clk *usb11clk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
-	CLK_DBUG("aspeed_usb11clk_enable ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+	CLK_DBUG("aspeed_usb11clk_enable \n");
 	/* SCU0C: USB11 EN Register */
-	ret = regmap_read(usb11clk->map, usb11clk->reg, &reg);
+	ret = regmap_read(usb11clk->map, usb11clk->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 	
-	ret = regmap_write(usb11clk->map, usb11clk->reg, reg & ~SCU_USB11CLK_STOP_EN);
+	ret = regmap_write(usb11clk->map, usb11clk->enable, enable & ~SCU_USB11CLK_STOP_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -552,26 +518,25 @@ static unsigned long aspeed_usb11clk_enable(struct clk_hw *hw)
 	return 0;	
 }
 
-static unsigned long aspeed_usb11clk_disable(struct clk_hw *hw)
+static void aspeed_usb11clk_disable(struct clk_hw *hw)
 {
 	struct aspeed_clk *usb11clk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
-	CLK_DBUG("aspeed_usb11clk_disable ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+	CLK_DBUG("aspeed_usb11clk_disable \n");
 	/* SCU0C: usb11clk EN Register */
-	ret = regmap_read(usb11clk->map, usb11clk->reg, &reg);
+	ret = regmap_read(usb11clk->map, usb11clk->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
 	
-	ret = regmap_write(usb11clk->map, usb11clk->reg, reg | SCU_USB11CLK_STOP_EN);
+	ret = regmap_write(usb11clk->map, usb11clk->enable, enable | SCU_USB11CLK_STOP_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
-	return 0;
 }
 
 #define SCU_CLK_VIDEO_SLOW_EN		(0x1 << 31)
@@ -582,26 +547,26 @@ static unsigned long aspeed_usb11clk_disable(struct clk_hw *hw)
 #define SCU_CLK_VIDEO_SLOW_SET(x)	(x << 28)
 #define SCU_CLK_VIDEO_SLOW_MASK		(0x7 << 28)
 
-static unsigned long aspeed_eclk_prepare(struct clk_hw *hw)
+static int aspeed_eclk_prepare(struct clk_hw *hw)
 {
 	struct aspeed_clk *eclk = to_aspeed_clk(hw);
 	int ret;
-	u32 ext_reg;
+	u32 div;
 	CLK_DBUG("aspeed_eclk_prepare \n");
 
-	ret = regmap_read(eclk->map, eclk->ext_reg, &ext_reg);
+	ret = regmap_read(eclk->map, eclk->div, &div);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 	//  Enable Clock & ECLK = inverse of (M-PLL / 2)
 	if(of_machine_is_compatible("aspeed,ast2500")) {
-		ext_reg =ext_reg & ~(SCU_ECLK_SOURCE_MASK | SCU_CLK_VIDEO_SLOW_MASK | SCU_CLK_VIDEO_SLOW_EN);
+		div =div & ~(SCU_ECLK_SOURCE_MASK | SCU_CLK_VIDEO_SLOW_MASK | SCU_CLK_VIDEO_SLOW_EN);
 	} else {
-		ext_reg = (ext_reg & ~(SCU_ECLK_SOURCE_MASK | SCU_CLK_VIDEO_SLOW_EN)) | SCU_ECLK_SOURCE(2);
+		div = (div & ~(SCU_ECLK_SOURCE_MASK | SCU_CLK_VIDEO_SLOW_EN)) | SCU_ECLK_SOURCE(2);
 	}
 
-	ret = regmap_write(eclk->map, eclk->ext_reg, ext_reg);
+	ret = regmap_write(eclk->map, eclk->div, div);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -612,21 +577,21 @@ static unsigned long aspeed_eclk_prepare(struct clk_hw *hw)
 #define SCU_ECLK_STOP_EN			(0x1 << 0)
 #define SCU_VCLK_STOP_EN			(0x1 << 3)
 
-static unsigned long aspeed_eclk_enable(struct clk_hw *hw)
+static int aspeed_eclk_enable(struct clk_hw *hw)
 {
 	struct aspeed_clk *eclk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
-	CLK_DBUG("aspeed_eclk_enable ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+	CLK_DBUG("aspeed_eclk_enable \n");
 	/* SCU0C: ECLK EN Register */
-	ret = regmap_read(eclk->map, eclk->reg, &reg);
+	ret = regmap_read(eclk->map, eclk->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 	
-	ret = regmap_write(eclk->map, eclk->reg, reg & ~(SCU_ECLK_STOP_EN | SCU_VCLK_STOP_EN));
+	ret = regmap_write(eclk->map, eclk->enable, enable & ~(SCU_ECLK_STOP_EN | SCU_VCLK_STOP_EN));
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -634,26 +599,25 @@ static unsigned long aspeed_eclk_enable(struct clk_hw *hw)
 	return 0;	
 }
 
-static unsigned long aspeed_eclk_disable(struct clk_hw *hw)
+static void aspeed_eclk_disable(struct clk_hw *hw)
 {
 	struct aspeed_clk *eclk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
 	/* SCU0C: ECLK DIS Register */
-	ret = regmap_read(eclk->map, eclk->reg, &reg);
+	ret = regmap_read(eclk->map, eclk->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
 	
-	ret = regmap_write(eclk->map, eclk->reg, reg | SCU_ECLK_STOP_EN | SCU_VCLK_STOP_EN);
+	ret = regmap_write(eclk->map, eclk->enable, enable | SCU_ECLK_STOP_EN | SCU_VCLK_STOP_EN);
 
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
-	return 0;
 }
 
 #define SCU_RSACLK_STOP_EN			(0x1 << 24)
@@ -664,35 +628,35 @@ static unsigned long aspeed_yclk_recalc_rate(struct clk_hw *hw,
 {
 	struct aspeed_clk *yclk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
-	ret = regmap_read(yclk->map, yclk->reg, &reg);
+	ret = regmap_read(yclk->map, yclk->enable, &enable);
 	
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	if(reg & SCU_YCLK_STOP_EN) 
+	if(enable & SCU_YCLK_STOP_EN) 
 		return 0;
 	else
 		return clkin_rate;
 }	
 
-static unsigned long aspeed_yclk_enable(struct clk_hw *hw)
+static int aspeed_yclk_enable(struct clk_hw *hw)
 {
 	struct aspeed_clk *yclk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
-	ret = regmap_read(yclk->map, yclk->reg, &reg);
+	ret = regmap_read(yclk->map, yclk->enable, &enable);
 	
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	ret = regmap_write(yclk->map, yclk->reg, reg & ~(SCU_YCLK_STOP_EN | SCU_RSACLK_STOP_EN));
+	ret = regmap_write(yclk->map, yclk->enable, enable & ~(SCU_YCLK_STOP_EN | SCU_RSACLK_STOP_EN));
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -700,41 +664,40 @@ static unsigned long aspeed_yclk_enable(struct clk_hw *hw)
 	return 0;		
 }
 
-static unsigned long aspeed_yclk_disable(struct clk_hw *hw)
+static void aspeed_yclk_disable(struct clk_hw *hw)
 {
 	struct aspeed_clk *yclk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
-	ret = regmap_read(yclk->map, yclk->reg, &reg);
+	ret = regmap_read(yclk->map, yclk->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
 
-	ret = regmap_write(yclk->map, yclk->reg, reg | SCU_YCLK_STOP_EN | SCU_RSACLK_STOP_EN);
+	ret = regmap_write(yclk->map, yclk->enable, enable | SCU_YCLK_STOP_EN | SCU_RSACLK_STOP_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
-	}
-	return 0;	
+		return;
+	}	
 }
 
 #define SCU_MAC1CLK_STOP_EN		(0x1 << 21)
 
-static unsigned long aspeed_mac1_clk_enable(struct clk_hw *hw)
+static int aspeed_mac1_clk_enable(struct clk_hw *hw)
 {
 	struct aspeed_clk *mac1_clk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
-	ret = regmap_read(mac1_clk->map, mac1_clk->reg, &reg);
+	ret = regmap_read(mac1_clk->map, mac1_clk->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	ret = regmap_write(mac1_clk->map, mac1_clk->reg, reg & ~SCU_MAC1CLK_STOP_EN);
+	ret = regmap_write(mac1_clk->map, mac1_clk->enable, enable & ~SCU_MAC1CLK_STOP_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -742,42 +705,41 @@ static unsigned long aspeed_mac1_clk_enable(struct clk_hw *hw)
 	return 0;
 }
 
-static unsigned long aspeed_mac1_clk_disable(struct clk_hw *hw)
+static void aspeed_mac1_clk_disable(struct clk_hw *hw)
 {
 	struct aspeed_clk *mac1_clk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
-	ret = regmap_read(mac1_clk->map, mac1_clk->reg, &reg);
+	ret = regmap_read(mac1_clk->map, mac1_clk->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
 
-	ret = regmap_write(mac1_clk->map, mac1_clk->reg, reg | SCU_MAC1CLK_STOP_EN);
+	ret = regmap_write(mac1_clk->map, mac1_clk->enable, enable | SCU_MAC1CLK_STOP_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
-	return 0;	
 }
 
 #define SCU_MAC0CLK_STOP_EN		(0x1 << 20)
 
-static unsigned long aspeed_mac0_clk_enable(struct clk_hw *hw)
+static int aspeed_mac0_clk_enable(struct clk_hw *hw)
 {
 	struct aspeed_clk *mac0_clk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
-	ret = regmap_read(mac0_clk->map, mac0_clk->reg, &reg);
+	ret = regmap_read(mac0_clk->map, mac0_clk->enable, &enable);
 	
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	ret = regmap_write(mac0_clk->map, mac0_clk->reg, reg & ~SCU_MAC0CLK_STOP_EN);
+	ret = regmap_write(mac0_clk->map, mac0_clk->enable, enable & ~SCU_MAC0CLK_STOP_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -785,44 +747,43 @@ static unsigned long aspeed_mac0_clk_enable(struct clk_hw *hw)
 	return 0;
 }
 
-static unsigned long aspeed_mac0_clk_disable(struct clk_hw *hw)
+static void aspeed_mac0_clk_disable(struct clk_hw *hw)
 {
 	struct aspeed_clk *mac0_clk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
-	ret = regmap_read(mac0_clk->map, mac0_clk->reg, &reg);
+	ret = regmap_read(mac0_clk->map, mac0_clk->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
 
-	ret = regmap_write(mac0_clk->map, mac0_clk->reg, reg | SCU_MAC0CLK_STOP_EN);
+	ret = regmap_write(mac0_clk->map, mac0_clk->enable, enable | SCU_MAC0CLK_STOP_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
-	return 0;	
 }
 
 #define SCU_USB20_PHY_CLK_EN		(0x1 << 14)
 
-static unsigned long aspeed_usb20p1_clk_enable(struct clk_hw *hw)
+static int aspeed_usb20p1_clk_enable(struct clk_hw *hw)
 {
 	struct aspeed_clk *usb20p1_clk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
-	CLK_DBUG("aspeed_usb20p1_clk_enable ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+	CLK_DBUG("aspeed_usb20p1_clk_enable \n");
 
-	ret = regmap_read(usb20p1_clk->map, usb20p1_clk->reg, &reg);
+	ret = regmap_read(usb20p1_clk->map, usb20p1_clk->enable, &enable);
 	
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	ret = regmap_write(usb20p1_clk->map, usb20p1_clk->reg, reg & ~SCU_USB20_PHY_CLK_EN);
+	ret = regmap_write(usb20p1_clk->map, usb20p1_clk->enable, enable & ~SCU_USB20_PHY_CLK_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -830,44 +791,43 @@ static unsigned long aspeed_usb20p1_clk_enable(struct clk_hw *hw)
 	return 0;
 }
 
-static unsigned long aspeed_usb20p1_clk_disable(struct clk_hw *hw)
+static void aspeed_usb20p1_clk_disable(struct clk_hw *hw)
 {
 	struct aspeed_clk *usb20p1_clk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
-	ret = regmap_read(usb20p1_clk->map, usb20p1_clk->reg, &reg);
+	ret = regmap_read(usb20p1_clk->map, usb20p1_clk->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
 
-	ret = regmap_write(usb20p1_clk->map, usb20p1_clk->reg, reg | SCU_USB20_PHY_CLK_EN);
+	ret = regmap_write(usb20p1_clk->map, usb20p1_clk->enable, enable | SCU_USB20_PHY_CLK_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
-	}
-	return 0;	
+		return;
+	}	
 }
 
 #define SCU_USB_P1_STOP_EN			(0x1 << 7)
 
-static unsigned long aspeed_usb20p2_clk_enable(struct clk_hw *hw)
+static int aspeed_usb20p2_clk_enable(struct clk_hw *hw)
 {
 	struct aspeed_clk *usb20p2_clk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
-	CLK_DBUG("aspeed_usb20p2_clk_enable ~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+	CLK_DBUG("aspeed_usb20p2_clk_enable \n");
 
-	ret = regmap_read(usb20p2_clk->map, usb20p2_clk->reg, &reg);
+	ret = regmap_read(usb20p2_clk->map, usb20p2_clk->enable, &enable);
 	
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	ret = regmap_write(usb20p2_clk->map, usb20p2_clk->reg, reg & ~SCU_USB_P1_STOP_EN);
+	ret = regmap_write(usb20p2_clk->map, usb20p2_clk->enable, enable & ~SCU_USB_P1_STOP_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -875,24 +835,23 @@ static unsigned long aspeed_usb20p2_clk_enable(struct clk_hw *hw)
 	return 0;
 }
 
-static unsigned long aspeed_usb20p2_clk_disable(struct clk_hw *hw)
+static void aspeed_usb20p2_clk_disable(struct clk_hw *hw)
 {
 	struct aspeed_clk *usb20p2_clk = to_aspeed_clk(hw);
 	int ret;
-	u32 reg;
+	u32 enable;
 
-	ret = regmap_read(usb20p2_clk->map, usb20p2_clk->reg, &reg);
+	ret = regmap_read(usb20p2_clk->map, usb20p2_clk->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
 
-	ret = regmap_write(usb20p2_clk->map, usb20p2_clk->reg, reg | SCU_USB_P1_STOP_EN);
+	ret = regmap_write(usb20p2_clk->map, usb20p2_clk->enable, enable | SCU_USB_P1_STOP_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
-	}
-	return 0;	
+		return;
+	}	
 }
 
 static const struct clk_ops aspeed_clk_clkin_ops = {
@@ -923,8 +882,6 @@ static const struct clk_ops aspeed_clk_lhpll_ops = {
 };
 static const struct clk_ops aspeed_sdclk_ops = {
 	.recalc_rate = aspeed_sdclk_recalc_rate,
-//	.round_rate = aspeed_sdclk_round_rate,
-//	.set_rate = aspeed_sdclk_set_rate,
 	.prepare = aspeed_sdclk_prepare,
 	.enable = aspeed_sdclk_enable,
 	.disable = aspeed_sdclk_disable,
