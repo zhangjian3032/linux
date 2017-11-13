@@ -778,67 +778,67 @@ static void __init aspeed_clk_clkin_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_clk_clkin_ops);
 }
-CLK_OF_DECLARE(aspeed_clkin_clk, "aspeed,g5-clkin-clock", aspeed_clk_clkin_init);
+CLK_OF_DECLARE(aspeed_clkin_clk, "aspeed,cam-clkin-clock", aspeed_clk_clkin_init);
 
 static void __init aspeed_clk_hpll_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_clk_hpll_ops);
 }
-CLK_OF_DECLARE(aspeed_hpll_clk, "aspeed,g5-hpll-clock", aspeed_clk_hpll_init);
+CLK_OF_DECLARE(aspeed_hpll_clk, "aspeed,cam-hpll-clock", aspeed_clk_hpll_init);
 
 static void __init aspeed_clk_apb_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_clk_apb_ops);
 }
-CLK_OF_DECLARE(aspeed_apb_clk, "aspeed,g5-apb-clock", aspeed_clk_apb_init);
+CLK_OF_DECLARE(aspeed_apb_clk, "aspeed,cam-apb-clock", aspeed_clk_apb_init);
 
 static void __init aspeed_clk_ahb_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_clk_ahb_ops);
 }
-CLK_OF_DECLARE(aspeed_ahb_clk, "aspeed,g5-ahb-clock", aspeed_clk_ahb_init);
+CLK_OF_DECLARE(aspeed_ahb_clk, "aspeed,cam-ahb-clock", aspeed_clk_ahb_init);
 static void __init aspeed_clk_mpll_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_clk_mpll_ops);
 }
-CLK_OF_DECLARE(aspeed_mpll_clk, "aspeed,g5-mpll-clock", aspeed_clk_mpll_init);
+CLK_OF_DECLARE(aspeed_mpll_clk, "aspeed,cam-mpll-clock", aspeed_clk_mpll_init);
 static void __init aspeed_clk_dpll_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_clk_dpll_ops);
 }
-CLK_OF_DECLARE(aspeed_dpll_clk, "aspeed,g5-dpll-clock", aspeed_clk_dpll_init);
+CLK_OF_DECLARE(aspeed_dpll_clk, "aspeed,cam-dpll-clock", aspeed_clk_dpll_init);
 static void __init aspeed_clk_d2pll_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_clk_d2pll_ops);
 }
-CLK_OF_DECLARE(aspeed_d2pll_clk, "aspeed,g5-d2pll-clock", aspeed_clk_d2pll_init);
+CLK_OF_DECLARE(aspeed_d2pll_clk, "aspeed,cam-d2pll-clock", aspeed_clk_d2pll_init);
 static void __init aspeed_clk_lhpll_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_clk_lhpll_ops);
 }
-CLK_OF_DECLARE(aspeed_lhpll_clk, "aspeed,g5-lhpll-clock", aspeed_clk_lhpll_init);
+CLK_OF_DECLARE(aspeed_lhpll_clk, "aspeed,cam-lhpll-clock", aspeed_clk_lhpll_init);
 static void __init aspeed_sdclk_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_sdclk_ops);
 }
-CLK_OF_DECLARE(aspeed_sdclk, "aspeed,g5-sdclock", aspeed_sdclk_init);
+CLK_OF_DECLARE(aspeed_sdclk, "aspeed,cam-sdclock", aspeed_sdclk_init);
 static void __init aspeed_eclk_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_eclk_ops);
 }
-CLK_OF_DECLARE(aspeed_eclk, "aspeed,g5-eclock", aspeed_eclk_init);
+CLK_OF_DECLARE(aspeed_eclk, "aspeed,cam-eclock", aspeed_eclk_init);
 static void __init aspeed_yclk_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_yclk_ops);
 }
-CLK_OF_DECLARE(aspeed_yclk, "aspeed,g5-yclock", aspeed_yclk_init);
+CLK_OF_DECLARE(aspeed_yclk, "aspeed,cam-yclock", aspeed_yclk_init);
 static void __init aspeed_mac0_clk_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_mac0_clk_ops);
 }
-CLK_OF_DECLARE(aspeed_mac0_clk, "aspeed,g5-mac0-clock", aspeed_mac0_clk_init);
+CLK_OF_DECLARE(aspeed_mac0_clk, "aspeed,cam-mac0-clock", aspeed_mac0_clk_init);
 static void __init aspeed_usb20p1_clk_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_usb20p1_clk_ops);
 }
-CLK_OF_DECLARE(aspeed_usb20p1_clk, "aspeed,g5-usb20p1clock", aspeed_usb20p1_clk_init);
+CLK_OF_DECLARE(aspeed_usb20p1_clk, "aspeed,cam-usb20p1clock", aspeed_usb20p1_clk_init);
