@@ -186,7 +186,7 @@
 #define SCU_CLK_2D_ENG_THROT_EN		(0x1 << 26)		//valid only at CRT mode SCU2C[7]
 #define SCU_CLK_MAC_DIV(x)			(x << 16)
 #define SCU_CLK_MAC_MASK			(0x7 << 16)
-#define SCU_CLK_SD_EN				(0x1 << 15)
+
 #define SCU_CLK_VIDE0_SO_D2			(0x1 << 8)
 #if defined(AST_SOC_G5)
 #define SCU_CRT_CLK_L_SOURCE			(0x1 << 8)
