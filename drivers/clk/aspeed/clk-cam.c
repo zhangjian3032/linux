@@ -635,20 +635,20 @@ static void aspeed_yclk_disable(struct clk_hw *hw)
 
 #define SCU_MAC0CLK_STOP_EN		(0x1 << 20)
 
-static int aspeed_mac0_clk_enable(struct clk_hw *hw)
+static int aspeed_mac_clk_enable(struct clk_hw *hw)
 {
-	struct aspeed_clk *mac0_clk = to_aspeed_clk(hw);
+	struct aspeed_clk *mac_clk = to_aspeed_clk(hw);
 	int ret;
 	u32 enable;
 
-	ret = regmap_read(mac0_clk->map, mac0_clk->enable, &enable);
+	ret = regmap_read(mac_clk->map, mac_clk->enable, &enable);
 	
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
 
-	ret = regmap_write(mac0_clk->map, mac0_clk->enable, enable & ~SCU_MAC0CLK_STOP_EN);
+	ret = regmap_write(mac_clk->map, mac_clk->enable, enable & ~SCU_MAC0CLK_STOP_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -656,19 +656,19 @@ static int aspeed_mac0_clk_enable(struct clk_hw *hw)
 	return 0;
 }
 
-static void aspeed_mac0_clk_disable(struct clk_hw *hw)
+static void aspeed_mac_clk_disable(struct clk_hw *hw)
 {
-	struct aspeed_clk *mac0_clk = to_aspeed_clk(hw);
+	struct aspeed_clk *mac_clk = to_aspeed_clk(hw);
 	int ret;
 	u32 enable;
 
-	ret = regmap_read(mac0_clk->map, mac0_clk->enable, &enable);
+	ret = regmap_read(mac_clk->map, mac_clk->enable, &enable);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return;
 	}
 
-	ret = regmap_write(mac0_clk->map, mac0_clk->enable, enable | SCU_MAC0CLK_STOP_EN);
+	ret = regmap_write(mac_clk->map, mac_clk->enable, enable | SCU_MAC0CLK_STOP_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return;
@@ -764,9 +764,9 @@ static const struct clk_ops aspeed_yclk_ops = {
 	.disable = aspeed_yclk_disable,
 };
 
-static const struct clk_ops aspeed_mac0_clk_ops = {
-	.enable = aspeed_mac0_clk_enable,
-	.disable = aspeed_mac0_clk_disable,
+static const struct clk_ops aspeed_mac_clk_ops = {
+	.enable = aspeed_mac_clk_enable,
+	.disable = aspeed_mac_clk_disable,
 };
 
 static const struct clk_ops aspeed_usb20p1_clk_ops = {
@@ -832,11 +832,11 @@ static void __init aspeed_yclk_init(struct device_node *node)
 	aspeed_clk_common_init(node, &aspeed_yclk_ops);
 }
 CLK_OF_DECLARE(aspeed_yclk, "aspeed,cam-yclock", aspeed_yclk_init);
-static void __init aspeed_mac0_clk_init(struct device_node *node)
+static void __init aspeed_mac_clk_init(struct device_node *node)
 {
-	aspeed_clk_common_init(node, &aspeed_mac0_clk_ops);
+	aspeed_clk_common_init(node, &aspeed_mac_clk_ops);
 }
-CLK_OF_DECLARE(aspeed_mac0_clk, "aspeed,cam-mac0-clock", aspeed_mac0_clk_init);
+CLK_OF_DECLARE(aspeed_mac_clk, "aspeed,cam-mac-clock", aspeed_mac_clk_init);
 static void __init aspeed_usb20p1_clk_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_usb20p1_clk_ops);

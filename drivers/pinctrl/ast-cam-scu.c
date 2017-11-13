@@ -150,18 +150,6 @@ ast_scu_init_uart(u8 uart)
 EXPORT_SYMBOL(ast_scu_init_uart);
 #endif
 
-extern void
-ast_scu_init_eth(void)
-{
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_MAC0, 
-					AST_SCU_RESET);		
-	udelay(100);
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_MAC_CLK_STOP_EN, 
-					AST_SCU_CLK_STOP);		
-	udelay(1000);
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_MAC0, 
-					AST_SCU_RESET);		
-}
 
 extern void
 ast_scu_init_usb_port1(void)
@@ -554,7 +542,6 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 
 	for_each_compatible_node(np, NULL, "aspeed,ast-mac") {
 		printk("aspeed,ast-mac found in SCU, ");
-		ast_scu_init_eth();
 		ast_scu_multi_func_eth();
 	}
 
