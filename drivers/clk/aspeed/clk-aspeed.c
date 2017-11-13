@@ -37,16 +37,10 @@ void __init aspeed_clk_common_init(struct device_node *node,
 		pr_err("%s: No regmap found\n", node->full_name);
 		goto err;
 	}
-	ret = of_property_read_u32(node, "reg", &aspeed_clk->reg);
-	if (ret) {
-		pr_err("%s: no reg property found\n", node->full_name);
-		goto err;
-	}
-//	printk("aspeed_clk->reg %x \n", aspeed_clk->reg);
+	of_property_read_u32(node, "div", &aspeed_clk->div);
 
-	of_property_read_u32(node, "ext_reg", &aspeed_clk->ext_reg);
+	of_property_read_u32(node, "enable", &aspeed_clk->enable);
 
-//	printk("aspeed_clk->ext_reg %x \n", aspeed_clk->ext_reg);
 	init.name = name;
 	init.ops = ops;
 //	printk("org init.flags %x \n", init.flags);	

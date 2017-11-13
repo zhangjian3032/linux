@@ -12,8 +12,8 @@
 struct aspeed_clk {
 	struct clk_hw	hw;
 	struct regmap	*map;
-	u32		reg;
-	u32		ext_reg;
+	u32		enable;
+	u32		div;
 };
 
 #define to_aspeed_clk(_hw) container_of(_hw, struct aspeed_clk, hw)
