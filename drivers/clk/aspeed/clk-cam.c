@@ -398,6 +398,7 @@ static unsigned long aspeed_sdclk_recalc_rate(struct clk_hw *hw,
 	u32 div;
 	u32 enable;
 	u32 sd_div;
+	CLK_DBUG("aspeed_sdclk_recalc_rate \n");
 
 	ret = regmap_read(sdclk->map, sdclk->div, &div);
 	
@@ -473,6 +474,7 @@ static void aspeed_sdclk_disable(struct clk_hw *hw)
 	struct aspeed_clk *sdclk = to_aspeed_clk(hw);
 	int ret;
 	u32 enable;
+	CLK_DBUG("aspeed_sdclk_disable \n");
 
 	/* SCU0C: SD EN Register */
 	ret = regmap_read(sdclk->map, sdclk->enable, &enable);
