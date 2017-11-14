@@ -254,7 +254,7 @@
 		hace: hace@1e6e3000 {
 			compatible = "aspeed,ast-crypto";
 			reg = <0x1e6e3000 0x200>;
-			interrupts = <4>;
+			interrupts = <17>;
 			clocks = <&clk_y>;
 			resets = <&sys_reset 4>;
 			reset-names = "crypto";
@@ -273,6 +273,10 @@
 			reg = <0x1e700000 0x300 0xa0000000 0x2800000>;
 			interrupts = <5>;
 		};
+		ast_cam: ast_cam@00 {
+                        compatible = "aspeed,ast-cam";
+                        interrupts = <0>, <1>;
+                };		
 		sdio: sdio@1e740100 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e740100 0x100>;
