@@ -134,6 +134,10 @@ struct ast_jpeg_data {
 	struct device		*misc_dev;
 	void __iomem		*reg_base;			/* virtual */
 	int 	irq;				//JPEG IRQ number 
+	dma_addr_t 			photo_src;
+	u16		x;
+	u16		y;
+	u8		format; //0: YUY2,  1:NV12	
 	u32                             *jpeg_tbl_virt;         /* virt */
 	dma_addr_t 			jpeg_tbl_dma_addr;
 	
@@ -169,15 +173,18 @@ struct ast_jpeg_mode
 	u8		format; //0: YUY2,  1:NV12
 };
 
+struct ast_jpeg_trigger
+{
+	u32		src;		//src  jpeg stream phy address
+	u32		dest;	//dest jpeg stream phy address
+	u32 		jpeg_size;
+};
+
 #define JPEGIOC_BASE				'J'
 
 #define AST_JPEG_SET_CONFIG					_IOW(JPEGIOC_BASE, 0x0, struct ast_jpeg_mode*)
 #define AST_JPEG_GET_CONFIG					_IOR(JPEGIOC_BASE, 0x1, struct ast_jpeg_mode*)
-#define AST_JPEG_GET_MEM_SIZE_IOCRX			_IOR(JPEGIOC_BASE, 0x2, unsigned long)
-#define AST_JPEG_GET_BUFFER0_OFFSET_IOCRX	_IOR(JPEGIOC_BASE, 0x3, unsigned long)
-#define AST_JPEG_GET_BUFFER1_OFFSET_IOCRX	_IOR(JPEGIOC_BASE, 0x4, unsigned long)
-#define AST_JPEG_TRIGGER						_IOR(JPEGIOC_BASE, 0x5, unsigned long)
-
+#define AST_JPEG_TRIGGER						_IOWR(JPEGIOC_BASE, 0x6, struct ast_jpeg_trigger*)
 /***********************************************************************/
 
 static inline void
@@ -209,9 +216,9 @@ ast_jpeg_read(struct ast_jpeg_data *ast_jpeg, u32 reg)
 /************************************************ JPEG ***************************************************************************************/
 void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 {
-	int i = 0;
 	int base=0;
 	//JPEG header default value:
+//00000000_00002D05_0F00FEFF_00006000_60000101_01004649_464A1000_E0FFD8FF
 	ast_jpeg->jpeg_tbl_virt[base + 0] = 0xE0FFD8FF;
 	ast_jpeg->jpeg_tbl_virt[base + 1] = 0x464A1000;
 	ast_jpeg->jpeg_tbl_virt[base + 2] = 0x01004649;
@@ -220,11 +227,52 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 5] = 0x0F00FEFF;
 	ast_jpeg->jpeg_tbl_virt[base + 6] = 0x00002D05;
 	ast_jpeg->jpeg_tbl_virt[base + 7] = 0x00000000;
+//06030202_03030503_02020202_01010102_01010101_01020043_00DBFF00_00000000);	
 	ast_jpeg->jpeg_tbl_virt[base + 8] = 0x00000000;
 	ast_jpeg->jpeg_tbl_virt[base + 9] = 0x00DBFF00;
+	ast_jpeg->jpeg_tbl_virt[base + 10] = 0x01020043;
+	ast_jpeg->jpeg_tbl_virt[base + 11] = 0x01010101;
+	ast_jpeg->jpeg_tbl_virt[base + 12] = 0x01010102;
+	ast_jpeg->jpeg_tbl_virt[base + 13] = 0x02020202;
+	ast_jpeg->jpeg_tbl_virt[base + 14] = 0x03030503;
+	ast_jpeg->jpeg_tbl_virt[base + 15] = 0x06030202;
+//070C0D0C_0C0B0A0A_0D0A0706_080A0808_090B0908_06070607_07070607_05030404);	
+	ast_jpeg->jpeg_tbl_virt[base + 16] = 0x05030404;
+	ast_jpeg->jpeg_tbl_virt[base + 17] = 0x07070607;
+	ast_jpeg->jpeg_tbl_virt[base + 18] = 0x06070607;
+	ast_jpeg->jpeg_tbl_virt[base + 19] = 0x090B0908;
+	ast_jpeg->jpeg_tbl_virt[base + 20] = 0x080A0808;
+	ast_jpeg->jpeg_tbl_virt[base + 21] = 0x0D0A0706;
+	ast_jpeg->jpeg_tbl_virt[base + 22] = 0x0C0B0A0A;
+	ast_jpeg->jpeg_tbl_virt[base + 23] = 0x070C0D0C;
+//1212120C_0A0C1208_04040804_03040303_03014300_DBFF0C0C_0C0B0F0C_0E0F0E09);
+	ast_jpeg->jpeg_tbl_virt[base + 24] = 0x0E0F0E09;	
+	ast_jpeg->jpeg_tbl_virt[base + 25] = 0x0C0B0F0C;
+	ast_jpeg->jpeg_tbl_virt[base + 26] = 0xDBFF0C0C;
+	ast_jpeg->jpeg_tbl_virt[base + 27] = 0x03014300;
+	ast_jpeg->jpeg_tbl_virt[base + 28] = 0x03040303;
+	ast_jpeg->jpeg_tbl_virt[base + 29] = 0x04040804;
+	ast_jpeg->jpeg_tbl_virt[base + 30] = 0x0A0C1208;
+	ast_jpeg->jpeg_tbl_virt[base + 31] = 0x1212120C;
+//12121212_12121212_12121212_12121212_12121212_12121212_12121212_12121212);	
+	ast_jpeg->jpeg_tbl_virt[base + 32] = 0x12121212;
+	ast_jpeg->jpeg_tbl_virt[base + 33] = 0x12121212;
+	ast_jpeg->jpeg_tbl_virt[base + 34] = 0x12121212;
+	ast_jpeg->jpeg_tbl_virt[base + 35] = 0x12121212;
+	ast_jpeg->jpeg_tbl_virt[base + 36] = 0x12121212;
+	ast_jpeg->jpeg_tbl_virt[base + 37] = 0x12121212;
+	ast_jpeg->jpeg_tbl_virt[base + 38] = 0x12121212;
+	ast_jpeg->jpeg_tbl_virt[base + 39] = 0x12121212;
+//03011102_00220103_00000000_081100C0_FF121212_12121212_12121212_12121212); //for YUV420 mode
+	ast_jpeg->jpeg_tbl_virt[base + 40] = 0x12121212;
+	ast_jpeg->jpeg_tbl_virt[base + 41] = 0x12121212;
+	ast_jpeg->jpeg_tbl_virt[base + 42] = 0x12121212;
+	ast_jpeg->jpeg_tbl_virt[base + 43] = 0xFF121212;
 	ast_jpeg->jpeg_tbl_virt[base + 44] = 0x081100C0;
 	ast_jpeg->jpeg_tbl_virt[base + 45] = 0x00000000;
+	ast_jpeg->jpeg_tbl_virt[base + 46] = 0x00220103; //for YUV420 mode	
 	ast_jpeg->jpeg_tbl_virt[base + 47] = 0x03011102;
+//08070605_04030201_00000000_00000000_01010101_01010501_00001F00_C4FF0111);	
 	ast_jpeg->jpeg_tbl_virt[base + 48] = 0xC4FF0111;
 	ast_jpeg->jpeg_tbl_virt[base + 49] = 0x00001F00;
 	ast_jpeg->jpeg_tbl_virt[base + 50] = 0x01010501;
@@ -233,6 +281,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 53] = 0x00000000;
 	ast_jpeg->jpeg_tbl_virt[base + 54] = 0x04030201;
 	ast_jpeg->jpeg_tbl_virt[base + 55] = 0x08070605;
+//12051104_00030201_7D010000_04040505_03040203_03010200_10B500C4_FF0B0A09);	
 	ast_jpeg->jpeg_tbl_virt[base + 56] = 0xFF0B0A09;
 	ast_jpeg->jpeg_tbl_virt[base + 57] = 0x10B500C4;
 	ast_jpeg->jpeg_tbl_virt[base + 58] = 0x03010200;
@@ -241,6 +290,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 61] = 0x7D010000;
 	ast_jpeg->jpeg_tbl_virt[base + 62] = 0x00030201;
 	ast_jpeg->jpeg_tbl_virt[base + 63] = 0x12051104;
+//160A0982_72623324_F0D15215_C1B14223_08A19181_32147122_07615113_06413121);
 	ast_jpeg->jpeg_tbl_virt[base + 64] = 0x06413121;
 	ast_jpeg->jpeg_tbl_virt[base + 65] = 0x07615113;
 	ast_jpeg->jpeg_tbl_virt[base + 66] = 0x32147122;
@@ -249,6 +299,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 69] = 0xF0D15215;
 	ast_jpeg->jpeg_tbl_virt[base + 70] = 0x72623324;
 	ast_jpeg->jpeg_tbl_virt[base + 71] = 0x160A0982;
+//59585756_5554534A_49484746_4544433A_39383736_35342A29_28272625_1A191817);	
 	ast_jpeg->jpeg_tbl_virt[base + 72] = 0x1A191817;
 	ast_jpeg->jpeg_tbl_virt[base + 73] = 0x28272625;
 	ast_jpeg->jpeg_tbl_virt[base + 74] = 0x35342A29;
@@ -257,6 +308,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 77] = 0x49484746;
 	ast_jpeg->jpeg_tbl_virt[base + 78] = 0x5554534A;
 	ast_jpeg->jpeg_tbl_virt[base + 79] = 0x59585756;
+//780000+10*32, 256'h98979695_9493928A_89888786_8584837A_79787776_7574736A_69686766_6564635A);
 	ast_jpeg->jpeg_tbl_virt[base + 80] = 0x6564635A;
 	ast_jpeg->jpeg_tbl_virt[base + 81] = 0x69686766;
 	ast_jpeg->jpeg_tbl_virt[base + 82] = 0x7574736A;
@@ -265,6 +317,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 85] = 0x89888786;
 	ast_jpeg->jpeg_tbl_virt[base + 86] = 0x9493928A;
 	ast_jpeg->jpeg_tbl_virt[base + 87] = 0x98979695;
+//D4D3D2CA_C9C8C7C6_C5C4C3C2_BAB9B8B7_B6B5B4B3_B2AAA9A8_A7A6A5A4_A3A29A99);	
 	ast_jpeg->jpeg_tbl_virt[base + 88] = 0xA3A29A99;
 	ast_jpeg->jpeg_tbl_virt[base + 89] = 0xA7A6A5A4;
 	ast_jpeg->jpeg_tbl_virt[base + 90] = 0xB2AAA9A8;
@@ -273,6 +326,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 93] = 0xC5C4C3C2;
 	ast_jpeg->jpeg_tbl_virt[base + 94] = 0xC9C8C7C6;
 	ast_jpeg->jpeg_tbl_virt[base + 95] = 0xD4D3D2CA;
+//00011F00_C4FFFAF9_F8F7F6F5_F4F3F2F1_EAE9E8E7_E6E5E4E3_E2E1DAD9_D8D7D6D5);
 	ast_jpeg->jpeg_tbl_virt[base + 96] = 0xD8D7D6D5;
 	ast_jpeg->jpeg_tbl_virt[base + 97] = 0xE2E1DAD9;
 	ast_jpeg->jpeg_tbl_virt[base + 98] = 0xE6E5E4E3;
@@ -281,6 +335,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 101] = 0xF8F7F6F5;
 	ast_jpeg->jpeg_tbl_virt[base + 102] = 0xC4FFFAF9;
 	ast_jpeg->jpeg_tbl_virt[base + 103] = 0x00011F00;
+//11B500C4_FF0B0A09_08070605_04030201_00000000_00000101_01010101_01010103);
 	ast_jpeg->jpeg_tbl_virt[base + 104] = 0x01010103;
 	ast_jpeg->jpeg_tbl_virt[base + 105] = 0x01010101;
 	ast_jpeg->jpeg_tbl_virt[base + 106] = 0x00000101;
@@ -289,6 +344,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 109] = 0x08070605;
 	ast_jpeg->jpeg_tbl_virt[base + 110] = 0xFF0B0A09;
 	ast_jpeg->jpeg_tbl_virt[base + 111] = 0x11B500C4;
+//71610751_41120631_21050411_03020100_77020100_04040507_04030404_02010200);
 	ast_jpeg->jpeg_tbl_virt[base + 112] = 0x02010200;
 	ast_jpeg->jpeg_tbl_virt[base + 113] = 0x04030404;
 	ast_jpeg->jpeg_tbl_virt[base + 114] = 0x04040507;
@@ -297,6 +353,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 117] = 0x21050411;
 	ast_jpeg->jpeg_tbl_virt[base + 118] = 0x41120631;
 	ast_jpeg->jpeg_tbl_virt[base + 119] = 0x71610751;
+//261A1918_17F125E1_3424160A_D1726215_F0523323_09C1B1A1_91421408_81322213);	
 	ast_jpeg->jpeg_tbl_virt[base + 120] = 0x81322213;
 	ast_jpeg->jpeg_tbl_virt[base + 121] = 0x91421408;
 	ast_jpeg->jpeg_tbl_virt[base + 122] = 0x09C1B1A1;
@@ -305,6 +362,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 125] = 0x3424160A;
 	ast_jpeg->jpeg_tbl_virt[base + 126] = 0x17F125E1;
 	ast_jpeg->jpeg_tbl_virt[base + 127] = 0x261A1918;
+//68676665_64635A59_58575655_54534A49_48474645_44433A39_38373635_2A292827);
 	ast_jpeg->jpeg_tbl_virt[base + 128] = 0x2A292827;
 	ast_jpeg->jpeg_tbl_virt[base + 129] = 0x38373635;
 	ast_jpeg->jpeg_tbl_virt[base + 130] = 0x44433A39;
@@ -313,6 +371,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 133] = 0x58575655;
 	ast_jpeg->jpeg_tbl_virt[base + 134] = 0x64635A59;
 	ast_jpeg->jpeg_tbl_virt[base + 135] = 0x68676665;
+//A5A4A3A2_9A999897_96959493_928A8988_87868584_83827A79_78777675_74736A69);
 	ast_jpeg->jpeg_tbl_virt[base + 136] = 0x74736A69;
 	ast_jpeg->jpeg_tbl_virt[base + 137] = 0x78777675;
 	ast_jpeg->jpeg_tbl_virt[base + 138] = 0x83827A79;
@@ -321,6 +380,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 141] = 0x96959493;
 	ast_jpeg->jpeg_tbl_virt[base + 142] = 0x9A999897;
 	ast_jpeg->jpeg_tbl_virt[base + 143] = 0xA5A4A3A2;
+//DAD9D8D7_D6D5D4D3_D2CAC9C8_C7C6C5C4_C3C2BAB9_B8B7B6B5_B4B3B2AA_A9A8A7A6);
 	ast_jpeg->jpeg_tbl_virt[base + 144] = 0xA9A8A7A6;
 	ast_jpeg->jpeg_tbl_virt[base + 145] = 0xB4B3B2AA;
 	ast_jpeg->jpeg_tbl_virt[base + 146] = 0xB8B7B6B5;
@@ -329,6 +389,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 149] = 0xD2CAC9C8;
 	ast_jpeg->jpeg_tbl_virt[base + 150] = 0xD6D5D4D3;
 	ast_jpeg->jpeg_tbl_virt[base + 151] = 0xDAD9D8D7;
+//003F0011_03110200_01030C00_DAFFFAF9_F8F7F6F5_F4F3F2EA_E9E8E7E6_E5E4E3E2);
 	ast_jpeg->jpeg_tbl_virt[base + 152] = 0xE5E4E3E2;
 	ast_jpeg->jpeg_tbl_virt[base + 153] = 0xE9E8E7E6;
 	ast_jpeg->jpeg_tbl_virt[base + 154] = 0xF4F3F2EA;
@@ -338,46 +399,12 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 158] = 0x03110200;
 	ast_jpeg->jpeg_tbl_virt[base + 159] = 0x003F0011;
 
-	ast_jpeg->jpeg_tbl_virt[base + 10] = 0x01020043;
-	ast_jpeg->jpeg_tbl_virt[base + 11] = 0x01010101;
-	ast_jpeg->jpeg_tbl_virt[base + 12] = 0x01010102;
-	ast_jpeg->jpeg_tbl_virt[base + 13] = 0x02020202;
-	ast_jpeg->jpeg_tbl_virt[base + 14] = 0x03030503;
-	ast_jpeg->jpeg_tbl_virt[base + 15] = 0x06030202;
-	ast_jpeg->jpeg_tbl_virt[base + 16] = 0x05030404;
-	ast_jpeg->jpeg_tbl_virt[base + 17] = 0x07070607;
-	ast_jpeg->jpeg_tbl_virt[base + 18] = 0x06070607;
-	ast_jpeg->jpeg_tbl_virt[base + 19] = 0x090B0908;
-	ast_jpeg->jpeg_tbl_virt[base + 20] = 0x080A0808;
-	ast_jpeg->jpeg_tbl_virt[base + 21] = 0x0D0A0706;
-	ast_jpeg->jpeg_tbl_virt[base + 22] = 0x0C0B0A0A;
-	ast_jpeg->jpeg_tbl_virt[base + 23] = 0x070C0D0C;
-	ast_jpeg->jpeg_tbl_virt[base + 24] = 0x0E0F0E09;
-	ast_jpeg->jpeg_tbl_virt[base + 25] = 0x0C0B0F0C;
-	ast_jpeg->jpeg_tbl_virt[base + 26] = 0xDBFF0C0C;
-	ast_jpeg->jpeg_tbl_virt[base + 27] = 0x03014300;
-	ast_jpeg->jpeg_tbl_virt[base + 28] = 0x03040303;
-	ast_jpeg->jpeg_tbl_virt[base + 29] = 0x04040804;
-	ast_jpeg->jpeg_tbl_virt[base + 30] = 0x0A0C1208;
-	ast_jpeg->jpeg_tbl_virt[base + 31] = 0x1212120C;
-	ast_jpeg->jpeg_tbl_virt[base + 32] = 0x12121212;
-	ast_jpeg->jpeg_tbl_virt[base + 33] = 0x12121212;
-	ast_jpeg->jpeg_tbl_virt[base + 34] = 0x12121212;
-	ast_jpeg->jpeg_tbl_virt[base + 35] = 0x12121212;
-	ast_jpeg->jpeg_tbl_virt[base + 36] = 0x12121212;
-	ast_jpeg->jpeg_tbl_virt[base + 37] = 0x12121212;
-	ast_jpeg->jpeg_tbl_virt[base + 38] = 0x12121212;
-	ast_jpeg->jpeg_tbl_virt[base + 39] = 0x12121212;
-	ast_jpeg->jpeg_tbl_virt[base + 40] = 0x12121212;
-	ast_jpeg->jpeg_tbl_virt[base + 41] = 0x12121212;
-	ast_jpeg->jpeg_tbl_virt[base + 42] = 0x12121212;
-	ast_jpeg->jpeg_tbl_virt[base + 43] = 0xFF121212;
-
+#if 0
 	for(i = 0; i<12; i++) {
 		base = (1024*i);
 		ast_jpeg->jpeg_tbl_virt[base + 46] = 0x00220103; //for YUV420 mode
 	}
-	
+#endif	
 }
 
 static irqreturn_t ast_jpeg_isr(int this_irq, void *dev_id)
@@ -421,20 +448,29 @@ static void ast_jpeg_config(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_mode
 		ast_jpeg_write(ast_jpeg, jpeg_mode->x, AST_JPEG_SOURCE_SCAN_LINE);
 		ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_MODE_MASK) | 
 						JPEG_NV12_COMPRESS, AST_JPEG_SEQ_CTRL);	
-		ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff0_phy + (jpeg_mode->x * jpeg_mode->y), AST_JPEG_SOURCE_BUFF1);	
 	} else {
 		ast_jpeg_write(ast_jpeg, jpeg_mode->x * 2, AST_JPEG_SOURCE_SCAN_LINE);	
 		ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_MODE_MASK) | 
 						JPEG_YUY2_COMPRESS, AST_JPEG_SEQ_CTRL);
 	}	
+
+	ast_jpeg->x = jpeg_mode->x;
+	ast_jpeg->y = jpeg_mode->y;
+	ast_jpeg->format = jpeg_mode->format;
 }
 
-static u32 ast_jpeg_compression(struct ast_jpeg_data *ast_jpeg, unsigned long *jpeg_size)
+static u32 ast_jpeg_trigger(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_trigger* jpeg_trigger)
 {
 	int timeout = 0;	
 
 	JPEG_DBG("\n");
 
+	ast_jpeg_write(ast_jpeg, (u32)jpeg_trigger->dest, AST_JPEG_STREAM_BUFF);
+	ast_jpeg_write(ast_jpeg, (u32)jpeg_trigger->src, AST_JPEG_SOURCE_BUFF0);
+	if(ast_jpeg->format) {
+		ast_jpeg_write(ast_jpeg, (u32)jpeg_trigger->src + (ast_jpeg->x * ast_jpeg->y), AST_JPEG_SOURCE_BUFF1);
+	} 
+	
 	init_completion(&ast_jpeg->jpeg_complete);
 
 	ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_TRIGGER, AST_JPEG_SEQ_CTRL);
@@ -444,12 +480,12 @@ static u32 ast_jpeg_compression(struct ast_jpeg_data *ast_jpeg, unsigned long *j
 	timeout = wait_for_completion_interruptible_timeout(&ast_jpeg->jpeg_complete, HZ/2);
 	
 	if (timeout == 0) { 
-//		printk("compression timeout sts %x \n", ast_jpeg_read(ast_jpeg, AST_JPEG_ISR));
-		*jpeg_size = ast_jpeg_read(ast_jpeg, AST_JPEG_STREAM_SIZE);
+		printk("compression timeout sts %x \n", ast_jpeg_read(ast_jpeg, AST_JPEG_ISR));
+		jpeg_trigger->jpeg_size = 0;
 //		printk("size %d \n", *jpeg_size);
 		return 0;
 	} else {
-		*jpeg_size = ast_jpeg_read(ast_jpeg, AST_JPEG_STREAM_SIZE);
+		jpeg_trigger->jpeg_size = ast_jpeg_read(ast_jpeg, AST_JPEG_STREAM_SIZE);
 //		JPEG_DBG("compress size %d \n",*jpeg_size);
 		return 1;
 	}	
@@ -462,31 +498,27 @@ static long ast_jpeg_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	struct ast_jpeg_data *ast_jpeg = dev_get_drvdata(c->this_device);
 	
 	struct ast_jpeg_mode mode;	
-	unsigned long jpeg_size = 0;
+	struct ast_jpeg_trigger jpeg_trigger;	
 	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
 		case AST_JPEG_SET_CONFIG:
 			ret = copy_from_user(&mode, argp, sizeof(struct ast_jpeg_mode));
 			ast_jpeg_config(ast_jpeg, &mode);
-			ret = copy_to_user(argp, &mode, sizeof(struct ast_jpeg_mode));			
+			ret = copy_to_user(argp, &mode, sizeof(struct ast_jpeg_mode));
 			break;
-		case AST_JPEG_GET_MEM_SIZE_IOCRX:
-			ret = __put_user(ast_jpeg->jpeg_mem_size, (unsigned long __user *)arg);			
-			break;
-		case AST_JPEG_GET_BUFFER0_OFFSET_IOCRX:
-			ret = __put_user(ast_jpeg->raw_buff0_offset, (unsigned long __user *)arg);
-			break;
-		case AST_JPEG_GET_BUFFER1_OFFSET_IOCRX:
-			ret = __put_user(ast_jpeg->raw_buff1_offset, (unsigned long __user *)arg);
+		case AST_JPEG_GET_CONFIG:
+			mode.x = ast_jpeg->x;
+			mode.y = ast_jpeg->y;
+			mode.format = ast_jpeg->format;
+			ret = copy_to_user(argp, &mode, sizeof(struct ast_jpeg_mode));
 			break;
 		case AST_JPEG_TRIGGER:
-			ast_jpeg_compression(ast_jpeg, &jpeg_size);
-//			 if(ast_jpeg_compression(ast_jpeg, &jpeg_size))
-			 	ret = __put_user(jpeg_size, (unsigned long __user *)arg);
-//			 else
-//			 	ret = 3;
+			ret = copy_from_user(&jpeg_trigger, argp, sizeof(struct ast_jpeg_trigger));
+			ast_jpeg_trigger(ast_jpeg, &jpeg_trigger);
+			ret = copy_to_user(argp, &jpeg_trigger, sizeof(struct ast_jpeg_trigger));
 			break;
+
 		default:
 			ret = 3;
 			break;
