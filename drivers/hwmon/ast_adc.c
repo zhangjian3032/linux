@@ -31,23 +31,11 @@
 #include <linux/sysfs.h>
 #include <linux/err.h>
 #include <linux/slab.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/reset.h>
+#include <linux/of.h>
 #include <mach/ast-scu.h>
-#include <mach/aspeed.h>
 /****************************************************************************************/
-#if defined(AST_SOC_G3)
-#define MAX_CH_NO		12
-#elif defined(AST_SOC_G4) || defined(AST_SOC_G5) 
-#define MAX_CH_NO		16
-#else
-#err "ADC NO define MAX CHANNEL NO"
-#endif
-
-#if defined(AST_SOC_G5) 
-#define TEMPER_CH_NO	2
-#endif
-
 /*AST ADC Register Definition */
 #define AST_ADC_CTRL			0x00
 #define AST_ADC_IER				0x04
@@ -94,11 +82,9 @@
 #define AST_ADC_HYSTER14		0xa8
 #define AST_ADC_HYSTER15		0xac
 #define AST_ADC_INTR_SEL		0xC0
-#if defined(AST_SOC_G5)
 #define AST_ADC_CH16			0xD0
 #define AST_ADC_CH17			0xD4
 #define AST_ADC_COMP_TRIM		0xC4
-#endif
 
 // AST_ADC_CTRL:0x00 - ADC Engine Control Register 
 #define AST_ADC_CTRL_CH15_EN		(0x1 << 31)
@@ -118,17 +104,14 @@
 #define AST_ADC_CTRL_CH1_EN			(0x1 << 17)
 #define AST_ADC_CTRL_CH0_EN			(0x1 << 16)
 
-#if defined(AST_SOC_G3)
+//AST_G3
 #define AST_ADC_CTRL_COMPEN_CLR		(0x1 << 6)
-#define AST_ADC_CTRL_COMPEN			(0x1 << 5)
-#elif defined(AST_SOC_G4)
-#define AST_ADC_CTRL_COMPEN			(0x1 << 4)
-#elif defined(AST_SOC_G5)
+#define AST_G3_ADC_CTRL_COMPEN			(0x1 << 5)
+//AST_G4
+#define AST_G4_ADC_CTRL_COMPEN			(0x1 << 4)
+//ASG_G5
 #define AST_ADC_CTRL_INIT_RDY		(0x1 << 8)
-#define AST_ADC_CTRL_COMPEN			(0x1 << 5)
-#else
-#err "ERROR define COMPEN ADC"
-#endif
+#define AST_G5_ADC_CTRL_COMPEN			(0x1 << 5)
 
 #define AST_ADC_CTRL_NORMAL			(0x7 << 1)
 
@@ -187,14 +170,13 @@
 
 #define AST_ADC_HYSTER_EN			(0x1 << 31)
 
-#if defined(AST_SOC_G5)
+//only support in ast2500
 /* AST_ADC_CH16	 : 0xD0 - */
 /* AST_ADC_CH17	 : 0xD4 - */
 #define AST_TEMP_CH_RDY				(0x1 << 31)
 #define AST_GET_TEMP_A_MASK(x)		((x >>16) & 0xfff)
 #define AST_TEMP_CH_EN				(0x1 << 15)		
 #define AST_GET_TEMP_B_MASK(x)		(x & 0xfff)
-#endif
 
 /******************************************************************************************/
 
@@ -204,7 +186,7 @@ struct adc_ch_vcc_data {
 	int r2;	
 };
 
-static struct adc_ch_vcc_data vcc_ref[MAX_CH_NO] = {
+static struct adc_ch_vcc_data vcc_ref[16] = {
 	[0] = {
 		.v2 = 0,
 		.r1 = 5600,
@@ -232,14 +214,21 @@ static struct adc_ch_vcc_data vcc_ref[MAX_CH_NO] = {
 	},
 };
 
+struct ast_adc_config {
+	u8		adc_version;	
+	u8		adc_ch_num;
+	u8		tmper_ch_num;
+};
+
 struct ast_adc_data {
 	struct device			*dev;
 	void __iomem			*reg_base;			/* virtual */
-	int 	irq;				//ADC IRQ number 
+	int 	irq;			//ADC IRQ number 
+	struct ast_adc_config	*config;
 	int	compen_value;		//Compensating value
 	struct reset_control *reset;	
 	struct clk 			*clk;
-	u32					pclk;		
+	u32					pclk;
 };
 
 static inline void
@@ -257,56 +246,15 @@ ast_adc_read(struct ast_adc_data *ast_adc, u32 reg)
 	return val;
 }
 
-static void ast_adc_ctrl_init(struct ast_adc_data *ast_adc)
+static void ast_g5_adc_ctrl_init(struct ast_adc_data *ast_adc)
 {
-#ifdef AST_SOC_G5
 	u8 trim;
-#endif
+
 	//Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[31:17] + 1) * (ADC0c[9:0] +1)
 	//ex : pclk = 48Mhz , ADC0c[31:17] = 0,  ADC0c[9:0] = 0x40 : 64,  ADC0c[31:17] = 0x3e7 : 999 
 	// --> 0.0325s	= 12 * 2 * (0x3e7 + 1) *(64+1) / 48000000
 	// --> 0.0005s	= 12 * 2 * (0x3e7 + 1) / 48000000	
 	
-#if defined(AST_SOC_G3)
-	ast_adc_write(ast_adc, 0x3e7, AST_ADC_CLK); 
-
-	ast_adc_write(ast_adc, AST_ADC_CTRL_CH12_EN | AST_ADC_CTRL_COMPEN_CLR | 
-							AST_ADC_CTRL_COMPEN | AST_ADC_CTRL_NORMAL | 
-							AST_ADC_CTRL_EN, AST_ADC_CTRL);
-
-	mdelay(50);
-
-	//compensating value = 0x200 - ADC10[9:0]
-	if(ast_adc_read(ast_adc, AST_ADC_CH12_13) & (0x1 << 8))
-		ast_adc->compen_value = 0x200 - (ast_adc_read(ast_adc, AST_ADC_CH12_13) & AST_ADC_L_CH_MASK);
-	else
-		ast_adc->compen_value = 0 - (ast_adc_read(ast_adc, AST_ADC_CH12_13) & AST_ADC_L_CH_MASK);
-
-	dev_dbg(ast_adc->dev, "compensating value %d \n",ast_adc->compen_value);
-
-	ast_adc_write(ast_adc, ~AST_ADC_CTRL_COMPEN & ast_adc_read(ast_adc, AST_ADC_CTRL), AST_ADC_CTRL);
-#elif defined(AST_SOC_G4)
-
-	//For AST2400 A0 workaround  ... ADC0c = 1 ;
-//	ast_adc_write(ast_adc, 1, AST_ADC_CLK);
-//	ast_adc_write(ast_adc, (0x3e7<< 17) | 0x40, AST_ADC_CLK);
-	ast_adc_write(ast_adc, 0x40, AST_ADC_CLK);
-
-	ast_adc_write(ast_adc, AST_ADC_CTRL_CH0_EN | AST_ADC_CTRL_COMPEN | 
-							AST_ADC_CTRL_NORMAL | AST_ADC_CTRL_EN, 
-							AST_ADC_CTRL);
-
-	ast_adc_read(ast_adc, AST_ADC_CTRL);
-
-	mdelay(1);
-
-	//compensating value = 0x200 - ADC10[9:0]
-	ast_adc->compen_value = 0x200 - (ast_adc_read(ast_adc, AST_ADC_CH0_1) & AST_ADC_L_CH_MASK);
-	dev_dbg(ast_adc->dev, "compensating value %d \n",ast_adc->compen_value);
-
-	ast_adc_write(ast_adc, ~AST_ADC_CTRL_COMPEN & ast_adc_read(ast_adc, AST_ADC_CTRL), AST_ADC_CTRL);
-
-#elif defined(AST_SOC_G5)
 //	TODO ... 
 //	scu read trim 
 //	write trim 0xC4 [3:0]
@@ -323,19 +271,67 @@ static void ast_adc_ctrl_init(struct ast_adc_data *ast_adc)
 
 	while(!(ast_adc_read(ast_adc, AST_ADC_CTRL) & AST_ADC_CTRL_INIT_RDY));
 
-	ast_adc_write(ast_adc, AST_ADC_CTRL_COMPEN  | AST_ADC_CTRL_NORMAL | 
+	ast_adc_write(ast_adc, AST_G5_ADC_CTRL_COMPEN  | AST_ADC_CTRL_NORMAL | 
 							AST_ADC_CTRL_EN, AST_ADC_CTRL);
 
-	while(ast_adc_read(ast_adc, AST_ADC_CTRL) & AST_ADC_CTRL_COMPEN);
+	while(ast_adc_read(ast_adc, AST_ADC_CTRL) & AST_G5_ADC_CTRL_COMPEN);
 	
 	//compensating value = 0x200 - ADC10[9:0]
 	ast_adc->compen_value = 0x200 - ((ast_adc_read(ast_adc, AST_ADC_COMP_TRIM) >> 16) & 0x3ff);
 	dev_dbg(ast_adc->dev, "compensating value %d \n",ast_adc->compen_value);
+		
+}
+
+static void ast_g4_adc_ctrl_init(struct ast_adc_data *ast_adc)
+{
+	//Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[31:17] + 1) * (ADC0c[9:0] +1)
+	//ex : pclk = 48Mhz , ADC0c[31:17] = 0,  ADC0c[9:0] = 0x40 : 64,  ADC0c[31:17] = 0x3e7 : 999 
+	// --> 0.0325s	= 12 * 2 * (0x3e7 + 1) *(64+1) / 48000000
+	// --> 0.0005s	= 12 * 2 * (0x3e7 + 1) / 48000000	
+	//For AST2400 A0 workaround  ... ADC0c = 1 ;
+//	ast_adc_write(ast_adc, 1, AST_ADC_CLK);
+//	ast_adc_write(ast_adc, (0x3e7<< 17) | 0x40, AST_ADC_CLK);
+	ast_adc_write(ast_adc, 0x40, AST_ADC_CLK);
+
+	ast_adc_write(ast_adc, AST_ADC_CTRL_CH0_EN | AST_G4_ADC_CTRL_COMPEN | 
+							AST_ADC_CTRL_NORMAL | AST_ADC_CTRL_EN, 
+							AST_ADC_CTRL);
+
+	ast_adc_read(ast_adc, AST_ADC_CTRL);
+
+	mdelay(1);
+
+	//compensating value = 0x200 - ADC10[9:0]
+	ast_adc->compen_value = 0x200 - (ast_adc_read(ast_adc, AST_ADC_CH0_1) & AST_ADC_L_CH_MASK);
+	dev_dbg(ast_adc->dev, "compensating value %d \n",ast_adc->compen_value);
+
+	ast_adc_write(ast_adc, ~AST_G4_ADC_CTRL_COMPEN & ast_adc_read(ast_adc, AST_ADC_CTRL), AST_ADC_CTRL);	
+}
+
+static void ast_g3_adc_ctrl_init(struct ast_adc_data *ast_adc)
+{
+	//Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[31:17] + 1) * (ADC0c[9:0] +1)
+	//ex : pclk = 48Mhz , ADC0c[31:17] = 0,  ADC0c[9:0] = 0x40 : 64,  ADC0c[31:17] = 0x3e7 : 999 
+	// --> 0.0325s	= 12 * 2 * (0x3e7 + 1) *(64+1) / 48000000
+	// --> 0.0005s	= 12 * 2 * (0x3e7 + 1) / 48000000	
 	
-#else
-#err "No define for ADC "
-#endif
-	
+	ast_adc_write(ast_adc, 0x3e7, AST_ADC_CLK); 
+
+	ast_adc_write(ast_adc, AST_ADC_CTRL_CH12_EN | AST_ADC_CTRL_COMPEN_CLR | 
+							AST_G3_ADC_CTRL_COMPEN | AST_ADC_CTRL_NORMAL | 
+							AST_ADC_CTRL_EN, AST_ADC_CTRL);
+
+	mdelay(50);
+
+	//compensating value = 0x200 - ADC10[9:0]
+	if(ast_adc_read(ast_adc, AST_ADC_CH12_13) & (0x1 << 8))
+		ast_adc->compen_value = 0x200 - (ast_adc_read(ast_adc, AST_ADC_CH12_13) & AST_ADC_L_CH_MASK);
+	else
+		ast_adc->compen_value = 0 - (ast_adc_read(ast_adc, AST_ADC_CH12_13) & AST_ADC_L_CH_MASK);
+
+	dev_dbg(ast_adc->dev, "compensating value %d \n",ast_adc->compen_value);
+
+	ast_adc_write(ast_adc, ~AST_G3_ADC_CTRL_COMPEN & ast_adc_read(ast_adc, AST_ADC_CTRL), AST_ADC_CTRL);	
 }
 
 static u16
@@ -685,7 +681,6 @@ ast_store_adc(struct device *dev, struct device_attribute *attr, const char *sys
 	return count;
 }
 
-#if defined(AST_SOC_G5)
 static u16
 ast_get_temper_value(struct ast_adc_data *ast_adc, u8 temper_ch)
 {
@@ -756,8 +751,6 @@ static const struct attribute_group temper_attribute_groups[] = {
 	{ .attrs = temper0_attributes },
 	{ .attrs = temper1_attributes },
 };
-#endif
-
 
 /* attr ADC sysfs 0~max adc channel 
 *	 0 - show/store channel enable
@@ -839,13 +832,10 @@ sysfs_adc_ch(8);
 sysfs_adc_ch(9);
 sysfs_adc_ch(10);
 sysfs_adc_ch(11);
-#if defined(AST_SOC_G4) || defined(AST_SOC_G5)
 sysfs_adc_ch(12);
 sysfs_adc_ch(13);
 sysfs_adc_ch(14);
 sysfs_adc_ch(15);
-#endif
-
 
 static const struct attribute_group adc_attribute_groups[] = {
 	{ .attrs = adc0_attributes },
@@ -860,12 +850,10 @@ static const struct attribute_group adc_attribute_groups[] = {
 	{ .attrs = adc9_attributes },
 	{ .attrs = adc10_attributes },	
 	{ .attrs = adc11_attributes },
-#if defined(AST_SOC_G4) || defined(AST_SOC_G5)
 	{ .attrs = adc12_attributes },
 	{ .attrs = adc13_attributes },
 	{ .attrs = adc14_attributes },
 	{ .attrs = adc15_attributes },
-#endif	
 };
 
 
@@ -898,11 +886,37 @@ static const struct attribute_group ast_adc_attribute = {
 	.attrs = ast_adc_attributes,
 };
 
+static const struct ast_adc_config ast_g3_config = { 
+	.adc_version = 3, 
+	.adc_ch_num = 12, 
+	.tmper_ch_num = 0, 
+};
+
+static const struct ast_adc_config ast_g4_config = { 
+	.adc_version = 4, 
+	.adc_ch_num =16, 
+	.tmper_ch_num = 0, 
+};
+
+static const struct ast_adc_config ast_g5_config = { 
+	.adc_version = 5, 
+	.adc_ch_num =16, 
+	.tmper_ch_num = 2, 
+};
+
+static const struct of_device_id ast_adc_matches[] = {
+	{ .compatible = "aspeed,ast-g3-adc",	.data = &ast_g3_config, },
+	{ .compatible = "aspeed,ast-g4-adc",	.data = &ast_g4_config, },
+	{ .compatible = "aspeed,ast-g5-adc",	.data = &ast_g5_config, },	
+	{},
+};
+
 static int 
 ast_adc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct ast_adc_data *ast_adc;
+	const struct of_device_id *adc_dev_id;	
 	int err;
 	int ret=0;
 	int i;
@@ -952,6 +966,12 @@ ast_adc_probe(struct platform_device *pdev)
 	}
 	ast_adc->pclk = clk_get_rate(ast_adc->clk);
 
+	adc_dev_id = of_match_node(ast_adc_matches, pdev->dev.of_node);
+	if (!adc_dev_id)
+		return -EINVAL;
+
+	ast_adc->config = (struct ast_adc_config *) ast_adc_matches->data;
+
 	/* Register sysfs hooks */
 	ast_adc->dev = hwmon_device_register(&pdev->dev);
 	if (IS_ERR(ast_adc->dev)) {
@@ -961,25 +981,34 @@ ast_adc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ast_adc);
 
-	for(i=0; i<MAX_CH_NO; i++) {
+	for(i=0; i<ast_adc->config->adc_ch_num; i++) {
 		err = sysfs_create_group(&pdev->dev.kobj, &adc_attribute_groups[i]);
 		if (err)
 			goto out_region;
 	}
 
-#if defined(AST_SOC_G5)
-	for(i=0; i<TEMPER_CH_NO; i++) {
-		err = sysfs_create_group(&pdev->dev.kobj, &temper_attribute_groups[i]);
-		if (err)
-			goto out_region;
+	if(ast_adc->config->tmper_ch_num) {
+		for(i=0; i<ast_adc->config->tmper_ch_num; i++) {
+			err = sysfs_create_group(&pdev->dev.kobj, &temper_attribute_groups[i]);
+			if (err)
+				goto out_region;
+		}
 	}
-#endif
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &ast_adc_attribute);
 	if (ret)
 		goto out_region;
 
-	ast_adc_ctrl_init(ast_adc);
+	if(ast_adc->config->adc_version == 3) {
+		ast_g3_adc_ctrl_init(ast_adc);
+	} else if (ast_adc->config->adc_version == 4) {
+		ast_g4_adc_ctrl_init(ast_adc);
+	} else if(ast_adc->config->adc_version == 5) {
+		ast_g5_adc_ctrl_init(ast_adc);
+	} else {
+		dev_err(&pdev->dev, "adc config error \n");	
+		return -ENODEV;
+	}
 	
 	printk(KERN_INFO "ast_adc: driver successfully loaded.\n");
 
@@ -1007,13 +1036,13 @@ ast_adc_remove(struct platform_device *pdev)
 
 	hwmon_device_unregister(ast_adc->dev);
 
-	for(i=0; i<MAX_CH_NO; i++)
+	for(i=0; i<ast_adc->config->adc_ch_num; i++)
 		sysfs_remove_group(&pdev->dev.kobj, &adc_attribute_groups[i]);
 
-#if defined(AST_SOC_G5)
-	for(i=0; i<TEMPER_CH_NO; i++)
-		sysfs_remove_group(&pdev->dev.kobj, &temper_attribute_groups[i]);
-#endif
+	if(ast_adc->config->tmper_ch_num) {
+		for(i=0; i<ast_adc->config->tmper_ch_num; i++)
+			sysfs_remove_group(&pdev->dev.kobj, &temper_attribute_groups[i]);
+	}
 
 	platform_set_drvdata(pdev, NULL);
 //	free_irq(ast_adc->irq, ast_adc);
@@ -1046,10 +1075,6 @@ ast_adc_resume(struct platform_device *pdev)
 #define ast_adc_resume         NULL
 #endif
 
-static const struct of_device_id ast_adc_matches[] = {
-	{ .compatible = "aspeed,ast-adc", },
-	{},
-};
 MODULE_DEVICE_TABLE(of, ast_adc_matches);
 
 static struct platform_driver ast_adc_driver = {
