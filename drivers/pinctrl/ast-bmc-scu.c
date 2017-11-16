@@ -1205,11 +1205,8 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 		ast_scu_multi_func_usb_port1_mode(0);
 	}
 
-	ast_scu_multi_func_usb_port1_mode(1);
-	ast_scu_multi_func_usb_port2_mode(2);
-	
-	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-uhci")) {
-		BMC_SCUDBG("aspeed,ast-uhci found in SCU \n");
+	if((of_find_compatible_node(NULL, NULL, "aspeed,ast-uhci")) || (of_find_compatible_node(NULL, NULL, "aspeed,ast-ehci"))) {
+		BMC_SCUDBG("aspeed,usb host found in SCU \n");
 		ast_scu_multi_func_usb_port1_mode(1);
 		ast_scu_multi_func_usb_port2_mode(2);
 #ifdef AST_SOC_G4		
