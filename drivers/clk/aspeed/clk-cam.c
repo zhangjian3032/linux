@@ -65,6 +65,7 @@ static unsigned long aspeed_clk_hpll_recalc_rate(struct clk_hw *hw,
 	int ret;
 	u32 div;
 	int p, m, n;
+	CLK_DBUG("aspeed_clk_hpll_recalc_rate\n"); 
 
 	/* SCU24: H-PLL Parameter Register */
 	ret = regmap_read(hpll->map, hpll->div, &div);
@@ -99,7 +100,7 @@ static unsigned long aspeed_clk_ahb_recalc_rate(struct clk_hw *hw,
 	int ret;
 	u32 div;
 	u32 axi_div, ahb_div;
-	
+	CLK_DBUG("aspeed_clk_ahb_recalc_rate\n"); 
 
 	/* Strap register SCU70 */
 	ret = regmap_read(ahb->map, ahb->div, &div);
@@ -129,6 +130,7 @@ static unsigned long aspeed_clk_apb_recalc_rate(struct clk_hw *hw,
 	int ret;
 	u32 div;
 	u32 apb_div;
+	CLK_DBUG("aspeed_clk_apb_recalc_rate\n"); 
 
 	/* Clock selection register SCU08 */
 	ret = regmap_read(apb->map, apb->div, &div);
@@ -161,6 +163,7 @@ static unsigned long aspeed_clk_mpll_recalc_rate(struct clk_hw *hw,
 	int ret;
 	u32 div;
 	int p, m, n;
+	CLK_DBUG("aspeed_clk_mpll_recalc_rate\n"); 
 
 	/* SCU20: M-PLL Parameter Register */
 	ret = regmap_read(mpll->map, mpll->div, &div);
@@ -208,6 +211,7 @@ static unsigned long aspeed_clk_dpll_recalc_rate(struct clk_hw *hw,
 	u32 div;
 	u32 enable;
 	int p, m, n, od;
+	CLK_DBUG("aspeed_clk_dpll_recalc_rate\n"); 
 
 	/* SCU28: D-PLL Parameter Register */
 	ret = regmap_read(dpll->map, dpll->div, &div);
@@ -270,6 +274,7 @@ static unsigned long aspeed_clk_d2pll_recalc_rate(struct clk_hw *hw,
 	u32 div;
 	u32 enable;
 	int p, m, n, od;
+	CLK_DBUG("aspeed_clk_d2pll_recalc_rate\n"); 
 
 	/* SCU1C: D2-PLL Parameter Register */
 	ret = regmap_read(d2pll->map, d2pll->div, &div);
@@ -346,41 +351,6 @@ static int aspeed_clk_d2pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	ast_scu_write(0x580, AST_SCU_D2_PLL_EXTEND);
 #endif	
 	return 0;
-}
-
-#define SCU_GET_LHCLK_DIV(x)		((x >> 20) & 0x7)
-#define SCU_SET_LHCLK_DIV(x)		(x << 20)
-#define SCU_LHCLK_DIV_MASK			(0x7 << 20)
-#define SCU_LHCLK_SOURCE_EN			(0x1 << 19)		//0: ext , 1:internel
-
-static unsigned long aspeed_clk_lhpll_recalc_rate(struct clk_hw *hw,
-						unsigned long clkin_rate)
-{
-	struct aspeed_clk *lhpll = to_aspeed_clk(hw);
-	unsigned long rate;
-	int ret;
-	u32 div;
-	u32 hlpll_div;
-
-	/* SCU1C: D2-PLL Parameter Register */
-	ret = regmap_read(lhpll->map, lhpll->div, &div);
-	
-	if (ret) {
-		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
-	}
-
-	if(SCU_LHCLK_SOURCE_EN & div) {
-		hlpll_div = SCU_GET_LHCLK_DIV(div);
-		hlpll_div = (hlpll_div+1) << 2;
-		rate = (clkin_rate/hlpll_div);
-	} else { 
-		printk("TODO come from external source lhpll\n");
-		// come from external source
-		rate = 0; 
-	}
-		
-	return rate;
 }
 
 #define SCU_CLK_SD_DIV(x)			(x << 12)
@@ -744,9 +714,6 @@ static const struct clk_ops aspeed_clk_d2pll_ops = {
 	.round_rate = aspeed_clk_d2pll_round_rate,
 	.set_rate = aspeed_clk_d2pll_set_rate,
 };
-static const struct clk_ops aspeed_clk_lhpll_ops = {
-	.recalc_rate = aspeed_clk_lhpll_recalc_rate,
-};
 static const struct clk_ops aspeed_sdclk_ops = {
 	.recalc_rate = aspeed_sdclk_recalc_rate,
 	.prepare = aspeed_sdclk_prepare,
@@ -814,11 +781,6 @@ static void __init aspeed_clk_d2pll_init(struct device_node *node)
 	aspeed_clk_common_init(node, &aspeed_clk_d2pll_ops);
 }
 CLK_OF_DECLARE(aspeed_d2pll_clk, "aspeed,cam-d2pll-clock", aspeed_clk_d2pll_init);
-static void __init aspeed_clk_lhpll_init(struct device_node *node)
-{
-	aspeed_clk_common_init(node, &aspeed_clk_lhpll_ops);
-}
-CLK_OF_DECLARE(aspeed_lhpll_clk, "aspeed,cam-lhpll-clock", aspeed_clk_lhpll_init);
 static void __init aspeed_sdclk_init(struct device_node *node)
 {
 	aspeed_clk_common_init(node, &aspeed_sdclk_ops);
