@@ -645,9 +645,6 @@ static void aspeed_mac_timer(unsigned long data)
 {
     struct net_device *dev      = (struct net_device *)data;
     struct ftgmac100_priv *priv = (struct ftgmac100_priv *)dev->ml_priv;
-#ifndef AST_SOC_G5	
-	unsigned long ioaddr        = dev->base_addr;    
-#endif
     unsigned int status;
     unsigned int tmp;
     unsigned int speed;
@@ -655,10 +652,10 @@ static void aspeed_mac_timer(unsigned long data)
     unsigned int macSpeed;
     unsigned int cnt;
     unsigned int IgnoreFlag = 0;
-#ifndef AST_SOC_G5
+
 // for debug 20150703  (AST2300 issue)   
-iowrite32( 0xffffffff, ioaddr + TXPD_REG);
-#endif
+//iowrite32( 0xffffffff, dev->base_addr + TXPD_REG);
+
     
     status = ftgmac100_read_phy_register(dev->base_addr, priv->ids.phyAddr, 0x01);
     // Some PHY need to read the register twice (RTL28201F...)
