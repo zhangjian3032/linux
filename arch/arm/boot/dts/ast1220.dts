@@ -231,6 +231,7 @@
                         reg = <0x1e6a0000 0x300>;
                         interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
 			//TODO
+			clocks = <&clk_usb20>;
 			resets = <&sys_reset 12>;
 			reset-names = "udc";
                 };
@@ -277,14 +278,16 @@
                         compatible = "aspeed,ast-cam";
                         interrupts = <0>, <1>;
                 };		
+#if 0
 		sdio: sdio@1e740100 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e740100 0x100>;
 			interrupts = <2>;
 			resets = <&sys_reset 9>;
-			reset-names = "sdhci";			
+			reset-names = "sdhci";
 			clocks = <&clk_sd>;
 		};
+#endif
 		sdhci_irq: sdhci_irq {
 			compatible = "aspeed,ast-sdhci-irq";
 			interrupt-controller;
@@ -377,31 +380,89 @@
 			compatible = "aspeed,ast-pdm";
 			reg = <0x1e788000 0x200>;
 		};
-		i2c_irq: i2c_irq@1e78a000 {
-			#interrupt-cells = <1>;
-			compatible = "aspeed,ast-i2c-irq";
-			reg = <0x1e78a000 0x10 0x1e78a200 0x800>;
-			interrupts = <20>;
-			interrupt-controller;
-			bus_num = <10>;
-			resets = <&sys_reset 2>;
-			reset-names = "i2c";		
-        	};
-	        i2c0: i2c-bus@40 {
-	                #address-cells = <1>;
-        	        #size-cells = <0>;
-               		#interrupt-cells = <1>;
-                	reg = <0x1e78a040 0x40>;
-                	compatible = "aspeed,ast-i2c";
-			clocks = <&clk_apb>;
-			bus-frequency = <100000>;
-			interrupts = <0>;
-			interrupt-parent = <&i2c_irq>;
-			bus = <0>;
-			master-dma = <2>;
-			slave-dma = <2>;
+		i2c: i2c@1e78a000 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x1e78a000 0x1000>;
 		};
+		};
+	};
+};
 
-		};
+&i2c {
+	i2c_irq: i2c_irq@00 {
+		#interrupt-cells = <1>;
+		compatible = "aspeed,ast-i2c-irq";
+		reg = <0x00 0x10>;
+		interrupts = <20>;
+		interrupt-controller;
+		bus_num = <9>;
+		resets = <&sys_reset 2>;
+		reset-names = "i2c";		
+	};
+	i2c0: i2c@40 {
+		reg = <0x40 0x40 0x200 0x10>;
+		compatible = "aspeed,ast-g5-i2c", "aspeed,ast-dma-i2c";
+		clocks = <&clk_apb>;
+		bus-frequency = <100000>;
+		interrupts = <0>;
+		interrupt-parent = <&i2c_irq>;
+	};
+	i2c1: i2c@80 {
+		reg = <0x80 0x40>;
+		compatible = "aspeed,ast-g5-i2c";
+		clocks = <&clk_apb>;
+		bus-frequency = <100000>;
+		interrupts = <1>;
+		interrupt-parent = <&i2c_irq>;
+	};
+	i2c2: i2c@C0 {
+		reg = <0xc0 0x40>;
+		compatible = "aspeed,ast-g5-i2c";
+		clocks = <&clk_apb>;
+		bus-frequency = <100000>;
+		interrupts = <2>;
+		interrupt-parent = <&i2c_irq>;
+	};
+	i2c3: i2c@100 {
+		reg = <0x100 0x40>;
+		compatible = "aspeed,ast-g5-i2c";
+		clocks = <&clk_apb>;
+		bus-frequency = <100000>;
+		interrupts = <3>;
+		interrupt-parent = <&i2c_irq>;
+	};
+	i2c4: i2c@140 {
+		reg = <0x140 0x40>;
+		compatible = "aspeed,ast-g5-i2c";
+		clocks = <&clk_apb>;
+		bus-frequency = <100000>;
+		interrupts = <4>;
+		interrupt-parent = <&i2c_irq>;
+	};
+	i2c5: i2c@180 {
+		reg = <0x180 0x40>;
+		compatible = "aspeed,ast-g5-i2c";
+		clocks = <&clk_apb>;
+		bus-frequency = <100000>;
+		interrupts = <5>;
+		interrupt-parent = <&i2c_irq>;
+	};
+	i2c6: i2c@1c0 {
+		reg = <0x1c0 0x40>;
+		compatible = "aspeed,ast-g5-i2c";
+		clocks = <&clk_apb>;
+		bus-frequency = <100000>;
+		interrupts = <6>;
+		interrupt-parent = <&i2c_irq>;
+	};
+	i2c7: i2c@300 {
+		reg = <0x300 0x40>;
+		compatible = "aspeed,ast-g5-i2c";
+		clocks = <&clk_apb>;
+		bus-frequency = <100000>;
+		interrupts = <7>;
+		interrupt-parent = <&i2c_irq>;
 	};
 };
