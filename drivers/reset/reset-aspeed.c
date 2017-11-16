@@ -33,12 +33,12 @@ struct aspeed_reset_data {
 static int aspeed_reset_assert(struct reset_controller_dev *rcdev,
 			     unsigned long id)
 {
-	struct aspeed_reset_data *priv = to_aspeed_reset_data(rcdev);
+	struct aspeed_reset_data *sysrst = to_aspeed_reset_data(rcdev);
 	
 	pr_debug("%s: %s reset id %ld\n", KBUILD_MODNAME, __func__, id);
 
-	return regmap_update_bits(priv->slcr,
-					priv->offset,
+	return regmap_update_bits(sysrst->slcr,
+					sysrst->offset,
 					BIT(id),
 					BIT(id));
 }
@@ -46,12 +46,12 @@ static int aspeed_reset_assert(struct reset_controller_dev *rcdev,
 static int aspeed_reset_deassert(struct reset_controller_dev *rcdev,
 			       unsigned long id)
 {
-	struct aspeed_reset_data *priv = to_aspeed_reset_data(rcdev);
+	struct aspeed_reset_data *sysrst = to_aspeed_reset_data(rcdev);
 
 	pr_debug("%s: %s reset id %ld\n", KBUILD_MODNAME, __func__, id);
 
-	return regmap_update_bits(priv->slcr,
-					priv->offset,
+	return regmap_update_bits(sysrst->slcr,
+					sysrst->offset,
 					BIT(id),
 					~BIT(id));
 }
@@ -59,13 +59,13 @@ static int aspeed_reset_deassert(struct reset_controller_dev *rcdev,
 static int aspeed_reset_status(struct reset_controller_dev *rcdev,
 			     unsigned long id)
 {
-	struct aspeed_reset_data *priv = to_aspeed_reset_data(rcdev);
+	struct aspeed_reset_data *sysrst = to_aspeed_reset_data(rcdev);
 	int ret;
 	u32 reg;
 
 	pr_debug("%s: %s reset id %ld\n", KBUILD_MODNAME, __func__, id);
 
-	ret = regmap_read(priv->slcr, priv->offset, &reg);
+	ret = regmap_read(sysrst->slcr, sysrst->offset, &reg);
 	if (ret)
 		return ret;
 
@@ -80,38 +80,44 @@ static const struct reset_control_ops aspeed_reset_ops = {
 
 static int aspeed_reset_probe(struct platform_device *pdev)
 {
-	struct resource *res;
-	struct aspeed_reset_data *priv;
+	struct resource *res0, *res1;
+	struct aspeed_reset_data *sysrst;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
+	sysrst = devm_kzalloc(&pdev->dev, sizeof(*sysrst), GFP_KERNEL);
+	if (!sysrst)
 		return -ENOMEM;
-	platform_set_drvdata(pdev, priv);
+	platform_set_drvdata(pdev, sysrst);
 
-	priv->slcr = syscon_node_to_regmap(pdev->dev.of_node->parent);
-//	priv->slcr = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-//						     "syscon");
+	sysrst->slcr = syscon_node_to_regmap(pdev->dev.of_node->parent);
 
-	if (IS_ERR(priv->slcr)) {
+	if (IS_ERR(sysrst->slcr)) {
 		dev_err(&pdev->dev, "unable to get ast-slcr regmap");
-		return PTR_ERR(priv->slcr);
+		return PTR_ERR(sysrst->slcr);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
+	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res0) {
 		dev_err(&pdev->dev, "missing IO resource\n");
 		return -ENODEV;
 	}
 
-	priv->offset = res->start;
+	sysrst->offset = res0->start;
 
-	priv->rcdev.owner = THIS_MODULE;
-	priv->rcdev.nr_resets = resource_size(res) / 4 * BITS_PER_LONG;
-	priv->rcdev.ops = &aspeed_reset_ops;
-	priv->rcdev.of_node = pdev->dev.of_node;
-	printk("aspeed_reset_probe end res->start %x, priv->rcdev.nr_resets %d \n", res->start, priv->rcdev.nr_resets);
+	res1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!res1) {
+		dev_err(&pdev->dev, "no reset 2\n");
+	}
 
-	return devm_reset_controller_register(&pdev->dev, &priv->rcdev);
+	sysrst->rcdev.owner = THIS_MODULE;	
+	sysrst->rcdev.nr_resets = (resource_size(res0) / 4 * BITS_PER_LONG);
+	if(res1)
+		sysrst->rcdev.nr_resets += (resource_size(res1) / 4 * BITS_PER_LONG);
+	
+	sysrst->rcdev.ops = &aspeed_reset_ops;
+	sysrst->rcdev.of_node = pdev->dev.of_node;
+	printk("aspeed_reset_probe end res->start %x, sysrst->rcdev.nr_resets %d \n", res0->start, sysrst->rcdev.nr_resets);
+
+	return devm_reset_controller_register(&pdev->dev, &sysrst->rcdev);
 }
 
 static const struct of_device_id aspeed_reset_dt_ids[] = {
