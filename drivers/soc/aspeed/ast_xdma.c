@@ -33,6 +33,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/reset.h>
 #include <asm/io.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <asm/uaccess.h>
 /* register ************************************************************************************/
 #define AST_XDMA_HOST_CMDQ_LOW 		0x00
@@ -78,32 +80,32 @@
 #define PCIE_DATA_ADDR(x)				(x << 3)
 //CMD1 Format	(0x08)
 #define UP_STREAM_XFER					(1 << 31)
-#ifdef AST_SOC_G5
+//ast -g 5
 //16byte align
-#define BYTE_ALIGN						16
-#define BMC_ADDR(x)						(x & 0x3ffffff0)
-#else
+#define G5_BYTE_ALIGN						16
+#define G5_BMC_ADDR(x)						(x & 0x3ffffff0)
+//old ast soc 
 //8byte align
 #define BYTE_ALIGN						8
 #define BMC_ADDR(x)						(x & 0x1ffffff8)
-#endif
+
 #define CMD1_XFER_ID							(1)
 
 //CMD2 Format	(0x10)
 #define INTER_CMD_FINISH						(1 << 31)
 #define FRAM_LINE_NUM(x)						(x << 16)
 #define INTER_DIRECTION_BMC					(1 << 15)
-#ifdef AST_SOC_G5
-#define FRAM_LINE_BYTE(x)						((x & 0x7ff) << 4)
-#else
+//g5 
+#define G5_FRAM_LINE_BYTE(x)						((x & 0x7ff) << 4)
+//old soc
 #define FRAM_LINE_BYTE(x)						((x & 0xfff) << 3)
-#endif
+
 #define CMD2_XFER_ID							(2)
 /*************************************************************************************/
-#ifdef AST_SOC_G5
-#define UPDATE_WRITE_POINT				4
-#define DEFAULT_END_POINT					8
-struct ast_xdma_cmd_desc {
+//ast g5 
+#define G5_UPDATE_WRITE_POINT				4
+#define G5_DEFAULT_END_POINT					8
+struct ast_g5_xdma_cmd_desc {
 	u32 cmd0_low;
 	u32 cmd0_high;
 	u32 cmd1_low;
@@ -113,7 +115,7 @@ struct ast_xdma_cmd_desc {
 	u32 resv_low;
 	u32 resv_high;
 };
-#else
+
 #define UPDATE_WRITE_POINT				3
 #define DEFAULT_END_POINT					5
 struct ast_xdma_cmd_desc {
@@ -124,7 +126,7 @@ struct ast_xdma_cmd_desc {
 	u32 cmd2_low;
 	u32 cmd2_high;
 };
-#endif
+
 /*************************************************************************************/
 #define MAX_XFER_BUFF_SIZE 4096
 
@@ -156,10 +158,12 @@ struct ast_xdma_info {
 	int irq;				//XDMA IRQ number 	
 	struct reset_control *reset;
 	u32 dram_base;	
+	u8 				ast_g5;
 	wait_queue_head_t xdma_wq;	
 
 	u8 desc_index;
 	struct ast_xdma_cmd_desc *xfer_cmd_desc;
+	struct ast_g5_xdma_cmd_desc *g5_xfer_cmd_desc;
 	dma_addr_t xfer_cmd_desc_dma;
 
 	u8 *xfer_data;
@@ -260,6 +264,60 @@ static void ast_xdma_xfer(struct ast_xdma_info *ast_xdma, struct ast_xdma_xfer *
 	
 }
 
+static void ast_g5_xdma_xfer(struct ast_xdma_info *ast_xdma, struct ast_xdma_xfer *xdma_xfer)
+{
+	u32 xfer_len = 0;
+	u32 bmc_addr = 0;
+
+	XDMA_DBUG("\n");	
+	if(xdma_xfer->bmc_addr == 0)
+		bmc_addr = ast_xdma->xfer_data_dma;
+	else
+		bmc_addr = xdma_xfer->bmc_addr;
+
+	ast_xdma->desc_index %= 2;
+
+	XDMA_DBUG("cmd index [%x] : bmc addr : %x , host addr : %x (L) %x (H), size : %d \n",ast_xdma->desc_index, bmc_addr, xdma_xfer->host_addr_low, xdma_xfer->host_addr_high, xdma_xfer->xfer_len);	
+
+	if(xdma_xfer->xfer_len % G5_BYTE_ALIGN)
+		xfer_len = (xdma_xfer->xfer_len/G5_BYTE_ALIGN) + 1;
+	else
+		xfer_len = xdma_xfer->xfer_len/G5_BYTE_ALIGN;
+
+	ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd0_high = xdma_xfer->host_addr_high;
+	ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd0_low = xdma_xfer->host_addr_low;
+
+	if(xdma_xfer->stream_dir) {
+		ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low = UP_STREAM_XFER | G5_BMC_ADDR(bmc_addr) | CMD1_XFER_ID;
+		XDMA_DBUG("US cmd desc %x \n",ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low);	
+		if(xdma_xfer->bmc_addr == 0)
+			memcpy(ast_xdma->xfer_data, xdma_xfer->xfer_buff,  xdma_xfer->xfer_len);
+	} else {
+		ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low = G5_BMC_ADDR(bmc_addr) | CMD1_XFER_ID;
+		XDMA_DBUG("DS cmd desc %x \n",ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low);
+		memset(ast_xdma->xfer_data, 0,  4096);
+	}
+
+	ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd2_low = INTER_CMD_FINISH | FRAM_LINE_NUM(1) | INTER_DIRECTION_BMC | G5_FRAM_LINE_BYTE(xfer_len) |CMD2_XFER_ID;
+
+	//trigger tx 
+	if(ast_xdma->desc_index == 0)
+		ast_xdma_write(ast_xdma, G5_UPDATE_WRITE_POINT, AST_XDMA_BMC_CMDQ_WRITEP);
+	else
+		ast_xdma_write(ast_xdma, 0, AST_XDMA_BMC_CMDQ_WRITEP);
+	
+	ast_xdma->desc_index++;
+
+	if(xdma_xfer->stream_dir) {
+		ast_xdma_wait_us_complete(ast_xdma);
+	} else {
+		ast_xdma_wait_ds_complete(ast_xdma);
+		if(xdma_xfer->bmc_addr == 0)
+			memcpy(xdma_xfer->xfer_buff, ast_xdma->xfer_data, xdma_xfer->xfer_len);
+	}
+	
+}
+
 static irqreturn_t ast_xdma_isr(int this_irq, void *dev_id)
 {
 	struct ast_xdma_info *ast_xdma = dev_id;
@@ -332,6 +390,41 @@ static void ast_xdma_ctrl_init(struct ast_xdma_info *ast_xdma)
 	
 }
 
+static void ast_g5_xdma_ctrl_init(struct ast_xdma_info *ast_xdma) 
+{
+	//xfer buff
+	ast_xdma->xfer_data = dma_alloc_coherent(NULL,
+					 4096,
+					 &ast_xdma->xfer_data_dma, GFP_KERNEL);
+
+	XDMA_DBUG("xfer buff %x , dma %x \n", (u32)ast_xdma->xfer_data, (u32)ast_xdma->xfer_data_dma);
+
+	//tx cmd
+	ast_xdma->xfer_cmd_desc = dma_alloc_coherent(NULL,
+					 sizeof(struct ast_g5_xdma_cmd_desc) * AST_XDMA_CMD_DESC_NUM,
+					 &ast_xdma->xfer_cmd_desc_dma, GFP_KERNEL);
+
+	if(((u32)ast_xdma->xfer_cmd_desc & 0xff) != 0x00)
+		printk("ERROR dma addr !!!!\n");
+
+	XDMA_DBUG("xfer cmd desc %x , cmd desc dma %x \n", (u32)ast_xdma->xfer_cmd_desc, (u32)ast_xdma->xfer_cmd_desc_dma);
+
+	memset(ast_xdma->xfer_cmd_desc, 0,  sizeof(struct ast_g5_xdma_cmd_desc) * 2);
+
+	ast_xdma->xfer_cmd_desc[0].cmd1_high = 0x00080008;
+	ast_xdma->xfer_cmd_desc[1].cmd1_high = 0x00080008;
+	ast_xdma->desc_index = 0;
+
+	ast_xdma_write(ast_xdma, ast_xdma->xfer_cmd_desc_dma, AST_XDMA_BMC_CMDQ_BASE);
+	ast_xdma_write(ast_xdma, G5_DEFAULT_END_POINT, AST_XDMA_BMC_CMDQ_ENDP);
+	ast_xdma_write(ast_xdma, 0, AST_XDMA_BMC_CMDQ_WRITEP);
+
+	//register 
+	ast_xdma_write(ast_xdma, XDMA_CK_DS_CMD_ID_EN | XDMA_DS_DATA_TO_EN | XDMA_DS_PKS_256 |
+					XDMA_DS_DIRTY_FRAME |XDMA_DS_COMPLETE | XDMA_US_COMPLETE, AST_XDMA_CTRL_IER);
+	
+}
+
 static long xdma_ioctl(struct file *file, unsigned int cmd,
 			unsigned long arg)
 {
@@ -339,7 +432,7 @@ static long xdma_ioctl(struct file *file, unsigned int cmd,
 	struct miscdevice *c = file->private_data;
 	struct ast_xdma_info *ast_xdma = dev_get_drvdata(c->this_device);
 	void  *argp = (void  *)arg;	
-	struct ast_xdma_xfer xfer;	
+	struct ast_xdma_xfer xfer;
 
 	switch (cmd) {
 		case AST_XDMA_IOCXFER:
@@ -347,8 +440,12 @@ static long xdma_ioctl(struct file *file, unsigned int cmd,
 			if (copy_from_user(&xfer, argp, sizeof(struct ast_xdma_xfer))) {
 				printk("copy_from_user  fail\n");
 				ret = -EFAULT;
-			} else 
-				ast_xdma_xfer(ast_xdma, &xfer);
+			} else {
+				if(ast_xdma->ast_g5)
+					ast_g5_xdma_xfer(ast_xdma, &xfer);
+				else
+					ast_xdma_xfer(ast_xdma, &xfer);
+			}
 
 			if(!xfer.stream_dir) {
 				if (copy_to_user(argp, &xfer, sizeof(struct ast_xdma_xfer)))
@@ -458,6 +555,11 @@ static int ast_xdma_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
+	if(of_machine_is_compatible("aspeed,ast2500"))
+		ast_xdma->ast_g5 = 1;
+	else 
+		ast_xdma->ast_g5 = 0;
+
 	ast_xdma->flag = 0;
 	init_waitqueue_head(&ast_xdma->xdma_wq);
 
@@ -470,7 +572,10 @@ static int ast_xdma_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ast_xdma);
 	dev_set_drvdata(ast_xdma_misc.this_device, ast_xdma);
 
-	ast_xdma_ctrl_init(ast_xdma);
+	if(ast_xdma->ast_g5)
+		ast_g5_xdma_ctrl_init(ast_xdma);
+	else
+		ast_xdma_ctrl_init(ast_xdma);
 
 	printk(KERN_INFO "ast_xdma: driver successfully loaded.\n");
 
