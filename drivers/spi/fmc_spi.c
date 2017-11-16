@@ -35,8 +35,8 @@
 
 /******************************************************************************/
 /* AST_SPI_CONFIG 0x00 : SPI00 CE Type Setting Register */
-#define SOC_G5_SPI_CONF_CE1_WEN		(0x1 << 17)
-#define SOC_G5_SPI_CONF_CE0_WEN		(0x1 << 16)
+#define AST_G5_SPI_CONF_CE1_WEN		(0x1 << 17)
+#define AST_G5_SPI_CONF_CE0_WEN		(0x1 << 16)
 
 #define SPI_CONF_CE0_WEN		(0x1)
 
