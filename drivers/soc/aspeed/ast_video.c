@@ -155,12 +155,12 @@
 #define VIDEO_GET_COMPRESS_FORMAT(x)		((x >> 10) & 0x3)   // 0 YUV444
 #define VIDEO_COMPRESS_FORMAT(x)		(x << 10)	// 0 YUV444
 #define YUV420		1
-#ifdef AST_SOC_G5
-#define VIDEO_COMPRESS_JPEG_MODE			(1 << 13)
+
+#define G5_VIDEO_COMPRESS_JPEG_MODE			(1 << 13)
 #define VIDEO_YUV2RGB_DITHER_EN			(1 << 8)
-#else
+
 #define VIDEO_COMPRESS_JPEG_MODE			(1 << 8)
-#endif
+
 //if bit 0 : 1
 #define VIDEO_INPUT_MODE_CHG_WDT		(1 << 7)
 #define VIDEO_INSERT_FULL_COMPRESS		(1 << 6)
@@ -608,6 +608,7 @@ struct ast_video_data {
 	struct device		*misc_dev;
 	void __iomem		*reg_base;			/* virtual */
 	int 	irq;				//Video IRQ number 
+	u8 		ast_g5;
 //	compress_header	
 	struct compress_header			compress_mode;
         phys_addr_t             *stream_phy;            /* phy */
@@ -1506,12 +1507,17 @@ static void ast_video_set_eng_config(struct ast_video_data *ast_video, struct as
 
 	ast_video_write(ast_video, VIDEO_COMPRESS_COMPLETE | VIDEO_CAPTURE_COMPLETE | VIDEO_MODE_DETECT_WDT, AST_VIDEO_INT_EN);
 
-	if(video_config->compression_format) {
-		ctrl |= VIDEO_COMPRESS_JPEG_MODE;	
+	if(ast_video->ast_g5) {
+		if(video_config->compression_format)
+			ctrl |= G5_VIDEO_COMPRESS_JPEG_MODE;	
+		else
+			ctrl &= ~G5_VIDEO_COMPRESS_JPEG_MODE;
 	} else {
-		ctrl &= ~VIDEO_COMPRESS_JPEG_MODE;
+		if(video_config->compression_format)
+			ctrl |= VIDEO_COMPRESS_JPEG_MODE;	
+		else
+			ctrl &= ~VIDEO_COMPRESS_JPEG_MODE;
 	}
-
 	ctrl &= ~VIDEO_COMPRESS_FORMAT_MASK;
 		
 	if(video_config->YUV420_mode) {
@@ -1601,9 +1607,9 @@ static void ast_video_set_0_scaling(struct ast_video_data *ast_video, struct ast
 			if ((v_factor * (scaling->y - 1)) != (ast_video->src_fbinfo.y - 1) * 4096)
 				v_factor += 1;
 			
-#ifndef AST_SOC_G5
-			ctrl |= VIDEO_CTRL_DWN_SCALING_ENABLE_LINE_BUFFER; 
-#endif
+			if(!ast_video->ast_g5)
+				ctrl |= VIDEO_CTRL_DWN_SCALING_ENABLE_LINE_BUFFER; 
+
 			if(ast_video->src_fbinfo.x <= scaling->x * 2) {
 				ast_video_write(ast_video, 0x00101000, AST_VIDEO_SCALING0);
 				ast_video_write(ast_video, 0x00101000, AST_VIDEO_SCALING1);
@@ -1637,15 +1643,16 @@ static void ast_video_set_0_scaling(struct ast_video_data *ast_video, struct ast
 	ast_video_write(ast_video, ctrl, AST_VIDEO_CTRL);
 
 	//capture x y 
-#ifdef AST_SOC_G5 //A1 issue fix
-	if(ast_video->src_fbinfo.x == 1680) {
-		ast_video_write(ast_video, VIDEO_CAPTURE_H(1728) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VIDEO_CAPTURE_WIN);		
-	} else {
-		ast_video_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) |	VIDEO_CAPTURE_V(ast_video->src_fbinfo.y)	, AST_VIDEO_CAPTURE_WIN);	
+	if(ast_video->ast_g5) {
+		//A1 issue fix
+		if(ast_video->src_fbinfo.x == 1680) {
+			ast_video_write(ast_video, VIDEO_CAPTURE_H(1728) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VIDEO_CAPTURE_WIN);		
+		} else {
+			ast_video_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) |	VIDEO_CAPTURE_V(ast_video->src_fbinfo.y)	, AST_VIDEO_CAPTURE_WIN);	
+		}
+	} else { 
+		ast_video_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) | 	VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VIDEO_CAPTURE_WIN);
 	}
-#else	
-	ast_video_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) | 	VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VIDEO_CAPTURE_WIN);
-#endif
 
 
 	if((ast_video->src_fbinfo.x % 8) == 0)
@@ -1695,15 +1702,15 @@ static void ast_video_set_1_scaling(struct ast_video_data *ast_video, struct ast
 	}
 
 	//capture x y 
-#ifdef AST_SOC_G5 //A1 issue fix
-	if(ast_video->src_fbinfo.x == 1680) {
-		ast_video_write(ast_video, VIDEO_CAPTURE_H(1728) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VM_CAPTURE_WIN);		
+	if(ast_video->ast_g5) {
+		if(ast_video->src_fbinfo.x == 1680) {
+			ast_video_write(ast_video, VIDEO_CAPTURE_H(1728) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VM_CAPTURE_WIN);		
+		} else {
+			ast_video_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VM_CAPTURE_WIN);	
+		}
 	} else {
-		ast_video_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VM_CAPTURE_WIN);	
+		ast_video_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y)	, AST_VM_CAPTURE_WIN);
 	}
-#else	
-	ast_video_write(ast_video, VIDEO_CAPTURE_H(ast_video->src_fbinfo.x) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y)	, AST_VM_CAPTURE_WIN);
-#endif
 
 	
 }
@@ -2514,16 +2521,30 @@ static u8 ast_get_compress_jpeg_mode(struct ast_video_data *ast_video, u8 eng_id
 {
 	switch(eng_idx) {
 		case 0:
-			if(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & VIDEO_COMPRESS_JPEG_MODE)
-				return 1;
-			else
-				return 0;
+			if(ast_video->ast_g5) {
+				if(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & G5_VIDEO_COMPRESS_JPEG_MODE)
+					return 1;
+				else
+					return 0;
+			} else {
+					if(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & VIDEO_COMPRESS_JPEG_MODE)
+						return 1;
+					else
+						return 0;			
+			}
 			break;
 		case 1:
-			if(ast_video_read(ast_video, AST_VM_SEQ_CTRL) & VIDEO_COMPRESS_JPEG_MODE)
-				return 1;
-			else
-				return 0;
+			if(ast_video->ast_g5) {
+				if(ast_video_read(ast_video, AST_VM_SEQ_CTRL) & G5_VIDEO_COMPRESS_JPEG_MODE)
+					return 1;
+				else
+					return 0;
+			} else {
+				if(ast_video_read(ast_video, AST_VM_SEQ_CTRL) & VIDEO_COMPRESS_JPEG_MODE)
+					return 1;
+				else
+					return 0;
+			}
 			break;
 	}			
 }
@@ -2532,16 +2553,33 @@ static void ast_set_compress_jpeg_mode(struct ast_video_data *ast_video, u8 eng_
 {
 	switch(eng_idx) {
 		case 0:	//video 1 
-			if(jpeg_mode) 	
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_COMPRESS_JPEG_MODE, AST_VIDEO_SEQ_CTRL);
-			else
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~VIDEO_COMPRESS_JPEG_MODE , AST_VIDEO_SEQ_CTRL);
+			if(jpeg_mode) {
+				if(ast_video->ast_g5) {
+					ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) | G5_VIDEO_COMPRESS_JPEG_MODE, AST_VIDEO_SEQ_CTRL);
+				} else {
+					ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_COMPRESS_JPEG_MODE, AST_VIDEO_SEQ_CTRL);
+				}
+			} else {
+				if(ast_video->ast_g5) {
+					ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~G5_VIDEO_COMPRESS_JPEG_MODE , AST_VIDEO_SEQ_CTRL);
+				} else {
+					ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~VIDEO_COMPRESS_JPEG_MODE , AST_VIDEO_SEQ_CTRL);
+				}
+				
+			}
 			break;
 		case 1:	//video M
-			if(jpeg_mode) 	
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) | VIDEO_COMPRESS_JPEG_MODE, AST_VM_SEQ_CTRL);
-			else
-				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) & ~VIDEO_COMPRESS_JPEG_MODE , AST_VM_SEQ_CTRL);			
+			if(jpeg_mode) {
+				if(ast_video->ast_g5)
+					ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL)| G5_VIDEO_COMPRESS_JPEG_MODE, AST_VM_SEQ_CTRL);
+				else
+					ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL)| VIDEO_COMPRESS_JPEG_MODE, AST_VM_SEQ_CTRL);
+			} else {
+				if(ast_video->ast_g5)
+					ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) & ~G5_VIDEO_COMPRESS_JPEG_MODE , AST_VM_SEQ_CTRL);
+				else 
+					ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) & ~VIDEO_COMPRESS_JPEG_MODE , AST_VM_SEQ_CTRL);
+			}
 			break;
 	}
 }
@@ -2801,7 +2839,12 @@ static int ast_video_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto out_region0;
 	}
-	
+
+	if(of_machine_is_compatible("aspeed,ast2500")) {	
+		ast_video->ast_g5 = 1;
+	} else {
+		ast_video->ast_g5 = 0;
+	}
 	ast_scu_init_video(0);
 
 	// default config 
