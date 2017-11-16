@@ -783,7 +783,7 @@ static int aspeed_usb20p1_clk_enable(struct clk_hw *hw)
 		return ret;
 	}
 
-	ret = regmap_write(usb20p1_clk->map, usb20p1_clk->enable, enable & ~SCU_USB20_PHY_CLK_EN);
+	ret = regmap_write(usb20p1_clk->map, usb20p1_clk->enable, enable | SCU_USB20_PHY_CLK_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -803,7 +803,7 @@ static void aspeed_usb20p1_clk_disable(struct clk_hw *hw)
 		return;
 	}
 
-	ret = regmap_write(usb20p1_clk->map, usb20p1_clk->enable, enable | SCU_USB20_PHY_CLK_EN);
+	ret = regmap_write(usb20p1_clk->map, usb20p1_clk->enable, enable & ~SCU_USB20_PHY_CLK_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return;
