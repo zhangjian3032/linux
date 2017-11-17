@@ -325,7 +325,8 @@
 		ast_cam: ast_cam@00 {
                         compatible = "aspeed,ast-cam";
                         interrupts = <0>, <1>;
-                };		
+		};
+#if 0		
 		sdio: sdio@1e740100 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e740100 0x100>;
@@ -334,6 +335,7 @@
 			reset-names = "sdhci";
 			clocks = <&clk_sdio>;
 		};
+#endif		
 		sdhci_irq: sdhci_irq {
 			compatible = "aspeed,ast-sdhci-irq";
 			interrupt-controller;
@@ -345,6 +347,7 @@
 			reset-names = "sdhci";
 			clocks = <&clk_sd>;
 		};
+#if 0		
 		sdhci_slot0: sdhci_slot0@1e760100 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e760100 0x100>;
@@ -354,6 +357,7 @@
 			sdhci,auto-cmd12;
 			clocks = <&clk_sd>;
 		};
+#endif		
 		sdhci_slot1: sdhci_slot1@1e760200 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e760200 0x100>;
