@@ -109,6 +109,8 @@
 /* AST_JPEG_COMPRESS_CTRL	0x060		JPEG Compression Control Register */
 #define JPEG_DCT_TEST(x)					((x) << 17)
 #define JPEG_DCT_MASK					(0x3ff << 6)
+#define JPEG_DCT_UVTABLE				(1 << 10)
+
 
 /* AST_JPEG_CTRL			0x300		JPEG Control Register */
 #define JPEG_QUANT_TABLE_LOAD			(1 << 30)
@@ -442,7 +444,7 @@ static void ast_jpeg_config(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_mode
 	JPEG_DBG("x : %d, y : %d \n", jpeg_mode->x, jpeg_mode->y);
 	ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_H(jpeg_mode->x) | JPEG_COMPRESS_V(jpeg_mode->y), AST_JPEG_SIZE_SETTING);
 
-	ast_jpeg_write(ast_jpeg, 0x80000, AST_JPEG_COMPRESS_CTRL);
+	ast_jpeg_write(ast_jpeg, 0x80400, AST_JPEG_COMPRESS_CTRL);
 	
 	if(jpeg_mode->format) { //NV12
 		ast_jpeg_write(ast_jpeg, jpeg_mode->x, AST_JPEG_SOURCE_SCAN_LINE);
