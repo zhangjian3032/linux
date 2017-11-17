@@ -2,6 +2,7 @@
 
 #include "skeleton.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/reset/ast-cam-reset.h>
 #include <dt-bindings/gpio/gpio.h>
 
 / {
@@ -58,23 +59,68 @@
 				reg = <0x04 0x04>;
 				syscon = <&syscon>;
 			};
+#if 0			
 			clk_clkin: clk_clkin@70 {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-clkin-clock";
 				div = <0x70 0x0>;
 			};
+#else			
+            clk_clkin: clk_clkin@70 {
+                #clock-cells = <0>;
+                compatible = "fixed-clock";
+                clock-frequency = <52000000>;
+            };
+#endif
+#if 0
+            clk_mpll: clk_mpll@70 {
+                #clock-cells = <0>;
+                compatible = "fixed-clock";
+                clock-frequency = <52000000>;
+            };
+#else
 			clk_mpll: clk_mpll@20 {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-mpll-clock";
 				div = <0x20 0x0>;
 				clocks = <&clk_clkin>;
 			};
+#endif		
+#if 0
+            clk_hpll: clk_hpll@70 {
+                #clock-cells = <0>;
+                compatible = "fixed-clock";
+                clock-frequency = <52000000>;
+            };
+#else
 			clk_hpll: clk_hpll@24 {
-				#clock-cells = <0>;
-				compatible = "aspeed,cam-hpll-clock";
-				div = <0x24 0x0>;
-				clocks = <&clk_clkin>;
+                #clock-cells = <0>;
+                compatible = "fixed-clock";
+                clock-frequency = <52000000>;
 			};
+#endif
+#if 1
+			clk_sdio:clk_sdio@08 {
+                #clock-cells = <0>;
+                compatible = "fixed-clock";
+                clock-frequency = <52000000>;
+			};        
+#else
+			clk_sdio:clk_sdio@08 {
+				#clock-cells = <0>;
+				compatible = "aspeed,cam-sdclock";
+				div = <0x08 0x0>;
+				enable = <0x0C 0x0>;
+				clocks = <&clk_hpll>;
+			};        
+#endif
+#if 1
+			clk_sd: clk_sd@08 {
+                #clock-cells = <0>;
+                compatible = "fixed-clock";
+                clock-frequency = <52000000>;
+			};        
+#else
 			clk_sd: clk_sd@08 {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-sdclock";
@@ -82,6 +128,7 @@
 				enable = <0x0C 0x0>;
 				clocks = <&clk_hpll>;
 			};        
+#endif			
 			clk_usb20: clk_usb20@0C {
 				#clock-cells = <0>;
 				compatible = "aspeed,g5-usb20clock";
@@ -199,7 +246,7 @@
 			compatible = "aspeed,ast-mac";
 			reg = <0x1e660000 0x180>;
 			interrupts = <18>;
-			resets = <&sys_reset 11>;
+			resets = <&sys_reset SCU_RESET_MAC>;
 			reset-names = "mac";
 			clocks = <&clk_mac>;
 			#status = "disabled";
@@ -209,7 +256,7 @@
 			compatible = "aspeed,ast-gmac";
 			reg = <0x1e660000 0x180>;
 			interrupts = <18>;
-			resets = <&sys_reset 11>;
+			resets = <&sys_reset SCU_RESET_MAC>;
 			reset-names = "mac";
 			clocks = <&clk_mac>;
 			#status = "disabled";
@@ -221,7 +268,7 @@
 			reg = <0x1e6a1000 0x100>;
 			interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_usb20>;
-			resets = <&sys_reset 12>;
+			resets = <&sys_reset SCU_RESET_USB20>;
 			reset-names = "ehci";
                         #status = "disabled";
                 };
@@ -232,7 +279,7 @@
                         interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
 			//TODO
 			clocks = <&clk_usb20>;
-			resets = <&sys_reset 12>;
+			resets = <&sys_reset SCU_RESET_USB20>;
 			reset-names = "udc";
                 };
 #endif
@@ -257,12 +304,13 @@
 			reg = <0x1e6e3000 0x200>;
 			interrupts = <17>;
 			clocks = <&clk_y>;
-			resets = <&sys_reset 4>;
+			resets = <&sys_reset SCU_RESET_HACE>;
 			reset-names = "crypto";
 		};
 		i2s: i2s@1e6e5000 {
 			compatible = "aspeed,ast-i2s";
 			reg = <0x1e6e5000 0x200>;
+			resets = <&sys_reset SCU_RESET_I2S>;
 		};
 		mipi: mipi@1e6e8000 {
 			compatible = "aspeed,ast-i2s";
@@ -278,16 +326,14 @@
                         compatible = "aspeed,ast-cam";
                         interrupts = <0>, <1>;
                 };		
-#if 0
 		sdio: sdio@1e740100 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e740100 0x100>;
 			interrupts = <2>;
-			resets = <&sys_reset 9>;
+			resets = <&sys_reset SCU_RESET_SDIO>;
 			reset-names = "sdhci";
-			clocks = <&clk_sd>;
+			clocks = <&clk_sdio>;
 		};
-#endif
 		sdhci_irq: sdhci_irq {
 			compatible = "aspeed,ast-sdhci-irq";
 			interrupt-controller;
@@ -295,7 +341,7 @@
 			reg = <0x1e760000 0x100>;
 			interrupts = <3>;
 			slot_num = <2>;
-			resets = <&sys_reset 10>;
+			resets = <&sys_reset SCU_RESET_SDHCI>;
 			reset-names = "sdhci";
 			clocks = <&clk_sd>;
 		};
@@ -398,7 +444,7 @@
 		interrupts = <20>;
 		interrupt-controller;
 		bus_num = <9>;
-		resets = <&sys_reset 2>;
+		resets = <&sys_reset SCU_RESET_I2C>;
 		reset-names = "i2c";		
 	};
 	i2c0: i2c@40 {
