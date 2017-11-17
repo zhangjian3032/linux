@@ -59,7 +59,6 @@ extern void ast_scu_init_lpc(void);
 extern void ast_scu_reset_espi(void);
 extern u8 ast_scu_get_lpc_plus_enable(void);
 extern void ast_scu_init_usb_port1(void);
-extern void ast_scu_init_usb_port2(void);
 extern void ast_scu_init_uhci(void);
 extern void ast_scu_init_sdhci(void);
 extern void ast_scu_init_sdio(void);

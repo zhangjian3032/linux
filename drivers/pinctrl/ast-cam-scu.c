@@ -391,14 +391,6 @@ ast_scu_multi_func_usb_port1_mode(u8 mode)
 
 EXPORT_SYMBOL(ast_scu_multi_func_usb_port1_mode);
 
-//0 : 1.1 hid 1, 1.1 host , 2, 2.0 host 3, 2.0 device 
-extern void
-ast_scu_multi_func_usb_port2_mode(u8 mode)
-{
-
-}	
-
-
 extern void
 ast_scu_multi_func_sdhc_slot(void)
 {
@@ -555,31 +547,13 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,sdhci-ast")) {
 		printk("aspeed,ast-sdhci-irq found in SCU \n");
-		ast_scu_init_sdhci();
 		ast_scu_multi_func_sdhc_slot();
 	}
 
-	if(np = of_find_compatible_node(NULL, NULL, "aspeed,ast-i2c-irq")) {
-		printk("aspeed,ast-i2c-irq found in SCU \n");
-		//SCU I2C Reset 
-		ast_scu_init_i2c();
-		if(of_machine_is_compatible("aspeed,ast2500")) {
-			printk("aspeed,ast-i2c found in SCU \n");
-#ifdef CONFIG_I2C_AST
-			//DMA, BUFF Mode enable 
-//			ast_i2c_sram_buff_enable((struct ast_i2c_irq *)np->data);
-#endif
-		}
-	}
-	
-	for_each_compatible_node(np, NULL, "aspeed,ast-i2c") {
-		printk("aspeed,ast-i2c found in SCU, ");
-		if (of_property_read_u32(np, "bus", &idx) == 0) {
-			printk("bus = %d \n", idx);
-			ast_scu_multi_func_i2c(idx);
-		}
-	}
 
+	//SCU I2C Reset 
+	//ast_scu_init_i2c();
+	//ast_scu_multi_func_i2c(idx);
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-ehci")) {
 		printk("aspeed,ast-ehci found in SCU \n");
