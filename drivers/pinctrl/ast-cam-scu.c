@@ -507,13 +507,6 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ast_scu_base = devm_ioremap_resource(&pdev->dev, res);
-//	irq = platform_get_irq(pdev, 0);
-//	ret = devm_request_irq(&pdev->dev, irq, ast_scu_isr,
-//						   0, dev_name(&pdev->dev), NULL);
-	if (ret) {
-		printk("AST SCU Unable request IRQ \n");
-		goto out;
-	}
 
 #if 0 //def CONFIG_AST_RUNTIME_DMA_UARTS
 	if(of_machine_is_compatible("aspeed,ast2500")) {
@@ -522,15 +515,6 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 		}
 	}
 #endif
-
-	//UART Setting 
-	for_each_compatible_node(np, NULL, "ns16550a") {
-		SCUDBUG("np->name %s %s \n", np->name, np->properties->name);
-		
-		if (of_property_read_u32(np, "pinmux", &idx) == 0) {
-			SCUDBUG("pinmux = %d \n", idx);
-		}
-	}
 
 	for_each_compatible_node(np, NULL, "aspeed,ast-mac") {
 		printk("aspeed,ast-mac found in SCU, ");
@@ -576,19 +560,6 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 		printk("aspeed,ast-crypto found in SCU \n");
 		ast_scu_init_hace();
 	}
-
-#if 0
-	//SCU intr enable
-	ast_scu_write(0x003f0000,
-				AST_SCU_INTR_CTRL);
-	
-	ast_scu_write(ast_scu_read(AST_SCU_INTR_CTRL) | 
-				INTR_LPC_H_L_RESET_EN	| INTR_LPC_L_H_RESET_EN | INTR_PCIE_H_L_RESET_EN |
-				INTR_PCIE_L_H_RESET_EN |INTR_VGA_SCRATCH_CHANGE_EN | INTR_VGA_CURSOR_CHANGE_EN	,
-				AST_SCU_INTR_CTRL);
-
-	ast_scu_show_system_info();
-#endif	
 
 out:
 	return ret;
