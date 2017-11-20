@@ -43,7 +43,6 @@ void __init aspeed_clk_common_init(struct device_node *node,
 
 	init.name = name;
 	init.ops = ops;
-//	printk("org init.flags %x \n", init.flags);	
 	init.flags = 0;
 	init.parent_names = parent_name ? &parent_name : NULL;
 	init.num_parents = parent_name ? 1 : 0;
