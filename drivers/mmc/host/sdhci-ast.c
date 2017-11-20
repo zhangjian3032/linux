@@ -26,8 +26,8 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <mach/ast-sdhci.h>
+#include <linux/reset.h>
 #include "sdhci-pltfm.h"
-
 
 static void sdhci_ast_set_clock(struct sdhci_host *host, unsigned int clock)
 {
@@ -103,7 +103,7 @@ static unsigned int sdhci_ast_get_max_clk(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
 
-	return clk_get_rate(pltfm_priv->clk);;
+	return clk_get_rate(pltfm_priv->clk);
 }
 
 static unsigned int sdhci_ast_get_timeout_clk(struct sdhci_host *host)
@@ -141,6 +141,7 @@ static int sdhci_ast_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct ast_sdhci_irq *sdhci_irq;
+	struct reset_control *reset;	
 
 	int ret;
 
@@ -150,11 +151,20 @@ static int sdhci_ast_probe(struct platform_device *pdev)
 
 	pltfm_host = sdhci_priv(host);
 	sdhci_irq = sdhci_pltfm_priv(pltfm_host);
-	
+
 	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
 
-	//don't have to enable clk
-	//clk_prepare_enable(pltfm_host->clk);
+	reset = devm_reset_control_get_exclusive(&pdev->dev, "sdhci");
+	if (!IS_ERR(reset)) {
+		printk("have reset ctrl \n");
+		//dev_err(&pdev->dev, "can't get peci reset\n");
+		//scu init
+		reset_control_assert(reset);
+		mdelay(10);
+		clk_prepare_enable(pltfm_host->clk);
+		mdelay(10);
+		reset_control_deassert(reset);
+	}
 
 //	pnode = of_node_get(np->parent);
 	pnode = of_parse_phandle(np, "interrupt-parent", 0);
