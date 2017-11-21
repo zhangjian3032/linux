@@ -708,7 +708,7 @@ void ast_init_jpeg_table(struct ast_video_data *ast_video)
 	int base=0;
 	//JPEG header default value:
 	for(i = 0; i<12; i++) {
-		base = (1024*i);
+		base = (256*i);
 		ast_video->jpeg_tbl_virt[base + 0] = 0xE0FFD8FF;
 		ast_video->jpeg_tbl_virt[base + 1] = 0x464A1000;
 		ast_video->jpeg_tbl_virt[base + 2] = 0x01004649;
@@ -2506,7 +2506,7 @@ static void ast_set_compress_yuv_mode(struct ast_video_data *ast_video, u8 eng_i
 				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) & ~VIDEO_COMPRESS_FORMAT_MASK, AST_VM_SEQ_CTRL);
 
 			for(i = 0; i<12; i++) {
-				base = (1024*i);
+				base = (256*i);
 				if(yuv_mode)	//yuv420
 					ast_video->jpeg_tbl_virt[base + 46] = 0x00220103; //for YUV420 mode
 				else 
