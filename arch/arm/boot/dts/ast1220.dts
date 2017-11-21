@@ -59,13 +59,13 @@
 				reg = <0x04 0x04>;
 				syscon = <&syscon>;
 			};
-#if 0			
+#if 0
 			clk_clkin: clk_clkin@70 {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-clkin-clock";
 				div = <0x70 0x0>;
 			};
-#else			
+#else
             clk_clkin: clk_clkin@70 {
                 #clock-cells = <0>;
                 compatible = "fixed-clock";
@@ -85,7 +85,7 @@
 				div = <0x20 0x0>;
 				clocks = <&clk_clkin>;
 			};
-#endif		
+#endif
 #if 0
             clk_hpll: clk_hpll@70 {
                 #clock-cells = <0>;
@@ -104,7 +104,7 @@
                 #clock-cells = <0>;
                 compatible = "fixed-clock";
                 clock-frequency = <52000000>;
-			};        
+			};
 #else
 			clk_sdio:clk_sdio@08 {
 				#clock-cells = <0>;
@@ -112,14 +112,14 @@
 				div = <0x08 0x0>;
 				enable = <0x0C 0x0>;
 				clocks = <&clk_hpll>;
-			};        
+			};
 #endif
 #if 1
 			clk_sd: clk_sd@08 {
                 #clock-cells = <0>;
                 compatible = "fixed-clock";
                 clock-frequency = <52000000>;
-			};        
+			};
 #else
 			clk_sd: clk_sd@08 {
 				#clock-cells = <0>;
@@ -127,13 +127,13 @@
 				div = <0x08 0x0>;
 				enable = <0x0C 0x0>;
 				clocks = <&clk_hpll>;
-			};        
-#endif			
+			};
+#endif
 			clk_usb20: clk_usb20@0C {
 				#clock-cells = <0>;
 				compatible = "aspeed,g5-usb20clock";
 				enable = <0x0C 0x0>;
-			};        
+			};
 			clk_ahb: clk_ahb@70 {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-ahb-clock";
@@ -151,12 +151,12 @@
 				compatible = "aspeed,cam-yclock";
 				enable = <0x0C 0x0>;
 				clocks = <&clk_mpll>;
-			};            
+			};
 			clk_mac: clk_mac@0c {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-mac-clock";
 				enable = <0x0C 0x0>;
-			};                        
+			};
                 clk_uart: clk_uart {
                         #clock-cells = <0>;
                         compatible = "fixed-clock";
@@ -175,7 +175,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&clk_ahb>;
-			flash: m25p80@0 {				
+			flash: m25p80@0 {
 				compatible = "m25p80", "jedec,spi-nor";
 			        reg = <0x0>;
 			        #address-cells = <0x1>;
@@ -185,7 +185,7 @@
 				partition@0 {
 					label = "fullpart";
 					reg = <0x00000000 0x02000000>;	
-				};			
+				};
 				partition@1 {
 					label = "U-Boota";
 					reg = <0x00000000 0x00060000>;
@@ -240,9 +240,9 @@
 			compatible = "aspeed,ast-isp";
 			reg = <0x1e64a000 0x1000>;
 			interrupts = <13>;
-		};		
-#if 0		
-                mac0: ethernet@1e660000 {
+		};
+#if 0
+		mac0: ethernet@1e660000 {
 			compatible = "aspeed,ast-mac";
 			reg = <0x1e660000 0x180>;
 			interrupts = <18>;
@@ -252,7 +252,7 @@
 			#status = "disabled";
 		};
 #else
-                mac0: ethernet@1e660000 {
+		mac0: ethernet@1e660000 {
 			compatible = "aspeed,ast-gmac";
 			reg = <0x1e660000 0x180>;
 			interrupts = <18>;
@@ -261,7 +261,7 @@
 			clocks = <&clk_mac>;
 			#status = "disabled";
 		};
-#endif		
+#endif
 #if 1
 		ehci0: ehci@0x1e6a1000 {
 			compatible = "aspeed,ast-ehci", "generic-ehci";
@@ -270,18 +270,18 @@
 			clocks = <&clk_usb20>;
 			resets = <&sys_reset SCU_RESET_USB20>;
 			reset-names = "ehci";
-                        #status = "disabled";
-                };
+			#status = "disabled";
+		};
 #else
 		udc: udc@0x1e6a0000 {
-                        compatible = "aspeed,ast-udc";
-                        reg = <0x1e6a0000 0x300>;
-                        interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
+            compatible = "aspeed,ast-udc";
+            reg = <0x1e6a0000 0x300>;
+            interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
 			//TODO
 			clocks = <&clk_usb20>;
 			resets = <&sys_reset SCU_RESET_USB20>;
 			reset-names = "udc";
-                };
+		};
 #endif
 		vic: vic@1e6c0080 {
 			compatible = "aspeed,ast-vic";
@@ -298,7 +298,7 @@
 		scu: scu@1e6e2000 {
 			compatible = "aspeed,ast-cam-scu";
 			reg = <0x1e6e2000 0x300>;
-                };
+		};
 		hace: hace@1e6e3000 {
 			compatible = "aspeed,ast-crypto";
 			reg = <0x1e6e3000 0x200>;
@@ -326,7 +326,6 @@
                         compatible = "aspeed,ast-cam";
                         interrupts = <0>, <1>;
 		};
-#if 0		
 		sdio: sdio@1e740100 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e740100 0x100>;
@@ -335,7 +334,6 @@
 			reset-names = "sdhci";
 			clocks = <&clk_sdio>;
 		};
-#endif		
 		sdhci_irq: sdhci_irq {
 			compatible = "aspeed,ast-sdhci-irq";
 			interrupt-controller;
@@ -347,7 +345,6 @@
 			reset-names = "sdhci";
 			clocks = <&clk_sd>;
 		};
-#if 0		
 		sdhci_slot0: sdhci_slot0@1e760100 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e760100 0x100>;
@@ -357,7 +354,6 @@
 			sdhci,auto-cmd12;
 			clocks = <&clk_sd>;
 		};
-#endif		
 		sdhci_slot1: sdhci_slot1@1e760200 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e760200 0x100>;
@@ -368,24 +364,23 @@
 			clocks = <&clk_sd>;
 		};
 		gpio: gpio@1e780000 {
-                        #gpio-cells = <2>;
-                        gpio-controller;
-                        compatible = "aspeed,ast-cam-gpio";
-                        reg = <0x1e780000 0x1000>;
-                        interrupts = <21>;
-                        interrupt-controller;
-                };
-		
-                timer:timer@1e782000 {
-                        compatible = "aspeed,ast-timer";
-                        reg = <0x1e782000 0x1000>;
-                        interrupt-parent = <&vic>;
-                        interrupts = <22 IRQ_TYPE_EDGE_FALLING>, /* Timer 1 */
-                                     <23 IRQ_TYPE_EDGE_FALLING>, /* Timer 2 */
-                                     <24 IRQ_TYPE_EDGE_FALLING>; /* Timer 3 */
-                        clocks = <&clk_apb>;
-                        clock-names = "PCLK";
-                };
+            #gpio-cells = <2>;
+            gpio-controller;
+            compatible = "aspeed,ast-cam-gpio";
+            reg = <0x1e780000 0x1000>;
+            interrupts = <21>;
+            interrupt-controller;
+		};
+		timer:timer@1e782000 {
+            compatible = "aspeed,ast-timer";
+            reg = <0x1e782000 0x1000>;
+            interrupt-parent = <&vic>;
+            interrupts = <22 IRQ_TYPE_EDGE_FALLING>, /* Timer 1 */
+                         <23 IRQ_TYPE_EDGE_FALLING>, /* Timer 2 */
+                         <24 IRQ_TYPE_EDGE_FALLING>; /* Timer 3 */
+            clocks = <&clk_apb>;
+            clock-names = "PCLK";
+		};
 		uart0: serial@1e783000 {
 			compatible = "ns16550a";
 			reg = <0x1e783000 0x1000>;
@@ -399,7 +394,7 @@
 			compatible = "aspeed,ast-wdt";
 			reg = <0x1e785000 0x1c>;
 			timeout-sec = <60>;
-		};		
+		};
 		/* use for spi 3/4 bytes reboot */
 		wdt1: wdt1@1e785020 {
 			compatible = "aspeed,ast-wdt";
@@ -409,7 +404,7 @@
 		wdt2: wdt2@1e785040 {
 			compatible = "aspeed,ast-wdt";
 			reg = <0x1e785040 0x1c>;
-		};		
+		};
 		uart1: serial@1e784000 {
 			compatible = "ns16550a";
 			reg = <0x1e784000 0x1000>;
