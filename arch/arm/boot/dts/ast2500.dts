@@ -12,7 +12,7 @@
 
 };
 
-#if 0
+#if 1
 &mac0 {
         status = "okay";
 };
