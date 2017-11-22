@@ -1185,8 +1185,7 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 	for_each_compatible_node(np, NULL, "aspeed,ast-g5-i2c") {
 		BMC_SCUDBG("aspeed,ast-i2c found in SCU, ");
 		idx = of_alias_get_id(np, "i2c");		
-		//BMC_SCUDBG("bus = %d ", idx);
-		printk("bus = %d \n", idx);
+		BMC_SCUDBG("bus = %d ", idx);
 		ast_scu_multi_func_i2c(idx);
 		BMC_SCUDBG("\n");
 	}
