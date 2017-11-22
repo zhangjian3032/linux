@@ -10,22 +10,6 @@
 	#size-cells = <1>;
 	interrupt-parent = <&vic>;
 
-	aliases {
-		serial0 = &uart0;
-		serial1 = &uart3;
-		serial2 = &uart4;
-		serial3 = &vuart;
-		i2c0 = &i2c0;
-		i2c1 = &i2c1;
-		i2c2 = &i2c2;
-		i2c3 = &i2c3;
-		i2c4 = &i2c4;
-		i2c5 = &i2c5;
-		i2c6 = &i2c6;
-		i2c7 = &i2c7;
-		i2c8 = &i2c8;
-	};
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -424,7 +408,7 @@
 			clocks = <&clk_apb>;
                         clock-names = "PCLK";
 		};
-		
+
 		uart1: serial@1e783000 {
 			compatible = "ns16550a";
 			reg = <0x1e783000 0x1000>;
@@ -481,13 +465,13 @@
 			port_address = <0x3f8>;
 			serial_irq = <4>;
 		};
-	
+
 		lpc:lpc@1e789000 {
 			compatible = "aspeed,ast-lpc";
 			reg = <0x1e789000 0x200>;
 			interrupts = <8>;
 		};
-		
+
 		uart2: serial@1e78d000 {
 			compatible = "ns16550a";
 			reg = <0x1e78d000 0x1000>;
@@ -499,7 +483,6 @@
 			status = "disabled";
 		};
 
-#if 1
 		uart3: serial@1e78e000 {
 			compatible = "ns16550a";
 			reg = <0x1e78e000 0x1000>;
@@ -518,126 +501,148 @@
 			pinmux = <0x4>;
 			no-loopback-test;
 		};
-#else
-                ast_uart_sdma: uart_sdma@1e79e000 {
-                        compatible = "aspeed,ast-uart-sdma";
-                        reg = <0x1e79e000 0x400>;
-                        interrupts = <50>;
-                };
-		dma_uart1: serial@1e783000 {
-                        compatible = "ast-sdma-uart";
-                        reg = <0x1e783000 0x1000>;
-                        reg-shift = <2>;
-                        clocks = <&clk_uart>;
-                        pinmux = <0x1>;
-                        no-loopback-test;
+
+		ast_uart_sdma: uart_sdma@1e79e000 {
+			compatible = "aspeed,ast-uart-sdma";
+			reg = <0x1e79e000 0x400>;
+			interrupts = <50>;
+			status = "disabled";
+		};
+		dma_uart1: dma_uart@1e783000 {
+			compatible = "ast-sdma-uart";
+			reg = <0x1e783000 0x1000>;
+			reg-shift = <2>;
+			clocks = <&clk_uart>;
+			pinmux = <0x1>;
+			no-loopback-test;
 			dma_ch = <0>;
 			serial = <0>;
-                };
-                dma_uart2: serial@1e78d000 {
-                        compatible = "ast-sdma-uart";
-                        reg = <0x1e78d000 0x1000>;
-                        reg-shift = <2>;
-                        clocks = <&clk_uart>;
-                        pinmux = <0x2>;
-                        no-loopback-test;
+			status = "disabled";
+		};
+
+		dma_uart2: dma_uart@1e78d000 {
+			compatible = "ast-sdma-uart";
+			reg = <0x1e78d000 0x1000>;
+			reg-shift = <2>;
+			clocks = <&clk_uart>;
+			pinmux = <0x2>;
+			no-loopback-test;
 			dma_ch = <1>;
 			serial = <1>;
-                };
-		dma_uart3: serial@1e78e000 {
-                        compatible = "ast-sdma-uart";
-                        reg = <0x1e78e000 0x1000>;
-                        reg-shift = <2>;
-                        clocks = <&clk_uart>;
-                        pinmux = <0x3>;
-                        no-loopback-test;
+			status = "disabled";
+		};
+
+		dma_uart3: dma_uart@1e78e000 {
+			compatible = "ast-sdma-uart";
+			reg = <0x1e78e000 0x1000>;
+			reg-shift = <2>;
+			clocks = <&clk_uart>;
+			pinmux = <0x3>;
+			no-loopback-test;
 			dma_ch = <2>;
 			serial = <2>;
-                };
-#if 0
-                dma_uart4: serial@1e78f000 {
-                        compatible = "ast-sdma-uart";
-                        reg = <0x1e78f000 0x1000>;
-                        reg-shift = <2>;
-                        clocks = <&clk_uart>;
-                        pinmux = <0x4>;
-                        no-loopback-test;
+			status = "disabled";
+		};
+
+		dma_uart4: dma_uart@1e78f000 {
+			compatible = "ast-sdma-uart";
+			reg = <0x1e78f000 0x1000>;
+			reg-shift = <2>;
+			clocks = <&clk_uart>;
+			pinmux = <0x4>;
+			no-loopback-test;
 			dma_ch = <3>;
-                };
-		dma_uart5: serial@1e790000 {
-                        compatible = "ast-sdma-uart";
-                        reg = <0x1e790000 0x1000>;
-                        reg-shift = <2>;
-                        clocks = <&clk_uart>;
-                        pinmux = <0x3>;
-                        no-loopback-test;
+			status = "disabled";
+		};
+
+		dma_uart5: dma_uart@1e790000 {
+			compatible = "ast-sdma-uart";
+			reg = <0x1e790000 0x1000>;
+			reg-shift = <2>;
+			clocks = <&clk_uart>;
+			pinmux = <0x3>;
+			no-loopback-test;
 			dma_ch = <4>;
-                };
-                dma_uart6: serial@1e791000 {
-                        compatible = "ast-sdma-uart";
-                        reg = <0x1e791000 0x1000>;
-                        reg-shift = <2>;
-                        clocks = <&clk_uart>;
-                        pinmux = <0x4>;
-                        no-loopback-test;
+			status = "disabled";
+		};
+
+		dma_uart6: dma_uart@1e791000 {
+			compatible = "ast-sdma-uart";
+			reg = <0x1e791000 0x1000>;
+			reg-shift = <2>;
+			clocks = <&clk_uart>;
+			pinmux = <0x4>;
+			no-loopback-test;
 			dma_ch = <5>;
-                };
-		dma_uart7: serial@1e792000 {
-                        compatible = "ast-sdma-uart";
-                        reg = <0x1e792000 0x1000>;
-                        reg-shift = <2>;
-                        clocks = <&clk_uart>;
-                        pinmux = <0x3>;
-                        no-loopback-test;
+			status = "disabled";
+		};
+
+		dma_uart7: dma_uart@1e792000 {
+			compatible = "ast-sdma-uart";
+			reg = <0x1e792000 0x1000>;
+			reg-shift = <2>;
+			clocks = <&clk_uart>;
+			pinmux = <0x3>;
+			no-loopback-test;
 			dma_ch = <6>;
-                };
-                dma_uart8: serial@1e793000 {
-                        compatible = "ast-sdma-uart";
-                        reg = <0x1e793000 0x1000>;
-                        reg-shift = <2>;
-                        clocks = <&clk_uart>;
-                        pinmux = <0x4>;
-                        no-loopback-test;
+			status = "disabled";
+		};
+
+		dma_uart8: dma_uart@1e793000 {
+			compatible = "ast-sdma-uart";
+			reg = <0x1e793000 0x1000>;
+			reg-shift = <2>;
+			clocks = <&clk_uart>;
+			pinmux = <0x4>;
+			no-loopback-test;
 			dma_ch = <7>;
-                };
-		dma_uart9: serial@1e794000 {
-                        compatible = "ast-sdma-uart";
-                        reg = <0x1e794000 0x1000>;
-                        reg-shift = <2>;
-                        clocks = <&clk_uart>;
-                        pinmux = <0x3>;
-                        no-loopback-test;
+			status = "disabled";
+		};
+
+		dma_uart9: dma_uart@1e794000 {
+			compatible = "ast-sdma-uart";
+			reg = <0x1e794000 0x1000>;
+			reg-shift = <2>;
+			clocks = <&clk_uart>;
+			pinmux = <0x3>;
+			no-loopback-test;
 			dma_ch = <8>;
-                };
-                dma_uart10: serial@1e795000 {
-                        compatible = "ast-sdma-uart";
-                        reg = <0x1e795000 0x1000>;
-                        reg-shift = <2>;
-                        clocks = <&clk_uart>;
-                        pinmux = <0x4>;
-                        no-loopback-test;
+			status = "disabled";
+		};
+
+		dma_uart10: dma_uart@1e795000 {
+			compatible = "ast-sdma-uart";
+			reg = <0x1e795000 0x1000>;
+			reg-shift = <2>;
+			clocks = <&clk_uart>;
+			pinmux = <0x4>;
+			no-loopback-test;
 			dma_ch = <9>;
-                };
-		dma_uart11: serial@1e796000 {
-                        compatible = "ast-sdma-uart";
-                        reg = <0x1e796000 0x1000>;
-                        reg-shift = <2>;
-                        clocks = <&clk_uart>;
-                        pinmux = <0x3>;
-                        no-loopback-test;
+			status = "disabled";
+		};
+
+		dma_uart11: dma_uart@1e796000 {
+			compatible = "ast-sdma-uart";
+			reg = <0x1e796000 0x1000>;
+			reg-shift = <2>;
+			clocks = <&clk_uart>;
+			pinmux = <0x3>;
+			no-loopback-test;
 			dma_ch = <10>;
-                };
-                dma_uart12: serial@1e797000 {
-                        compatible = "ast-sdma-uart";
-                        reg = <0x1e797000 0x1000>;
-                        reg-shift = <2>;
-                        clocks = <&clk_uart>;
-                        pinmux = <0x4>;
-                        no-loopback-test;
+			status = "disabled";
+		};
+
+		dma_uart12: dma_uart@1e797000 {
+			compatible = "ast-sdma-uart";
+			reg = <0x1e797000 0x1000>;
+			reg-shift = <2>;
+			clocks = <&clk_uart>;
+			pinmux = <0x4>;
+			no-loopback-test;
 			dma_ch = <11>;
-                };
-#endif
-#endif
+			status = "disabled";
+		};
+
 		i2c: i2c@1e78a000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
