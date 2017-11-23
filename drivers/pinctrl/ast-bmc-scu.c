@@ -1203,7 +1203,7 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 		BMC_SCUDBG("aspeed,ast-udc found in SCU \n");
 		ast_scu_multi_func_usb_port1_mode(0);
 	}
-
+#if 1
 	if((of_find_compatible_node(NULL, NULL, "aspeed,ast-uhci")) || (of_find_compatible_node(NULL, NULL, "aspeed,ast-ehci"))) {
 		BMC_SCUDBG("aspeed,usb host found in SCU \n");
 		ast_scu_multi_func_usb_port1_mode(1);
@@ -1211,8 +1211,11 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 #ifdef AST_SOC_G4		
 		ast_scu_multi_func_usb_port34_mode(1);
 #endif
-	}
+	} 
+#else
+	ast_scu_multi_func_usb_port1_mode(0);
 
+#endif
 	if(of_find_compatible_node(np, NULL, "aspeed,ast-g4-wdt")) {
 		if(of_property_read_u32(np, "reset_mask", &reset_mask))
 			ast_scu_write(reset_mask, AST_SCU_WDT_RESET);

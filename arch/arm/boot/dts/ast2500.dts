@@ -28,6 +28,24 @@
 
 };
 
+#if 0
+&ehci0 {
+	status = "disable";
+};
+
+&ehci1 {
+	status = "disable";
+};
+
+&uhci {
+	status = "disable";
+};
+
+&udc {
+	status = "okay";
+};
+#endif
+
 #if 1
 &mac0 {
         status = "okay";
