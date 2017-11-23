@@ -10,6 +10,10 @@
 	#size-cells = <1>;
 	interrupt-parent = <&vic>;
 
+	memory {
+		reg = <0x80000000 0x10000000>;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -122,9 +126,10 @@
 		udc: udc@0x1e6a0000 {
 			compatible = "aspeed,ast-udc";
 			reg = <0x1e6a0000 0x300>;
+			interrupts = <5>;
+			clocks = <&clk_usb20p1>;
 			resets = <&sys_reset SCU_RESET_USB20>;
 			reset-names = "udc";
-			interrupts = <5>;
 			status = "disabled";
 		};
 
@@ -656,7 +661,7 @@
 			clocks = <&clk_apb>;
 			resets = <&sys_reset SCU_RESET_PECI>;
 			reset-names = "peci";						
-        };
+		};
 	};
 
 };
