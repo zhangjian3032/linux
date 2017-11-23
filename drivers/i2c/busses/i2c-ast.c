@@ -2266,8 +2266,8 @@ static int ast_i2c_probe(struct platform_device *pdev)
 			goto free_irq;
 	}
 
-	printk(KERN_INFO "I2C: %s [%d]: AST I2C byte mode adapter [%d khz] \n",
-		   pdev->dev.of_node->name, i2c_bus->adap.nr, i2c_bus->bus_frequency/1000);
+	printk(KERN_INFO "I2C: %s [%d]: AST I2C mode [%d] adapter [%d khz] \n",
+		   pdev->dev.of_node->name, i2c_bus->adap.nr, i2c_bus->master_dma, i2c_bus->bus_frequency/1000);
 
 	return 0;
 
