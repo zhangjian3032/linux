@@ -98,6 +98,8 @@ static int ast_timer_set_next_event(unsigned long cycles,
 				       struct clock_event_device *evt)
 {
 	struct ast_timer *timer = to_ast_timer(evt);
+	u32 temp;
+
 #if 0
 	u32 cr;
 	/* Stop */
@@ -118,7 +120,11 @@ static int ast_timer_set_next_event(unsigned long cycles,
 	cr |= timer->t1_enable_val;
 	writel(cr, timer->base + TIMER_CR);
 #else
+	temp = readl(timer->base + AST_TIMER_CTRL1);
+	temp = temp & ~(TIMER_CTRL_T1_ENABLE);
+	writel(temp, timer->base + AST_TIMER_CTRL1);
 	writel(cycles, timer->base + AST_TIMER_RELOAD);
+	//printk("%x\n", cycles);
 	writel(TIMER_CTRL_T1_ENABLE | readl(timer->base + AST_TIMER_CTRL1), timer->base + AST_TIMER_CTRL1);
 
 #endif
@@ -159,12 +165,25 @@ static int ast_timer_set_oneshot(struct clock_event_device *evt)
 
 	return 0;
 }
+#else
+static int ast_timer_set_oneshot(struct clock_event_device *evt)
+{
+	struct ast_timer *timer = to_ast_timer(evt);
+	u32 temp;
+	printk("Set oneshot\n");
+	temp = readl(timer->base + AST_TIMER_CTRL1);
+	writel(TIMER_RELOAD, timer->base + AST_TIMER_RELOAD);
+	writel(TIMER_RELOAD, timer->base + AST_TIMER_COUNT);
+	temp = temp & ~(TIMER_CTRL_T1_ENABLE);
+	writel(temp | TIMER_CTRL_T1_EXT_REF, timer->base + AST_TIMER_CTRL1);
+	return 0;
+}
 #endif
 
 static int ast_timer_set_periodic(struct clock_event_device *evt)
 {
 	struct ast_timer *timer = to_ast_timer(evt);
-	
+	u32 temp;
 	u32 period = DIV_ROUND_CLOSEST(timer->tick_rate, HZ);
 	printk("period %d , timer->tick_rate %d \n",period , timer->tick_rate);
 #if 0	
@@ -200,11 +219,25 @@ static int ast_timer_set_periodic(struct clock_event_device *evt)
 #else
 	writel(TIMER_RELOAD, timer->base + AST_TIMER_RELOAD);
 	writel(TIMER_RELOAD, timer->base + AST_TIMER_COUNT);
-	writel(TIMER_CTRL_T1_ENABLE | TIMER_CTRL_T1_EXT_REF, timer->base + AST_TIMER_CTRL1);
+	temp = readl(timer->base + AST_TIMER_CTRL1);
+	writel(temp | TIMER_CTRL_T1_ENABLE | TIMER_CTRL_T1_EXT_REF, timer->base + AST_TIMER_CTRL1);
 
 #endif
 	return 0;
 }
+static void __iomem *clksrc_base;
+static u64 notrace ast_read_cycles(struct clocksource *cs)
+{
+        return (u64) (0xffffffff - *((volatile unsigned long *)(clksrc_base + TIMER2_COUNT)));
+}
+
+static struct clocksource ast_clk_src = {
+        .name           = "ast_timer2",
+        .rating         = 200,
+        .read           = ast_read_cycles,
+        .mask           = CLOCKSOURCE_MASK(32),
+        .flags          = CLOCK_SOURCE_IS_CONTINUOUS,
+};
 
 /*
  * IRQ handler for the timer
@@ -217,6 +250,22 @@ static irqreturn_t ast_timer_interrupt(int irq, void *dev_id)
 	evt->event_handler(evt);
 	return IRQ_HANDLED;
 }
+static void ast_clocksource_init(void __iomem *base)
+{
+	u32 temp;
+	temp = readl(base + AST_TIMER_CTRL1);
+	temp = temp & ~(1 << 4);
+	writel(temp, base + AST_TIMER_CTRL1);
+	clksrc_base = base;
+	writel(0, base + TIMER2_COUNT);
+	writel(0xFFFFffff, base + TIMER2_LOAD);	
+	writel(temp, base + AST_TIMER_CTRL1);
+	temp = temp | (1 << 4) | (1 << 5);
+	writel(temp, base + AST_TIMER_CTRL1);
+	clocksource_register_hz(&ast_clk_src, AST_TIMER_EXT_CLK_1M);
+	printk("AST Clocksource registered.\n");
+}
+
 
 static int __init ast_timer_common_init(struct device_node *np, bool is_aspeed)
 {
@@ -284,13 +333,14 @@ static int __init ast_timer_common_init(struct device_node *np, bool is_aspeed)
 	timer->clkevt.set_next_event = ast_timer_set_next_event;
 	timer->clkevt.set_state_shutdown = ast_timer_shutdown;
 	timer->clkevt.set_state_periodic = ast_timer_set_periodic;
-//	timer->clkevt.set_state_oneshot = ast_timer_set_oneshot;
+	timer->clkevt.set_state_oneshot = ast_timer_set_oneshot;
 	timer->clkevt.tick_resume = ast_timer_shutdown;
 	timer->clkevt.cpumask = cpumask_of(0);
 	timer->clkevt.irq = irq;
 	clockevents_config_and_register(&timer->clkevt,
-					timer->tick_rate,
-					1, TIMER_RELOAD);	
+					AST_TIMER_EXT_CLK_1M,
+					1, 0xffffffff);	
+	ast_clocksource_init(timer->base);
 #if 0
 	/* Also use this timer for delays */
 	if (timer->count_down)
