@@ -37,7 +37,6 @@
 #include <linux/of_gpio.h>
 
 #include <asm/byteorder.h>
-#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
