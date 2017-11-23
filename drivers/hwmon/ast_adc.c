@@ -1066,7 +1066,6 @@ ast_adc_resume(struct platform_device *pdev)
 {
 	struct ast_adc_data *ast_adc = platform_get_drvdata(pdev);
 
-	ast_adc_ctrl_init(ast_adc);
 	return 0;
 }
 
