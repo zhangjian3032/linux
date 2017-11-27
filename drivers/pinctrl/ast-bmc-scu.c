@@ -228,6 +228,7 @@ EXPORT_SYMBOL(ast_scu_get_lpc_plus_enable);
 extern void
 ast_scu_init_rfx(void)
 {
+#if 0
 	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_RFX, AST_SCU_RESET);
 	ast_scu_write(ast_scu_read(AST_SCU_RESET2) | (SCU_RESET_RFXDEC | SCU_RESET_RFXCMQ | SCU_RESET_BITBLT), AST_SCU_RESET2);	
 
@@ -250,7 +251,7 @@ ast_scu_init_rfx(void)
 
 	//Multi fun pin
 	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL6) | SCU_FUN_PIN_DVO_24BIT, AST_SCU_FUN_PIN_CTRL6); 
-	
+#endif	
 }
 EXPORT_SYMBOL(ast_scu_init_rfx);
 
