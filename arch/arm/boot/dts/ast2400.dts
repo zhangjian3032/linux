@@ -50,13 +50,13 @@
 &mac1 {
 	status = "okay";
 };
-#else
+
 &gmac0 {
-	status = "okay";
+	status = "disable";
 };
 
 &gmac1 {
-	status = "okay";
+	status = "disable";
 };
 #endif
 
