@@ -307,7 +307,7 @@ static long aspeed_clk_d2pll_round_rate(struct clk_hw *hw,
 			unsigned long drate, unsigned long *prate)
 {
 //	struct aspeed_clk *d2pll = to_aspeed_clk(hw);
-	printk("TOiDO aspeed_clk_d2pll_round_rate \n");
+	printk("TODO aspeed_clk_d2pll_round_rate \n");
 	return 0;
 }
 			

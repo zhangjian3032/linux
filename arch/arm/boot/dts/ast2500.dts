@@ -48,19 +48,19 @@
 
 #if 1
 &mac0 {
-        status = "okay";
+	status = "okay";
 };
 
 &mac1 {
 	status = "okay";
 };
-#else
+
 &gmac0 {
-	status = "okay";
+	status = "disable";
 };
 
 &gmac1 {
-	status = "okay";
+	status = "disable";
 };
 #endif
 
