@@ -1,10 +1,10 @@
 /dts-v1/;
 
-#include "ast2500.dtsi"
+#include "ast1220.dtsi"
 
 / {
-	model = "AST2500 EVB";
-	compatible = "aspeed,ast2500-evb", "aspeed,ast2500";
+	model = "AST1220 EVB";
+	compatible = "aspeed,ast1220-evb", "aspeed,ast1220";
 
 	aliases {
 		serial0 = &uart0;
@@ -25,20 +25,13 @@
 
 #if 1
 &mac0 {
-        status = "okay";
+        status = "disable";
 };
 
-&mac1 {
-	status = "okay";
-};
-#else
 &gmac0 {
 	status = "okay";
 };
 
-&gmac1 {
-	status = "okay";
-};
 #endif
 
 &fmc_spi {
