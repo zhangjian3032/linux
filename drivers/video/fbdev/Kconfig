@@ -281,9 +281,6 @@ config FB_PM2_FIFO_DISCONNECT
 	help
 	  Support the Permedia2 FIFO disconnect feature.
 
-config FB_ASTVGA
-	bool "AST VGA FB"
-	
 source "drivers/video/fbdev/aspeed/Kconfig"
 
 config FB_ARMCLCD
