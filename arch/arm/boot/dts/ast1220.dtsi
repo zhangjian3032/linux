@@ -4,11 +4,10 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-    model = "AST1220 SOC";
+	model = "AST1220 SOC";
 	compatible = "aspeed,ast1220";
-
-    #address-cells = <1>;
-    #size-cells = <1>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 	interrupt-parent = <&vic>;
 
 	memory {
@@ -46,13 +45,14 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&clk_ahb>;
-			};
 		};
+
 		isp0: isp@1e640000 {
 			compatible = "aspeed,ast-isp";
 			reg = <0x1e640000 0x1000>;
 			interrupts = <8>;
 		};
+
 		isp1: isp@1e642000 {
 			compatible = "aspeed,ast-isp";
 			reg = <0x1e642000 0x1000>;
@@ -87,6 +87,7 @@
 			clocks = <&clk_mac>;
 			status = "disabled";
 		};
+
 		gmac0: ethernet@1e660000 {
 			compatible = "aspeed,ast-gmac";
 			reg = <0x1e660000 0x180>;
@@ -106,6 +107,7 @@
 			reset-names = "ehci";
 			
 		};
+
 		udc: udc@0x1e6a0000 {
 			compatible = "aspeed,ast-udc";
 			reg = <0x1e6a0000 0x300>;
@@ -138,7 +140,7 @@
 		syscon: syscon@1e6e2000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "aspeed,g5-scu", "syscon", "simple-mfd";
+			compatible = "aspeed,cam-scu", "syscon", "simple-mfd";
 			reg = <0x1e6e2000 0x200>;
 			ranges;
 			sys_reset: sys_reset@04 {
@@ -219,7 +221,7 @@
 #endif
 			clk_usb20: clk_usb20@0C {
 				#clock-cells = <0>;
-				compatible = "aspeed,g5-usb20clock";
+				compatible = "aspeed,cam-usb20clock";
 				enable = <0x0C 0x0>;
 			};
 			clk_ahb: clk_ahb@70 {
@@ -268,11 +270,13 @@
 			compatible = "aspeed,ast-i2s";
 			reg = <0x1e6e8000 0x200>;
 		};
+
 		jpeg: jpeg@1e700000 {
 			compatible = "aspeed,ast-jpeg";
 			reg = <0x1e700000 0x300>;
 			interrupts = <5>;
 		};
+
 		sdio: sdio@1e740100 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e740100 0x100>;
@@ -281,6 +285,7 @@
 			reset-names = "sdhci";
 			clocks = <&clk_sdio>;
 		};
+
 		sdhci_irq: sdhci_irq {
 			compatible = "aspeed,ast-sdhci-irq";
 			interrupt-controller;
@@ -292,6 +297,7 @@
 			reset-names = "sdhci";
 			clocks = <&clk_sd>;
 		};
+
 		sdhci_slot0: sdhci_slot0@1e760100 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e760100 0x100>;
@@ -301,6 +307,7 @@
 			sdhci,auto-cmd12;
 			clocks = <&clk_sd>;
 		};
+
 		sdhci_slot1: sdhci_slot1@1e760200 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e760200 0x100>;
@@ -319,6 +326,7 @@
 			interrupts = <21>;
 			interrupt-controller;
 		};
+
 		timer:timer@1e782000 {
 			compatible = "aspeed,ast-timer";
 			reg = <0x1e782000 0x1000>;
@@ -355,6 +363,7 @@
 			compatible = "aspeed,ast-wdt";
 			reg = <0x1e785040 0x1c>;
 		};
+
 		uart1: serial@1e784000 {
 			compatible = "ns16550a";
 			reg = <0x1e784000 0x1000>;
@@ -363,10 +372,12 @@
 			clocks = <&clk_uart>;
 			no-loopback-test;
 		};
+
 		pwm: pwm@1e786000 {
 			compatible = "aspeed,ast-pwm";
 			reg = <0x1e786000 0x100>;
 		};
+
 		d3d: d3d@1e787000 {
 			compatible = "aspeed,ast-3d";
 			reg = <0x1e788000 0x200>;
@@ -383,10 +394,11 @@
 		};
 
 		ast_cam: ast_cam@00 {
-                        compatible = "aspeed,ast-cam";
-                        interrupts = <0>, <1>;
+			compatible = "aspeed,ast-cam";
+			interrupts = <0>, <1>;
 		};
 	};
+
 };
 
 &i2c {

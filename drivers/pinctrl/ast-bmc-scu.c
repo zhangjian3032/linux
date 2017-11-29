@@ -1136,10 +1136,9 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 	BMC_SCUDBG("\n");	
 	ast_scu_map = syscon_regmap_lookup_by_compatible("aspeed,g5-scu");
 	if (IS_ERR(ast_scu_map)) {
-		printk("error ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`\n");
+		printk("error \n");
 
 	}
-	printk("ok for scu map ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`\n");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ast_scu_base = devm_ioremap_resource(&pdev->dev, res);
@@ -1183,7 +1182,7 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 		}
 	}
 
-	for_each_compatible_node(np, NULL, "aspeed,ast-g5-i2c") {
+	for_each_compatible_node(np, NULL, "aspeed,ast-i2c") {
 		BMC_SCUDBG("aspeed,ast-i2c found in SCU, ");
 		idx = of_alias_get_id(np, "i2c");		
 		BMC_SCUDBG("bus = %d ", idx);
