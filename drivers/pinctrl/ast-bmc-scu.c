@@ -228,7 +228,6 @@ EXPORT_SYMBOL(ast_scu_get_lpc_plus_enable);
 extern void
 ast_scu_init_rfx(void)
 {
-#if 0
 	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_RFX, AST_SCU_RESET);
 	ast_scu_write(ast_scu_read(AST_SCU_RESET2) | (SCU_RESET_RFXDEC | SCU_RESET_RFXCMQ | SCU_RESET_BITBLT), AST_SCU_RESET2);	
 
@@ -251,7 +250,7 @@ ast_scu_init_rfx(void)
 
 	//Multi fun pin
 	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL6) | SCU_FUN_PIN_DVO_24BIT, AST_SCU_FUN_PIN_CTRL6); 
-#endif	
+	
 }
 EXPORT_SYMBOL(ast_scu_init_rfx);
 
@@ -1136,9 +1135,10 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 	BMC_SCUDBG("\n");	
 	ast_scu_map = syscon_regmap_lookup_by_compatible("aspeed,g5-scu");
 	if (IS_ERR(ast_scu_map)) {
-		printk("error \n");
+		printk("error ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`\n");
 
 	}
+	printk("ok for scu map ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`\n");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ast_scu_base = devm_ioremap_resource(&pdev->dev, res);
@@ -1152,7 +1152,7 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 #endif
 	
 	//UART Setting 
-	for_each_compatible_node(np, NULL, "ast-sdma-uart") {
+	for_each_compatible_node(np, NULL, "aspeed,ast-sdma-uart") {
 		BMC_SCUDBG("np->name %s %s \n", np->name, np->properties->name);
 		if (of_property_read_u32(np, "pinmux", &idx) == 0) {
 			BMC_SCUDBG("pinmux = %d \n", idx);
@@ -1182,7 +1182,7 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 		}
 	}
 
-	for_each_compatible_node(np, NULL, "aspeed,ast-i2c") {
+	for_each_compatible_node(np, NULL, "aspeed,ast-g5-i2c") {
 		BMC_SCUDBG("aspeed,ast-i2c found in SCU, ");
 		idx = of_alias_get_id(np, "i2c");		
 		BMC_SCUDBG("bus = %d ", idx);
