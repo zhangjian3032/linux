@@ -360,10 +360,11 @@
 		gpio: gpio@1e780000 {
                         #gpio-cells = <2>;
                         gpio-controller;
-                        compatible = "aspeed,ast-g5-gpio";
+                        compatible = "aspeed,ast-g4-gpio";
                         reg = <0x1e780000 0x1000>;
                         interrupts = <20>;
                         interrupt-controller;
+			clocks = <&clk_apb>;
                 };
 
 		mailbox: ast_mailbox@1e789200 {
@@ -408,19 +409,19 @@
 
 		/* use for sys crash */
 		wdt0: wdt0@1e785000 {
-			compatible = "aspeed,ast-g5-wdt";
+			compatible = "aspeed,ast-g4-wdt";
 			reg = <0x1e785000 0x1c>;
 			timeout-sec = <60>;
 			reset_mask = <0x23ffff3>;
 		};		
 		/* use for spi 3/4 bytes reboot */
 		wdt1: wdt1@1e785020 {
-			compatible = "aspeed,ast-g5-wdt";
+			compatible = "aspeed,ast-g4-wdt";
 			reg = <0x1e785020 0x1c>;
 		};
 		/* use for system reboot */
 		wdt2: wdt2@1e785040 {
-			compatible = "aspeed,ast-g5-wdt";
+			compatible = "aspeed,ast-g4-wdt";
 			reg = <0x1e785040 0x1c>;
 		};
 

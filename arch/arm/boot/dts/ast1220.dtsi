@@ -325,6 +325,7 @@
 			reg = <0x1e780000 0x1000>;
 			interrupts = <21>;
 			interrupt-controller;
+			clocks = <&clk_apb>;
 		};
 
 		timer:timer@1e782000 {

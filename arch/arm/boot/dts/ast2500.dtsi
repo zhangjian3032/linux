@@ -385,13 +385,14 @@
 		};
 
 		gpio: gpio@1e780000 {
-                        #gpio-cells = <2>;
-                        gpio-controller;
-                        compatible = "aspeed,ast-g5-gpio";
-                        reg = <0x1e780000 0x1000>;
-                        interrupts = <20>;
-                        interrupt-controller;
-                };
+			#gpio-cells = <2>;
+			gpio-controller;
+			compatible = "aspeed,ast-g5-gpio";
+			reg = <0x1e780000 0x1000>;
+			interrupts = <20>;
+			interrupt-controller;
+			clocks = <&clk_apb>;
+		 };
 
 		mailbox: ast_mailbox@1e789200 {
 			compatible = "aspeed,ast-mailbox";
