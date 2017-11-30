@@ -134,14 +134,14 @@
 
 		scu: scu@1e6e2000 {
 			compatible = "aspeed,ast-cam-scu";
-			reg = <0x1e6e2000 0x300>;
+			reg = <0x1e6e2000 0x100>;
 		};
 
 		syscon: syscon@1e6e2000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "aspeed,cam-scu", "syscon", "simple-mfd";
-			reg = <0x1e6e2000 0x200>;
+			reg = <0x1e6e2000 0x100>;
 			ranges;
 			sys_reset: sys_reset@04 {
 				#reset-cells = <1>;
@@ -224,18 +224,34 @@
 				compatible = "aspeed,cam-usb20clock";
 				enable = <0x0C 0x0>;
 			};
+#if 1
+			clk_ahb: clk_ahb@70 {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
+			};
+#else
 			clk_ahb: clk_ahb@70 {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-ahb-clock";
 				div = <0x70 0x0>;
 				clocks = <&clk_hpll>;
 			};
+#endif
+#if 1
+			clk_apb: clk_apb@08 {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
+			};
+#else
 			clk_apb: clk_apb@08 {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-apb-clock";
 				div = <0x08 0x0>;
 				clocks = <&clk_hpll>;
 			};
+#endif			
 			clk_y: clk_y@0c {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-yclock";
@@ -253,6 +269,12 @@
 				clock-frequency = <24000000>;
 			};
 		};
+
+		cfv0: cfv0@1e6e2100 {
+			compatible = "aspeed,ast-cfv";
+			reg = <0x1e6e2100 0x200>;
+		};
+
 		hace: hace@1e6e3000 {
 			compatible = "aspeed,ast-crypto";
 			reg = <0x1e6e3000 0x200>;
