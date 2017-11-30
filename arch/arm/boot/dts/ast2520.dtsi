@@ -515,6 +515,7 @@
 			reg = <0x1e79e000 0x400>;
 			interrupts = <50>;
 		};
+
 		dma_uart0: dma_uart0@1e78e000{
 			compatible = "aspeed,ast-sdma-uart";
 			reg = <0x1e78e000 0x1000>;
@@ -573,6 +574,16 @@
 			reg-shift = <2>;
 			dma-channel = <7>;
 			pinmux = <0x9>;
+			no-loopback-test;
+		};
+		dma_uart6: dma_uart6@1e794000{
+			compatible = "aspeed,ast-sdma-uart";
+			reg = <0x1e794000 0x1000>;
+			interrupts = <55>;
+			clocks = <24000000>;
+			reg-shift = <2>;
+			dma-channel = <8>;
+			pinmux = <0xa>;
 			no-loopback-test;
 		};
 		dma_uart7: dma_uart7@1e795000{
