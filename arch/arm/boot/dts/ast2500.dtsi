@@ -497,7 +497,6 @@
 			clocks = <&clk_uart>;
 			pinmux = <0x3>;
 			no-loopback-test;
-			status = "disabled";
 		};
 		uart4: serial@1e78f000 {
 			compatible = "ns16550a";
@@ -507,7 +506,6 @@
 			clocks = <&clk_uart>;
 			pinmux = <0x4>;
 			no-loopback-test;
-			status = "disabled";
 		};
 
 		ast_uart_sdma: uart_sdma@1e79e000 {
@@ -516,6 +514,7 @@
 			interrupts = <50>;
 			status = "disabled";
 		};
+		
 		dma_uart0: dma_uart0@1e78e000{
 			compatible = "aspeed,ast-sdma-uart";
 			reg = <0x1e78e000 0x1000>;
