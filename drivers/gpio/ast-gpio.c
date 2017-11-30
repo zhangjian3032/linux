@@ -10,6 +10,7 @@
  * 2 of the License, or (at your option) any later version.
  *
  */
+#include <linux/clk.h>
 #include <linux/bitops.h>
 #include <linux/gpio/driver.h>
 #include <linux/of_device.h>
@@ -64,7 +65,10 @@ struct ast_gpio_bank {
 	u32		rst_tol_offset;		
 	u32		debounce_offset;	
 	u32		cmd_source_offset;
-	struct ast_gpio	*gpio;	
+	struct ast_gpio	*gpio;
+	u32 	timer0;
+	u32 	timer1;
+	u32 	timer2;
 };
 
 struct ast_gpio_config {
@@ -243,11 +247,32 @@ ast_gpio_set_debounce(struct gpio_chip *chip, unsigned offset, unsigned debounce
 	struct ast_gpio *gpio = gpiochip_get_data(chip);
 	struct ast_gpio_bank *gpio_bank = &gpio->config->gpio_bank[offset/8];
 	u32 set0, set1, port;
+	u32 timer0, timer1, timer2;
 
 	set0 = ast_gpio_read(gpio_bank, gpio_bank->debounce_offset);	
 	set1 = ast_gpio_read(gpio_bank, gpio_bank->debounce_offset + 0x04);
 
 	port = offset % 32;
+
+	if(debounce) {
+		//find value near 
+		timer0 = abs(debounce - gpio_bank->timer0);
+		timer1 = abs(debounce - gpio_bank->timer1);
+		timer2= abs(debounce - gpio_bank->timer2);
+		if(timer0 < timer1) {
+			if(timer0 < timer2) {
+				debounce = 1;
+			} else {
+				debounce = 2;
+			}
+		} else {
+			if(timer1 < timer2) {
+				debounce = 2;
+			} else {
+				debounce = 3;
+			}		
+		}
+	}
 	switch(debounce) {
 		case 0:	//no debonce 	
 			set0 &= ~(1 << port);
@@ -613,6 +638,8 @@ ast_gpio_probe(struct platform_device *pdev)
 	struct resource *res;	
 	struct ast_gpio *gpio;
 	struct ast_gpio_bank *gpio_bank;
+	struct clk 			*clk;
+	u32					apb_clk;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(struct ast_gpio), GFP_KERNEL);
 	if (!gpio)
@@ -661,6 +688,30 @@ ast_gpio_probe(struct platform_device *pdev)
 		//Disable IRQ 
 		ast_gpio_write(gpio_bank, 0x0, gpio_bank->int_en_offset);
 	}
+
+	//init debuance timer 0/1/2 [0x50,0x54,0x58]
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "gpio no clock defined\n");
+		return -ENODEV;
+	}
+	apb_clk = clk_get_rate(clk);
+	//set debunce timer 
+	gpio_bank->timer0 = 100; 		//100us 
+	gpio_bank->timer1 = 10000; 		//10ms
+	gpio_bank->timer2 = 100000; 	//100ms
+
+//	printk("apb_clk %d \n", apb_clk);
+
+	//debounce timer value = PCLK / debounce time 
+	ast_gpio_write(gpio_bank, gpio_bank->timer0 * (apb_clk/1000000), 0x50);
+	ast_gpio_write(gpio_bank, gpio_bank->timer1 * (apb_clk/1000000), 0x54);
+	ast_gpio_write(gpio_bank, gpio_bank->timer2 * (apb_clk/1000000), 0x58);
+//	printk("gpio debunce timer %x, %x, %x\n", ast_gpio_read(gpio_bank, 0x50), ast_gpio_read(gpio_bank, 0x54), ast_gpio_read(gpio_bank, 0x58));
+
+	ast_gpio_write(gpio_bank, 0xffffffff, gpio_bank->int_type_offset);
+	ast_gpio_write(gpio_bank, 0xffffffff, gpio_bank->int_type_offset + 0x04);
+	ast_gpio_write(gpio_bank, 0, gpio_bank->int_type_offset + 0x08);
 
 	rc = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 	if (rc < 0)

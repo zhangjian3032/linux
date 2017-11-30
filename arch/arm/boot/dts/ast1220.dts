@@ -48,7 +48,7 @@
 			reg = <0x00000000 0x02000000>;	
 		};
 		partition@1 {
-			label = "U-Boota";
+			label = "u-boot";
 			reg = <0x00000000 0x00060000>;
 			read-only;
 		};
@@ -62,7 +62,7 @@
 			read-only;
 		};
 		partition@4 {
-			label = "Rootfs";
+			label = "rootfs";
 			reg = <0x00400000 0x00300000>;
 		};
 		partition@5 {
