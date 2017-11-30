@@ -10,6 +10,7 @@
  * 2 of the License, or (at your option) any later version.
  *
  */
+#include <linux/clk.h>
 #include <linux/bitops.h>
 #include <linux/gpio/driver.h>
 #include <linux/of_device.h>
@@ -700,12 +701,14 @@ ast_gpio_probe(struct platform_device *pdev)
 	gpio_bank->timer1 = 10000; 		//10ms
 	gpio_bank->timer2 = 100000; 	//100ms
 
+//	printk("apb_clk %d \n", apb_clk);
+
 	//debounce timer value = PCLK / debounce time 
 	ast_gpio_write(gpio_bank, gpio_bank->timer0 * (apb_clk/1000000), 0x50);
 	ast_gpio_write(gpio_bank, gpio_bank->timer1 * (apb_clk/1000000), 0x54);
 	ast_gpio_write(gpio_bank, gpio_bank->timer2 * (apb_clk/1000000), 0x58);
 //	printk("gpio debunce timer %x, %x, %x\n", ast_gpio_read(gpio_bank, 0x50), ast_gpio_read(gpio_bank, 0x54), ast_gpio_read(gpio_bank, 0x58));
-	
+
 	ast_gpio_write(gpio_bank, 0xffffffff, gpio_bank->int_type_offset);
 	ast_gpio_write(gpio_bank, 0xffffffff, gpio_bank->int_type_offset + 0x04);
 	ast_gpio_write(gpio_bank, 0, gpio_bank->int_type_offset + 0x08);
