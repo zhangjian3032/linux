@@ -8,9 +8,16 @@
 
 	aliases {
 		serial0 = &uart0;
-		serial1 = &uart3;
-		serial2 = &uart4;
-		serial3 = &vuart;
+		serial1 = &dma_uart0;
+		serial2 = &dma_uart1;
+		serial3 = &dma_uart2;
+    serial4 = &dma_uart3;
+    serial5 = &dma_uart4;
+    serial6 = &dma_uart5;
+    serial7 = &dma_uart6;
+    serial8 = &dma_uart7;
+    serial9 = &dma_uart8;
+    serial10 = &dma_uart9;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -26,6 +33,58 @@
 		bootargs = "console=ttyS0,115200 root=/dev/ram rw init=/linuxrc";
 	};
 
+};
+
+&uart3 {
+  status = "disable";
+};
+
+&uart4 {
+  status = "disable";
+};
+
+&ast_uart_sdma {
+  status = "okay";
+};
+
+&dma_uart0 {
+  status = "okay";
+};
+
+&dma_uart1 {
+  status = "okay";
+};
+
+&dma_uart2 {
+  status = "okay";
+};
+
+&dma_uart3 {
+  status = "okay";
+};
+
+&dma_uart4 {
+  status = "okay";
+};
+
+&dma_uart5 {
+  status = "okay";
+};
+
+&dma_uart6 {
+  status = "okay";
+};
+
+&dma_uart7 {
+  status = "okay";
+};
+
+&dma_uart8 {
+  status = "okay";
+};
+
+&dma_uart9 {
+  status = "okay";
 };
 
 &gmac0 {
