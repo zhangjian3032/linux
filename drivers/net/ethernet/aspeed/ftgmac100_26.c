@@ -850,8 +850,8 @@ static void aspeed_mac_timer(unsigned long data)
         priv->timer.expires = jiffies + 1 * HZ;
     } // End if (status & LINK_STATUS)
     
-#ifdef AST_SOC_G3
-	//Fix issue 
+#if 0 
+	//AST2300 Fix issue 
 	//When the Tx-MAC executes its last read request to DMA arbiter and the Rx-MAC send its first burst write request to DMA arbiter at the same time 
 	//(i.e., only when Rx first burst write overlaps Tx last read), 
 	//then the Rx-MAC write request would not be acknowledged by the DMA arbiter, 
