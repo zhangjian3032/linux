@@ -370,6 +370,8 @@ static unsigned long aspeed_clk_lhpll_recalc_rate(struct clk_hw *hw,
 #define SCU_CLK_SD_MASK				(0x7 << 12)
 //0x08
 #define SCU_SDCLK_STOP_EN			(0x1 << 27)
+//0x0C
+#define SCU_CLK_SD_EN				(0x1 << 15)
 
 static unsigned long aspeed_sdclk_recalc_rate(struct clk_hw *hw,
 						unsigned long clkin_rate)
@@ -431,6 +433,7 @@ static int aspeed_sdclk_enable(struct clk_hw *hw)
 {
 	struct aspeed_clk *sdclk = to_aspeed_clk(hw);
 	int ret;
+	u32 div;
 	u32 enable;
 
 	/* SCU0C: SD EN Register */
@@ -445,6 +448,19 @@ static int aspeed_sdclk_enable(struct clk_hw *hw)
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
 	}
+
+	ret = regmap_read(sdclk->map, sdclk->div, &div);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	
+	ret = regmap_write(sdclk->map, sdclk->div, div | SCU_CLK_SD_EN);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	
 	return 0;	
 }
 
@@ -452,6 +468,7 @@ static void aspeed_sdclk_disable(struct clk_hw *hw)
 {
 	struct aspeed_clk *sdclk = to_aspeed_clk(hw);
 	int ret;
+	u32 div;
 	u32 enable;
 
 	/* SCU0C: SD EN Register */
@@ -466,6 +483,19 @@ static void aspeed_sdclk_disable(struct clk_hw *hw)
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return;
 	}
+
+	ret = regmap_read(sdclk->map, sdclk->div, &div);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	
+	ret = regmap_write(sdclk->map, sdclk->div, div & ~SCU_CLK_SD_EN);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+	return 0;
 
 }
 
