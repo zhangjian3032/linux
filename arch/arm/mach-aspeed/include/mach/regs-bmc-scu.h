@@ -540,12 +540,6 @@
 #define CPU_AHB_RATIO_4_1		2
 #define CPU_AHB_RATIO_3_1		3
 
-#define SCU_HW_STRAP_GET_H_PLL_CLK(x)	((x >> 8 )& 0x3)
-#define SCU_HW_STRAP_H_PLL_CLK_MASK		(0x3 << 8)
-#define CPU_384MHZ		0
-#define CPU_360MHZ		1
-#define CPU_336MHZ		2
-#define CPU_408MHZ		3
 
 #define SCU_HW_STRAP_MAC1_RGMII		(0x1 << 7)
 #define SCU_HW_STRAP_MAC0_RGMII		(0x1 << 6)

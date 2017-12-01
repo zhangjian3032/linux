@@ -71,6 +71,10 @@ static unsigned long aspeed_clk_clkin_recalc_rate(struct clk_hw *hw,
 #define SCU_H_PLL_GET_DENUM(x)			(x & 0xf)
 #define SCU_H_PLL_DENUM_MASK			(0xf)
 
+#define SCU_HW_STRAP_GET_H_PLL_CLK(x)	((x >> 8 )& 0x3)
+#define SCU_HW_STRAP_H_PLL_CLK_MASK		(0x3 << 8)
+#define SCU_HW_STRAP_25MHZ				(0x1 << 23)
+
 static unsigned long aspeed_clk_hpll_recalc_rate(struct clk_hw *hw,
 						 unsigned long clkin_rate)
 {
@@ -78,11 +82,19 @@ static unsigned long aspeed_clk_hpll_recalc_rate(struct clk_hw *hw,
 	unsigned long rate;
 	int ret;
 	u32 div;
+	int clk;
+	u32 scu70;
 	int de, n, od;
-	printk("TODO ~~~~~~~~~~~~~~~~~~~~~~~~~ aspeed_clk_hpll_recalc_rate \n");
-#if 0	
+
+	/* SCU70 */
+	ret = regmap_read(hpll->map, hpll->enable, &scu70);
+	if (ret) {
+		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
+		return ret;
+	}
+
 	/* SCU24: HPLL */
-	ret = regmap_read(hpll->map, hpll->reg, &reg);
+	ret = regmap_read(hpll->map, hpll->div, &div);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -91,37 +103,58 @@ static unsigned long aspeed_clk_hpll_recalc_rate(struct clk_hw *hw,
 	if(div & SCU_H_PLL_OFF)
 		return 0;
 
-	if(reg & SCU_H_PLL_PARAMETER) {
-		if(reg & SCU_H_PLL_BYPASS_EN) {
+	if(div & SCU_H_PLL_PARAMETER) {
+		if(div & SCU_H_PLL_BYPASS_EN) {
 			return clkin_rate;
 		} else {
-			od = SCU_H_PLL_GET_DIV(reg);	//OD == SCU24[4]
-			n = SCU_H_PLL_GET_NUM(reg);		//Numerator == SCU24[10:5]
-			de = SCU_H_PLL_GET_DENUM(reg);	//Denumerator == SCU24[3:0]
+			od = SCU_H_PLL_GET_DIV(div);	//OD == SCU24[4]
+			n = SCU_H_PLL_GET_NUM(div);		//Numerator == SCU24[10:5]
+			de = SCU_H_PLL_GET_DENUM(div);	//Denumerator == SCU24[3:0]
 			//hpll = clkin * (2-OD) * ((Numerator+2)/(Denumerator+1))
 			rate = ((clkin_rate * (2-od) * (n+2))/(de+1));
 		}
 	} else {	// HW Trap
-		clk = SCU_HW_STRAP_GET_H_PLL_CLK(scu70);
-		switch (clk) {
-			case 0:
-				rate = 384 * 1000 * 1000; 
-				break;
-			case 1:
-				rate = 360 * 1000 * 1000; 
-				break;
-			case 2:
-				rate = 336 * 1000 * 1000; 
-				break;
-			case 3:
-				rate = 408 * 1000 * 1000; 
-				break;
-			default:
-				BUG(); 
-				break;
-		}		
+		if(SCU_HW_STRAP_25MHZ & scu70) {
+			clk = SCU_HW_STRAP_GET_H_PLL_CLK(scu70);
+			switch (clk) {
+				case 0:
+					rate = 400 * 1000 * 1000; 
+					break;
+				case 1:
+					rate = 375 * 1000 * 1000; 
+					break;
+				case 2:
+					rate = 350 * 1000 * 1000; 
+					break;
+				case 3:
+					rate = 425 * 1000 * 1000; 
+					break;
+				default:
+					BUG(); 
+					break;
+			}			
+		} else {
+			clk = SCU_HW_STRAP_GET_H_PLL_CLK(scu70);
+			switch (clk) {
+				case 0:
+					rate = 384 * 1000 * 1000; 
+					break;
+				case 1:
+					rate = 360 * 1000 * 1000; 
+					break;
+				case 2:
+					rate = 336 * 1000 * 1000; 
+					break;
+				case 3:
+					rate = 408 * 1000 * 1000; 
+					break;
+				default:
+					BUG(); 
+					break;
+			}
+		}
 	}
-#endif	
+
 	return rate;
 }
 
@@ -487,15 +520,15 @@ static void aspeed_sdclk_disable(struct clk_hw *hw)
 	ret = regmap_read(sdclk->map, sdclk->div, &div);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
 	
 	ret = regmap_write(sdclk->map, sdclk->div, div & ~SCU_CLK_SD_EN);
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
-		return ret;
+		return;
 	}
-	return 0;
+	return;
 
 }
 
