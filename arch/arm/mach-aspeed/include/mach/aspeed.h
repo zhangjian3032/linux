@@ -20,24 +20,10 @@
 #ifndef _ASPEED_H
 #define _ASPEED_H
 
-#if defined(CONFIG_ARCH_AST1220)
-#define AST_SOC_CAM
-#elif defined(CONFIG_ARCH_AST2500) || defined(CONFIG_ARCH_AST1520)
-#define AST_SOC_G5
-#elif defined(CONFIG_ARCH_AST3200) 
+#if defined(CONFIG_ARCH_AST2500) || defined(CONFIG_ARCH_AST1520) || defined(CONFIG_ARCH_AST3200) 
 #define AST_SOC_G5
 #elif defined(CONFIG_ARCH_AST1400) || defined(CONFIG_ARCH_AST2400) || defined(CONFIG_ARCH_AST3100)
 #define AST_SOC_G4
-#elif defined(CONFIG_ARCH_AST1300) || defined(CONFIG_ARCH_AST2300) || defined(CONFIG_ARCH_AST1510)
-#define AST_SOC_G3
-#elif defined(CONFIG_ARCH_AST2150) || defined(CONFIG_ARCH_AST2200)
-#define AST_SOC_G2_5
-#elif defined(CONFIG_ARCH_AST1100) || defined(CONFIG_ARCH_AST2050) || defined(CONFIG_ARCH_AST2100)
-#define AST_SOC_G2
-#elif defined(CONFIG_ARCH_AST2000) || defined(CONFIG_ARCH_AST1000)
-#define AST_SOC_G1
-#elif defined(CONFIG_ARCH_AST1010)
-#define AST_SOC_COLDFIRE
 #else
 #error "Not define SoC generation"
 #endif
