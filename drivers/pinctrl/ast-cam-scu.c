@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <mach/aspeed.h>
 
 #include <mach/ast-cam-scu.h>
 #include <mach/regs-cam-scu.h>

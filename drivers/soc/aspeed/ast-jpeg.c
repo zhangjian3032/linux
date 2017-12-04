@@ -38,7 +38,6 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <mach/hardware.h>
-#include <mach/aspeed.h>
 #include <linux/dma-mapping.h>
 /***********************************************************************/
 
