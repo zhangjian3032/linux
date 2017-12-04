@@ -39,6 +39,7 @@ if [ "$2" == "bmc" ]; then
 	rm -f $1/drivers/memory/ast-cam-sdmc.c
 	rm -f $1/drivers/hwmon/ast_pwm.c
 	rm -f $1/drivers/clk/aspeed/clk-cam.c
+	rm -f $1/drivers/pinctrl/ast-cam-scu.c
 fi
 
 #CAM
