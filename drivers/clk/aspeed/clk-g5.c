@@ -421,11 +421,11 @@ static unsigned long aspeed_sdclk_recalc_rate(struct clk_hw *hw,
 
 	sd_div = SCU_CLK_SD_GET_DIV(div);
 	sd_div = (sd_div+1) << 2;
-	rate = clkin_rate /= sd_div;
-		
+	rate = clkin_rate / sd_div;
+
 	return rate;
-}						
-		
+}
+
 static int aspeed_sdclk_prepare(struct clk_hw *hw)
 {
 	struct aspeed_clk *sdclk = to_aspeed_clk(hw);
