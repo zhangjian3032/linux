@@ -16,7 +16,7 @@
 #include "clk-aspeed.h"
 
 void __init aspeed_clk_common_init(struct device_node *node,
-				   const struct clk_ops *ops)
+				   const struct clk_ops *ops, unsigned long flags)
 {
 	struct clk *clk;
 	int ret;
@@ -43,7 +43,7 @@ void __init aspeed_clk_common_init(struct device_node *node,
 
 	init.name = name;
 	init.ops = ops;
-	init.flags = 0;
+	init.flags = flags;
 	init.parent_names = parent_name ? &parent_name : NULL;
 	init.num_parents = parent_name ? 1 : 0;
 	aspeed_clk->hw.init = &init;

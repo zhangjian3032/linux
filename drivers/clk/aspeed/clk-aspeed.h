@@ -19,5 +19,5 @@ struct aspeed_clk {
 #define to_aspeed_clk(_hw) container_of(_hw, struct aspeed_clk, hw)
 
 void __init aspeed_clk_common_init(struct device_node *node,
-				   const struct clk_ops *ops);
+				   const struct clk_ops *ops, unsigned long flags);
 

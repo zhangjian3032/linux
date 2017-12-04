@@ -168,7 +168,7 @@ static unsigned long aspeed_clk_ahb_recalc_rate(struct clk_hw *hw,
 	int ret;
 	u32 div;
 	u32 ahb_div;
-	
+
 
 	/* Strap register SCU70 */
 	ret = regmap_read(ahb->map, ahb->div, &div);
@@ -417,7 +417,7 @@ static unsigned long aspeed_sdclk_recalc_rate(struct clk_hw *hw,
 	u32 sd_div;
 
 	ret = regmap_read(sdclk->map, sdclk->div, &div);
-	
+
 	if (ret) {
 		pr_err("%s: regmap read failed\n", clk_hw_get_name(hw));
 		return ret;
@@ -436,10 +436,10 @@ static unsigned long aspeed_sdclk_recalc_rate(struct clk_hw *hw,
 	sd_div = SCU_CLK_SD_GET_DIV(div);
 	sd_div = (sd_div+1) << 1;
 	rate = clkin_rate /= sd_div;
-		
+
 	return rate;
-}						
-		
+}
+
 static int aspeed_sdclk_prepare(struct clk_hw *hw)
 {
 	struct aspeed_clk *sdclk = to_aspeed_clk(hw);
@@ -753,64 +753,64 @@ static const struct clk_ops aspeed_usb20p1_clk_ops = {
 
 static void __init aspeed_clk_clkin_init(struct device_node *node)
 {
-	aspeed_clk_common_init(node, &aspeed_clk_clkin_ops);
+	aspeed_clk_common_init(node, &aspeed_clk_clkin_ops, 0);
 }
 CLK_OF_DECLARE(aspeed_clkin_clk, "aspeed,g4-clkin-clock", aspeed_clk_clkin_init);
 
 static void __init aspeed_clk_hpll_init(struct device_node *node)
 {
-	aspeed_clk_common_init(node, &aspeed_clk_hpll_ops);
+	aspeed_clk_common_init(node, &aspeed_clk_hpll_ops, 0);
 }
 CLK_OF_DECLARE(aspeed_hpll_clk, "aspeed,g4-hpll-clock", aspeed_clk_hpll_init);
 
 static void __init aspeed_clk_apb_init(struct device_node *node)
 {
-	aspeed_clk_common_init(node, &aspeed_clk_apb_ops);
+	aspeed_clk_common_init(node, &aspeed_clk_apb_ops, 0);
 }
 CLK_OF_DECLARE(aspeed_apb_clk, "aspeed,g4-apb-clock", aspeed_clk_apb_init);
 
 static void __init aspeed_clk_ahb_init(struct device_node *node)
 {
-	aspeed_clk_common_init(node, &aspeed_clk_ahb_ops);
+	aspeed_clk_common_init(node, &aspeed_clk_ahb_ops, 0);
 }
 CLK_OF_DECLARE(aspeed_ahb_clk, "aspeed,g4-ahb-clock", aspeed_clk_ahb_init);
 static void __init aspeed_clk_mpll_init(struct device_node *node)
 {
-	aspeed_clk_common_init(node, &aspeed_clk_mpll_ops);
+	aspeed_clk_common_init(node, &aspeed_clk_mpll_ops, 0);
 }
 CLK_OF_DECLARE(aspeed_mpll_clk, "aspeed,g4-mpll-clock", aspeed_clk_mpll_init);
 static void __init aspeed_clk_d2pll_init(struct device_node *node)
 {
-	aspeed_clk_common_init(node, &aspeed_clk_d2pll_ops);
+	aspeed_clk_common_init(node, &aspeed_clk_d2pll_ops, 0);
 }
 CLK_OF_DECLARE(aspeed_d2pll_clk, "aspeed,g4-d2pll-clock", aspeed_clk_d2pll_init);
 static void __init aspeed_clk_lhpll_init(struct device_node *node)
 {
-	aspeed_clk_common_init(node, &aspeed_clk_lhpll_ops);
+	aspeed_clk_common_init(node, &aspeed_clk_lhpll_ops, 0);
 }
 CLK_OF_DECLARE(aspeed_lhpll_clk, "aspeed,g4-lhpll-clock", aspeed_clk_lhpll_init);
 static void __init aspeed_sdclk_init(struct device_node *node)
 {
-	aspeed_clk_common_init(node, &aspeed_sdclk_ops);
+	aspeed_clk_common_init(node, &aspeed_sdclk_ops, CLK_GET_RATE_NOCACHE);
 }
 CLK_OF_DECLARE(aspeed_sdpll_clk, "aspeed,g4-sdclock", aspeed_sdclk_init);
 static void __init aspeed_usb11clk_init(struct device_node *node)
 {
-	aspeed_clk_common_init(node, &aspeed_usb11clk_ops);
+	aspeed_clk_common_init(node, &aspeed_usb11clk_ops, 0);
 }
 CLK_OF_DECLARE(aspeed_usb11clk, "aspeed,g4-usb11clock", aspeed_usb11clk_init);
 static void __init aspeed_mac1_clk_init(struct device_node *node)
 {
-	aspeed_clk_common_init(node, &aspeed_mac1_clk_ops);
+	aspeed_clk_common_init(node, &aspeed_mac1_clk_ops, 0);
 }
 CLK_OF_DECLARE(aspeed_mac1_clk, "aspeed,g4-mac1-clock", aspeed_mac1_clk_init);
 static void __init aspeed_mac0_clk_init(struct device_node *node)
 {
-	aspeed_clk_common_init(node, &aspeed_mac0_clk_ops);
+	aspeed_clk_common_init(node, &aspeed_mac0_clk_ops, 0);
 }
 CLK_OF_DECLARE(aspeed_mac0_clk, "aspeed,g4-mac0-clock", aspeed_mac0_clk_init);
 static void __init aspeed_usb20p1_clk_init(struct device_node *node)
 {
-	aspeed_clk_common_init(node, &aspeed_usb20p1_clk_ops);
+	aspeed_clk_common_init(node, &aspeed_usb20p1_clk_ops, 0);
 }
 CLK_OF_DECLARE(aspeed_usb20p1_clk, "aspeed,g4-usb20p1clock", aspeed_usb20p1_clk_init);

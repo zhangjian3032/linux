@@ -176,6 +176,7 @@
 			clk_hpll: clk_hpll@24 {
 				#clock-cells = <0>;
 				compatible = "aspeed,g4-hpll-clock";
+				enable = <0x70 0x0>;
 				div = <0x24 0x0>;
 				clocks = <&clk_clkin>;
 			};
