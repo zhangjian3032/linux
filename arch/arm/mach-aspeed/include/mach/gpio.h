@@ -25,11 +25,6 @@
 #ifndef __ASM_ARCH_ASPEED_GPIO_H
 #define __ASM_ARCH_ASPEED_GPIO_H
 
-#include <linux/kernel.h>
-#include <mach/irqs.h>
-#include <mach/aspeed.h>
-
-/*************************************************************/
 #define PIN_GPIOA0						(0)
 #define PIN_GPIOA1						(1)
 #define PIN_GPIOA2						(2)
