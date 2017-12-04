@@ -19,6 +19,7 @@ if [ "$2" == "bmc" ]; then
         find $1/. -name  '*.cam' | while read filename; do rm -f "${filename}"; done
 	find $1/. -name  '*_cam_*.h' | while read filename; do rm -f "${filename}"; done
 	find $1/. -name  '*_cam_*.c' | while read filename; do rm -f "${filename}"; done
+	rm -f $1/include/dt-bindings/reset/ast-cam-reset.h
 	rm -f $1/arch/arm/configs/ast2500_cam_defconfig
 	rm -f $1/drivers/usb/gadget/udc/ast_udc.c
 	rm -f $1/drivers/soc/aspeed/ast-jpeg.c
@@ -36,18 +37,24 @@ if [ "$2" == "bmc" ]; then
 	rm -f $1/arch/arm/boot/dts/ast2400.dts
 	rm -f $1/arch/arm/boot/dts/ast2500.dts
 	rm -f $1/drivers/memory/ast-cam-sdmc.c
+	rm -f $1/drivers/hwmon/ast_pwm.c
+	rm -f $1/drivers/clk/aspeed/clk-cam.c
 fi
 
 #CAM
 if [ "$2" == "cam" ]; then
         find $1/. -name  '*.cam' | while read filename; do mv -v "${filename}" "`echo "${filename}" | sed -e 's/.cam//'`"; done
         find $1/. -name  '*.bmc' | while read filename; do rm -f "${filename}"; done
+	rm -f $1/include/dt-bindings/reset/ast-g4-reset.h
+	rm -f $1/include/dt-bindings/reset/ast-g5-reset.h
 	rm -f $1/arch/arm/plat-aspeed/ast1070*.*
 	rm -f $1/arch/arm/plat-aspeed/include/plat/ast1070*.*
 	rm -f $1/arch/arm/boot/dts/ast2400*.dts
 	rm -f $1/arch/arm/boot/dts/ast2500*.dts
 	rm -f $1/drivers/pci/host/*ast*.c
 	rm -f $1/drivers/tty/serial/8250/ast*.c
+	rm -f $1/drivers/clk/aspeed/clk-g4.c
+	rm -f $1/drivers/clk/aspeed/clk-g5.c
 fi
 
 rm -rf $1/arch/arm/plat-aspeed
