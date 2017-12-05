@@ -458,7 +458,6 @@
 			reg-shift = <2>;
 			interrupts = <32>;
 			clocks = <&clk_uart>;
-			pinmux = <0x3>;
 			no-loopback-test;
 			status = "disabled";
 		};
@@ -469,7 +468,6 @@
 			reg-shift = <2>;
 			interrupts = <33>;
 			clocks = <&clk_uart>;
-			pinmux = <0x3>;
 			no-loopback-test;
 		};
                 uart4: serial@1e78f000 {
@@ -478,7 +476,6 @@
 			reg-shift = <2>;
 			interrupts = <34>;
 			clocks = <&clk_uart>;
-			pinmux = <0x4>;
 			no-loopback-test;
 		};
 

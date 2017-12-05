@@ -1150,22 +1150,22 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 		}
 	}
 #endif
-	
+
+#ifdef CONFIG_SERIAL_AST_DMA_UART
 	//UART Setting 
 	for_each_compatible_node(np, NULL, "aspeed,ast-sdma-uart") {
 		BMC_SCUDBG("np->name %s %s \n", np->name, np->properties->name);
-		if (of_property_read_u32(np, "pinmux", &idx) == 0) {
-			BMC_SCUDBG("pinmux = %d \n", idx);
+		idx = of_alias_get_id(np, "serial");
+		if(idx > 0)
 			ast_scu_multi_func_uart(idx);
-		}
 	}
+#endif 
 
 	for_each_compatible_node(np, NULL, "ns16550a") {
-		BMC_SCUDBG("np->name %s %s \n", np->name, np->properties->name);		
-		if (of_property_read_u32(np, "pinmux", &idx) == 0) {
-			BMC_SCUDBG("pinmux = %d \n", idx);
+		BMC_SCUDBG("np->name %s %s \n", np->name, np->properties->name);
+		idx = of_alias_get_id(np, "serial");
+		if(idx > 0)
 			ast_scu_multi_func_uart(idx);
-		}
 	}
 
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-pwm-tacho")) {
@@ -1186,7 +1186,8 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 		BMC_SCUDBG("aspeed,ast-i2c found in SCU, ");
 		idx = of_alias_get_id(np, "i2c");		
 		BMC_SCUDBG("bus = %d ", idx);
-		ast_scu_multi_func_i2c(idx);
+		if(idx > 0)
+			ast_scu_multi_func_i2c(idx);
 		BMC_SCUDBG("\n");
 	}
 

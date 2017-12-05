@@ -484,7 +484,6 @@
 			reg-shift = <2>;
 			interrupts = <32>;
 			clocks = <&clk_uart>;
-			pinmux = <0x3>;
 			no-loopback-test;
 			status = "disabled";
 		};
@@ -495,7 +494,6 @@
 			reg-shift = <2>;
 			interrupts = <33>;
 			clocks = <&clk_uart>;
-			pinmux = <0x3>;
 			no-loopback-test;
 		};
 		uart4: serial@1e78f000 {
@@ -504,7 +502,6 @@
 			reg-shift = <2>;
 			interrupts = <34>;
 			clocks = <&clk_uart>;
-			pinmux = <0x4>;
 			no-loopback-test;
 		};
 
@@ -522,7 +519,6 @@
 			clocks = <24000000>;
 			reg-shift = <2>;
 			dma-channel = <2>;
-			pinmux = <0x3>;
 			no-loopback-test;
 			status = "disabled";
 		};
@@ -533,7 +529,6 @@
 			clocks = <24000000>;
 			reg-shift = <2>;
 			dma-channel = <3>;
-			pinmux = <0x4>;
 			no-loopback-test;
 			status = "disabled";
 		};
@@ -544,7 +539,6 @@
 			clocks = <24000000>;
 			reg-shift = <2>;
 			dma-channel = <4>;
-			pinmux = <0x6>;
 			no-loopback-test;
 			status = "disabled";
 		};
@@ -555,7 +549,6 @@
 			clocks = <24000000>;
 			reg-shift = <2>;
 			dma-channel = <5>;
-			pinmux = <0x7>;
 			no-loopback-test;
 			status = "disabled";
 		};
@@ -566,7 +559,6 @@
 			clocks = <24000000>;
 			reg-shift = <2>;
 			dma-channel = <6>;
-			pinmux = <0x8>;
 			no-loopback-test;
 			status = "disabled";
 		};
@@ -577,7 +569,6 @@
 			clocks = <24000000>;
 			reg-shift = <2>;
 			dma-channel = <7>;
-			pinmux = <0x9>;
 			no-loopback-test;
 			status = "disabled";
 		};
@@ -588,7 +579,6 @@
 			clocks = <24000000>;
 			reg-shift = <2>;
 			dma-channel = <8>;
-			pinmux = <0xa>;
 			no-loopback-test;
 			status = "disabled";
 		};
@@ -599,7 +589,6 @@
 			clocks = <24000000>;
 			reg-shift = <2>;
 			dma-channel = <9>;
-			pinmux = <0xb>;
 			no-loopback-test;
 			status = "disabled";
 		};
@@ -610,7 +599,6 @@
 			clocks = <24000000>;
 			reg-shift = <2>;
 			dma-channel = <10>;
-			pinmux = <0xc>;
 			no-loopback-test;
 			status = "disabled";
 		};
@@ -621,7 +609,6 @@
 			clocks = <24000000>;
 			reg-shift = <2>;
 			dma-channel = <11>;
-			pinmux = <0xd>;
 			no-loopback-test;
 			status = "disabled";
 		};
