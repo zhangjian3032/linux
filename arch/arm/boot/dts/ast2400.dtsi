@@ -17,7 +17,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		
+
 		cpu@0 {
 			compatible = "arm,arm926ej-s";
 			device_type = "cpu";
@@ -374,9 +374,9 @@
 			interrupts = <46>;
 		};
 
-                ast_rng: rng {
-                        compatible = "aspeed,ast-rng";
-                };
+		ast_rng: rng {
+			compatible = "aspeed,ast-rng";
+		};
 
 		timer:timer@1e782000 {
 			compatible = "aspeed,ast-timer";
@@ -386,7 +386,7 @@
                                      <17 IRQ_TYPE_EDGE_FALLING>, /* Timer 2 */
                                      <18 IRQ_TYPE_EDGE_FALLING>; /* Timer 3 */
 			clocks = <&clk_apb>;
-                        clock-names = "PCLK";
+			clock-names = "PCLK";
 		};
 
 		uart1: serial@1e783000 {
@@ -413,8 +413,8 @@
 			compatible = "aspeed,ast-g4-wdt";
 			reg = <0x1e785000 0x1c>;
 			timeout-sec = <60>;
-			reset_mask = <0x23ffff3>;
-		};		
+			reset_mask = <0x3ffff3>;
+		};
 		/* use for spi 3/4 bytes reboot */
 		wdt1: wdt1@1e785020 {
 			compatible = "aspeed,ast-g4-wdt";
