@@ -1217,12 +1217,15 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 	ast_scu_multi_func_usb_port1_mode(0);
 
 #endif
+
+//TODO Fix for ast2400
+#if 0
 	if(of_find_compatible_node(np, NULL, "aspeed,ast-g4-wdt")) {
 		if(of_property_read_u32(np, "reset_mask", &reset_mask))
 			ast_scu_write(reset_mask, AST_SCU_WDT_RESET);
 		BMC_SCUDBG("aspeed,ast-g4-wdt reset mask %x \n", reset_mask);
 	}
-	
+#endif
 	ast_scu_show_system_info();
 
 #ifdef CONFIG_ARCH_AST3200
