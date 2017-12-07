@@ -144,14 +144,6 @@ struct ast_jpeg_data {
 	
 	phys_addr_t             *jpeg_phy;            /* phy */
 	u32                             *jpeg_virt;           /* virt */
-	phys_addr_t             *buff0_phy;             /* phy */
-	u32                             *buff0_virt;            /* virt */
-	phys_addr_t             *buff1_phy;             /* phy */
-	u32                             *buff1_virt;            /* virt */
-
-	u32		jpeg_mem_size;			/* phy size*/		
-	u32		raw_buff0_offset;			/* buff0 offset*/
-	u32		raw_buff1_offset;			/* buff1 offset*/
 	
 	struct completion	jpeg_complete;		
 
@@ -163,9 +155,6 @@ struct ast_jpeg_data {
 	bool is_open;
 };
 
-/***********************************************************************/
-#define JPEG_RAW_BUFF0_OFFSET 0x1000000
-#define JPEG_RAW_BUFF1_OFFSET 0x2000000
 /***********************************************************************/
 struct ast_jpeg_mode
 {
@@ -596,9 +585,9 @@ static void ast_jpeg_ctrl_init(struct ast_jpeg_data *ast_jpeg)
 
 	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_tbl_dma_addr, AST_JPEG_HEADER_BUFF);
 
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff0_phy, AST_JPEG_SOURCE_BUFF0);
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff1_phy, AST_JPEG_SOURCE_BUFF1);
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_phy, AST_JPEG_STREAM_BUFF);
+//	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff0_phy, AST_JPEG_SOURCE_BUFF0);
+//	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff1_phy, AST_JPEG_SOURCE_BUFF1);
+//	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_phy, AST_JPEG_STREAM_BUFF);
 
 	ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_MODE_ENABLE, AST_JPEG_SEQ_CTRL);
 
@@ -686,7 +675,7 @@ static void ast_jpeg_ctrl_init(struct ast_jpeg_data *ast_jpeg)
 static int ast_jpeg_probe(struct platform_device *pdev)
 {
 	int ret=0;
-	struct resource *res0, *res1;
+	struct resource *res0;
 	struct ast_jpeg_data *ast_jpeg;
 
 	ast_jpeg= devm_kzalloc(&pdev->dev, sizeof(struct ast_jpeg_data), GFP_KERNEL);
@@ -704,7 +693,7 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 	ast_jpeg->reg_base = devm_ioremap_resource(&pdev->dev, res0);
 	if (!ast_jpeg->reg_base) {
 		ret = -EIO;
-		goto out_region0;
+		goto out_region;
 	}
 
 	ast_jpeg->jpeg_tbl_virt = dma_alloc_coherent(NULL,
@@ -713,21 +702,11 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 
 	JPEG_DBG("JPEG TABLE DMA %x, virt = %x \n", ast_jpeg->jpeg_tbl_dma_addr, (u32)ast_jpeg->jpeg_tbl_virt);
 	
-	//Phy assign
-	ast_jpeg->jpeg_mem_size = resource_size(res1);
-	JPEG_DBG("jpeg_mem_size %d MB\n",ast_jpeg->jpeg_mem_size/1024/1024);
-
-	//Total = 16 * 3 = 48MB
-
-	//Dest JPEG 
-	//4096 * 2048 / 2 = 4MB
-	
-	ast_jpeg->jpeg_phy = (phys_addr_t *) res1->start;		// 4M * 2 = 8MB
 
 	//SRC raw x*y 
 	//YUYV = 4096x2048x2 = 16MB, 
 	//NV12 = Y:4096x2048x1 = 8MB, CbCr : 4096x2048x0.5 = 4MB
-	
+#if 0	
 	ast_jpeg->buff0_phy = (phys_addr_t *) (res1->start + JPEG_RAW_BUFF0_OFFSET);  //24M : 16M 
 	ast_jpeg->raw_buff0_offset = JPEG_RAW_BUFF0_OFFSET;
 	ast_jpeg->buff1_phy = (phys_addr_t *) (res1->start + JPEG_RAW_BUFF1_OFFSET);  //24M + 16M : 16M 
@@ -746,16 +725,18 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 	ast_jpeg->buff0_virt = ast_jpeg->jpeg_virt + JPEG_RAW_BUFF0_OFFSET; //24M : size 10MB
 	ast_jpeg->buff1_virt = ast_jpeg->jpeg_virt + JPEG_RAW_BUFF1_OFFSET; //34M : size 10MB
 
+
 	JPEG_DBG("\n jpeg_virt: %x, buff0_virt: %x, buff1_virt:%x \n",
 	        (u32)ast_jpeg->jpeg_virt, (u32)ast_jpeg->buff0_virt, (u32)ast_jpeg->buff1_virt);
 
 	memset(ast_jpeg->jpeg_virt, 0, resource_size(res1));	
+#endif
 
 	ast_jpeg->irq = platform_get_irq(pdev, 0);
 	if (ast_jpeg->irq < 0) {
 		dev_err(&pdev->dev, "no irq specified\n");
 		ret = -ENOENT;
-		goto out_region1;
+		goto out_region;
 	}
 
 	ret = misc_register(&ast_jpeg_misc);
@@ -774,7 +755,7 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 					   0, dev_name(&pdev->dev), ast_jpeg);
 	if (ret) {
 		printk(KERN_INFO "JPEG: Failed request irq %d\n", ast_jpeg->irq);
-		goto out_region1;
+		goto out_region;
 	}
 
 	printk(KERN_INFO "ast_jpeg: driver successfully loaded.\n");
@@ -784,10 +765,7 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 out_irq:
 	free_irq(ast_jpeg->irq, NULL);
 
-out_region1:
-	release_mem_region(res1->start, res1->end - res1->start + 1);	
-
-out_region0:
+out_region:
 	release_mem_region(res0->start, res0->end - res0->start + 1);
 	
 out:
