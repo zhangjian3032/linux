@@ -707,10 +707,6 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 		goto out_region0;
 	}
 
-	res1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res1)
-		return -ENODEV;
-	
 	ast_jpeg->jpeg_tbl_virt = dma_alloc_coherent(NULL,
 					 1024 * 4 * 12,
 					 &ast_jpeg->jpeg_tbl_dma_addr, GFP_KERNEL);
