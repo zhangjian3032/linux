@@ -155,7 +155,7 @@
 #define AST_I2CD_M_START_CMD				(0x1 )		
 
 /* 0x18 : I2CD Slave Device Address Register   */
-#define AST_I2CD_SLAVE2_ENABLE				(0x1 << 5)
+#define AST_I2CD_SLAVE2_ENABLE				(0x1 << 15)
 
 /* 0x1C : I2CD Pool Buffer Control Register   */
 #define AST_I2CD_RX_BUF_ADDR_GET(x)			((x>> 24)& 0xff)
