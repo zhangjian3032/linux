@@ -37,7 +37,7 @@
 			reg = <0x00000000 0x02000000>;	
 		};
 		partition@1 {
-			label = "U-Boota";
+			label = "U-Boot";
 			reg = <0x00000000 0x00060000>;
 			read-only;
 		};
