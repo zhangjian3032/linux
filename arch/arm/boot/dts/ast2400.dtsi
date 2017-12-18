@@ -439,7 +439,7 @@
 			compatible = "aspeed,ast-vuart";
 			reg = <0x1e787000 0x200>;
 			reg-shift = <2>;
-			interrupts = <8>;
+			interrupts = <2>;
 			clocks = <&clk_uart>;
 			no-loopback-test;
 			port_address = <0x3f8>;
