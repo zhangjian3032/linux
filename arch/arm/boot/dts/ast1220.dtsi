@@ -149,53 +149,47 @@
 				reg = <0x04 0x04>;
 				syscon = <&syscon>;
 			};
+			clk_uart: clk_uart {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <24000000>;
+			};			
 #if 0
 			clk_clkin: clk_clkin@70 {
 				#clock-cells = <0>;
-				compatible = "aspeed,cam-clkin-clock";
-				div = <0x70 0x0>;
-			};
-#else
-			clk_clkin: clk_clkin@70 {
-				#clock-cells = <0>;
 				compatible = "fixed-clock";
-				clock-frequency = <52000000>;
+				clock-frequency = <24000000>;
 			};
-#endif
-#if 0
-			clk_mpll: clk_mpll@70 {
+			clk_epll: clk_epll@18 {
 				#clock-cells = <0>;
-				compatible = "fixed-clock";
-				clock-frequency = <52000000>;
+				compatible = "aspeed,cam-epll-clock";
+				div = <0x18 0x0>;
+				clocks = <&clk_clkin>;
 			};
-#else
+			clk_apll: clk_apll@1C {
+				#clock-cells = <0>;
+				compatible = "aspeed,cam-apll-clock";
+				div = <0x1C 0x0>;
+				clocks = <&clk_clkin>;
+			};
 			clk_mpll: clk_mpll@20 {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-mpll-clock";
 				div = <0x20 0x0>;
 				clocks = <&clk_clkin>;
 			};
-#endif
-#if 0
-			clk_hpll: clk_hpll@70 {
-				#clock-cells = <0>;
-				compatible = "fixed-clock";
-				clock-frequency = <52000000>;
-			};
-#else
 			clk_hpll: clk_hpll@24 {
 				#clock-cells = <0>;
-				compatible = "fixed-clock";
-				clock-frequency = <52000000>;
+				compatible = "aspeed,cam-hpll-clock";
+				div = <0x24 0x0>;
+				clocks = <&clk_clkin>;
 			};
-#endif
-#if 1
-			clk_sdio:clk_sdio@08 {
+			clk_dpll: clk_dpll@28 {
 				#clock-cells = <0>;
-				compatible = "fixed-clock";
-				clock-frequency = <52000000>;
+				compatible = "aspeed,cam-dpll-clock";
+				div = <0x28 0x0>;
+				clocks = <&clk_clkin>;
 			};
-#else
 			clk_sdio:clk_sdio@08 {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-sdclock";
@@ -203,14 +197,6 @@
 				enable = <0x0C 0x0>;
 				clocks = <&clk_hpll>;
 			};
-#endif
-#if 1
-			clk_sd: clk_sd@08 {
-				#clock-cells = <0>;
-				compatible = "fixed-clock";
-				clock-frequency = <52000000>;
-			};
-#else
 			clk_sd: clk_sd@08 {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-sdclock";
@@ -218,40 +204,75 @@
 				enable = <0x0C 0x0>;
 				clocks = <&clk_hpll>;
 			};
-#endif
-			clk_usb20: clk_usb20@0C {
-				#clock-cells = <0>;
-				compatible = "aspeed,cam-usb20clock";
-				enable = <0x0C 0x0>;
-			};
-#if 1
-			clk_ahb: clk_ahb@70 {
-				#clock-cells = <0>;
-				compatible = "fixed-clock";
-				clock-frequency = <52000000>;
-			};
-#else
 			clk_ahb: clk_ahb@70 {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-ahb-clock";
 				div = <0x70 0x0>;
 				clocks = <&clk_hpll>;
 			};
-#endif
-#if 1
-			clk_apb: clk_apb@08 {
-				#clock-cells = <0>;
-				compatible = "fixed-clock";
-				clock-frequency = <52000000>;
-			};
-#else
 			clk_apb: clk_apb@08 {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-apb-clock";
 				div = <0x08 0x0>;
 				clocks = <&clk_hpll>;
+			};			
+#else
+			clk_clkin: clk_clkin@70 {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
 			};
-#endif			
+			clk_epll: clk_epll@18 {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
+			};
+			clk_apll: clk_apll@1C {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
+			};
+			clk_mpll: clk_mpll@20 {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
+			};
+			clk_hpll: clk_hpll@24 {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
+			};
+			clk_dpll: clk_dpll@28 {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
+			};
+			clk_sdio:clk_sdio@08 {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
+			};
+			clk_sd: clk_sd@08 {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
+			};
+			clk_ahb: clk_ahb@70 {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
+			};
+			clk_apb: clk_apb@08 {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
+			};			
+#endif
+			clk_usb20: clk_usb20@0C {
+				#clock-cells = <0>;
+				compatible = "aspeed,cam-usb20clock";
+				enable = <0x0C 0x0>;
+			};
 			clk_y: clk_y@0c {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-yclock";
@@ -262,11 +283,6 @@
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-mac-clock";
 				enable = <0x0C 0x0>;
-			};
-			clk_uart: clk_uart {
-				#clock-cells = <0>;
-				compatible = "fixed-clock";
-				clock-frequency = <24000000>;
 			};
 		};
 
@@ -283,11 +299,13 @@
 			resets = <&sys_reset SCU_RESET_HACE>;
 			reset-names = "crypto";
 		};
+
 		i2s: i2s@1e6e5000 {
 			compatible = "aspeed,ast-i2s";
 			reg = <0x1e6e5000 0x200>;
 			resets = <&sys_reset SCU_RESET_I2S>;
 		};
+
 		mipi: mipi@1e6e8000 {
 			compatible = "aspeed,ast-i2s";
 			reg = <0x1e6e8000 0x200>;
@@ -405,15 +423,81 @@
 			compatible = "aspeed,ast-3d";
 			reg = <0x1e788000 0x200>;
 		};
+
 		pdm: pdm@1e788000 {
 			compatible = "aspeed,ast-pdm";
 			reg = <0x1e788000 0x200>;
 		};
+
+		pp: pp@1e789000 {
+			compatible = "aspeed,ast-pp";
+			reg = <0x1e789000 0x200>;
+			interrupts = <7>;
+		};
+
 		i2c: i2c@1e78a000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x1e78a000 0x1000>;
+		};
+
+		uart2: serial@1e78D000 {
+			compatible = "ns16550a";
+			reg = <0x1e78D000 0x1000>;
+			reg-shift = <2>;
+			interrupts = <32 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_uart>;
+			no-loopback-test;
+		};
+
+		ast_uart_sdma: uart_sdma@1e78e000 {
+			compatible = "aspeed,ast-uart-sdma";
+			reg = <0x1e79e000 0x400>;
+			interrupts = <33>;
+			status = "disabled";
+		};
+		
+		dma_uart0: dma_uart0@1e783000{
+			compatible = "aspeed,ast-sdma-uart";
+			reg = <0x1e783000 0x1000>;
+			clocks = <24000000>;
+			reg-shift = <2>;
+			dma-channel = <2>;
+			no-loopback-test;
+			status = "disabled";
+		};
+		dma_uart1: dma_uart1@1e784000{
+			compatible = "aspeed,ast-sdma-uart";
+			reg = <0x1e784000 0x1000>;
+			clocks = <24000000>;
+			reg-shift = <2>;
+			dma-channel = <3>;
+			no-loopback-test;
+			status = "disabled";
+		};
+		dma_uart2: dma_uart2@1e78D000{
+			compatible = "aspeed,ast-sdma-uart";
+			reg = <0x1e78D000 0x1000>;
+			clocks = <24000000>;
+			reg-shift = <2>;
+			dma-channel = <4>;
+			no-loopback-test;
+			status = "disabled";
+		};
+
+		h264: h264@1e7a0000 {
+			compatible = "aspeed,ast-h264";
+			reg = <0x1e7a0000 0x2000>;
+			interrupts = <4>;
+			status = "disabled";
+		};
+
+		zsp: zsp@1e7c0000 {
+			compatible = "aspeed,ast-zsp";
+			reg = <0x1e7c0000 0x2000>;
+			interrupts = <14>;
+			status = "disabled";
 		};
 
 		ast_cam: ast_cam@00 {
