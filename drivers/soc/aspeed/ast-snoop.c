@@ -19,7 +19,7 @@
  *
  */
 /********************************************************************************
-* Example for GPIO LED 
+* Example for GPIO LED
 GPIO LED
 1. LPC old snoop function #0
 1a. 1e789090 D[15:0] = 80, port 80
@@ -58,20 +58,20 @@ o 80 0
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
-	
+
 #include <mach/ast-lpc.h>
 
 #define CONFIG_AST_SNOOP_DEBUG
 
 #ifdef CONFIG_AST_SNOOP_DEBUG
-	#define SNOOP_DBG(fmt, args...) printk("%s(): " fmt, __FUNCTION__, ## args)
+#define SNOOP_DBG(fmt, args...) printk("%s(): " fmt, __FUNCTION__, ## args)
 #else
-	#define SNOOP_DBG(fmt, args...)
+#define SNOOP_DBG(fmt, args...)
 #endif
 
 /**************************   LPC  Snoop Sys fs   **********************************************************/
-//LPC port to GPIO Port source 
-static ssize_t 
+//LPC port to GPIO Port source
+static ssize_t
 store_snoop_p2gpio_source(struct device *dev, struct device_attribute *attr, const char *sysfsbuf, size_t count)
 {
 	u32 input_val;
@@ -81,16 +81,16 @@ store_snoop_p2gpio_source(struct device *dev, struct device_attribute *attr, con
 	return count;
 }
 
-static ssize_t 
+static ssize_t
 show_snoop_p2gpio_source(struct device *dev, struct device_attribute *attr, char *sysfsbuf)
 {
 	struct ast_snoop_data *ast_snoop = dev_get_drvdata(dev);
-	return sprintf(sysfsbuf, "%x\n",ast_get_lpc2gpio(ast_snoop->ast_lpc, ast_snoop->pdev->id));
+	return sprintf(sysfsbuf, "%x\n", ast_get_lpc2gpio(ast_snoop->ast_lpc, ast_snoop->pdev->id));
 }
 static DEVICE_ATTR(p2gpio_source, S_IRUGO | S_IWUSR, show_snoop_p2gpio_source, store_snoop_p2gpio_source);
 
 //LPC port to GPIO Enable
-static ssize_t 
+static ssize_t
 store_snoop_p2gpio_enable(struct device *dev, struct device_attribute *attr, const char *sysfsbuf, size_t count)
 {
 	u32 input_val;
@@ -100,23 +100,23 @@ store_snoop_p2gpio_enable(struct device *dev, struct device_attribute *attr, con
 	return count;
 }
 
-static ssize_t 
+static ssize_t
 show_snoop_p2gpio_enable(struct device *dev, struct device_attribute *attr, char *sysfsbuf)
 {
 	struct ast_snoop_data *ast_snoop = dev_get_drvdata(dev);
-	return sprintf(sysfsbuf, "%d : %s\n", ast_get_lpc2gpio_en(ast_snoop->ast_lpc, ast_snoop->pdev->id),ast_get_lpc2gpio_en(ast_snoop->ast_lpc,ast_snoop->pdev->id) ? "Enable":"Disable");
+	return sprintf(sysfsbuf, "%d : %s\n", ast_get_lpc2gpio_en(ast_snoop->ast_lpc, ast_snoop->pdev->id), ast_get_lpc2gpio_en(ast_snoop->ast_lpc, ast_snoop->pdev->id) ? "Enable" : "Disable");
 }
 static DEVICE_ATTR(p2gpio_enable, S_IRUGO | S_IWUSR, show_snoop_p2gpio_enable, store_snoop_p2gpio_enable);
 
-static ssize_t 
+static ssize_t
 show_snoop_data(struct device *dev, struct device_attribute *attr, char *sysfsbuf)
 {
 	struct ast_snoop_data *ast_snoop = dev_get_drvdata(dev);
-	return sprintf(sysfsbuf, "%x\n",ast_get_snoop_data(ast_snoop->ast_lpc, ast_snoop->pdev->id));
+	return sprintf(sysfsbuf, "%x\n", ast_get_snoop_data(ast_snoop->ast_lpc, ast_snoop->pdev->id));
 }
 static DEVICE_ATTR(data, S_IRUGO, show_snoop_data, NULL);
 
-static ssize_t 
+static ssize_t
 store_snoop_port(struct device *dev, struct device_attribute *attr, const char *sysfsbuf, size_t count)
 {
 	u32 input_val;
@@ -126,15 +126,15 @@ store_snoop_port(struct device *dev, struct device_attribute *attr, const char *
 	return count;
 }
 
-static ssize_t 
+static ssize_t
 show_snoop_port(struct device *dev, struct device_attribute *attr, char *sysfsbuf)
 {
 	struct ast_snoop_data *ast_snoop = dev_get_drvdata(dev);
-	return sprintf(sysfsbuf, "%x\n",ast_get_snoop_port(ast_snoop->ast_lpc, ast_snoop->pdev->id));
+	return sprintf(sysfsbuf, "%x\n", ast_get_snoop_port(ast_snoop->ast_lpc, ast_snoop->pdev->id));
 }
 static DEVICE_ATTR(port, S_IRUGO | S_IWUSR, show_snoop_port, store_snoop_port);
 
-static ssize_t 
+static ssize_t
 store_snoop_en(struct device *dev, struct device_attribute *attr, const char *sysfsbuf, size_t count)
 {
 	u32 input_val;
@@ -144,11 +144,11 @@ store_snoop_en(struct device *dev, struct device_attribute *attr, const char *sy
 	return count;
 }
 
-static ssize_t 
+static ssize_t
 show_snoop_en(struct device *dev, struct device_attribute *attr, char *sysfsbuf)
 {
 	struct ast_snoop_data *ast_snoop = dev_get_drvdata(dev);
-	return sprintf(sysfsbuf, "%d : %s\n", ast_get_snoop_en(ast_snoop->ast_lpc, ast_snoop->pdev->id),ast_get_snoop_en(ast_snoop->ast_lpc, ast_snoop->pdev->id) ? "Enable":"Disable");
+	return sprintf(sysfsbuf, "%d : %s\n", ast_get_snoop_en(ast_snoop->ast_lpc, ast_snoop->pdev->id), ast_get_snoop_en(ast_snoop->ast_lpc, ast_snoop->pdev->id) ? "Enable" : "Disable");
 }
 
 static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, show_snoop_en, store_snoop_en);
@@ -157,10 +157,10 @@ static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, show_snoop_en, store_snoop_en);
 static struct attribute *ast_snoop_attributes[] = {
 	&dev_attr_enable.attr,
 	&dev_attr_port.attr,
-	&dev_attr_data.attr,	
-	&dev_attr_p2gpio_enable.attr,	
-	&dev_attr_p2gpio_source.attr,		
-//	&dev_attr_buff.attr,		
+	&dev_attr_data.attr,
+	&dev_attr_p2gpio_enable.attr,
+	&dev_attr_p2gpio_source.attr,
+//	&dev_attr_buff.attr,
 	NULL
 };
 
@@ -175,7 +175,7 @@ static void ast_snoop_handler(void *data)
 
 	ast_snoop->write_idx++;
 	ast_snoop->write_idx %= SNOOP_FIFO_SIZE;
-	if(ast_snoop->write_idx == ast_snoop->read_idx) {
+	if (ast_snoop->write_idx == ast_snoop->read_idx) {
 		ast_snoop->read_idx++;
 		ast_snoop->read_idx %= SNOOP_FIFO_SIZE;
 	}
@@ -183,11 +183,11 @@ static void ast_snoop_handler(void *data)
 
 static int ast_snoop_probe(struct platform_device *pdev)
 {
-	int ret=0;
+	int ret = 0;
 	char snoop_name[15];
 	struct ast_snoop_data *ast_snoop = register_snoop_drv(pdev->id);
 
-	SNOOP_DBG("ast_snoop_probe\n");	
+	SNOOP_DBG("ast_snoop_probe\n");
 
 	ast_snoop->pdev = pdev;
 	ast_snoop->miscdev.minor = MISC_DYNAMIC_MINOR;
@@ -201,18 +201,18 @@ static int ast_snoop_probe(struct platform_device *pdev)
 	ast_snoop->miscdev.parent = &pdev->dev;
 	ast_snoop->miscdev.name = snoop_name;
 	ret = misc_register(&ast_snoop->miscdev);
-	if (ret){		
+	if (ret) {
 		printk(KERN_ERR "KCS : failed to request interrupt\n");
 		goto out;
 	}
 
-	platform_set_drvdata(pdev, ast_snoop);		
+	platform_set_drvdata(pdev, ast_snoop);
 
-	dev_set_drvdata(ast_snoop->miscdev.this_device, ast_snoop);	
+	dev_set_drvdata(ast_snoop->miscdev.this_device, ast_snoop);
 
 	request_snoop_irq(pdev->id, ast_snoop_handler);
 
-	printk(KERN_INFO "ast_snoop.%d: driver successfully loaded.\n",pdev->id);
+	printk(KERN_INFO "ast_snoop.%d: driver successfully loaded.\n", pdev->id);
 
 	return 0;
 
@@ -230,7 +230,7 @@ static int ast_snoop_remove(struct platform_device *pdev)
 	misc_deregister(&ast_snoop->miscdev);
 	kfree(ast_snoop);
 
-	return 0;	
+	return 0;
 }
 
 static struct platform_driver ast_snoop_driver = {
@@ -253,18 +253,18 @@ static int __init ast_snoop_init(void)
 
 	if (!ret) {
 		ast_snoop0_device = platform_device_register_simple("ast-snoop", 0,
-								NULL, 0);
+							NULL, 0);
 		if (IS_ERR(ast_snoop0_device)) {
 			platform_driver_unregister(&ast_snoop_driver);
 			ret = PTR_ERR(ast_snoop0_device);
 		}
 		ast_snoop0_device = platform_device_register_simple("ast-snoop", 1,
-								NULL, 0);
+							NULL, 0);
 		if (IS_ERR(ast_snoop1_device)) {
 			platform_driver_unregister(&ast_snoop_driver);
 			ret = PTR_ERR(ast_snoop1_device);
 		}
-		
+
 	}
 
 	return ret;

@@ -30,7 +30,7 @@
 #include <linux/completion.h>
 #include <linux/slab.h>
 
-#include <linux/sched.h>  
+#include <linux/sched.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/miscdevice.h>
@@ -68,15 +68,15 @@
 //#define CONFIG_AST_MBX_DEBUG
 
 #ifdef CONFIG_AST_MBX_DEBUG
-	#define MBX_DBG(fmt, args...) printk("%s(): " fmt, __FUNCTION__, ## args)
+#define MBX_DBG(fmt, args...) printk("%s(): " fmt, __FUNCTION__, ## args)
 #else
-	#define MBX_DBG(fmt, args...)
+#define MBX_DBG(fmt, args...)
 #endif
 
 /***********************************************************************/
 struct mailbox_info {
 	u8	ch_enable;
-	u8	ch_type;	
+	u8	ch_type;
 };
 
 //IOCTL ..
@@ -88,13 +88,13 @@ struct mailbox_info {
 struct ast_mailbox_data {
 	struct device		*misc_dev;
 	void __iomem		*reg_base;			/* virtual */
-	int 				irq;				
-	bool is_open;	
-	spinlock_t lock;		
+	int 				irq;
+	bool is_open;
+	spinlock_t lock;
 	u32		sts0;
 	u32		sts1;
 	u32		bcr;
-	struct completion		xfer_complete;	
+	struct completion		xfer_complete;
 };
 
 static inline void
@@ -116,7 +116,7 @@ ast_mbx_read(struct ast_mailbox_data *ast_mbx, u32 reg)
 #if 0
 static void ast_mailbox_host_mask_int(struct ast_mailbox_data *ast_mbx, u8 enable)
 {
-	if(enable)
+	if (enable)
 		ast_mbx_write(ast_mbx, ast_mbx_read(ast_mbx, AST_MBX_BCR) | MBHMK, AST_MBX_BCR);
 	else
 		ast_mbx_write(ast_mbx, ast_mbx_read(ast_mbx, AST_MBX_BCR) & ~MBHMK, AST_MBX_BCR);
@@ -127,7 +127,7 @@ static void ast_mailbox_ctrl_init(struct ast_mailbox_data *ast_mbx)
 {
 	//per byte moniter ....
 //	ast_mbx_write(ast_mbx, 0xff, AST_MBX_BIE0);
-//	ast_mbx_write(ast_mbx, 0xff, AST_MBX_BIE1);	
+//	ast_mbx_write(ast_mbx, 0xff, AST_MBX_BIE1);
 }
 
 /***************************************************************************/
@@ -140,28 +140,28 @@ static irqreturn_t ast_mailbox_handler(int this_irq, void *dev_id)
 //	ast_mbx->sts1 = ast_mbx_read(ast_mbx, AST_MBX_STS1);
 	ast_mbx->bcr = ast_mbx_read(ast_mbx, AST_MBX_BCR);
 
-	if((ast_mbx->bcr & MBHIST) == 0)
+	if ((ast_mbx->bcr & MBHIST) == 0)
 		return IRQ_NONE;
-	
 
-	MBX_DBG("ast_mailbox_handler sts0 = %x, sts1 = %x, bcr = %x \n", ast_mbx->sts0, ast_mbx->sts1, ast_mbx->bcr);	
+
+	MBX_DBG("ast_mailbox_handler sts0 = %x, sts1 = %x, bcr = %x \n", ast_mbx->sts0, ast_mbx->sts1, ast_mbx->bcr);
 //	ast_mbx_write(ast_mbx, ast_mbx->sts0, AST_MBX_STS0);
 //	ast_mbx_write(ast_mbx, ast_mbx->sts1, AST_MBX_STS1);
 	ast_mbx_write(ast_mbx, ast_mbx->bcr, AST_MBX_BCR);
 
-	printk("Data: %x %x %x %x \n", 
-		ast_mbx_read(ast_mbx, AST_MBX_DAT0), 
-		ast_mbx_read(ast_mbx, AST_MBX_DAT4),
-		ast_mbx_read(ast_mbx, AST_MBX_DAT8),
-		ast_mbx_read(ast_mbx, AST_MBX_DATC));
+	printk("Data: %x %x %x %x \n",
+		   ast_mbx_read(ast_mbx, AST_MBX_DAT0),
+		   ast_mbx_read(ast_mbx, AST_MBX_DAT4),
+		   ast_mbx_read(ast_mbx, AST_MBX_DAT8),
+		   ast_mbx_read(ast_mbx, AST_MBX_DATC));
 //	complete(&ast_mbx->xfer_complete);
-	
+
 	return IRQ_HANDLED;
 
 }
 
 static long ast_mailbox_ioctl(struct file *fp,
-			     unsigned int cmd, unsigned long arg)
+							  unsigned int cmd, unsigned long arg)
 {
 	long ret = 0;
 //	void __user *argp = (void __user *)arg;
@@ -169,17 +169,17 @@ static long ast_mailbox_ioctl(struct file *fp,
 
 	MBX_DBG("ast_mailbox_ioctl cmd %x \n", cmd);
 
-	switch(cmd) {
-		case AST_MBX_IOCRMAILBOX:
-			break;
-			
-		case AST_MBX_IOCWMAILBOX:	
-			break;
-			
-		default:			
-			printk("ast_mailbox_ioctl command fail\n");
-			ret = -ENOTTY;
-			break;			
+	switch (cmd) {
+	case AST_MBX_IOCRMAILBOX:
+		break;
+
+	case AST_MBX_IOCWMAILBOX:
+		break;
+
+	default:
+		printk("ast_mailbox_ioctl command fail\n");
+		ret = -ENOTTY;
+		break;
 	}
 
 	return ret;
@@ -193,7 +193,7 @@ static int ast_mailbox_open(struct inode *inode, struct file *file)
 	MBX_DBG("\n");
 	spin_lock(&ast_mbx->lock);
 
-	if(ast_mbx->is_open) {
+	if (ast_mbx->is_open) {
 		spin_unlock(&ast_mbx->lock);
 		return -1;
 	}
@@ -201,7 +201,7 @@ static int ast_mailbox_open(struct inode *inode, struct file *file)
 
 	spin_unlock(&ast_mbx->lock);
 
-	return 0;	
+	return 0;
 }
 
 static int ast_mailbox_release(struct inode *inode, struct file *file)
@@ -219,10 +219,10 @@ static int ast_mailbox_release(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations ast_mailbox_fops = {
-        .owner  =     	THIS_MODULE,
-        .unlocked_ioctl =	ast_mailbox_ioctl,
-        .open =         	ast_mailbox_open,
-        .release =      	ast_mailbox_release,
+	.owner  =     	THIS_MODULE,
+	.unlocked_ioctl =	ast_mailbox_ioctl,
+	.open =         	ast_mailbox_open,
+	.release =      	ast_mailbox_release,
 };
 
 struct miscdevice ast_mailbox_misc = {
@@ -235,14 +235,14 @@ static int ast_mailbox_probe(struct platform_device *pdev)
 {
 	static struct ast_mailbox_data *ast_mbx;
 	struct resource *res;
-	int ret=0;
+	int ret = 0;
 
-	MBX_DBG(" \n");	
+	MBX_DBG(" \n");
 
 	ast_mbx = devm_kzalloc(&pdev->dev, sizeof(*ast_mbx), GFP_KERNEL);
 	if (!ast_mbx)
 		return -ENOMEM;
-		
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res) {
 		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
@@ -264,14 +264,14 @@ static int ast_mailbox_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(&pdev->dev, ast_mbx->irq, ast_mailbox_handler,
-						   0, dev_name(&pdev->dev), NULL);	
+						   0, dev_name(&pdev->dev), NULL);
 	if (ret) {
 		printk(KERN_INFO "MBX: Failed request irq %d\n", ast_mbx->irq);
 		goto out_region;
 	}
 
 	ret = misc_register(&ast_mailbox_misc);
-	if (ret){		
+	if (ret) {
 		printk(KERN_ERR "MBX : failed to request interrupt\n");
 		goto out_irq;
 	}
@@ -281,7 +281,7 @@ static int ast_mailbox_probe(struct platform_device *pdev)
 	dev_set_drvdata(ast_mailbox_misc.this_device, ast_mbx);
 
 	ast_mailbox_ctrl_init(ast_mbx);
-	
+
 	printk(KERN_INFO "ast_mbx: driver successfully loaded.\n");
 
 	return 0;
@@ -291,10 +291,9 @@ out_irq:
 out_region:
 	release_mem_region(res->start, res->end - res->start + 1);
 out:
-    if(ast_mbx)
-    {
-        kfree(ast_mbx);
-    }
+	if (ast_mbx) {
+		kfree(ast_mbx);
+	}
 	printk(KERN_WARNING "applesmc: driver init failed (ret=%d)!\n", ret);
 	return ret;
 }
@@ -316,23 +315,22 @@ static int ast_mailbox_remove(struct platform_device *pdev)
 
 	release_mem_region(res->start, res->end - res->start + 1);
 
-    if(ast_mbx)
-    {
-        kfree(ast_mbx);
-    }
+	if (ast_mbx) {
+		kfree(ast_mbx);
+	}
 
-	return 0;	
+	return 0;
 }
 
 #ifdef CONFIG_PM
-static int 
+static int
 ast_mailbox_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	printk("ast_mailbox_suspend : TODO \n");
 	return 0;
 }
 
-static int 
+static int
 ast_mailbox_resume(struct platform_device *pdev)
 {
 	return 0;
@@ -352,10 +350,10 @@ MODULE_DEVICE_TABLE(of, ast_mailbox_of_matches);
 static struct platform_driver ast_mailbox_driver = {
 	.probe		= ast_mailbox_probe,
 	.remove 		= ast_mailbox_remove,
-#ifdef CONFIG_PM	
+#ifdef CONFIG_PM
 	.suspend		= ast_mailbox_suspend,
 	.resume 		= ast_mailbox_resume,
-#endif	
+#endif
 	.driver 		= {
 		.name	= KBUILD_MODNAME,
 		.of_match_table = ast_mailbox_of_matches,

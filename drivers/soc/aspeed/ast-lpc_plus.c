@@ -1,22 +1,22 @@
 /********************************************************************************
-* File Name     : arch/arm/mach-aspeed/ast-lpc_plus.c 
+* File Name     : arch/arm/mach-aspeed/ast-lpc_plus.c
 * Author         : Ryan Chen
 * Description   : AST LPC
-* 
+*
 * Copyright (C) 2012-2020  ASPEED Technology Inc.
-* This program is free software; you can redistribute it and/or modify 
-* it under the terms of the GNU General Public License as published by the Free Software Foundation; 
-* either version 2 of the License, or (at your option) any later version. 
-* This program is distributed in the hope that it will be useful,  but WITHOUT ANY WARRANTY; 
-* without even the implied warranty of MERCHANTABILITY or 
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details. 
-* You should have received a copy of the GNU General Public License 
-* along with this program; if not, write to the Free Software 
-* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by the Free Software Foundation;
+* either version 2 of the License, or (at your option) any later version.
+* This program is distributed in the hope that it will be useful,  but WITHOUT ANY WARRANTY;
+* without even the implied warranty of MERCHANTABILITY or
+* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-*   History      : 
+*   History      :
 *    1. 2013/05/15 Ryan Chen Create
-* 
+*
 ********************************************************************************/
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -42,25 +42,25 @@
 #endif
 
 #if 0
-static inline u32 
+static inline u32
 ast_lpc_plus_write(u32 reg)
 {
 	u32 val;
-		
+
 	val = readl(ast_lpc_base + reg);
-	
+
 	LPCDBUG("ast_lpc_read : reg = 0x%08x, val = 0x%08x\n", reg, val);
-	
+
 	return val;
 }
 
 static inline void
-ast_lpc_plus_write(u32 val, u32 reg) 
+ast_lpc_plus_write(u32 val, u32 reg)
 {
 	LPCDBUG("ast_lpc_write : reg = 0x%08x, val = 0x%08x\n", reg, val);
 	writel(val, ast_lpc_base + reg);
 }
-#endif 
+#endif
 
 static int __init ast_lpc_plus_probe(struct platform_device *pdev)
 {
@@ -100,16 +100,16 @@ static int __init ast_lpc_plus_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_ARCH_AST1070
 	printk("LPC PLUS Scan Device...  ");
-	for(i=0;i<ast_lpc_plus->bus_info->scan_node;i++) {
-		ast1070_scu_init(i ,AST_LPC_PLUS_BRIDGE + i*0x10000);
+	for (i = 0; i < ast_lpc_plus->bus_info->scan_node; i++) {
+		ast1070_scu_init(i , AST_LPC_PLUS_BRIDGE + i * 0x10000);
 		printk("C%d-[%x] ", i, ast1070_revision_id_info(i));
-		ast1070_vic_init(i, (AST_LPC_PLUS_BRIDGE + i*0x10000), IRQ_C0_VIC_CHAIN + i, IRQ_C0_VIC_CHAIN_START + (i*AST_CVIC_NUM));
+		ast1070_vic_init(i, (AST_LPC_PLUS_BRIDGE + i * 0x10000), IRQ_C0_VIC_CHAIN + i, IRQ_C0_VIC_CHAIN_START + (i * AST_CVIC_NUM));
 		ast1070_scu_dma_init(i);
 		ast1070_uart_dma_init(i, AST_LPC_PLUS_BRIDGE);
-		ast_add_device_cuart(i,AST_LPC_PLUS_BRIDGE + i*0x10000);
-		ast_add_device_ci2c(i,AST_LPC_PLUS_BRIDGE + i*0x10000);
+		ast_add_device_cuart(i, AST_LPC_PLUS_BRIDGE + i * 0x10000);
+		ast_add_device_ci2c(i, AST_LPC_PLUS_BRIDGE + i * 0x10000);
 	}
-	printk("\n");	
+	printk("\n");
 #endif
 
 	platform_set_drvdata(pdev, ast_lpc_plus);
@@ -164,7 +164,7 @@ static struct platform_driver ast_lpc_plus_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.remove		= ast_lpc_plus_remove,
-	.id_table		= ast_lpc_plus_idtable,	
+	.id_table		= ast_lpc_plus_idtable,
 };
 
 static int __init ast_lpc_plus_init(void)
@@ -173,29 +173,31 @@ static int __init ast_lpc_plus_init(void)
 }
 
 #if 0
-#ifdef AST_LPC_PLUS_BASE	
-	int cc_num;
-	if(gpio_get_value(PIN_GPIOI2))
-		cc_num = 2; //dual 1070
-	else	
-		cc_num = 1; //single 1070	
+#ifdef AST_LPC_PLUS_BASE
+int cc_num;
+if (gpio_get_value(PIN_GPIOI2))
+	cc_num = 2; //dual 1070
+else
+	cc_num = 1; //single 1070
 
-	if(ast_scu_get_lpc_plus_enable()) {
-		ast_lpc_plus_info.scan_node = cc_num;
-	} else {
-		ast_lpc_info.lpc_bus_mode = 1;
-		ast_lpc_info.scan_node = cc_num;
-	}
+if (ast_scu_get_lpc_plus_enable())
+{
+	ast_lpc_plus_info.scan_node = cc_num;
+} else
+{
+	ast_lpc_info.lpc_bus_mode = 1;
+	ast_lpc_info.scan_node = cc_num;
+}
 #else
-	ast_lpc_info.scan_node = 1;
+ast_lpc_info.scan_node = 1;
 #endif
 
-#if 0	
-	//due to at init reset state is correct . 
-	if(gpio_get_value(PIN_GPIOI1))
-		printk("Use LPC+ Bus Access \n");
-	else
-		printk("Use LPC Bus Access \n");		
+#if 0
+//due to at init reset state is correct .
+if (gpio_get_value(PIN_GPIOI1))
+	printk("Use LPC+ Bus Access \n");
+else
+	printk("Use LPC Bus Access \n");
 #endif
 
 #endif
