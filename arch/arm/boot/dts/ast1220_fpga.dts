@@ -1,308 +1,73 @@
 /dts-v1/;
 
-#include "skeleton.dtsi"
-#include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/gpio/gpio.h>
+#include "ast1220_fpga.dtsi"
 
 / {
-        model = "AST1220 SOC";
+	model = "AST1220 FPGA";
 	compatible = "aspeed,ast1220";
 
-        #address-cells = <1>;
-        #size-cells = <1>;
-	interrupt-parent = <&vic>;
-
-        chosen {
-                bootargs = "console=ttyS0,115200 root=/dev/ram rw init=/linuxrc";
-        };
-
-        memory {
-                reg = <0x80000000 0x10000000>;
-        };
-
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		cpu@0 {
-			compatible = "arm,arm1176jz-s";
-			device_type = "cpu";
-			reg = <0>;
-		};
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;	
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
 	};
 
-	apb {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-		clk_apb: clk_apb {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-                        clock-frequency = <24750000>;
-                };
-                clk_uart: clk_uart {
-                        #clock-cells = <0>;
-                        compatible = "fixed-clock";
-                        clock-frequency = <24000000>;
-                };
-		ahbc: ahbc@1e600000 {
-			compatible = "aspeed,ast-ahbc";
-			reg = <0x1e600000 0x100>;
-		};
-		fmc_spi: fmc_spi@1e620000 {
-			status = "ok";
-			compatible = "aspeed,fmc-spi";
-			number_of_chip_select = /bits/ 8  <2>;
-			/* reg : cs0 : cs1 : cs2 : cs3 : cs4 : cs5 */
-			reg = <0x1e620000 0x100 0x20000000 0x20 0x28000000 0x20>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			flash@0 {
-			        compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
-			        reg = <0x0>;
-			        #address-cells = <0x1>;
-			        #size-cells = <0x1>;
-			        spi-max-frequency = <50000000>;
-				m25p,fast-read;
-		                partition@0 {
-		                        label = "u-boot";
-		                        reg = <0x000000 0x060000>; /* 384 KiB */
-		                };
-		                partition@1 {
-		                        label = "u-boot-env";
-		                        reg = <0x060000 0x010000>; /* 64 KiB */
-		                };
-				partition@2 {
-					label = "dts";
-					reg = <0x070000 0x010000>; /* 64 Kib */
-				};
-		                partition@3 {
-		                        label = "kernel";
-		                        reg = <0x080000 0x380000>; /* 3.5 MiB */
-		                };
-		                partition@4 {
-		                        label = "rootfs";
-		                        reg = <0x400000 0x400000>; /* 4 MiB */
-		                };
-				partition@5 {
-					label = "pd_rootfs";
-					reg = <0x800000 0x0>; 
-				};
-			};
-		};
-		isp0: isp@1e640000 {
-			compatible = "aspeed,ast-isp";
-			reg = <0x1e640000 0x1000>;
-			interrupts = <8>;
-		};
-		isp1: isp@1e642000 {
-			compatible = "aspeed,ast-isp";
-			reg = <0x1e642000 0x1000>;
-			interrupts = <9>;
-		};
-		isp2: isp@1e644000 {
-			compatible = "aspeed,ast-isp";
-			reg = <0x1e644000 0x1000>;
-			interrupts = <10>;
-		};
-		isp3: isp@1e660000 {
-			compatible = "aspeed,ast-isp";
-			reg = <0x1e660000 0x1000>;
-			interrupts = <11>;
-		};
-		isp4: isp@1e680000 {
-			compatible = "aspeed,ast-isp";
-			reg = <0x1e680000 0x1000>;
-			interrupts = <12>;
-		};
-		isp5: isp@1e6a0000 {
-			compatible = "aspeed,ast-isp";
-			reg = <0x1e64a000 0x1000>;
-			interrupts = <13>;
-		};		
-#if 0		
-                mac0: ethernet@1e660000 {
-			compatible = "aspeed,ast-mac";
-			reg = <0x1e660000 0x180>;
-			interrupts = <18>;
-			#status = "disabled";
-		};
-#else
-                mac0: ethernet@1e660000 {
-			compatible = "aspeed,ast-gmac";
-			reg = <0x1e660000 0x180>;
-			interrupts = <18>;
-			#status = "disabled";
-		};
-#endif		
-#if 0
-		ehci0: ehci@0x1e6a1000 {
-			compatible = "aspeed,ast-ehci", "generic-ehci";
-			reg = <0x1e6a1000 0x100>;
-			interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
-			//#clocks = <&ehci_clocks 0>;
-			//phys = <&usbphy 0>;
-			//phy-names = "usb";
-			port = <0>;
-                        #status = "disabled";
-                };
-#else
-		udc: udc@0x1e6a0000 {
-                        compatible = "aspeed,ast-udc";
-                        reg = <0x1e6a0000 0x300>;
-                        interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
-                };
-#endif
-		vic: vic@1e6c0080 {
-			compatible = "aspeed,ast-vic";
-			interrupt-controller;
-			#interrupt-cells = <1>;
-			valid-sources = <0xfefff7ff 0x0807ffff>;
-			reg = <0x1e6c0080 0x80>;
-		};
-		mmc: mmc@1e6e0000 {
-			compatible = "aspeed,ast-sdmc";
-			reg = <0x1e6e0000 0x200>;
-			#interrupts = <0>;
-		}; 
-		scu: scu@1e6e2000 {
-			compatible = "aspeed,ast-cam-scu";
-			reg = <0x1e6e2000 0x300>;
-                };
-		hace: hace@1e6e3000 {
-			compatible = "aspeed,ast-crypto";
-			reg = <0x1e6e3000 0x200>;
-			interrupts = <4>;
-		};
-		i2s: i2s@1e6e5000 {
-			compatible = "aspeed,ast-i2s";
-			reg = <0x1e6e5000 0x200>;
-		};
-		mipi: mipi@1e6e8000 {
-			compatible = "aspeed,ast-i2s";
-			reg = <0x1e6e8000 0x200>;
-		};
-		jpeg: jpeg@1e700000 {
-			compatible = "aspeed,ast-jpeg";
-			/* 512MB : 40MB*/
-			reg = <0x1e700000 0x300 0xa0000000 0x2800000>;
-			interrupts = <5>;
-		};
-		sdio: sdio@1e740100 {
-			compatible = "aspeed,sdhci-ast";
-			reg = <0x1e740100 0x100>;
-			interrupts = <2>;
-		};
-		sdhci_irq: sdhci_irq {
-			compatible = "aspeed,ast-sdhci-irq";
-			interrupt-controller;
-                        #interrupt-cells = <1>;
-			reg = <0x1e760000 0x100>;
-			interrupts = <3>;
-			slot_num = <2>;
-		};
-		sdhci_slot0: sdhci_slot0@1e760100 {
-			compatible = "aspeed,sdhci-ast";
-			reg = <0x1e760100 0x100>;
-			interrupts = <0>;
-			interrupt-parent = <&sdhci_irq>;
-			sdhci,auto-cmd12;
-		};
-		sdhci_slot1: sdhci_slot1@1e760200 {
-			compatible = "aspeed,sdhci-ast";
-			reg = <0x1e760200 0x100>;
-			interrupts = <1>;
-                        interrupt-parent = <&sdhci_irq>;
-			sdhci,auto-cmd12;
-		};
-		gpio: gpio@1e780000 {
-                        #gpio-cells = <2>;
-                        gpio-controller;
-                        compatible = "aspeed,ast-cam-gpio";
-                        reg = <0x1e780000 0x1000>;
-                        interrupts = <21>;
-                        interrupt-controller;
-                };
-		
-                timer:timer@1e782000 {
-                        compatible = "aspeed,ast-timer";
-                        reg = <0x1e782000 0x1000>;
-                        interrupt-parent = <&vic>;
-                        interrupts = <22 IRQ_TYPE_EDGE_FALLING>, /* Timer 1 */
-                                     <23 IRQ_TYPE_EDGE_FALLING>, /* Timer 2 */
-                                     <24 IRQ_TYPE_EDGE_FALLING>; /* Timer 3 */
-                        clocks = <&clk_apb>;
-                        clock-names = "PCLK";
-                };
-		uart0: serial@1e783000 {
-			compatible = "ns16550a";
-			reg = <0x1e783000 0x1000>;
-			reg-shift = <2>;
-			interrupts = <30 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_uart>;
-			no-loopback-test;
-		};
-		/* use for sys crash */
-		wdt0: wdt0@1e785000 {
-			compatible = "aspeed,ast-wdt";
-			reg = <0x1e785000 0x1c>;
-			timeout-sec = <60>;
-		};		
-		/* use for spi 3/4 bytes reboot */
-		wdt1: wdt1@1e785020 {
-			compatible = "aspeed,ast-wdt";
-			reg = <0x1e785020 0x1c>;
-		};
-		/* use for system reboot */		
-		wdt2: wdt2@1e785040 {
-			compatible = "aspeed,ast-wdt";
-			reg = <0x1e785040 0x1c>;
-		};		
-		uart1: serial@1e784000 {
-			compatible = "ns16550a";
-			reg = <0x1e784000 0x1000>;
-			reg-shift = <2>;
-			interrupts = <31 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_uart>;
-			no-loopback-test;
-		};
-		pwm_techo: pwm_techo@1e7866000 {
-                        compatible = "aspeed,ast-pwm-tacho";
-                        reg = <0x1e786000 0x80>;
-                        interrupts = <34>;
-                        clocks = <&clk_apb>;
-                };
-		d3d: d3d@1e787000 {
-			compatible = "aspeed,ast-3d";
-			reg = <0x1e788000 0x200>;
-		};
-		pdm: pdm@1e788000 {
-			compatible = "aspeed,ast-pdm";
-			reg = <0x1e788000 0x200>;
-		};
-		i2c_irq: i2c_irq@1e78a000 {
-			#interrupt-cells = <1>;
-			compatible = "aspeed,ast-i2c-irq";
-			reg = <0x1e78a000 0x10 0x1e78a200 0x800>;
-			interrupts = <20>;
-			interrupt-controller;
-			bus_num = <10>;
-        	};
-	        i2c0: i2c-bus@40 {
-	                #address-cells = <1>;
-        	        #size-cells = <0>;
-               		#interrupt-cells = <1>;
-                	reg = <0x1e78a040 0x40>;
-                	compatible = "aspeed,ast-i2c";
-			clocks = <&clk_apb>;
-			bus-frequency = <100000>;
-			interrupts = <0>;
-			interrupt-parent = <&i2c_irq>;
-			bus = <0>;
-			master-dma = <2>;
-			slave-dma = <2>;
-		};
 
-		
+	chosen {
+		bootargs = "console=ttyS0,115200n8 root=/dev/ram rw init=/linuxrc";
+	};
+
+};
+
+#if 1
+&mac0 {
+        status = "disable";
+};
+
+&gmac0 {
+	status = "okay";
+};
+
+#endif
+
+&fmc_spi {
+	status = "okay";
+	flash: m25p80@0 {
+	compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
+	reg = <0x0>;
+	#address-cells = <0x1>;
+	#size-cells = <0x1>;
+	spi-max-frequency = <50000000>;
+	#m25p,fast-read;
+		partition@0 {
+			label = "fullpart";
+			reg = <0x00000000 0x02000000>;	
+		};
+		partition@1 {
+			label = "u-boot";
+			reg = <0x00000000 0x00060000>;
+			read-only;
+		};
+		partition@2 {
+			label = "env";
+			reg = <0x00060000 0x00020000>;
+		};
+		partition@3 {
+			label = "uImage";
+			reg = <0x00080000 0x00400000>;
+			read-only;
+		};
+		partition@4 {
+			label = "rootfs";
+			reg = <0x00400000 0x00300000>;
+		};
+		partition@5 {
+			label = "PD Rootfs";
+			reg = <0x00700000 0x02000000>;
+		};
 	};
 };

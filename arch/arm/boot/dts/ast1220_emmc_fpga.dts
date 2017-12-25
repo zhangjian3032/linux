@@ -1,0 +1,35 @@
+/dts-v1/;
+
+#include "ast1220_fpga.dtsi"
+
+/ {
+	model = "AST1220 EMMC FPGA";
+	compatible = "aspeed,ast1220-evb", "aspeed,ast1220";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;	
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+	};
+
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk1p1 rw rootfstype=ext2 init=/linuxrc";
+	};
+
+};
+
+#if 1
+&mac0 {
+        status = "disable";
+};
+
+&gmac0 {
+	status = "okay";
+};
+
+#endif

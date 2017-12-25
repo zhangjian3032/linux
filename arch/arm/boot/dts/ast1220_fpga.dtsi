@@ -4,7 +4,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "AST1220 SOC";
+	model = "AST1220 FPGA";
 	compatible = "aspeed,ast1220";
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -153,68 +153,57 @@
 				#clock-cells = <0>;
 				compatible = "fixed-clock";
 				clock-frequency = <24000000>;
-			};
+			};			
 			clk_clkin: clk_clkin@70 {
 				#clock-cells = <0>;
 				compatible = "fixed-clock";
-				clock-frequency = <24000000>;
+				clock-frequency = <52000000>;
 			};
 			clk_epll: clk_epll@18 {
 				#clock-cells = <0>;
-				compatible = "aspeed,cam-epll-clock";
-				div = <0x18 0x0>;
-				clocks = <&clk_clkin>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
 			};
 			clk_apll: clk_apll@1C {
 				#clock-cells = <0>;
-				compatible = "aspeed,cam-apll-clock";
-				div = <0x1C 0x0>;
-				clocks = <&clk_clkin>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
 			};
 			clk_mpll: clk_mpll@20 {
 				#clock-cells = <0>;
-				compatible = "aspeed,cam-mpll-clock";
-				div = <0x20 0x0>;
-				clocks = <&clk_clkin>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
 			};
 			clk_hpll: clk_hpll@24 {
 				#clock-cells = <0>;
-				compatible = "aspeed,cam-hpll-clock";
-				div = <0x24 0x0>;
-				clocks = <&clk_clkin>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
 			};
 			clk_dpll: clk_dpll@28 {
 				#clock-cells = <0>;
-				compatible = "aspeed,cam-dpll-clock";
-				div = <0x28 0x0>;
-				clocks = <&clk_clkin>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
 			};
 			clk_sdio:clk_sdio@08 {
 				#clock-cells = <0>;
-				compatible = "aspeed,cam-sdclock";
-				div = <0x08 0x0>;
-				enable = <0x0C 0x0>;
-				clocks = <&clk_hpll>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
 			};
 			clk_sd: clk_sd@08 {
 				#clock-cells = <0>;
-				compatible = "aspeed,cam-sdclock";
-				div = <0x08 0x0>;
-				enable = <0x0C 0x0>;
-				clocks = <&clk_hpll>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
 			};
 			clk_ahb: clk_ahb@70 {
 				#clock-cells = <0>;
-				compatible = "aspeed,cam-ahb-clock";
-				div = <0x70 0x0>;
-				clocks = <&clk_hpll>;
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
 			};
 			clk_apb: clk_apb@08 {
 				#clock-cells = <0>;
-				compatible = "aspeed,cam-apb-clock";
-				div = <0x08 0x0>;
-				clocks = <&clk_hpll>;
-			};
+				compatible = "fixed-clock";
+				clock-frequency = <52000000>;
+			};			
 			clk_usb20: clk_usb20@0C {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-usb20clock";
