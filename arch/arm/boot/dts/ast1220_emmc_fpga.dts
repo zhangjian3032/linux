@@ -4,7 +4,7 @@
 
 / {
 	model = "AST1220 EMMC FPGA";
-	compatible = "aspeed,ast1220-evb", "aspeed,ast1220";
+	compatible = "aspeed,ast1220";
 
 	aliases {
 		serial0 = &uart0;
