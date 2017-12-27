@@ -24,95 +24,95 @@
 #include <linux/of_device.h>
 #include <linux/dma-mapping.h>
 /* I2C Register */
-#define  I2C_FUN_CTRL_REG    				0x00
-#define  I2C_AC_TIMING_REG1         		0x04
-#define  I2C_AC_TIMING_REG2         		0x08
-#define  I2C_INTR_CTRL_REG					0x0c
-#define  I2C_INTR_STS_REG					0x10
-#define  I2C_CMD_REG						0x14
-#define  I2C_DEV_ADDR_REG					0x18
-#define  I2C_BUF_CTRL_REG					0x1c
-#define  I2C_BYTE_BUF_REG					0x20
-#define  I2C_DMA_BASE_REG					0x24
-#define  I2C_DMA_LEN_REG					0x28
+#define  I2C_FUN_CTRL_REG				0x00
+#define  I2C_AC_TIMING_REG1				0x04
+#define  I2C_AC_TIMING_REG2				0x08
+#define  I2C_INTR_CTRL_REG				0x0c
+#define  I2C_INTR_STS_REG				0x10
+#define  I2C_CMD_REG					0x14
+#define  I2C_DEV_ADDR_REG				0x18
+#define  I2C_BUF_CTRL_REG				0x1c
+#define  I2C_BYTE_BUF_REG				0x20
+#define  I2C_DMA_BASE_REG				0x24
+#define  I2C_DMA_LEN_REG				0x28
 
 /* Device Register Definition */
 /* 0x00 : I2CD Function Control Register  */
 #define AST_I2CD_BUFF_SEL_MASK				(0x7 << 20)
-#define AST_I2CD_BUFF_SEL(x) 				((x) << 20)		// page 0 ~ 7
+#define AST_I2CD_BUFF_SEL(x) 				((x) << 20)	// page 0 ~ 7
 
-#define AST_I2CD_BUS_AUTO_RELEASE			(0x1 << 17)		//only support ast_soc_g5
+#define AST_I2CD_BUS_AUTO_RELEASE			(0x1 << 17)	//only support ast_soc_g5
 
 #define AST_I2CD_M_SDA_LOCK_EN				(0x1 << 16)
 #define AST_I2CD_MULTI_MASTER_DIS			(0x1 << 15)
 #define AST_I2CD_M_SCL_DRIVE_EN				(0x1 << 14)
-#define AST_I2CD_MSB_STS					(0x1 << 9)
+#define AST_I2CD_MSB_STS				(0x1 << 9)
 #define AST_I2CD_SDA_DRIVE_1T_EN			(0x1 << 8)
 #define AST_I2CD_M_SDA_DRIVE_1T_EN			(0x1 << 7)
 #define AST_I2CD_M_HIGH_SPEED_EN			(0x1 << 6)
 #define AST_I2CD_DEF_ADDR_EN				(0x1 << 5)
 #define AST_I2CD_DEF_ALERT_EN				(0x1 << 4)
-#define AST_I2CD_DEF_ARP_EN					(0x1 << 3)
+#define AST_I2CD_DEF_ARP_EN				(0x1 << 3)
 #define AST_I2CD_DEF_GCALL_EN				(0x1 << 2)
-#define AST_I2CD_SLAVE_EN					(0x1 << 1)
-#define AST_I2CD_MASTER_EN					(0x1)
+#define AST_I2CD_SLAVE_EN				(0x1 << 1)
+#define AST_I2CD_MASTER_EN				(0x1 )
 
 /* 0x04 : I2CD Clock and AC Timing Control Register #1 */
-#define AST_I2CD_tBUF						(0x1 << 28) 	// 0~7 
-#define AST_I2CD_tHDSTA						(0x1 << 24)		// 0~7 
-#define AST_I2CD_tACST						(0x1 << 20)		// 0~7 
-#define AST_I2CD_tCKHIGH					(0x1 << 16)		// 0~7 
-#define AST_I2CD_tCKLOW						(0x1 << 12)		// 0~7 
-#define AST_I2CD_tHDDAT						(0x1 << 10)		// 0~7 
-#define AST_I2CD_CLK_TO_BASE_DIV			(0x1 << 8)		// 0~3
-#define AST_I2CD_CLK_BASE_DIV				(0x1)			// 0~0xf
+#define AST_I2CD_tBUF					(0x1 << 28) 	// 0~7 
+#define AST_I2CD_tHDSTA					(0x1 << 24)	// 0~7 
+#define AST_I2CD_tACST					(0x1 << 20)	// 0~7 
+#define AST_I2CD_tCKHIGH				(0x1 << 16)	// 0~7 
+#define AST_I2CD_tCKLOW					(0x1 << 12)	// 0~7 
+#define AST_I2CD_tHDDAT					(0x1 << 10)	// 0~7 
+#define AST_I2CD_CLK_TO_BASE_DIV			(0x1 << 8)	// 0~3
+#define AST_I2CD_CLK_BASE_DIV				(0x1 )		// 0~0xf
 
 /* 0x08 : I2CD Clock and AC Timing Control Register #2 */
-#define AST_I2CD_tTIMEOUT					(0x1)			// 0~7
-#define AST_NO_TIMEOUT_CTRL					(0x0)
+#define AST_I2CD_tTIMEOUT				(0x1 )		// 0~7
+#define AST_NO_TIMEOUT_CTRL				0x0
 
 
 /* 0x0c : I2CD Interrupt Control Register  */
 #define AST_I2CD_INTR_STS_SLAVE_TO_EN			(0x1 << 15)	//support ast_soc_g5
 
-#define AST_I2CD_SDA_DL_TO_INTR_EN				(0x1 << 14)
+#define AST_I2CD_SDA_DL_TO_INTR_EN			(0x1 << 14)
 #define AST_I2CD_BUS_RECOVER_INTR_EN			(0x1 << 13)
-#define AST_I2CD_SMBUS_ALT_INTR_EN				(0x1 << 12)
+#define AST_I2CD_SMBUS_ALT_INTR_EN			(0x1 << 12)
 #define AST_I2CD_SLAVE_MATCH_INTR_EN			(0x1 << 7)
-#define AST_I2CD_SCL_TO_INTR_EN					(0x1 << 6)
-#define AST_I2CD_ABNORMAL_INTR_EN				(0x1 << 5)
+#define AST_I2CD_SCL_TO_INTR_EN				(0x1 << 6)
+#define AST_I2CD_ABNORMAL_INTR_EN			(0x1 << 5)
 #define AST_I2CD_NORMAL_STOP_INTR_EN			(0x1 << 4)
-#define AST_I2CD_ARBIT_LOSS_INTR_EN				(0x1 << 3)
-#define AST_I2CD_RX_DOWN_INTR_EN				(0x1 << 2)
-#define AST_I2CD_TX_NAK_INTR_EN					(0x1 << 1)
-#define AST_I2CD_TX_ACK_INTR_EN					(0x1)
+#define AST_I2CD_ARBIT_LOSS_INTR_EN			(0x1 << 3)
+#define AST_I2CD_RX_DOWN_INTR_EN			(0x1 << 2)
+#define AST_I2CD_TX_NAK_INTR_EN				(0x1 << 1)
+#define AST_I2CD_TX_ACK_INTR_EN				(0x1)
 
 /* 0x10 : I2CD Interrupt Status Register   : WC */
-#define AST_I2CD_INTR_STS_SLAVE_TO				(0x1 << 15)	//support ast_soc_g5
+#define AST_I2CD_INTR_STS_SLAVE_TO			(0x1 << 15)	//support ast_soc_g5
 
-#define AST_I2CD_INTR_STS_SDA_DL_TO				(0x1 << 14)
+#define AST_I2CD_INTR_STS_SDA_DL_TO			(0x1 << 14)
 #define AST_I2CD_INTR_STS_BUS_RECOVER			(0x1 << 13)
-#define AST_I2CD_INTR_STS_SMBUS_ALT				(0x1 << 12)
+#define AST_I2CD_INTR_STS_SMBUS_ALT			(0x1 << 12)
 #define AST_I2CD_INTR_STS_SMBUS_ARP_ADDR		(0x1 << 11)
 #define AST_I2CD_INTR_STS_SMBUS_DEV_ALT			(0x1 << 10)
 #define AST_I2CD_INTR_STS_SMBUS_DEF_ADDR		(0x1 << 9)
 #define AST_I2CD_INTR_STS_GCALL_ADDR			(0x1 << 8)
 #define AST_I2CD_INTR_STS_SLAVE_MATCH			(0x1 << 7)
-#define AST_I2CD_INTR_STS_SCL_TO				(0x1 << 6)
-#define AST_I2CD_INTR_STS_ABNORMAL				(0x1 << 5)
+#define AST_I2CD_INTR_STS_SCL_TO			(0x1 << 6)
+#define AST_I2CD_INTR_STS_ABNORMAL			(0x1 << 5)
 #define AST_I2CD_INTR_STS_NORMAL_STOP			(0x1 << 4)
 #define AST_I2CD_INTR_STS_ARBIT_LOSS			(0x1 << 3)
-#define AST_I2CD_INTR_STS_RX_DOWN				(0x1 << 2)
-#define AST_I2CD_INTR_STS_TX_NAK				(0x1 << 1)
-#define AST_I2CD_INTR_STS_TX_ACK				(0x1)
+#define AST_I2CD_INTR_STS_RX_DOWN			(0x1 << 2)
+#define AST_I2CD_INTR_STS_TX_NAK			(0x1 << 1)
+#define AST_I2CD_INTR_STS_TX_ACK			(0x1)
 
 /* 0x14 : I2CD Command/Status Register   */
-#define AST_I2CD_SDA_OE							(0x1 << 28)
-#define AST_I2CD_SDA_O							(0x1 << 27)
-#define AST_I2CD_SCL_OE							(0x1 << 26)
-#define AST_I2CD_SCL_O							(0x1 << 25)
-#define AST_I2CD_TX_TIMING						(0x1 << 24)		// 0 ~3
-#define AST_I2CD_TX_STATUS						(0x1 << 23)
+#define AST_I2CD_SDA_OE					(0x1 << 28)
+#define AST_I2CD_SDA_O					(0x1 << 27)
+#define AST_I2CD_SCL_OE					(0x1 << 26)
+#define AST_I2CD_SCL_O					(0x1 << 25)
+#define AST_I2CD_TX_TIMING				(0x1 << 24)	// 0 ~3
+#define AST_I2CD_TX_STATUS				(0x1 << 23)
 // Tx State Machine
 #define AST_I2CD_IDLE	 				0x0
 #define AST_I2CD_MACTIVE				0x8
@@ -138,7 +138,7 @@
 #define AST_I2CD_SCL_OE_OUT_DIR				(0x1 << 13)
 #define AST_I2CD_SCL_O_OUT_DIR				(0x1 << 12)
 #define AST_I2CD_BUS_RECOVER_CMD_EN			(0x1 << 11)
-#define AST_I2CD_S_ALT_EN					(0x1 << 10)
+#define AST_I2CD_S_ALT_EN				(0x1 << 10)
 // 0 : DMA Buffer, 1: Pool Buffer
 //AST1070 DMA register
 #define AST_I2CD_RX_DMA_ENABLE				(0x1 << 9)
@@ -147,22 +147,22 @@
 /* Command Bit */
 #define AST_I2CD_RX_BUFF_ENABLE				(0x1 << 7)
 #define AST_I2CD_TX_BUFF_ENABLE				(0x1 << 6)
-#define AST_I2CD_M_STOP_CMD					(0x1 << 5)
+#define AST_I2CD_M_STOP_CMD				(0x1 << 5)
 #define AST_I2CD_M_S_RX_CMD_LAST			(0x1 << 4)
-#define AST_I2CD_M_RX_CMD					(0x1 << 3)
-#define AST_I2CD_S_TX_CMD					(0x1 << 2)
-#define AST_I2CD_M_TX_CMD					(0x1 << 1)
+#define AST_I2CD_M_RX_CMD				(0x1 << 3)
+#define AST_I2CD_S_TX_CMD				(0x1 << 2)
+#define AST_I2CD_M_TX_CMD				(0x1 << 1)
 #define AST_I2CD_M_START_CMD				(0x1 )
 
 /* 0x18 : I2CD Slave Device Address Register   */
-#define AST_I2CD_SLAVE2_ENABLE				(0x1 << 15)
+#define AST_I2CD_SLAVE2_ENABLE				(0x1 << 5)
 
 /* 0x1C : I2CD Pool Buffer Control Register   */
 #define AST_I2CD_RX_BUF_ADDR_GET(x)			((x>> 24)& 0xff)
-#define AST_I2CD_RX_BUF_END_ADDR_SET(x)		(x << 16)
-#define AST_I2CD_TX_DATA_BUF_END_SET(x)		((x&0xff) << 8)
+#define AST_I2CD_RX_BUF_END_ADDR_SET(x)			(x << 16)
+#define AST_I2CD_TX_DATA_BUF_END_SET(x)			((x&0xff) << 8)
 #define AST_I2CD_TX_DATA_BUF_GET(x)			((x >>8) & 0xff)
-#define AST_I2CD_BUF_BASE_ADDR_SET(x)		(x & 0x3f)
+#define AST_I2CD_BUF_BASE_ADDR_SET(x)			(x & 0x3f)
 
 /* 0x20 : I2CD Transmit/Receive Byte Buffer Register   */
 #define AST_I2CD_GET_MODE(x)				((x >> 8) & 0x1)
@@ -192,12 +192,12 @@
 #define I2C_S_BUF_SIZE 		256
 #define I2C_S_RX_BUF_NUM 	20
 
-#define AST_LOCKUP_DETECTED (0x1 << 15)
-#define AST_I2C_LOW_TIMEOUT 0x07
+#define AST_LOCKUP_DETECTED 	(0x1 << 15)
+#define AST_I2C_LOW_TIMEOUT 	0x07
 /***************************************************************************/
 #define BYTE_MODE		0
 #define BUFF_MODE		1
-#define INC_DMA_MODE	2
+#define INC_DMA_MODE		2
 
 /*ast-g5 i2c dma support 4095 */
 #define AST_I2C_DMA_SIZE	4095
@@ -219,10 +219,10 @@ struct ast_i2c_timing_table {
 static struct ast_i2c_timing_table ast_g5_i2c_timing_table[] = {
 	/* Divisor : Base Clock : tCK High : tCK Low  */
 	/* Divisor :	  [3:0]    :   [19:16]:   [15:12] */
-	{6,		0x77700300 | (0x0) | (0x2 << 16) | (0x2 << 12) },
-	{7,		0x77700300 | (0x0) | (0x3 << 16) | (0x2 << 12) },
-	{8,		0x77700300 | (0x0) | (0x3 << 16) | (0x3 << 12) },
-	{9,		0x77700300 | (0x0) | (0x4 << 16) | (0x3 << 12) },
+	{6,	0x77700300 | (0x0) | (0x2 << 16) | (0x2 << 12) },
+	{7,	0x77700300 | (0x0) | (0x3 << 16) | (0x2 << 12) },
+	{8,	0x77700300 | (0x0) | (0x3 << 16) | (0x3 << 12) },
+	{9,	0x77700300 | (0x0) | (0x4 << 16) | (0x3 << 12) },
 	{10, 	0x77700300 | (0x0) | (0x4 << 16) | (0x4 << 12) },
 	{11, 	0x77700300 | (0x0) | (0x5 << 16) | (0x4 << 12) },
 	{12, 	0x77700300 | (0x0) | (0x5 << 16) | (0x5 << 12) },
@@ -361,7 +361,7 @@ static struct ast_i2c_timing_table ast_g5_i2c_timing_table[] = {
 
 static struct ast_i2c_timing_table ast_i2c_timing_table[] = {
 	/* Divisor :      [3:0]    :   [18:16]:   [13:12] */
-	{6,		0x77700300 | (0x0) | (0x2 << 16) | (0x2 << 12) },
+	{6,	0x77700300 | (0x0) | (0x2 << 16) | (0x2 << 12) },
 	{7, 	0x77700300 | (0x0) | (0x3 << 16) | (0x2 << 12) },
 	{8, 	0x77700300 | (0x0) | (0x3 << 16) | (0x3 << 12) },
 	{9, 	0x77700300 | (0x0) | (0x4 << 16) | (0x3 << 12) },
@@ -523,52 +523,52 @@ struct buf_page {
 
 struct ast_i2c_bus {
 //	struct ast_i2c_driver_data *ast_i2c_data;
-	struct device		*dev;
-	void __iomem		*reg_base;			/* virtual */
-	int 				irq;				//I2C IRQ number
+	struct device			*dev;
+	void __iomem			*reg_base;		/* virtual */
+	int 				irq;			//I2C IRQ number
 	struct clk 			*clk;
-	u32					apb_clk;
-	u32					bus_frequency;
+	u32				apb_clk;
+	u32				bus_frequency;
 	struct ast_i2c_bus_config	*bus_config;
 //buff mode info
-	struct buf_page 	buff_pool;
+	struct buf_page 		buff_pool;
 	u32				bus_clk;
 	u16 				dma_size;
-	u8				master_dma; 	//0,byte mode 1,Buffer pool mode 256 , or 2048 , 2: DMA mode
+	u8				master_dma; 		//0,byte mode 1,Buffer pool mode 256 , or 2048 , 2: DMA mode
 	u8				slave_dma;		//0,byte mode 1,Buffer pool mode 256 , or 2048 , 2: DMA mode
-	u32					state;				//I2C xfer mode state matchine
+	u32				state;			//I2C xfer mode state matchine
 	u32				bus_recover;
-	struct i2c_adapter	adap;
+	struct i2c_adapter		adap;
 //master dma or buff mode needed
-	unsigned char		*dma_buf;
+	unsigned char			*dma_buf;
 	dma_addr_t			dma_addr;
 //master
-	u8					master_operation;
-	int					xfer_last;			//cur xfer is last msgs for stop msgs
-	struct i2c_msg 		*master_msgs;		//cur xfer msgs
-	int					master_xfer_len;			//cur xfer len
-	int					master_xfer_cnt;			//total xfer count
-	u32					master_xfer_mode;			//cur xfer mode ... 0 : no_op , master: 1 byte , 2 : buffer , 3: dma , slave : xxxx
-	struct completion	cmd_complete;
-	int					cmd_err;
-	u8 					blk_r_flag; 		//for smbus block read
+	u8				master_operation;
+	int				xfer_last;		//cur xfer is last msgs for stop msgs
+	struct i2c_msg 			*master_msgs;		//cur xfer msgs
+	int				master_xfer_len;	//cur xfer len
+	int				master_xfer_cnt;	//total xfer count
+	u32				master_xfer_mode;	//cur xfer mode ... 0 : no_op , master: 1 byte , 2 : buffer , 3: dma , slave : xxxx
+	struct completion		cmd_complete;
+	int				cmd_err;
+	u8 				blk_r_flag; 		//for smbus block read
 	void	(*do_master_xfer)(struct ast_i2c_bus *i2c_bus);
 	void	(*do_master_xfer_done)(struct ast_i2c_bus *i2c_bus);
 //Slave structure
-	u8					slave_operation;
-	u8					slave_event;
-	struct i2c_msg		*slave_msgs; 		//cur slave xfer msgs
+	u8				slave_operation;
+	u8				slave_event;
+	struct i2c_msg			*slave_msgs; 		//cur slave xfer msgs
 	int 				slave_xfer_len;
 	int 				slave_xfer_cnt;
-	u32					slave_xfer_mode;			//cur xfer mode ... 0 : no_op , master: 1 byte , 2 : buffer , 3: dma , slave : xxxx
+	u32				slave_xfer_mode;	//cur xfer mode ... 0 : no_op , master: 1 byte , 2 : buffer , 3: dma , slave : xxxx
 	void	(*do_slave_xfer)(struct ast_i2c_bus *i2c_bus);
-	u8					slave_en;
+	u8				slave_en;
 #ifdef CONFIG_AST_I2C_SLAVE_MODE
-	u8					slave_rx_full;
-	u8					slave_rx_idx;
-	u8					slave_ioctl_idx;
-	struct i2c_msg		slave_rx_msg[I2C_S_RX_BUF_NUM];
-	struct i2c_msg		slave_tx_msg;
+	u8				slave_rx_full;
+	u8				slave_rx_idx;
+	u8				slave_ioctl_idx;
+	struct i2c_msg			slave_rx_msg[I2C_S_RX_BUF_NUM];
+	struct i2c_msg			slave_tx_msg;
 #endif
 };
 
@@ -599,7 +599,8 @@ static u32 select_i2c_clock(struct ast_i2c_bus *i2c_bus)
 	u32 data;
 
 	for (i = 0; i < i2c_bus->bus_config->timing_table_size; i++) {
-		if ((i2c_bus->apb_clk / i2c_bus->bus_config->timing_table[i].divisor) < i2c_bus->bus_frequency) {
+		if ((i2c_bus->apb_clk / i2c_bus->bus_config->timing_table[i].divisor) <
+		    i2c_bus->bus_frequency) {
 			break;
 		}
 	}
@@ -619,13 +620,16 @@ static void ast_slave_issue_alert(struct ast_i2c_bus *i2c_bus, u8 enable)
 		return;
 	else {
 		if (enable)
-			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_CMD_REG) | AST_I2CD_S_ALT_EN, I2C_CMD_REG);
+			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_CMD_REG) | AST_I2CD_S_ALT_EN,
+				      I2C_CMD_REG);
 		else
-			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_CMD_REG) & ~AST_I2CD_S_ALT_EN, I2C_CMD_REG);
+			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_CMD_REG) & ~AST_I2CD_S_ALT_EN,
+				      I2C_CMD_REG);
 	}
 }
 
-static void ast_slave_mode_enable(struct ast_i2c_bus *i2c_bus, struct i2c_msg *msgs)
+static void ast_slave_mode_enable(struct ast_i2c_bus *i2c_bus,
+				  struct i2c_msg *msgs)
 {
 	if (msgs->buf[0] == 1) {
 		i2c_bus->slave_en = 1;
@@ -633,11 +637,13 @@ static void ast_slave_mode_enable(struct ast_i2c_bus *i2c_bus, struct i2c_msg *m
 		if (i2c_bus->master_operation) {
 			dev_dbg(i2c_bus->dev, "master is ongoing\n");
 		} else {
-			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) | AST_I2CD_SLAVE_EN, I2C_FUN_CTRL_REG);
+			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus,
+							    I2C_FUN_CTRL_REG) | AST_I2CD_SLAVE_EN, I2C_FUN_CTRL_REG);
 		}
 	} else {
 		i2c_bus->slave_en = 0;
-		ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) & ~AST_I2CD_SLAVE_EN, I2C_FUN_CTRL_REG);
+		ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus,
+						    I2C_FUN_CTRL_REG) & ~AST_I2CD_SLAVE_EN, I2C_FUN_CTRL_REG);
 	}
 }
 
@@ -650,7 +656,8 @@ extern void ast_i2c_bus_init(struct ast_i2c_bus *i2c_bus)
 
 	if (i2c_bus->bus_config->ast_g5_i2c) {
 		//ast_g5 soc support
-		ast_i2c_write(i2c_bus, AST_I2CD_BUS_AUTO_RELEASE | AST_I2CD_MASTER_EN, I2C_FUN_CTRL_REG);
+		ast_i2c_write(i2c_bus, AST_I2CD_BUS_AUTO_RELEASE | AST_I2CD_MASTER_EN,
+			      I2C_FUN_CTRL_REG);
 	} else {
 		ast_i2c_write(i2c_bus, AST_I2CD_MASTER_EN, I2C_FUN_CTRL_REG);
 	}
@@ -659,10 +666,10 @@ extern void ast_i2c_bus_init(struct ast_i2c_bus *i2c_bus)
 	//High SPEED mode
 #if 0
 	ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) |
-				  AST_I2CD_M_HIGH_SPEED_EN |
-				  AST_I2CD_M_SDA_DRIVE_1T_EN |
-				  AST_I2CD_SDA_DRIVE_1T_EN
-				  , I2C_FUN_CTRL_REG);
+		      AST_I2CD_M_HIGH_SPEED_EN |
+		      AST_I2CD_M_SDA_DRIVE_1T_EN |
+		      AST_I2CD_SDA_DRIVE_1T_EN
+		      , I2C_FUN_CTRL_REG);
 
 #endif
 	/* Set AC Timing */
@@ -677,31 +684,31 @@ extern void ast_i2c_bus_init(struct ast_i2c_bus *i2c_bus)
 	/* Set interrupt generation of I2C controller */
 	if (i2c_bus->bus_config->ast_g5_i2c) {
 		ast_i2c_write(i2c_bus,
-					  AST_I2CD_INTR_STS_SLAVE_TO_EN |
-					  AST_I2CD_SDA_DL_TO_INTR_EN |
-					  AST_I2CD_BUS_RECOVER_INTR_EN |
-					  AST_I2CD_SMBUS_ALT_INTR_EN |
-					  AST_I2CD_SCL_TO_INTR_EN |
-					  AST_I2CD_ABNORMAL_INTR_EN |
-					  AST_I2CD_NORMAL_STOP_INTR_EN |
-					  AST_I2CD_ARBIT_LOSS_INTR_EN |
-					  AST_I2CD_RX_DOWN_INTR_EN |
-					  AST_I2CD_TX_NAK_INTR_EN |
-					  AST_I2CD_TX_ACK_INTR_EN,
-					  I2C_INTR_CTRL_REG);
+			      AST_I2CD_INTR_STS_SLAVE_TO_EN |
+			      AST_I2CD_SDA_DL_TO_INTR_EN |
+			      AST_I2CD_BUS_RECOVER_INTR_EN |
+			      AST_I2CD_SMBUS_ALT_INTR_EN |
+			      AST_I2CD_SCL_TO_INTR_EN |
+			      AST_I2CD_ABNORMAL_INTR_EN |
+			      AST_I2CD_NORMAL_STOP_INTR_EN |
+			      AST_I2CD_ARBIT_LOSS_INTR_EN |
+			      AST_I2CD_RX_DOWN_INTR_EN |
+			      AST_I2CD_TX_NAK_INTR_EN |
+			      AST_I2CD_TX_ACK_INTR_EN,
+			      I2C_INTR_CTRL_REG);
 	} else {
 		ast_i2c_write(i2c_bus,
-					  AST_I2CD_SDA_DL_TO_INTR_EN |
-					  AST_I2CD_BUS_RECOVER_INTR_EN |
-					  AST_I2CD_SMBUS_ALT_INTR_EN |
-					  AST_I2CD_SCL_TO_INTR_EN |
-					  AST_I2CD_ABNORMAL_INTR_EN |
-					  AST_I2CD_NORMAL_STOP_INTR_EN |
-					  AST_I2CD_ARBIT_LOSS_INTR_EN |
-					  AST_I2CD_RX_DOWN_INTR_EN |
-					  AST_I2CD_TX_NAK_INTR_EN |
-					  AST_I2CD_TX_ACK_INTR_EN,
-					  I2C_INTR_CTRL_REG);
+			      AST_I2CD_SDA_DL_TO_INTR_EN |
+			      AST_I2CD_BUS_RECOVER_INTR_EN |
+			      AST_I2CD_SMBUS_ALT_INTR_EN |
+			      AST_I2CD_SCL_TO_INTR_EN |
+			      AST_I2CD_ABNORMAL_INTR_EN |
+			      AST_I2CD_NORMAL_STOP_INTR_EN |
+			      AST_I2CD_ARBIT_LOSS_INTR_EN |
+			      AST_I2CD_RX_DOWN_INTR_EN |
+			      AST_I2CD_TX_NAK_INTR_EN |
+			      AST_I2CD_TX_ACK_INTR_EN,
+			      I2C_INTR_CTRL_REG);
 	}
 }
 
@@ -713,21 +720,27 @@ ast_i2c_bus_error_recover(struct ast_i2c_bus *i2c_bus)
 	u32 i = 0;
 	dev_dbg(i2c_bus->dev, "ast_i2c_bus_error_recover \n");
 
-	ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) & ~(AST_I2CD_MASTER_EN | AST_I2CD_SLAVE_EN), I2C_FUN_CTRL_REG);
+	ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus,
+					    I2C_FUN_CTRL_REG) & ~(AST_I2CD_MASTER_EN | AST_I2CD_SLAVE_EN),
+		      I2C_FUN_CTRL_REG);
 	if (i2c_bus->slave_en)
-		ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) | (AST_I2CD_MASTER_EN | AST_I2CD_SLAVE_EN), I2C_FUN_CTRL_REG);
+		ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus,
+						    I2C_FUN_CTRL_REG) | (AST_I2CD_MASTER_EN | AST_I2CD_SLAVE_EN), I2C_FUN_CTRL_REG);
 	else
-		ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) | AST_I2CD_MASTER_EN, I2C_FUN_CTRL_REG);
+		ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus,
+						    I2C_FUN_CTRL_REG) | AST_I2CD_MASTER_EN, I2C_FUN_CTRL_REG);
 	//Check 0x14's SDA and SCL status
 	sts = ast_i2c_read(i2c_bus, I2C_CMD_REG);
 
 	if ((sts & AST_I2CD_SDA_LINE_STS) && (sts & AST_I2CD_SCL_LINE_STS)) {
 		//Means bus is idle.
-		dev_dbg(i2c_bus->dev, "I2C bus (%d) is idle. I2C slave doesn't exist?! [%x]\n", i2c_bus->adap.nr, sts);
+		dev_dbg(i2c_bus->dev, "I2C bus (%d) is idle. I2C slave doesn't exist?! [%x]\n",
+			i2c_bus->adap.nr, sts);
 		return -1;
 	}
 
-	dev_dbg(i2c_bus->dev, "ERROR!! I2C(%d) bus hanged, try to recovery it!\n", i2c_bus->adap.nr);
+	dev_dbg(i2c_bus->dev, "ERROR!! I2C(%d) bus hanged, try to recovery it!\n",
+		i2c_bus->adap.nr);
 
 
 	if ((sts & AST_I2CD_SDA_LINE_STS) && !(sts & AST_I2CD_SCL_LINE_STS)) {
@@ -740,8 +753,8 @@ ast_i2c_bus_error_recover(struct ast_i2c_bus *i2c_bus)
 
 		ast_i2c_write(i2c_bus, AST_I2CD_M_STOP_CMD, I2C_CMD_REG);
 
-		r = wait_for_completion_interruptible_timeout(&i2c_bus->cmd_complete,
-				i2c_bus->adap.timeout * HZ);
+		r = wait_for_completion_timeout(&i2c_bus->cmd_complete,
+						i2c_bus->adap.timeout * HZ);
 
 		if (i2c_bus->cmd_err) {
 			dev_dbg(i2c_bus->dev, "recovery error \n");
@@ -768,10 +781,11 @@ ast_i2c_bus_error_recover(struct ast_i2c_bus *i2c_bus)
 			init_completion(&i2c_bus->cmd_complete);
 			ast_i2c_write(i2c_bus, AST_I2CD_BUS_RECOVER_CMD_EN, I2C_CMD_REG);
 			i2c_bus->bus_recover = 1;
-			r = wait_for_completion_interruptible_timeout(&i2c_bus->cmd_complete,
-					i2c_bus->adap.timeout * HZ);
+			r = wait_for_completion_timeout(&i2c_bus->cmd_complete,
+							i2c_bus->adap.timeout * HZ);
 			if (i2c_bus->cmd_err != 0) {
-				dev_dbg(i2c_bus->dev, "ERROR!! Failed to do recovery command(0x%08x)\n", i2c_bus->cmd_err);
+				dev_dbg(i2c_bus->dev, "ERROR!! Failed to do recovery command(0x%08x)\n",
+					i2c_bus->cmd_err);
 				return -1;
 			}
 			//Check 0x14's SDA and SCL status
@@ -793,7 +807,8 @@ ast_i2c_bus_error_recover(struct ast_i2c_bus *i2c_bus)
 
 static void ast_master_alert_recv(struct ast_i2c_bus *i2c_bus)
 {
-	printk("ast_master_alert_recv bus id %d, Disable Alt, Please Imple \n", i2c_bus->adap.nr);
+	printk("ast_master_alert_recv bus id %d, Disable Alt, Please Imple \n",
+	       i2c_bus->adap.nr);
 }
 
 static int ast_i2c_wait_bus_not_busy(struct ast_i2c_bus *i2c_bus)
@@ -802,7 +817,8 @@ static int ast_i2c_wait_bus_not_busy(struct ast_i2c_bus *i2c_bus)
 
 	while (ast_i2c_read(i2c_bus, I2C_CMD_REG) & AST_I2CD_BUS_BUSY_STS) {
 		if (timeout <= 0) {
-			dev_dbg(i2c_bus->dev, "%d-bus busy %x \n", i2c_bus->adap.nr, ast_i2c_read(i2c_bus, I2C_CMD_REG));
+			dev_dbg(i2c_bus->dev, "%d-bus busy %x \n", i2c_bus->adap.nr,
+				ast_i2c_read(i2c_bus, I2C_CMD_REG));
 			ast_i2c_bus_error_recover(i2c_bus);
 			return -EAGAIN;
 		}
@@ -823,7 +839,8 @@ static void ast_i2c_do_inc_dma_xfer(struct ast_i2c_bus *i2c_bus)
 	i2c_bus->slave_xfer_mode = INC_DMA_MODE;
 	dev_dbg(i2c_bus->dev, "ast_i2c_do_inc_dma_xfer \n");
 	if (i2c_bus->slave_operation == 1) {
-		dev_dbg(i2c_bus->dev, "S cnt %d, xf len %d \n", i2c_bus->slave_xfer_cnt, i2c_bus->slave_msgs->len);
+		dev_dbg(i2c_bus->dev, "S cnt %d, xf len %d \n", i2c_bus->slave_xfer_cnt,
+			i2c_bus->slave_msgs->len);
 		if (i2c_bus->slave_msgs->flags & I2C_M_RD) {
 			//DMA tx mode
 			if (i2c_bus->slave_msgs->len > AST_I2C_DMA_SIZE)
@@ -846,22 +863,25 @@ static void ast_i2c_do_inc_dma_xfer(struct ast_i2c_bus *i2c_bus)
 			ast_i2c_write(i2c_bus, AST_I2CD_RX_DMA_ENABLE, I2C_CMD_REG);
 		}
 	} else {
-		dev_dbg(i2c_bus->dev, "M cnt %d, xf len %d \n", i2c_bus->master_xfer_cnt, i2c_bus->master_msgs->len);
+		dev_dbg(i2c_bus->dev, "M cnt %d, xf len %d \n", i2c_bus->master_xfer_cnt,
+			i2c_bus->master_msgs->len);
 		if (i2c_bus->master_xfer_cnt == -1) {
 			//send start
 			dev_dbg(i2c_bus->dev, " %sing %d byte%s %s 0x%02x\n",
-					i2c_bus->master_msgs->flags & I2C_M_RD ? "read" : "write",
-					i2c_bus->master_msgs->len, i2c_bus->master_msgs->len > 1 ? "s" : "",
-					i2c_bus->master_msgs->flags & I2C_M_RD ? "from" : "to", i2c_bus->master_msgs->addr);
+				i2c_bus->master_msgs->flags & I2C_M_RD ? "read" : "write",
+				i2c_bus->master_msgs->len, i2c_bus->master_msgs->len > 1 ? "s" : "",
+				i2c_bus->master_msgs->flags & I2C_M_RD ? "from" : "to",
+				i2c_bus->master_msgs->addr);
 
 			if (i2c_bus->master_msgs->flags & I2C_M_RD) {
 				//workaround .. HW can;t send start read addr with buff mode
 				cmd = AST_I2CD_M_START_CMD | AST_I2CD_M_TX_CMD;
-				ast_i2c_write(i2c_bus, (i2c_bus->master_msgs->addr << 1) | 0x1, I2C_BYTE_BUF_REG);
+				ast_i2c_write(i2c_bus, (i2c_bus->master_msgs->addr << 1) | 0x1,
+					      I2C_BYTE_BUF_REG);
 //				tx_buf[0] = (i2c_bus->master_msgs->addr <<1); //+1
 				i2c_bus->master_xfer_len = 1;
 				ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-							  AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+					      AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
 			} else {
 				//tx
 				cmd = AST_I2CD_M_START_CMD | AST_I2CD_M_TX_CMD | AST_I2CD_TX_DMA_ENABLE;
@@ -880,17 +900,19 @@ static void ast_i2c_do_inc_dma_xfer(struct ast_i2c_bus *i2c_bus)
 					dev_dbg(i2c_bus->dev, "last stop \n");
 					cmd |= AST_I2CD_M_STOP_CMD;
 					ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) &
-								  ~AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
-					dev_dbg(i2c_bus->dev, "intr en %x \n", ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG));
+						      ~AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+					dev_dbg(i2c_bus->dev, "intr en %x \n", ast_i2c_read(i2c_bus,
+							I2C_INTR_CTRL_REG));
 				} else {
 					ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-								  AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+						      AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
 				}
 				ast_i2c_write(i2c_bus, i2c_bus->dma_addr, I2C_DMA_BASE_REG);
 				ast_i2c_write(i2c_bus, (i2c_bus->master_xfer_len), I2C_DMA_LEN_REG);
 			}
 			ast_i2c_write(i2c_bus, cmd, I2C_CMD_REG);
-			dev_dbg(i2c_bus->dev, "txfer size %d , cmd = %x \n", i2c_bus->master_xfer_len, cmd);
+			dev_dbg(i2c_bus->dev, "txfer size %d , cmd = %x \n", i2c_bus->master_xfer_len,
+				cmd);
 
 		} else if (i2c_bus->master_xfer_cnt < i2c_bus->master_msgs->len) {
 			//Next send
@@ -901,24 +923,26 @@ static void ast_i2c_do_inc_dma_xfer(struct ast_i2c_bus *i2c_bus)
 				if ((i2c_bus->master_msgs->len - i2c_bus->master_xfer_cnt) > AST_I2C_DMA_SIZE) {
 					i2c_bus->master_xfer_len = AST_I2C_DMA_SIZE;
 					ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-								  AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
+						      AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
 
 				} else {
 					i2c_bus->master_xfer_len = i2c_bus->master_msgs->len - i2c_bus->master_xfer_cnt;
-					if ((i2c_bus->master_msgs->flags & I2C_M_RECV_LEN) && (i2c_bus->blk_r_flag == 0)) {
+					if ((i2c_bus->master_msgs->flags & I2C_M_RECV_LEN) &&
+					    (i2c_bus->blk_r_flag == 0)) {
 						dev_dbg(i2c_bus->dev, "I2C_M_RECV_LEN \n");
 						ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-									  AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
+							      AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
 					} else {
 						if (i2c_bus->xfer_last == 1) {
 							dev_dbg(i2c_bus->dev, "last stop \n");
 							cmd |= AST_I2CD_M_STOP_CMD;
 							ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) &
-										  ~AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
-							dev_dbg(i2c_bus->dev, "intr en %x \n", ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG));
+								      ~AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
+							dev_dbg(i2c_bus->dev, "intr en %x \n", ast_i2c_read(i2c_bus,
+									I2C_INTR_CTRL_REG));
 						} else {
 							ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-										  AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
+								      AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
 						}
 						//TODO check....
 						cmd |= AST_I2CD_M_S_RX_CMD_LAST;
@@ -928,7 +952,8 @@ static void ast_i2c_do_inc_dma_xfer(struct ast_i2c_bus *i2c_bus)
 				ast_i2c_write(i2c_bus, i2c_bus->dma_addr, I2C_DMA_BASE_REG);
 				ast_i2c_write(i2c_bus, (i2c_bus->master_xfer_len), I2C_DMA_LEN_REG);
 				ast_i2c_write(i2c_bus, cmd, I2C_CMD_REG);
-				dev_dbg(i2c_bus->dev, "rxfer size %d , cmd = %x \n", i2c_bus->master_xfer_len, cmd);
+				dev_dbg(i2c_bus->dev, "rxfer size %d , cmd = %x \n", i2c_bus->master_xfer_len,
+					cmd);
 			} else {
 				//Tx data
 				//next data write
@@ -936,7 +961,7 @@ static void ast_i2c_do_inc_dma_xfer(struct ast_i2c_bus *i2c_bus)
 				if ((i2c_bus->master_msgs->len - i2c_bus->master_xfer_cnt) > AST_I2C_DMA_SIZE) {
 					i2c_bus->master_xfer_len = AST_I2C_DMA_SIZE;
 					ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-								  AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+						      AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
 
 				} else {
 					i2c_bus->master_xfer_len = i2c_bus->master_msgs->len - i2c_bus->master_xfer_cnt;
@@ -944,11 +969,12 @@ static void ast_i2c_do_inc_dma_xfer(struct ast_i2c_bus *i2c_bus)
 						dev_dbg(i2c_bus->dev, "last stop \n");
 						cmd |= AST_I2CD_M_STOP_CMD;
 						ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) &
-									  ~AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
-						dev_dbg(i2c_bus->dev, "intr en %x \n", ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG));
+							      ~AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+						dev_dbg(i2c_bus->dev, "intr en %x \n", ast_i2c_read(i2c_bus,
+								I2C_INTR_CTRL_REG));
 					} else {
 						ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-									  AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+							      AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
 					}
 				}
 
@@ -958,7 +984,8 @@ static void ast_i2c_do_inc_dma_xfer(struct ast_i2c_bus *i2c_bus)
 				ast_i2c_write(i2c_bus, i2c_bus->dma_addr, I2C_DMA_BASE_REG);
 				ast_i2c_write(i2c_bus, (i2c_bus->master_xfer_len), I2C_DMA_LEN_REG);
 				ast_i2c_write(i2c_bus, cmd , I2C_CMD_REG);
-				dev_dbg(i2c_bus->dev, "txfer size %d , cmd = %x \n", i2c_bus->master_xfer_len, cmd);
+				dev_dbg(i2c_bus->dev, "txfer size %d , cmd = %x \n", i2c_bus->master_xfer_len,
+					cmd);
 
 			}
 		} else {
@@ -999,41 +1026,49 @@ static void ast_i2c_do_pool_xfer(struct ast_i2c_bus *i2c_bus)
 			for (i = 0; i < i2c_bus->slave_xfer_len; i++) {
 				if (i % 4 == 0)
 					tx_buf[i / 4] = 0;
-				tx_buf[i / 4] |= (i2c_bus->slave_msgs->buf[i2c_bus->slave_xfer_cnt + i] << ((i % 4) * 8)) ;
+				tx_buf[i / 4] |= (i2c_bus->slave_msgs->buf[i2c_bus->slave_xfer_cnt + i] << ((
+							  i % 4) * 8)) ;
 				dev_dbg(i2c_bus->dev, "[%x] ", tx_buf[i / 4]);
 			}
 			//ast2400 sw always fix from page_add_point 0
-			ast_i2c_write(i2c_bus, AST_I2CD_TX_DATA_BUF_END_SET((i2c_bus->slave_xfer_len - 1)) , I2C_BUF_CTRL_REG);
+			ast_i2c_write(i2c_bus, AST_I2CD_TX_DATA_BUF_END_SET((i2c_bus->slave_xfer_len -
+					1)) , I2C_BUF_CTRL_REG);
 
-			ast_i2c_write(i2c_bus, AST_I2CD_TX_BUFF_ENABLE | AST_I2CD_S_TX_CMD, I2C_CMD_REG);
+			ast_i2c_write(i2c_bus, AST_I2CD_TX_BUFF_ENABLE | AST_I2CD_S_TX_CMD,
+				      I2C_CMD_REG);
 		} else {
 			//prepare for new rx
-			dev_dbg(i2c_bus->dev, "prepare rx buff pool %d \n", i2c_bus->buff_pool.page_size);
+			dev_dbg(i2c_bus->dev, "prepare rx buff pool %d \n",
+				i2c_bus->buff_pool.page_size);
 			//ast2400 sw always fix from page_add_point 0
-			ast_i2c_write(i2c_bus, AST_I2CD_RX_BUF_END_ADDR_SET((i2c_bus->buff_pool.page_size - 1)), I2C_BUF_CTRL_REG);
+			ast_i2c_write(i2c_bus, AST_I2CD_RX_BUF_END_ADDR_SET((
+						i2c_bus->buff_pool.page_size - 1)), I2C_BUF_CTRL_REG);
 
 			ast_i2c_write(i2c_bus, AST_I2CD_RX_BUFF_ENABLE, I2C_CMD_REG);
 
 		}
 	} else {
 		i2c_bus->master_xfer_mode = BUFF_MODE;
-		dev_dbg(i2c_bus->dev, "M cnt %d, xf len %d \n", i2c_bus->master_xfer_cnt, i2c_bus->master_msgs->len);
+		dev_dbg(i2c_bus->dev, "M cnt %d, xf len %d \n", i2c_bus->master_xfer_cnt,
+			i2c_bus->master_msgs->len);
 		if (i2c_bus->master_xfer_cnt == -1) {
 			//send start
 			dev_dbg(i2c_bus->dev, " %sing %d byte%s %s 0x%02x\n",
-					i2c_bus->master_msgs->flags & I2C_M_RD ? "read" : "write",
-					i2c_bus->master_msgs->len, i2c_bus->master_msgs->len > 1 ? "s" : "",
-					i2c_bus->master_msgs->flags & I2C_M_RD ? "from" : "to", i2c_bus->master_msgs->addr);
+				i2c_bus->master_msgs->flags & I2C_M_RD ? "read" : "write",
+				i2c_bus->master_msgs->len, i2c_bus->master_msgs->len > 1 ? "s" : "",
+				i2c_bus->master_msgs->flags & I2C_M_RD ? "from" : "to",
+				i2c_bus->master_msgs->addr);
 
 			if (i2c_bus->master_msgs->flags & I2C_M_RD) {
 //workaround .. HW can;t send start read addr with buff mode
 				cmd = AST_I2CD_M_START_CMD | AST_I2CD_M_TX_CMD;
-				ast_i2c_write(i2c_bus, (i2c_bus->master_msgs->addr << 1) | 0x1, I2C_BYTE_BUF_REG);
+				ast_i2c_write(i2c_bus, (i2c_bus->master_msgs->addr << 1) | 0x1,
+					      I2C_BYTE_BUF_REG);
 
 //				tx_buf[0] = (i2c_bus->master_msgs->addr <<1); //+1
 				i2c_bus->master_xfer_len = 1;
 				ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-							  AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+					      AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
 			} else {
 				cmd = AST_I2CD_M_START_CMD | AST_I2CD_M_TX_CMD | AST_I2CD_TX_BUFF_ENABLE;
 				tx_buf[0] = (i2c_bus->master_msgs->addr << 1);	//+1
@@ -1046,24 +1081,29 @@ static void ast_i2c_do_pool_xfer(struct ast_i2c_bus *i2c_bus)
 				for (i = 1; i < i2c_bus->master_xfer_len; i++) {
 					if (i % 4 == 0)
 						tx_buf[i / 4] = 0;
-					tx_buf[i / 4] |= (i2c_bus->master_msgs->buf[i2c_bus->master_xfer_cnt + i] << ((i % 4) * 8)) ;
+					tx_buf[i / 4] |= (i2c_bus->master_msgs->buf[i2c_bus->master_xfer_cnt + i] << ((
+								  i % 4) * 8)) ;
 				}
 
-				if ((i2c_bus->xfer_last == 1) && (i2c_bus->master_xfer_len == i2c_bus->master_msgs->len + 1)) {
+				if ((i2c_bus->xfer_last == 1) &&
+				    (i2c_bus->master_xfer_len == i2c_bus->master_msgs->len + 1)) {
 					dev_dbg(i2c_bus->dev, "last stop \n");
 					cmd |= AST_I2CD_M_STOP_CMD;
 					ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) &
-								  ~AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
-					dev_dbg(i2c_bus->dev, "intr en %x \n", ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG));
+						      ~AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+					dev_dbg(i2c_bus->dev, "intr en %x \n", ast_i2c_read(i2c_bus,
+							I2C_INTR_CTRL_REG));
 				} else {
 					ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-								  AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+						      AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
 				}
 				//ast2400 sw always fix from page_add_point 0
-				ast_i2c_write(i2c_bus, AST_I2CD_TX_DATA_BUF_END_SET((i2c_bus->master_xfer_len - 1)), I2C_BUF_CTRL_REG);
+				ast_i2c_write(i2c_bus, AST_I2CD_TX_DATA_BUF_END_SET((i2c_bus->master_xfer_len -
+						1)), I2C_BUF_CTRL_REG);
 			}
 			ast_i2c_write(i2c_bus, cmd, I2C_CMD_REG);
-			dev_dbg(i2c_bus->dev, "txfer size %d , cmd = %x \n", i2c_bus->master_xfer_len, cmd);
+			dev_dbg(i2c_bus->dev, "txfer size %d , cmd = %x \n", i2c_bus->master_xfer_len,
+				cmd);
 
 		} else if (i2c_bus->master_xfer_cnt < i2c_bus->master_msgs->len) {
 			//Next send
@@ -1071,42 +1111,48 @@ static void ast_i2c_do_pool_xfer(struct ast_i2c_bus *i2c_bus)
 				//Rx data
 				cmd = AST_I2CD_M_RX_CMD | AST_I2CD_RX_BUFF_ENABLE;
 
-				if ((i2c_bus->master_msgs->len - i2c_bus->master_xfer_cnt) > i2c_bus->buff_pool.page_size) {
+				if ((i2c_bus->master_msgs->len - i2c_bus->master_xfer_cnt) >
+				    i2c_bus->buff_pool.page_size) {
 					i2c_bus->master_xfer_len = i2c_bus->buff_pool.page_size;
 					ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-								  AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
+						      AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
 				} else {
 					i2c_bus->master_xfer_len = i2c_bus->master_msgs->len - i2c_bus->master_xfer_cnt;
-					if ((i2c_bus->master_msgs->flags & I2C_M_RECV_LEN) && (i2c_bus->blk_r_flag == 0)) {
+					if ((i2c_bus->master_msgs->flags & I2C_M_RECV_LEN) &&
+					    (i2c_bus->blk_r_flag == 0)) {
 						dev_dbg(i2c_bus->dev, "I2C_M_RECV_LEN \n");
 						ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-									  AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
+							      AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
 					} else {
 						if (i2c_bus->xfer_last == 1) {
 							dev_dbg(i2c_bus->dev, "last stop \n");
 							cmd |= AST_I2CD_M_STOP_CMD;
 							ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) &
-										  ~AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
-							dev_dbg(i2c_bus->dev, "intr en %x \n", ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG));
+								      ~AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
+							dev_dbg(i2c_bus->dev, "intr en %x \n", ast_i2c_read(i2c_bus,
+									I2C_INTR_CTRL_REG));
 						} else {
 							ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-										  AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
+								      AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
 						}
 						cmd |= AST_I2CD_M_S_RX_CMD_LAST;
 					}
 				}
 				//ast2400 sw always fix from page_add_point 0
-				ast_i2c_write(i2c_bus, AST_I2CD_RX_BUF_END_ADDR_SET((i2c_bus->master_xfer_len - 1)), I2C_BUF_CTRL_REG);
+				ast_i2c_write(i2c_bus, AST_I2CD_RX_BUF_END_ADDR_SET((i2c_bus->master_xfer_len -
+						1)), I2C_BUF_CTRL_REG);
 				ast_i2c_write(i2c_bus, cmd, I2C_CMD_REG);
-				dev_dbg(i2c_bus->dev, "rxfer size %d , cmd = %x \n", i2c_bus->master_xfer_len, cmd);
+				dev_dbg(i2c_bus->dev, "rxfer size %d , cmd = %x \n", i2c_bus->master_xfer_len,
+					cmd);
 			} else {
 				//Tx data
 				//next data write
 				cmd = AST_I2CD_M_TX_CMD | AST_I2CD_TX_BUFF_ENABLE;
-				if ((i2c_bus->master_msgs->len - i2c_bus->master_xfer_cnt) > i2c_bus->buff_pool.page_size) {
+				if ((i2c_bus->master_msgs->len - i2c_bus->master_xfer_cnt) >
+				    i2c_bus->buff_pool.page_size) {
 					i2c_bus->master_xfer_len = i2c_bus->buff_pool.page_size;
 					ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-								  AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+						      AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
 
 				} else {
 					i2c_bus->master_xfer_len = i2c_bus->master_msgs->len - i2c_bus->master_xfer_cnt;
@@ -1114,25 +1160,29 @@ static void ast_i2c_do_pool_xfer(struct ast_i2c_bus *i2c_bus)
 						dev_dbg(i2c_bus->dev, "last stop \n");
 						cmd |= AST_I2CD_M_STOP_CMD;
 						ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) &
-									  ~AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
-						dev_dbg(i2c_bus->dev, "intr en %x \n", ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG));
+							      ~AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+						dev_dbg(i2c_bus->dev, "intr en %x \n", ast_i2c_read(i2c_bus,
+								I2C_INTR_CTRL_REG));
 					} else {
 						ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-									  AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+							      AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
 					}
 				}
 
 				for (i = 0; i < i2c_bus->master_xfer_len; i++) {
 					if (i % 4 == 0)
 						tx_buf[i / 4] = 0;
-					tx_buf[i / 4] |= (i2c_bus->master_msgs->buf[i2c_bus->master_xfer_cnt + i] << ((i % 4) * 8)) ;
+					tx_buf[i / 4] |= (i2c_bus->master_msgs->buf[i2c_bus->master_xfer_cnt + i] << ((
+								  i % 4) * 8)) ;
 				}
 //				printk("count %x \n",ast_i2c_read(i2c_bus,I2C_CMD_REG));
 				//ast2400 sw always fix from page_add_point 0
-				ast_i2c_write(i2c_bus, AST_I2CD_TX_DATA_BUF_END_SET((i2c_bus->master_xfer_len - 1)), I2C_BUF_CTRL_REG);
+				ast_i2c_write(i2c_bus, AST_I2CD_TX_DATA_BUF_END_SET((i2c_bus->master_xfer_len -
+						1)), I2C_BUF_CTRL_REG);
 
 				ast_i2c_write(i2c_bus, cmd , I2C_CMD_REG);
-				dev_dbg(i2c_bus->dev, "txfer size %d , cmd = %x \n", i2c_bus->master_xfer_len, cmd);
+				dev_dbg(i2c_bus->dev, "txfer size %d , cmd = %x \n", i2c_bus->master_xfer_len,
+					cmd);
 			}
 		} else {
 			//should send next msg
@@ -1157,11 +1207,14 @@ static void ast_i2c_do_byte_xfer(struct ast_i2c_bus *i2c_bus)
 		i2c_bus->slave_xfer_mode = BYTE_MODE;
 		i2c_bus->slave_xfer_len = 1;
 
-		dev_dbg(i2c_bus->dev, "S cnt %d, xf len %d \n", i2c_bus->slave_xfer_cnt, i2c_bus->slave_msgs->len);
+		dev_dbg(i2c_bus->dev, "S cnt %d, xf len %d \n", i2c_bus->slave_xfer_cnt,
+			i2c_bus->slave_msgs->len);
 		if (i2c_bus->slave_msgs->flags & I2C_M_RD) {
 			//READ <-- TX
-			dev_dbg(i2c_bus->dev, "(<--) slave(tx) buf %d [%x]\n", i2c_bus->slave_xfer_cnt, i2c_bus->slave_msgs->buf[i2c_bus->slave_xfer_cnt]);
-			ast_i2c_write(i2c_bus, i2c_bus->slave_msgs->buf[i2c_bus->slave_xfer_cnt], I2C_BYTE_BUF_REG);
+			dev_dbg(i2c_bus->dev, "(<--) slave(tx) buf %d [%x]\n", i2c_bus->slave_xfer_cnt,
+				i2c_bus->slave_msgs->buf[i2c_bus->slave_xfer_cnt]);
+			ast_i2c_write(i2c_bus, i2c_bus->slave_msgs->buf[i2c_bus->slave_xfer_cnt],
+				      I2C_BYTE_BUF_REG);
 			ast_i2c_write(i2c_bus, AST_I2CD_S_TX_CMD, I2C_CMD_REG);
 		} else {
 			// Write -->Rx
@@ -1173,22 +1226,25 @@ static void ast_i2c_do_byte_xfer(struct ast_i2c_bus *i2c_bus)
 		i2c_bus->master_xfer_mode = BYTE_MODE;
 		i2c_bus->master_xfer_len = 1;
 
-		dev_dbg(i2c_bus->dev, "M cnt %d, xf len %d \n", i2c_bus->master_xfer_cnt, i2c_bus->master_msgs->len);
+		dev_dbg(i2c_bus->dev, "M cnt %d, xf len %d \n", i2c_bus->master_xfer_cnt,
+			i2c_bus->master_msgs->len);
 		if (i2c_bus->master_xfer_cnt == -1) {
 			//first start
 			dev_dbg(i2c_bus->dev, " %sing %d byte%s %s 0x%02x\n",
-					i2c_bus->master_msgs->flags & I2C_M_RD ? "read" : "write",
-					i2c_bus->master_msgs->len, i2c_bus->master_msgs->len > 1 ? "s" : "",
-					i2c_bus->master_msgs->flags & I2C_M_RD ? "from" : "to", i2c_bus->master_msgs->addr);
+				i2c_bus->master_msgs->flags & I2C_M_RD ? "read" : "write",
+				i2c_bus->master_msgs->len, i2c_bus->master_msgs->len > 1 ? "s" : "",
+				i2c_bus->master_msgs->flags & I2C_M_RD ? "from" : "to",
+				i2c_bus->master_msgs->addr);
 
 
 			if (i2c_bus->master_msgs->flags & I2C_M_RD)
-				ast_i2c_write(i2c_bus, (i2c_bus->master_msgs->addr << 1) | 0x1, I2C_BYTE_BUF_REG);
+				ast_i2c_write(i2c_bus, (i2c_bus->master_msgs->addr << 1) | 0x1,
+					      I2C_BYTE_BUF_REG);
 			else
 				ast_i2c_write(i2c_bus, (i2c_bus->master_msgs->addr << 1), I2C_BYTE_BUF_REG);
 
 			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-						  AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+				      AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
 
 			ast_i2c_write(i2c_bus, AST_I2CD_M_TX_CMD | AST_I2CD_M_START_CMD, I2C_CMD_REG);
 
@@ -1198,19 +1254,21 @@ static void ast_i2c_do_byte_xfer(struct ast_i2c_bus *i2c_bus)
 			if (i2c_bus->master_msgs->flags & I2C_M_RD) {
 				//Rx data
 				cmd = AST_I2CD_M_RX_CMD;
-				if ((i2c_bus->master_msgs->flags & I2C_M_RECV_LEN) && (i2c_bus->master_xfer_cnt == 0)) {
+				if ((i2c_bus->master_msgs->flags & I2C_M_RECV_LEN) &&
+				    (i2c_bus->master_xfer_cnt == 0)) {
 					dev_dbg(i2c_bus->dev, "I2C_M_RECV_LEN \n");
 					ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-								  AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
+						      AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
 
-				} else if ((i2c_bus->xfer_last == 1) && (i2c_bus->master_xfer_cnt + 1 == i2c_bus->master_msgs->len)) {
+				} else if ((i2c_bus->xfer_last == 1) &&
+					   (i2c_bus->master_xfer_cnt + 1 == i2c_bus->master_msgs->len)) {
 					cmd |= AST_I2CD_M_S_RX_CMD_LAST | AST_I2CD_M_STOP_CMD;
 					//				disable rx_dwn isr
 					ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) &
-								  ~AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
+						      ~AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
 				} else {
 					ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-								  AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
+						      AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
 				}
 
 				dev_dbg(i2c_bus->dev, "(<--) rx byte, cmd = %x \n", cmd);
@@ -1220,15 +1278,18 @@ static void ast_i2c_do_byte_xfer(struct ast_i2c_bus *i2c_bus)
 
 			} else {
 				//Tx data
-				dev_dbg(i2c_bus->dev, "(-->) xfer byte data index[%02x]:%02x  \n", i2c_bus->master_xfer_cnt, *(xfer_buf + i2c_bus->master_xfer_cnt));
-				ast_i2c_write(i2c_bus, *(xfer_buf + i2c_bus->master_xfer_cnt), I2C_BYTE_BUF_REG);
-				if ((i2c_bus->xfer_last == 1) && (i2c_bus->master_xfer_cnt + 1 == i2c_bus->master_msgs->len)) {
+				dev_dbg(i2c_bus->dev, "(-->) xfer byte data index[%02x]:%02x  \n",
+					i2c_bus->master_xfer_cnt, *(xfer_buf + i2c_bus->master_xfer_cnt));
+				ast_i2c_write(i2c_bus, *(xfer_buf + i2c_bus->master_xfer_cnt),
+					      I2C_BYTE_BUF_REG);
+				if ((i2c_bus->xfer_last == 1) &&
+				    (i2c_bus->master_xfer_cnt + 1 == i2c_bus->master_msgs->len)) {
 					ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) &
-								  ~AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+						      ~AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
 					ast_i2c_write(i2c_bus, AST_I2CD_M_TX_CMD | AST_I2CD_M_STOP_CMD, I2C_CMD_REG);
 				} else {
 					ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-								  AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+						      AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
 					ast_i2c_write(i2c_bus, AST_I2CD_M_TX_CMD, I2C_CMD_REG);
 				}
 			}
@@ -1277,17 +1338,29 @@ static void ast_i2c_slave_rdwr_xfer(struct ast_i2c_bus *i2c_bus)
 		dev_dbg(i2c_bus->dev, "I2C_SLAVE_EVENT_START_WRITE\n");
 		if (i2c_bus->slave_msgs->addr) {
 			//use repeat start, use over write buffer ..
-			dev_err(i2c_bus->dev, "slave ERROR S[%d], sts[%x] 0x00[%x]~~ TODO ~~~~!!\n", i2c_bus->slave_operation, (ast_i2c_read(i2c_bus, I2C_CMD_REG) >> 19) & 0xf, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG));
-			dev_err(i2c_bus->dev, "slave msg flag [%x] len [%d]\n", i2c_bus->slave_msgs->flags, i2c_bus->slave_msgs->len);
-			dev_err(i2c_bus->dev, "slave ioctl idx [%d] rx_idx [%d] rx_full [%d]\n", i2c_bus->slave_ioctl_idx, i2c_bus->slave_rx_idx, i2c_bus->slave_rx_full);
+			dev_err(i2c_bus->dev, "slave ERROR S[%d], sts[%x] 0x00[%x]~~ TODO ~~~~!!\n",
+				i2c_bus->slave_operation, (ast_i2c_read(i2c_bus, I2C_CMD_REG) >> 19) & 0xf,
+				ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG));
+			dev_err(i2c_bus->dev, "slave msg flag [%x] len [%d]\n",
+				i2c_bus->slave_msgs->flags, i2c_bus->slave_msgs->len);
+			dev_err(i2c_bus->dev, "slave ioctl idx [%d] rx_idx [%d] rx_full [%d]\n",
+				i2c_bus->slave_ioctl_idx, i2c_bus->slave_rx_idx, i2c_bus->slave_rx_full);
 		} else {
 			i2c_bus->slave_msgs->addr = BUFF_ONGOING;
 		}
-		if (i2c_bus->slave_rx_msg[(i2c_bus->slave_rx_idx + 1) % I2C_S_RX_BUF_NUM].flags == BUFF_FULL) {
+		if (i2c_bus->slave_rx_msg[(i2c_bus->slave_rx_idx + 1) % I2C_S_RX_BUF_NUM].flags
+		    == BUFF_FULL) {
 			i2c_bus->slave_rx_full = 1;
-			dev_err(i2c_bus->dev, "buffer full-disable [%x] TODO ~~\n", ast_i2c_read(i2c_bus, I2C_CMD_REG));
-		}
-//			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) & ~(AST_I2CD_SLAVE_EN), I2C_FUN_CTRL_REG);	//will enable when slave rx stop
+			dev_err(i2c_bus->dev, "buffer full\n com[%x] \n", ast_i2c_read(i2c_bus,
+					I2C_CMD_REG));
+#if 1
+			//if ((i2c_bus->slave_rx_idx + 1) % I2C_S_RX_BUF_NUM == i2c_bus->slave_ioctl_idx) {
+			dev_err(i2c_bus->dev, "disable slave to stop recv\n");
+			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus,
+							    I2C_FUN_CTRL_REG) & ~(AST_I2CD_SLAVE_EN), I2C_FUN_CTRL_REG);
+			//}
+#endif
+		}	//will enable when slave rx stop
 		break;
 	case I2C_SLAVE_EVENT_START_READ:
 		printk("I2C_SLAVE_EVENT_START_READ ERROR .. not imple \n");
@@ -1309,17 +1382,20 @@ static void ast_i2c_slave_rdwr_xfer(struct ast_i2c_bus *i2c_bus)
 		i2c_bus->slave_msgs = &i2c_bus->slave_tx_msg;
 		break;
 	case I2C_SLAVE_EVENT_STOP:
-		dev_dbg(i2c_bus->dev, "I2C_SLAVE_EVENT_STOP buf idx %d, rx len : %d\n", i2c_bus->slave_rx_idx, i2c_bus->slave_msgs->len);
+		dev_dbg(i2c_bus->dev, "I2C_SLAVE_EVENT_STOP buf idx %d, rx len : %d\n",
+			i2c_bus->slave_rx_idx, i2c_bus->slave_msgs->len);
 		i2c_bus->slave_msgs->addr = 0;
 		i2c_bus->slave_msgs->flags = BUFF_FULL;
 		i2c_bus->slave_rx_idx++;
 		i2c_bus->slave_rx_idx %= I2C_S_RX_BUF_NUM;
 		i2c_bus->slave_msgs = &i2c_bus->slave_rx_msg[i2c_bus->slave_rx_idx];
-		i2c_bus->slave_msgs->len = 0;
+		//i2c_bus->slave_msgs->len = 0;
 		if (i2c_bus->slave_rx_full) {
 			printk("slave full check !!! \n");
 		} else {
-			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) | (AST_I2CD_SLAVE_EN), I2C_FUN_CTRL_REG);	//will enable when slave rx stop
+			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus,
+							    I2C_FUN_CTRL_REG) | (AST_I2CD_SLAVE_EN),
+				      I2C_FUN_CTRL_REG);	//will enable when slave rx stop
 		}
 		i2c_bus->slave_operation = 0;
 		break;
@@ -1327,7 +1403,8 @@ static void ast_i2c_slave_rdwr_xfer(struct ast_i2c_bus *i2c_bus)
 
 }
 
-static int ast_i2c_slave_ioctl_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs)
+static int ast_i2c_slave_ioctl_xfer(struct i2c_adapter *adap,
+				    struct i2c_msg *msgs)
 {
 	struct ast_i2c_bus *i2c_bus = adap->algo_data;
 	struct i2c_msg *slave_rx_msg = &i2c_bus->slave_rx_msg[i2c_bus->slave_ioctl_idx];
@@ -1336,14 +1413,16 @@ static int ast_i2c_slave_ioctl_xfer(struct i2c_adapter *adap, struct i2c_msg *ms
 	switch (msgs->flags) {
 	case 0:
 		if ((slave_rx_msg->addr == 0) && (slave_rx_msg->flags == BUFF_FULL)) {
-			dev_dbg(i2c_bus->dev, "I2C_SLAVE_EVENT_STOP buf idx %d : len %d \n", i2c_bus->slave_ioctl_idx, slave_rx_msg->len);
+			dev_dbg(i2c_bus->dev, "I2C_SLAVE_EVENT_STOP buf idx %d : len %d \n",
+				i2c_bus->slave_ioctl_idx, slave_rx_msg->len);
 #if 0
 			printk("slave rx buff \n");
 			for (i = 0; i < slave_rx_msg->len; i++)
 				printk("%x ", slave_rx_msg->buf[i]);
 			printk("\n");
 #endif
-			memcpy(msgs->buf, slave_rx_msg->buf, slave_rx_msg->len);
+			if (slave_rx_msg->len != 0)
+				memcpy(msgs->buf, slave_rx_msg->buf, slave_rx_msg->len);
 			msgs->len = slave_rx_msg->len;
 			slave_rx_msg->len = 0;
 			slave_rx_msg->flags = 0;
@@ -1357,7 +1436,8 @@ static int ast_i2c_slave_ioctl_xfer(struct i2c_adapter *adap, struct i2c_msg *ms
 				} else {
 					if ((i2c_bus->slave_en) && (!i2c_bus->master_operation)) {
 						printk("\n %d-slave enable watch out TODO\n", i2c_bus->adap.nr);
-						ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) | AST_I2CD_SLAVE_EN, I2C_FUN_CTRL_REG);
+						ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) | AST_I2CD_SLAVE_EN,
+							      I2C_FUN_CTRL_REG);
 					} else {
 						printk("\n TODO ~~~~~~~~~~~~~~");
 					}
@@ -1405,7 +1485,8 @@ static void ast_i2c_slave_xfer_done(struct ast_i2c_bus *i2c_bus)
 	int i;
 	u8 *rx_buf;
 
-	dev_dbg(i2c_bus->dev, "ast_i2c_slave_xfer_done [%d]\n", i2c_bus->slave_xfer_mode);
+	dev_dbg(i2c_bus->dev, "ast_i2c_slave_xfer_done [%d]\n",
+		i2c_bus->slave_xfer_mode);
 
 	if (i2c_bus->slave_msgs->flags & I2C_M_RD) {
 		dev_dbg(i2c_bus->dev, "slave tx \n");
@@ -1430,7 +1511,8 @@ static void ast_i2c_slave_xfer_done(struct ast_i2c_bus *i2c_bus)
 		//rx done
 //		dev_dbg(i2c_bus->dev, "rx \n");
 		if (i2c_bus->slave_xfer_mode == BYTE_MODE) {
-			i2c_bus->slave_msgs->buf[i2c_bus->slave_msgs->len] = ast_i2c_read(i2c_bus, I2C_BYTE_BUF_REG) >> 8;
+			i2c_bus->slave_msgs->buf[i2c_bus->slave_msgs->len] = ast_i2c_read(i2c_bus,
+					I2C_BYTE_BUF_REG) >> 8;
 			i2c_bus->slave_msgs->len++;
 		} else if (i2c_bus->slave_xfer_mode == BUFF_MODE) {
 			xfer_len = AST_I2CD_RX_BUF_ADDR_GET(ast_i2c_read(i2c_bus, I2C_BUF_CTRL_REG));
@@ -1444,13 +1526,15 @@ static void ast_i2c_slave_xfer_done(struct ast_i2c_bus *i2c_bus)
 			}
 			for (i = 0; i < xfer_len ; i++) {
 				i2c_bus->slave_msgs->buf[i2c_bus->slave_msgs->len + i] = rx_buf[i];
-				dev_dbg(i2c_bus->dev, "%d, [%x] \n", i2c_bus->slave_xfer_cnt + i , i2c_bus->slave_msgs->buf[i2c_bus->slave_msgs->len + i]);
+				dev_dbg(i2c_bus->dev, "%d, [%x] \n", i2c_bus->slave_xfer_cnt + i ,
+					i2c_bus->slave_msgs->buf[i2c_bus->slave_msgs->len + i]);
 			}
 			i2c_bus->slave_msgs->len += xfer_len;
 			//Not with stop so prepare to next rx
 			if (!(ast_i2c_read(i2c_bus, I2C_INTR_STS_REG) & AST_I2CD_INTR_STS_NORMAL_STOP)) {
 				//ast2400 sw always fix from page_add_point 0
-				ast_i2c_write(i2c_bus, AST_I2CD_RX_BUF_END_ADDR_SET((i2c_bus->buff_pool.page_size - 1)), I2C_BUF_CTRL_REG);
+				ast_i2c_write(i2c_bus, AST_I2CD_RX_BUF_END_ADDR_SET((i2c_bus->buff_pool.page_size - 1)),
+					      I2C_BUF_CTRL_REG);
 				ast_i2c_write(i2c_bus, AST_I2CD_RX_BUFF_ENABLE, I2C_CMD_REG);
 			}
 		} else if (i2c_bus->slave_xfer_mode == INC_DMA_MODE) {
@@ -1466,7 +1550,8 @@ static void ast_i2c_slave_xfer_done(struct ast_i2c_bus *i2c_bus)
 			dev_dbg(i2c_bus->dev, "0, [%02x] \n", i2c_bus->slave_msgs->buf[0]);
 			for (i = 0; i < xfer_len; i++) {
 				i2c_bus->slave_msgs->buf[i2c_bus->slave_msgs->len + i] = i2c_bus->dma_buf[i];
-				dev_dbg(i2c_bus->dev, "%d, [%02x] \n", i2c_bus->slave_msgs->len + i , i2c_bus->slave_msgs->buf[i2c_bus->slave_msgs->len + i]);
+				dev_dbg(i2c_bus->dev, "%d, [%02x] \n", i2c_bus->slave_msgs->len + i ,
+					i2c_bus->slave_msgs->buf[i2c_bus->slave_msgs->len + i]);
 			}
 			i2c_bus->slave_msgs->len += xfer_len;
 		} else {
@@ -1509,7 +1594,9 @@ static void ast_i2c_master_xfer_done(struct ast_i2c_bus *i2c_bus)
 	int i;
 	u8 *pool_buf;
 
-	dev_dbg(i2c_bus->dev, "ast_i2c_master_xfer_done mode[%d] %s\n", i2c_bus->master_xfer_mode, i2c_bus->master_msgs->flags & I2C_M_RD ? "read" : "write");
+	dev_dbg(i2c_bus->dev, "ast_i2c_master_xfer_done mode[%d] %s\n",
+		i2c_bus->master_xfer_mode,
+		i2c_bus->master_msgs->flags & I2C_M_RD ? "read" : "write");
 
 	if (i2c_bus->master_msgs->flags & I2C_M_RD) {
 		if (i2c_bus->master_xfer_cnt == -1) {
@@ -1518,13 +1605,16 @@ static void ast_i2c_master_xfer_done(struct ast_i2c_bus *i2c_bus)
 			goto next_xfer;
 		}
 		if (i2c_bus->master_xfer_mode == BYTE_MODE) {
-			if ((i2c_bus->master_msgs->flags & I2C_M_RECV_LEN) && (i2c_bus->blk_r_flag == 0)) {
-				i2c_bus->master_msgs->len += (ast_i2c_read(i2c_bus, I2C_BYTE_BUF_REG) & AST_I2CD_RX_BYTE_BUFFER) >> 8;
+			if ((i2c_bus->master_msgs->flags & I2C_M_RECV_LEN) &&
+			    (i2c_bus->blk_r_flag == 0)) {
+				i2c_bus->master_msgs->len += (ast_i2c_read(i2c_bus,
+							      I2C_BYTE_BUF_REG) & AST_I2CD_RX_BYTE_BUFFER) >> 8;
 				i2c_bus->blk_r_flag = 1;
 				dev_dbg(i2c_bus->dev, "I2C_M_RECV_LEN %d \n", i2c_bus->master_msgs->len - 1);
 			}
 			xfer_len = 1;
-			i2c_bus->master_msgs->buf[i2c_bus->master_xfer_cnt] = (ast_i2c_read(i2c_bus, I2C_BYTE_BUF_REG) & AST_I2CD_RX_BYTE_BUFFER) >> 8;
+			i2c_bus->master_msgs->buf[i2c_bus->master_xfer_cnt] = (ast_i2c_read(i2c_bus,
+					I2C_BYTE_BUF_REG) & AST_I2CD_RX_BYTE_BUFFER) >> 8;
 		} else if (i2c_bus->master_xfer_mode == BUFF_MODE) {
 			pool_buf = (u8 *)i2c_bus->buff_pool.page_addr;
 
@@ -1536,10 +1626,12 @@ static void ast_i2c_master_xfer_done(struct ast_i2c_bus *i2c_bus)
 			}
 			for (i = 0; i < xfer_len; i++) {
 				i2c_bus->master_msgs->buf[i2c_bus->master_xfer_cnt + i] = pool_buf[i];
-				dev_dbg(i2c_bus->dev, "rx %d buff[%x]\n", i2c_bus->master_xfer_cnt + i, i2c_bus->master_msgs->buf[i2c_bus->master_xfer_cnt + i]);
+				dev_dbg(i2c_bus->dev, "rx %d buff[%x]\n", i2c_bus->master_xfer_cnt + i,
+					i2c_bus->master_msgs->buf[i2c_bus->master_xfer_cnt + i]);
 			}
 
-			if ((i2c_bus->master_msgs->flags & I2C_M_RECV_LEN) && (i2c_bus->blk_r_flag == 0)) {
+			if ((i2c_bus->master_msgs->flags & I2C_M_RECV_LEN) &&
+			    (i2c_bus->blk_r_flag == 0)) {
 				i2c_bus->master_msgs->len += pool_buf[0];
 				i2c_bus->blk_r_flag = 1;
 				dev_dbg(i2c_bus->dev, "I2C_M_RECV_LEN %d \n", i2c_bus->master_msgs->len - 1);
@@ -1558,7 +1650,8 @@ static void ast_i2c_master_xfer_done(struct ast_i2c_bus *i2c_bus)
 				dev_dbg(i2c_bus->dev, "buf[%x] \n", i2c_bus->dma_buf[i + 1]);
 			}
 
-			if ((i2c_bus->master_msgs->flags & I2C_M_RECV_LEN) && (i2c_bus->blk_r_flag == 0)) {
+			if ((i2c_bus->master_msgs->flags & I2C_M_RECV_LEN) &&
+			    (i2c_bus->blk_r_flag == 0)) {
 				i2c_bus->master_msgs->len += i2c_bus->dma_buf[0];
 				i2c_bus->blk_r_flag = 1;
 				dev_dbg(i2c_bus->dev, "I2C_M_RECV_LEN %d \n", i2c_bus->master_msgs->len - 1);
@@ -1590,7 +1683,8 @@ next_xfer:
 
 	if (xfer_len != i2c_bus->master_xfer_len) {
 		//TODO..
-		printk(" ** xfer_len = %d  !=  master_xfer_len = %d  \n", xfer_len, i2c_bus->master_xfer_len);
+		printk(" ** xfer_len = %d  !=  master_xfer_len = %d  \n", xfer_len,
+		       i2c_bus->master_xfer_len);
 		//should goto stop....
 		i2c_bus->cmd_err = 1;
 		goto done_out;
@@ -1621,13 +1715,15 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 {
 	struct ast_i2c_bus *i2c_bus = dev_id;
 	u32 sts = ast_i2c_read(i2c_bus, I2C_INTR_STS_REG);
+	u32 filter = 0;
 	i2c_bus->state = (ast_i2c_read(i2c_bus, I2C_CMD_REG) >> 19) & 0xf;
 
 	dev_dbg(i2c_bus->dev, "ISR : %x\n", sts);
 
 //	dev_dbg(i2c_bus->dev,"sts machine %x, slave_op %d \n", xfer_sts,i2c_bus->slave_operation);
 	if (i2c_bus->slave_operation && i2c_bus->master_operation) {
-		printk("%d-M-S error !!!! isr : %x, sts : %x ~~~~~~~~~~~~~~~~~~~\n ", i2c_bus->adap.nr, sts, i2c_bus->state);
+		printk("%d-M-S error !!!! isr : %x, sts : %x ~~~~~~~~~~~~~~~~~~~\n ",
+		       i2c_bus->adap.nr, sts, i2c_bus->state);
 	}
 
 	if (AST_I2CD_INTR_STS_SMBUS_ALT & sts) {
@@ -1635,8 +1731,8 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 		dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CD_INTR_STS_SMBUS_ALT= %x\n", sts);
 		//Disable ALT INT
 		ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) &
-					  ~AST_I2CD_SMBUS_ALT_INTR_EN,
-					  I2C_INTR_CTRL_REG);
+			      ~AST_I2CD_SMBUS_ALT_INTR_EN,
+			      I2C_INTR_CTRL_REG);
 		ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_SMBUS_ALT, I2C_INTR_STS_REG);
 		ast_master_alert_recv(i2c_bus);
 		sts &= ~AST_I2CD_SMBUS_ALT_INTR_EN;
@@ -1671,8 +1767,14 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	sts &= (AST_I2CD_INTR_STS_TX_ACK | AST_I2CD_INTR_STS_NORMAL_STOP | AST_I2CD_INTR_STS_ARBIT_LOSS |
-			AST_I2CD_INTR_STS_TX_NAK | AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH);
+	filter |= AST_I2CD_INTR_STS_TX_ACK;
+	filter |= AST_I2CD_INTR_STS_NORMAL_STOP;
+	filter |= AST_I2CD_INTR_STS_ARBIT_LOSS;
+	filter |= AST_I2CD_INTR_STS_TX_NAK;
+	filter |= AST_I2CD_INTR_STS_RX_DOWN;
+	filter |= AST_I2CD_INTR_STS_SLAVE_MATCH;
+	filter |= AST_I2CD_INTR_STS_ABNORMAL;
+	sts &= filter;
 
 	if (i2c_bus->master_operation) {
 		if (AST_I2CD_INTR_STS_ARBIT_LOSS & sts) {
@@ -1684,10 +1786,12 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 			return IRQ_HANDLED;
 		}
 
-		if ((sts & (AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH)) == (AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH)) {
+		if ((sts & (AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH)) ==
+		    (AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH)) {
 			dev_dbg(i2c_bus->dev, "TOTOTO~~	  return nak [%x] \n", sts);
 			//return slave nak
-			ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH, I2C_INTR_STS_REG);
+			ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_RX_DOWN |
+				      AST_I2CD_INTR_STS_SLAVE_MATCH, I2C_INTR_STS_REG);
 			sts &= ~(AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH);
 		}
 		if (AST_I2CD_INTR_STS_ABNORMAL & sts) {
@@ -1699,7 +1803,8 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 		}
 
 		if (AST_I2CD_INTR_STS_SDA_DL_TO & sts) {
-			dev_err(i2c_bus->dev, "AST_I2CD_INTR_STS_SDA_DL_TO M [%x], S [%x] \n", i2c_bus->master_operation, i2c_bus->slave_operation);
+			dev_err(i2c_bus->dev, "AST_I2CD_INTR_STS_SDA_DL_TO M [%x], S [%x] \n",
+				i2c_bus->master_operation, i2c_bus->slave_operation);
 			i2c_bus->cmd_err = AST_I2CD_INTR_STS_SDA_DL_TO;
 			ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_SDA_DL_TO, I2C_INTR_STS_REG);
 			complete(&i2c_bus->cmd_complete);
@@ -1707,7 +1812,8 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 		}
 
 		if (AST_I2CD_INTR_STS_SCL_TO & sts) {
-			dev_err(i2c_bus->dev, "TODO AST_I2CD_INTR_STS_SCL_TO M [%x], S [%x] \n", i2c_bus->master_operation, i2c_bus->slave_operation);
+			dev_err(i2c_bus->dev, "TODO AST_I2CD_INTR_STS_SCL_TO M [%x], S [%x] \n",
+				i2c_bus->master_operation, i2c_bus->slave_operation);
 			i2c_bus->cmd_err = AST_I2CD_INTR_STS_SCL_TO;
 			ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_SCL_TO, I2C_INTR_STS_REG);
 			complete(&i2c_bus->cmd_complete);
@@ -1722,11 +1828,13 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 			break;
 		case AST_I2CD_INTR_STS_TX_ACK | AST_I2CD_INTR_STS_NORMAL_STOP:
 			if (i2c_bus->xfer_last) {
-				dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CD_INTR_STS_TX_ACK | AST_I2CD_INTR_STS_NORMAL_STOP= %x\n", sts);
-				ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_TX_ACK | AST_I2CD_INTR_STS_NORMAL_STOP, I2C_INTR_STS_REG);
+				dev_dbg(i2c_bus->dev,
+					"M clear isr: AST_I2CD_INTR_STS_TX_ACK | AST_I2CD_INTR_STS_NORMAL_STOP= %x\n",
+					sts);
+				ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_TX_ACK | AST_I2CD_INTR_STS_NORMAL_STOP,
+					      I2C_INTR_STS_REG);
 				//take care
-				ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-							  AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
+				ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) | AST_I2CD_TX_ACK_INTR_EN, I2C_INTR_CTRL_REG);
 				ast_i2c_master_xfer_done(i2c_bus);
 
 			} else {
@@ -1748,8 +1856,10 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 			break;
 
 		case AST_I2CD_INTR_STS_TX_NAK | AST_I2CD_INTR_STS_NORMAL_STOP:
-			dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CD_INTR_STS_TX_NAK| AST_I2CD_INTR_STS_NORMAL_STOP = %x\n", sts);
-			ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_TX_NAK | AST_I2CD_INTR_STS_NORMAL_STOP, I2C_INTR_STS_REG);
+			dev_dbg(i2c_bus->dev,
+				"M clear isr: AST_I2CD_INTR_STS_TX_NAK | AST_I2CD_INTR_STS_NORMAL_STOP = %x\n", sts);
+			ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_TX_NAK | AST_I2CD_INTR_STS_NORMAL_STOP,
+				      I2C_INTR_STS_REG);
 			dev_dbg(i2c_bus->dev, "M TX NAK | NORMAL STOP \n");
 			i2c_bus->cmd_err = AST_I2CD_INTR_STS_TX_NAK | AST_I2CD_INTR_STS_NORMAL_STOP;
 			complete(&i2c_bus->cmd_complete);
@@ -1768,20 +1878,26 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 			break;
 		case (AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_NORMAL_STOP):
 			if (i2c_bus->xfer_last) {
-				dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_NORMAL_STOP = %x\n", sts);
-				ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_NORMAL_STOP, I2C_INTR_STS_REG);
+				dev_dbg(i2c_bus->dev,
+					"M clear isr: AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_NORMAL_STOP = %x\n", sts);
+				ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_NORMAL_STOP,
+					      I2C_INTR_STS_REG);
 				//take care
-				ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_INTR_CTRL_REG) |
-							  AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
+				ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus,
+								    I2C_INTR_CTRL_REG) | AST_I2CD_RX_DOWN_INTR_EN, I2C_INTR_CTRL_REG);
 				ast_i2c_master_xfer_done(i2c_bus);
 			} else {
 				printk("TODO .. slave .. AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_NORMAL_STOP\n");
 			}
 			break;
 		default:
-			printk("%d-Master No one care : isr :%x, state %x, ctrl : %x, M[%d], S[%d] \n", i2c_bus->adap.nr, sts, i2c_bus->state, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG), i2c_bus->master_operation, i2c_bus->slave_operation);
-			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) & ~(AST_I2CD_MASTER_EN | AST_I2CD_SLAVE_EN), I2C_FUN_CTRL_REG);
-			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) | AST_I2CD_MASTER_EN, I2C_FUN_CTRL_REG);
+			printk("%d-Master No one care : isr :%x, state %x, ctrl : %x, M[%d], S[%d] \n",
+			       i2c_bus->adap.nr, sts, i2c_bus->state, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG),
+			       i2c_bus->master_operation, i2c_bus->slave_operation);
+			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus,
+							    I2C_FUN_CTRL_REG) & ~(AST_I2CD_MASTER_EN | AST_I2CD_SLAVE_EN), I2C_FUN_CTRL_REG);
+			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) | AST_I2CD_MASTER_EN,
+				      I2C_FUN_CTRL_REG);
 			complete(&i2c_bus->cmd_complete);
 			break;
 		}
@@ -1790,7 +1906,8 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 		if (i2c_bus->bus_config->ast_g5_i2c) {
 			if (AST_I2CD_INTR_STS_SLAVE_TO & sts) {
 				//drop package
-				dev_err(i2c_bus->dev, "AST_I2CD_INTR_STS_SLAVE_TO M [%x], S [%x] \n", i2c_bus->master_operation, i2c_bus->slave_operation);
+				dev_err(i2c_bus->dev, "AST_I2CD_INTR_STS_SLAVE_TO M [%x], S [%x] \n",
+					i2c_bus->master_operation, i2c_bus->slave_operation);
 				i2c_bus->slave_msgs->addr = 0;
 				i2c_bus->slave_msgs->len = 0;
 				i2c_bus->slave_operation = 0;
@@ -1801,7 +1918,8 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 
 		if (AST_I2CD_INTR_STS_SDA_DL_TO & sts) {
 			//drop package
-			dev_err(i2c_bus->dev, "AST_I2CD_INTR_STS_SDA_DL_TO M [%x], S [%x] \n", i2c_bus->master_operation, i2c_bus->slave_operation);
+			dev_err(i2c_bus->dev, "AST_I2CD_INTR_STS_SDA_DL_TO M [%x], S [%x] \n",
+				i2c_bus->master_operation, i2c_bus->slave_operation);
 			i2c_bus->slave_msgs->addr = 0;
 			i2c_bus->slave_msgs->len = 0;
 			i2c_bus->slave_operation = 0;
@@ -1811,7 +1929,8 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 
 		if (AST_I2CD_INTR_STS_SCL_TO & sts) {
 			//drop package
-			dev_err(i2c_bus->dev, "AST_I2CD_INTR_STS_SCL_TO M [%x], S [%x] \n", i2c_bus->master_operation, i2c_bus->slave_operation);
+			dev_err(i2c_bus->dev, "AST_I2CD_INTR_STS_SCL_TO M [%x], S [%x] \n",
+				i2c_bus->master_operation, i2c_bus->slave_operation);
 			i2c_bus->slave_msgs->addr = 0;
 			i2c_bus->slave_msgs->len = 0;
 			i2c_bus->slave_operation = 0;
@@ -1821,7 +1940,8 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 
 		if (AST_I2CD_INTR_STS_ABNORMAL & sts) {
 			//drop package
-			dev_err(i2c_bus->dev, "AST_I2CD_INTR_STS_SCL_TO M [%x], S [%x] \n", i2c_bus->master_operation, i2c_bus->slave_operation);
+			dev_err(i2c_bus->dev, "AST_I2CD_INTR_STS_SCL_TO M [%x], S [%x] \n",
+				i2c_bus->master_operation, i2c_bus->slave_operation);
 			i2c_bus->slave_msgs->addr = 0;
 			i2c_bus->slave_msgs->len = 0;
 			i2c_bus->slave_operation = 0;
@@ -1829,7 +1949,8 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 			return IRQ_HANDLED;
 		}
 
-		if ((sts & (AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH)) == (AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH)) {
+		if ((sts & (AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH)) ==
+		    (AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH)) {
 			if (sts & AST_I2CD_INTR_STS_NORMAL_STOP) {
 				I2C_S_DBUG("%d-P|S|W\n", i2c_bus->adap.nr);
 				i2c_bus->slave_event = I2C_SLAVE_EVENT_STOP;
@@ -1842,8 +1963,11 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 				}
 			}
 			ast_i2c_slave_addr_match(i2c_bus);
-			dev_dbg(i2c_bus->dev, "S clear isr: AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH = %x\n", sts);
-			ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH, I2C_INTR_STS_REG);
+			dev_dbg(i2c_bus->dev,
+				"S clear isr: AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH = %x\n",
+				sts);
+			ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_RX_DOWN |
+				      AST_I2CD_INTR_STS_SLAVE_MATCH, I2C_INTR_STS_REG);
 			sts &= ~(AST_I2CD_INTR_STS_RX_DOWN | AST_I2CD_INTR_STS_SLAVE_MATCH);
 		}
 
@@ -1877,7 +2001,8 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 			printk("isr AST_I2CD_INTR_STS_TX_NAK | AST_I2CD_INTR_STS_SLAVE_MATCH TODO ~~~~~~\n");
 			ast_i2c_slave_xfer_done(i2c_bus);
 			ast_i2c_slave_addr_match(i2c_bus);
-			ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_TX_NAK | AST_I2CD_INTR_STS_SLAVE_MATCH , I2C_INTR_STS_REG);
+			ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_TX_NAK | AST_I2CD_INTR_STS_SLAVE_MATCH
+				      , I2C_INTR_STS_REG);
 			break;
 		case AST_I2CD_INTR_STS_RX_DOWN:
 			i2c_bus->slave_event = I2C_SLAVE_EVENT_WRITE;
@@ -1905,7 +2030,8 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 			ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_NORMAL_STOP, I2C_INTR_STS_REG);
 			break;
 		default:
-			printk("%d-Slave No one care : isr :%x, state %x\n", i2c_bus->adap.nr, sts, i2c_bus->state);
+			printk("%d-Slave No one care : isr :%x, state %x\n", i2c_bus->adap.nr, sts,
+			       i2c_bus->state);
 			break;
 		}
 #endif
@@ -1915,7 +2041,8 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 
 }
 
-static int ast_i2c_do_msgs_xfer(struct ast_i2c_bus *i2c_bus, struct i2c_msg *msgs, int num)
+static int ast_i2c_do_msgs_xfer(struct ast_i2c_bus *i2c_bus,
+				struct i2c_msg *msgs, int num)
 {
 	int i;
 	int ret = 0;
@@ -1942,23 +2069,30 @@ static int ast_i2c_do_msgs_xfer(struct ast_i2c_bus *i2c_bus, struct i2c_msg *msg
 
 		i2c_bus->do_master_xfer(i2c_bus);
 
-		timeout = wait_for_completion_interruptible_timeout(&i2c_bus->cmd_complete,
-				  i2c_bus->adap.timeout * HZ);
+		timeout = wait_for_completion_timeout(&i2c_bus->cmd_complete,
+						      i2c_bus->adap.timeout * HZ);
 
-		if (timeout == 0) {
-			dev_err(i2c_bus->dev, "controller timed out\n");
+		if (timeout <= 0) {
+			u32 reg_val = ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG);
+			if (timeout == 0) {
+				dev_err(i2c_bus->dev, "controller timed out\n");
+				ret = -ETIMEDOUT;
+			} else if (timeout == -ERESTARTSYS) {
+				dev_err(i2c_bus->dev, "controller ERESTARTSYS\n");
+				ret = -ERESTARTSYS;
+			}
 			i2c_bus->state = (ast_i2c_read(i2c_bus, I2C_CMD_REG) >> 19) & 0xf;
 //			dev_err(i2c_bus->dev, "0x14 [%x] sts [%x], isr sts [%x] \n",ast_i2c_read(i2c_bus,I2C_CMD_REG) , i2c_bus->state, ast_i2c_read(i2c_bus,I2C_INTR_STS_REG));
 //			dev_err(i2c_bus->dev, "0x00 [%x] M [%x], S [%x] \n",ast_i2c_read(i2c_bus,I2C_FUN_CTRL_REG) , i2c_bus->master_operation, i2c_bus->slave_operation);
-			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) & ~AST_I2CD_MASTER_EN, I2C_FUN_CTRL_REG);
-			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) | AST_I2CD_MASTER_EN, I2C_FUN_CTRL_REG);
-			ret = -ETIMEDOUT;
+			ast_i2c_write(i2c_bus, reg_val & ~AST_I2CD_MASTER_EN, I2C_FUN_CTRL_REG);
+			ast_i2c_write(i2c_bus, reg_val | AST_I2CD_MASTER_EN, I2C_FUN_CTRL_REG);
 			goto out;
 		}
 
 		if (i2c_bus->cmd_err != 0) {
 //			printk("%d-cmd_err %d \n",i2c_bus->adap.nr, i2c_bus->cmd_err);
-			if (i2c_bus->cmd_err == (AST_I2CD_INTR_STS_TX_NAK | AST_I2CD_INTR_STS_NORMAL_STOP)) {
+			if (i2c_bus->cmd_err == (AST_I2CD_INTR_STS_TX_NAK |
+						 AST_I2CD_INTR_STS_NORMAL_STOP)) {
 				dev_dbg(i2c_bus->dev, "go out \n");
 				ret = -ETIMEDOUT;
 				goto out;
@@ -1980,17 +2114,19 @@ static int ast_i2c_do_msgs_xfer(struct ast_i2c_bus *i2c_bus, struct i2c_msg *msg
 stop:
 	init_completion(&i2c_bus->cmd_complete);
 	ast_i2c_write(i2c_bus, AST_I2CD_M_STOP_CMD, I2C_CMD_REG);
-	timeout = wait_for_completion_interruptible_timeout(&i2c_bus->cmd_complete,
-			  i2c_bus->adap.timeout * HZ);
+	timeout = wait_for_completion_timeout(&i2c_bus->cmd_complete,
+					      i2c_bus->adap.timeout * HZ);
 	if (timeout == 0) {
 		dev_dbg(i2c_bus->dev, "send stop timed out\n");
 		i2c_bus->state = (ast_i2c_read(i2c_bus, I2C_CMD_REG) >> 19) & 0xf;
-		dev_dbg(i2c_bus->dev, "sts [%x], isr sts [%x] \n", i2c_bus->state, ast_i2c_read(i2c_bus, I2C_INTR_STS_REG));
+		dev_dbg(i2c_bus->dev, "sts [%x], isr sts [%x] \n", i2c_bus->state,
+			ast_i2c_read(i2c_bus, I2C_INTR_STS_REG));
 		ret = -ETIMEDOUT;
 	}
 
 out:
-	dev_dbg(i2c_bus->dev, "end xfer ret = %d, xfer mode[%d]\n", ret, i2c_bus->master_xfer_mode);
+	dev_dbg(i2c_bus->dev, "end xfer ret = %d, xfer mode[%d]\n", ret,
+		i2c_bus->master_xfer_mode);
 	return ret;
 
 }
@@ -2017,7 +2153,8 @@ static int ast_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	i2c_bus->state = (ast_i2c_read(i2c_bus, I2C_CMD_REG) >> 19) & 0xf;
 	if (i2c_bus->state) {
 		if (!i2c_bus->slave_rx_full)
-			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) | AST_I2CD_SLAVE_EN, I2C_FUN_CTRL_REG);
+			ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus,
+							    I2C_FUN_CTRL_REG) | AST_I2CD_SLAVE_EN, I2C_FUN_CTRL_REG);
 		return -EAGAIN;
 	}
 #endif
@@ -2047,7 +2184,8 @@ out:
 	i2c_bus->master_operation = 0;
 #ifdef CONFIG_AST_I2C_SLAVE_MODE
 	if ((i2c_bus->slave_en) && (!i2c_bus->slave_rx_full)) {
-		ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) | AST_I2CD_SLAVE_EN, I2C_FUN_CTRL_REG);
+		ast_i2c_write(i2c_bus, ast_i2c_read(i2c_bus,
+						    I2C_FUN_CTRL_REG) | AST_I2CD_SLAVE_EN, I2C_FUN_CTRL_REG);
 	}
 #endif
 	I2C_M_DBUG("%d-m-end \n", i2c_bus->adap.nr);
@@ -2169,20 +2307,21 @@ static int ast_i2c_probe(struct platform_device *pdev)
 			//AST2400 buffer mode issue , force I2C slave write use byte mode , read use buffer mode
 			i2c_bus->do_slave_xfer = ast_i2c_do_byte_xfer;
 			ret = of_property_read_u8(pdev->dev.of_node,
-									  "page_no", &i2c_bus->buff_pool.page_no);
+						  "page_no", &i2c_bus->buff_pool.page_no);
 			if (ret < 0) {
 				dev_err(&pdev->dev, "buff page no not get ERROR \n");
 				ret = -EIO;
 				goto release_mem;
 			}
 			ast_i2c_write(i2c_bus,
-						  (ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) &
-						   ~AST_I2CD_BUFF_SEL_MASK) |
-						  AST_I2CD_BUFF_SEL(i2c_bus->buff_pool.page_no),
-						  I2C_FUN_CTRL_REG);
+				      (ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) &
+				       ~AST_I2CD_BUFF_SEL_MASK) |
+				      AST_I2CD_BUFF_SEL(i2c_bus->buff_pool.page_no),
+				      I2C_FUN_CTRL_REG);
 		}
 
-		dev_dbg(&pdev->dev, "ast_i2c buff mode enable, page addr %x, page size %x \n", i2c_bus->buff_pool.page_addr, i2c_bus->buff_pool.page_size);
+		dev_dbg(&pdev->dev, "ast_i2c buff mode enable, page addr %x, page size %x \n",
+			i2c_bus->buff_pool.page_addr, i2c_bus->buff_pool.page_size);
 	}
 
 	if (of_device_is_compatible(pdev->dev.of_node, "aspeed,ast-dma-i2c")) {
@@ -2190,7 +2329,8 @@ static int ast_i2c_probe(struct platform_device *pdev)
 		i2c_bus->slave_dma = INC_DMA_MODE;
 		i2c_bus->do_master_xfer = ast_i2c_do_inc_dma_xfer;
 		i2c_bus->do_slave_xfer = ast_i2c_do_inc_dma_xfer;
-		i2c_bus->dma_buf = dma_alloc_coherent(NULL, AST_I2C_DMA_SIZE, &i2c_bus->dma_addr, GFP_KERNEL);
+		i2c_bus->dma_buf = dma_alloc_coherent(NULL, AST_I2C_DMA_SIZE,
+						      &i2c_bus->dma_addr, GFP_KERNEL);
 		if (!i2c_bus->dma_buf) {
 			dev_err(&pdev->dev, "unable to allocate tx Buffer memory\n");
 			ret = -ENOMEM;
@@ -2201,11 +2341,14 @@ static int ast_i2c_probe(struct platform_device *pdev)
 			ret = -ENOMEM;
 			goto free_mem;
 		}
-		dev_dbg(&pdev->dev, "dma enable dma_buf = [0x%x] dma_addr = [0x%x], please check 4byte boundary \n", (u32)i2c_bus->dma_buf, i2c_bus->dma_addr);
+		dev_dbg(&pdev->dev,
+			"dma enable dma_buf = [0x%x] dma_addr = [0x%x], please check 4byte boundary \n",
+			(u32)i2c_bus->dma_buf, i2c_bus->dma_addr);
 		memset(i2c_bus->dma_buf, 0, AST_I2C_DMA_SIZE);
 	}
 
-	dev_dbg(&pdev->dev, "master mode  [%d] slave mode [%d]\n", i2c_bus->master_dma, i2c_bus->slave_dma);
+	dev_dbg(&pdev->dev, "master mode  [%d] slave mode [%d]\n", i2c_bus->master_dma,
+		i2c_bus->slave_dma);
 
 	platform_set_drvdata(pdev, i2c_bus);
 
@@ -2218,10 +2361,10 @@ static int ast_i2c_probe(struct platform_device *pdev)
 	dev_dbg(i2c_bus->dev, "i2c_bus->apb_clk %d \n", i2c_bus->apb_clk);
 
 	ret = of_property_read_u32(pdev->dev.of_node,
-							   "bus-frequency", &i2c_bus->bus_frequency);
+				   "bus-frequency", &i2c_bus->bus_frequency);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
-				"Could not read bus-frequency property\n");
+			"Could not read bus-frequency property\n");
 		i2c_bus->bus_frequency = 100000;
 	}
 
@@ -2241,7 +2384,7 @@ static int ast_i2c_probe(struct platform_device *pdev)
 	bus_nr = of_alias_get_id(pdev->dev.of_node, "i2c");
 
 	snprintf(i2c_bus->adap.name, sizeof(i2c_bus->adap.name), "ast_i2c.%u",
-			 bus_nr);
+		 bus_nr);
 
 	i2c_bus->slave_operation = 0;
 	i2c_bus->blk_r_flag = 0;
@@ -2253,7 +2396,7 @@ static int ast_i2c_probe(struct platform_device *pdev)
 #endif
 
 	ret = devm_request_irq(&pdev->dev, i2c_bus->irq, ast_i2c_handler,
-						   0, dev_name(&pdev->dev), i2c_bus);
+			       0, dev_name(&pdev->dev), i2c_bus);
 	if (ret) {
 		printk(KERN_INFO "I2C: Failed request irq %d\n", i2c_bus->irq);
 		goto unmap;
@@ -2266,7 +2409,8 @@ static int ast_i2c_probe(struct platform_device *pdev)
 	}
 
 	printk(KERN_INFO "I2C: %s [%d]: AST I2C mode [%d] adapter [%d khz] \n",
-		   pdev->dev.of_node->name, i2c_bus->adap.nr, i2c_bus->master_dma, i2c_bus->bus_frequency / 1000);
+	       pdev->dev.of_node->name, i2c_bus->adap.nr, i2c_bus->master_dma,
+	       i2c_bus->bus_frequency / 1000);
 
 	return 0;
 
