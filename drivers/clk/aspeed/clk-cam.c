@@ -244,7 +244,7 @@ static void aspeed_sdclk_disable(struct clk_hw *hw)
 #define SCU_CLK_SDIO_GET_DIV(x)		((x >> 16) & 0xf)
 #define SCU_CLK_SDIO_MASK				(0xf << 16)
 //0x08
-#define SCUIO_SDCLK_STOP_EN			(0x1 << 20)
+#define SCU_SDIOCLK_STOP_EN			(0x1 << 20)
 
 static unsigned long aspeed_sdioclk_recalc_rate(struct clk_hw *hw,
 		unsigned long clkin_rate)
