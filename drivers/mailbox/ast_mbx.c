@@ -17,14 +17,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- */	
-#include <linux/init.h>  
-#include <linux/timer.h>  
-#include <linux/time.h>  
-#include <linux/types.h>  
-#include <net/sock.h>  
-#include <net/netlink.h>   
-	  
+ */
+#include <linux/init.h>
+#include <linux/timer.h>
+#include <linux/time.h>
+#include <linux/types.h>
+#include <net/sock.h>
+#include <net/netlink.h>
+
 
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -37,7 +37,7 @@
 #include <linux/completion.h>
 #include <linux/slab.h>
 
-#include <linux/sched.h>  
+#include <linux/sched.h>
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/miscdevice.h>
@@ -66,8 +66,8 @@ struct ast_coldfire_mbx_data {
 	struct device		*misc_dev;
 	int 				irq;
 	u32				mbx_mem_size;
-	phys_addr_t		*mbx_mem_phy;            /* phy */	
-	bool 			is_open;	
+	phys_addr_t		*mbx_mem_phy;            /* phy */
+	bool 			is_open;
 	spinlock_t 		lock;
 	struct fasync_struct	*fasync_queue;
 };
@@ -78,22 +78,22 @@ static irqreturn_t ast_coldfire_mbx_handler(int this_irq, void *dev_id)
 	struct ast_coldfire_mbx_data *ast_coldfire_mbx = dev_id;
 
 	kill_fasync(&ast_coldfire_mbx->fasync_queue, SIGIO, POLL_IN);
-	
+
 	return IRQ_HANDLED;
 
 }
 
 /** @note munmap handler is done by vma close handler */
-static int ast_coldfire_mbx_mmap(struct file * file, struct vm_area_struct * vma)
+static int ast_coldfire_mbx_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct miscdevice *c = file->private_data;
 	struct ast_coldfire_mbx_data *ast_coldfire_mbx = dev_get_drvdata(c->this_device);
 	vma->vm_private_data = ast_coldfire_mbx;
 
 	vma->vm_flags |= VM_IO;
-	
-	if(remap_pfn_range(vma, vma->vm_start,  ((u32)ast_coldfire_mbx->mbx_mem_phy >> PAGE_SHIFT),
-		ast_coldfire_mbx->mbx_mem_size, vma->vm_page_prot)) {
+
+	if (remap_pfn_range(vma, vma->vm_start, ((u32)ast_coldfire_mbx->mbx_mem_phy >> PAGE_SHIFT),
+						ast_coldfire_mbx->mbx_mem_size, vma->vm_page_prot)) {
 		printk(KERN_ERR "remap_pfn_range faile at %s()\n", __func__);
 		return -EAGAIN ;
 	}
@@ -109,7 +109,7 @@ static int ast_coldfire_mbx_open(struct inode *inode, struct file *file)
 	MBX_DBG("\n");
 	spin_lock(&ast_coldfire_mbx->lock);
 
-	if(ast_coldfire_mbx->is_open) {
+	if (ast_coldfire_mbx->is_open) {
 		spin_unlock(&ast_coldfire_mbx->lock);
 		return -1;
 	}
@@ -117,7 +117,7 @@ static int ast_coldfire_mbx_open(struct inode *inode, struct file *file)
 
 	spin_unlock(&ast_coldfire_mbx->lock);
 
-	return 0;	
+	return 0;
 }
 
 static int ast_coldfire_mbx_release(struct inode *inode, struct file *file)
@@ -142,17 +142,17 @@ static long  ast_coldfire_mbx_ioctl(struct file *fp, unsigned int cmd, unsigned 
 //	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
-		case AST_MBX_IOCSIZE:
-			ret = __put_user(ast_coldfire_mbx->mbx_mem_size, (unsigned long __user *)arg);
-			break;
-#ifdef CONFIG_AST_CVIC		
-		case AST_MBX_IOCTRIGGER:			
-			ast_trigger_coldfire();
-			break;
-#endif			
-		default:
-			ret = 3;
-			break;
+	case AST_MBX_IOCSIZE:
+		ret = __put_user(ast_coldfire_mbx->mbx_mem_size, (unsigned long __user *)arg);
+		break;
+#ifdef CONFIG_AST_CVIC
+	case AST_MBX_IOCTRIGGER:
+		ast_trigger_coldfire();
+		break;
+#endif
+	default:
+		ret = 3;
+		break;
 	}
 	return ret;
 
@@ -162,7 +162,7 @@ static int ast_coldfire_mbx_fasync(int fd, struct file *file, int mode)
 {
 	struct miscdevice *c = file->private_data;
 	struct ast_coldfire_mbx_data *ast_coldfire_mbx = dev_get_drvdata(c->this_device);
-	printk("%s enter \n",__func__);
+	printk("%s enter \n", __func__);
 	return fasync_helper(fd, file, mode, &ast_coldfire_mbx->fasync_queue);
 }
 
@@ -172,7 +172,7 @@ static const struct file_operations ast_coldfire_mbx_fops = {
 	.mmap			= ast_coldfire_mbx_mmap,
 	.open 			= ast_coldfire_mbx_open,
 	.release 			= ast_coldfire_mbx_release,
-	.unlocked_ioctl 	= ast_coldfire_mbx_ioctl,	
+	.unlocked_ioctl 	= ast_coldfire_mbx_ioctl,
 	.fasync			= ast_coldfire_mbx_fasync,
 };
 
@@ -186,12 +186,12 @@ static int ast_coldfire_mbx_probe(struct platform_device *pdev)
 {
 	static struct ast_coldfire_mbx_data *ast_coldfire_mbx;
 	struct resource *res;
-	int ret=0;
+	int ret = 0;
 
-	MBX_DBG(" \n");	
-	
+	MBX_DBG(" \n");
+
 	ast_coldfire_mbx = kzalloc(sizeof(struct ast_coldfire_mbx_data), GFP_KERNEL);
-	if(ast_coldfire_mbx == NULL) {
+	if (ast_coldfire_mbx == NULL) {
 		printk("memalloc error");
 		goto out;
 	}
@@ -221,24 +221,24 @@ static int ast_coldfire_mbx_probe(struct platform_device *pdev)
 	}
 
 	ret = request_irq(ast_coldfire_mbx->irq, ast_coldfire_mbx_handler, IRQF_SHARED,
-			  "ast-mbx", ast_coldfire_mbx);
-	
+					  "ast-mbx", ast_coldfire_mbx);
+
 	if (ret) {
 		printk(KERN_INFO "MBX: Failed request irq %d\n", ast_coldfire_mbx->irq);
 		goto out_region;
 	}
 
 	ret = misc_register(&ast_coldfire_mbx_misc);
-	if (ret){		
+	if (ret) {
 		printk(KERN_ERR "MBX : failed to request interrupt\n");
 		goto out_irq;
 	}
 
 	spin_lock_init(&ast_coldfire_mbx->lock);
 	platform_set_drvdata(pdev, ast_coldfire_mbx);
-	
+
 	dev_set_drvdata(ast_coldfire_mbx_misc.this_device, ast_coldfire_mbx);
-	
+
 	printk(KERN_INFO "ast_coldfire_mbx: driver successfully loaded.\n");
 
 	return 0;
@@ -268,18 +268,18 @@ static int ast_coldfire_mbx_remove(struct platform_device *pdev)
 	release_mem_region(res->start, res->end - res->start + 1);
 
 	kfree(ast_coldfire_mbx);
-	return 0;	
+	return 0;
 }
 
 #ifdef CONFIG_PM
-static int 
+static int
 ast_coldfire_mbx_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	printk("ast_coldfire_mbx_suspend : TODO \n");
 	return 0;
 }
 
-static int 
+static int
 ast_coldfire_mbx_resume(struct platform_device *pdev)
 {
 	return 0;
@@ -315,7 +315,7 @@ static int __init ast_coldfire_mbx_init(void)
 		},
 		[1] = {
 			.start = IRQ_CFV0,
-			.end = IRQ_CFV0, 
+			.end = IRQ_CFV0,
 			.flags = IORESOURCE_IRQ,
 		},
 	};
@@ -324,7 +324,7 @@ static int __init ast_coldfire_mbx_init(void)
 
 	if (!ret) {
 		ast_coldfire_mbx_device = platform_device_register_simple("ast-cf-mbx", 0,
-								ast_cf_mbx_resource, ARRAY_SIZE(ast_cf_mbx_resource));
+								  ast_cf_mbx_resource, ARRAY_SIZE(ast_cf_mbx_resource));
 		if (IS_ERR(ast_coldfire_mbx_device)) {
 			platform_driver_unregister(&ast_coldfire_mbx_driver);
 			ret = PTR_ERR(ast_coldfire_mbx_device);

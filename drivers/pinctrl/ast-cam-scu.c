@@ -168,19 +168,6 @@ ast_scu_init_usb_port1(void)
 
 EXPORT_SYMBOL(ast_scu_init_usb_port1);
 
-extern void
-ast_scu_init_sdhci(void)
-{
-	//SDHCI Host's Clock Enable and Reset
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_SDHCI | SCU_RESET_SDIO, AST_SCU_RESET);
-	
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~(SCU_SDHCI_CLK_STOP_EN | SCU_SDIO_CLK_STOP_EN), AST_SCU_CLK_STOP);
-	mdelay(10);
-	
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~(SCU_RESET_SDHCI | SCU_RESET_SDIO), AST_SCU_RESET);
-}
-
-EXPORT_SYMBOL(ast_scu_init_sdhci);
 
 extern void
 ast_scu_init_i2c(void)
@@ -527,12 +514,6 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 		//SCU PWM CTRL Reset
 		ast_scu_init_pwm();
 	}
-
-	if(of_find_compatible_node(NULL, NULL, "aspeed,sdhci-ast")) {
-		printk("aspeed,ast-sdhci-irq found in SCU \n");
-		ast_scu_multi_func_sdhc_slot();
-	}
-
 
 	//SCU I2C Reset 
 	//ast_scu_init_i2c();

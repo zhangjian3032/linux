@@ -44,12 +44,12 @@
 #define CONFIG_AST_JPEG_DEBUG
 
 #ifdef CONFIG_AST_JPEG_DEBUG
-	#define JPEG_DBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt,__FUNCTION__, ## args)	
+#define JPEG_DBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt,__FUNCTION__, ## args)
 #else
-	#define JPEG_DBG(fmt, args...)
+#define JPEG_DBG(fmt, args...)
 #endif
 
-/*************************************  Registers for JPEG ***********************************************/ 
+/*************************************  Registers for JPEG ***********************************************/
 #define AST_JPEG_PROTECT			0x000		/*	protection key register	*/
 #define AST_JPEG_SEQ_CTRL			0x004		/*	JPEG Sequence Control register	*/
 
@@ -76,7 +76,7 @@
 #define AST_JPEG_RESTRICT_END		0x314		/*	JPEG Memory Restriction Area Starting Address Register */
 
 #define AST_JPEG_HUFFMAN_TABLE	0x55C		/*	JPEG Huffman Table */
-/**************************************************************************************************/ 
+/**************************************************************************************************/
 
 /*	AST_JPEG_PROTECT: 0x000  - protection key register */
 #define JPEG_PROTECT_UNLOCK			0x1A038AA8
@@ -134,48 +134,35 @@
 struct ast_jpeg_data {
 	struct device		*misc_dev;
 	void __iomem		*reg_base;			/* virtual */
-	int 	irq;				//JPEG IRQ number 
+	int 	irq;				//JPEG IRQ number
 	dma_addr_t 			photo_src;
 	u16		x;
 	u16		y;
-	u8		format; //0: YUY2,  1:NV12	
+	u8		format; //0: YUY2,  1:NV12
 	u32                             *jpeg_tbl_virt;         /* virt */
 	dma_addr_t 			jpeg_tbl_dma_addr;
-	
+
 	phys_addr_t             *jpeg_phy;            /* phy */
 	u32                             *jpeg_virt;           /* virt */
-	phys_addr_t             *buff0_phy;             /* phy */
-	u32                             *buff0_virt;            /* virt */
-	phys_addr_t             *buff1_phy;             /* phy */
-	u32                             *buff1_virt;            /* virt */
 
-	u32		jpeg_mem_size;			/* phy size*/		
-	u32		raw_buff0_offset;			/* buff0 offset*/
-	u32		raw_buff1_offset;			/* buff1 offset*/
-	
-	struct completion	jpeg_complete;		
+	struct completion	jpeg_complete;
 
 	u32		flag;
 	u32		sts;
 
-	struct mutex lock;	
+	struct mutex lock;
 
 	bool is_open;
 };
 
 /***********************************************************************/
-#define JPEG_RAW_BUFF0_OFFSET 0x1000000
-#define JPEG_RAW_BUFF1_OFFSET 0x2000000
-/***********************************************************************/
-struct ast_jpeg_mode
-{
+struct ast_jpeg_mode {
 	u16		x;
 	u16		y;
 	u8		format; //0: YUY2,  1:NV12
 };
 
-struct ast_jpeg_trigger
-{
+struct ast_jpeg_trigger {
 	u32		src;		//src  jpeg stream phy address
 	u32		dest;	//dest jpeg stream phy address
 	u32 		jpeg_size;
@@ -193,17 +180,17 @@ ast_jpeg_write(struct ast_jpeg_data *ast_jpeg, u32 val, u32 reg)
 {
 //	JPEG_DBG("write offset: %x, val: %x \n",reg,val);
 #ifdef CONFIG_AST_JPEG_LOCK
-	//unlock 
+	//unlock
 	writel(JPEG_PROTECT_UNLOCK, ast_jpeg->reg_base);
 	writel(val, ast_jpeg->reg_base + reg);
 	//lock
-	writel(0xaa,ast_jpeg->reg_base);	
+	writel(0xaa, ast_jpeg->reg_base);
 #else
-	//JPEG is lock after reset, need always unlock 
-	//unlock 
+	//JPEG is lock after reset, need always unlock
+	//unlock
 	writel(JPEG_PROTECT_UNLOCK, ast_jpeg->reg_base);
 	writel(val, ast_jpeg->reg_base + reg);
-#endif	
+#endif
 }
 
 static inline u32
@@ -217,7 +204,7 @@ ast_jpeg_read(struct ast_jpeg_data *ast_jpeg, u32 reg)
 /************************************************ JPEG ***************************************************************************************/
 void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 {
-	int base=0;
+	int base = 0;
 	//JPEG header default value:
 //00000000_00002D05_0F00FEFF_00006000_60000101_01004649_464A1000_E0FFD8FF
 	ast_jpeg->jpeg_tbl_virt[base + 0] = 0xE0FFD8FF;
@@ -228,7 +215,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 5] = 0x0F00FEFF;
 	ast_jpeg->jpeg_tbl_virt[base + 6] = 0x00002D05;
 	ast_jpeg->jpeg_tbl_virt[base + 7] = 0x00000000;
-//06030202_03030503_02020202_01010102_01010101_01020043_00DBFF00_00000000);	
+//06030202_03030503_02020202_01010102_01010101_01020043_00DBFF00_00000000);
 	ast_jpeg->jpeg_tbl_virt[base + 8] = 0x00000000;
 	ast_jpeg->jpeg_tbl_virt[base + 9] = 0x00DBFF00;
 	ast_jpeg->jpeg_tbl_virt[base + 10] = 0x01020043;
@@ -237,7 +224,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 13] = 0x02020202;
 	ast_jpeg->jpeg_tbl_virt[base + 14] = 0x03030503;
 	ast_jpeg->jpeg_tbl_virt[base + 15] = 0x06030202;
-//070C0D0C_0C0B0A0A_0D0A0706_080A0808_090B0908_06070607_07070607_05030404);	
+//070C0D0C_0C0B0A0A_0D0A0706_080A0808_090B0908_06070607_07070607_05030404);
 	ast_jpeg->jpeg_tbl_virt[base + 16] = 0x05030404;
 	ast_jpeg->jpeg_tbl_virt[base + 17] = 0x07070607;
 	ast_jpeg->jpeg_tbl_virt[base + 18] = 0x06070607;
@@ -247,7 +234,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 22] = 0x0C0B0A0A;
 	ast_jpeg->jpeg_tbl_virt[base + 23] = 0x070C0D0C;
 //1212120C_0A0C1208_04040804_03040303_03014300_DBFF0C0C_0C0B0F0C_0E0F0E09);
-	ast_jpeg->jpeg_tbl_virt[base + 24] = 0x0E0F0E09;	
+	ast_jpeg->jpeg_tbl_virt[base + 24] = 0x0E0F0E09;
 	ast_jpeg->jpeg_tbl_virt[base + 25] = 0x0C0B0F0C;
 	ast_jpeg->jpeg_tbl_virt[base + 26] = 0xDBFF0C0C;
 	ast_jpeg->jpeg_tbl_virt[base + 27] = 0x03014300;
@@ -255,7 +242,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 29] = 0x04040804;
 	ast_jpeg->jpeg_tbl_virt[base + 30] = 0x0A0C1208;
 	ast_jpeg->jpeg_tbl_virt[base + 31] = 0x1212120C;
-//12121212_12121212_12121212_12121212_12121212_12121212_12121212_12121212);	
+//12121212_12121212_12121212_12121212_12121212_12121212_12121212_12121212);
 	ast_jpeg->jpeg_tbl_virt[base + 32] = 0x12121212;
 	ast_jpeg->jpeg_tbl_virt[base + 33] = 0x12121212;
 	ast_jpeg->jpeg_tbl_virt[base + 34] = 0x12121212;
@@ -271,9 +258,9 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 43] = 0xFF121212;
 	ast_jpeg->jpeg_tbl_virt[base + 44] = 0x081100C0;
 	ast_jpeg->jpeg_tbl_virt[base + 45] = 0x00000000;
-	ast_jpeg->jpeg_tbl_virt[base + 46] = 0x00220103; //for YUV420 mode	
+	ast_jpeg->jpeg_tbl_virt[base + 46] = 0x00220103; //for YUV420 mode
 	ast_jpeg->jpeg_tbl_virt[base + 47] = 0x03011102;
-//08070605_04030201_00000000_00000000_01010101_01010501_00001F00_C4FF0111);	
+//08070605_04030201_00000000_00000000_01010101_01010501_00001F00_C4FF0111);
 	ast_jpeg->jpeg_tbl_virt[base + 48] = 0xC4FF0111;
 	ast_jpeg->jpeg_tbl_virt[base + 49] = 0x00001F00;
 	ast_jpeg->jpeg_tbl_virt[base + 50] = 0x01010501;
@@ -282,7 +269,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 53] = 0x00000000;
 	ast_jpeg->jpeg_tbl_virt[base + 54] = 0x04030201;
 	ast_jpeg->jpeg_tbl_virt[base + 55] = 0x08070605;
-//12051104_00030201_7D010000_04040505_03040203_03010200_10B500C4_FF0B0A09);	
+//12051104_00030201_7D010000_04040505_03040203_03010200_10B500C4_FF0B0A09);
 	ast_jpeg->jpeg_tbl_virt[base + 56] = 0xFF0B0A09;
 	ast_jpeg->jpeg_tbl_virt[base + 57] = 0x10B500C4;
 	ast_jpeg->jpeg_tbl_virt[base + 58] = 0x03010200;
@@ -300,7 +287,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 69] = 0xF0D15215;
 	ast_jpeg->jpeg_tbl_virt[base + 70] = 0x72623324;
 	ast_jpeg->jpeg_tbl_virt[base + 71] = 0x160A0982;
-//59585756_5554534A_49484746_4544433A_39383736_35342A29_28272625_1A191817);	
+//59585756_5554534A_49484746_4544433A_39383736_35342A29_28272625_1A191817);
 	ast_jpeg->jpeg_tbl_virt[base + 72] = 0x1A191817;
 	ast_jpeg->jpeg_tbl_virt[base + 73] = 0x28272625;
 	ast_jpeg->jpeg_tbl_virt[base + 74] = 0x35342A29;
@@ -318,7 +305,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 85] = 0x89888786;
 	ast_jpeg->jpeg_tbl_virt[base + 86] = 0x9493928A;
 	ast_jpeg->jpeg_tbl_virt[base + 87] = 0x98979695;
-//D4D3D2CA_C9C8C7C6_C5C4C3C2_BAB9B8B7_B6B5B4B3_B2AAA9A8_A7A6A5A4_A3A29A99);	
+//D4D3D2CA_C9C8C7C6_C5C4C3C2_BAB9B8B7_B6B5B4B3_B2AAA9A8_A7A6A5A4_A3A29A99);
 	ast_jpeg->jpeg_tbl_virt[base + 88] = 0xA3A29A99;
 	ast_jpeg->jpeg_tbl_virt[base + 89] = 0xA7A6A5A4;
 	ast_jpeg->jpeg_tbl_virt[base + 90] = 0xB2AAA9A8;
@@ -354,7 +341,7 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 117] = 0x21050411;
 	ast_jpeg->jpeg_tbl_virt[base + 118] = 0x41120631;
 	ast_jpeg->jpeg_tbl_virt[base + 119] = 0x71610751;
-//261A1918_17F125E1_3424160A_D1726215_F0523323_09C1B1A1_91421408_81322213);	
+//261A1918_17F125E1_3424160A_D1726215_F0523323_09C1B1A1_91421408_81322213);
 	ast_jpeg->jpeg_tbl_virt[base + 120] = 0x81322213;
 	ast_jpeg->jpeg_tbl_virt[base + 121] = 0x91421408;
 	ast_jpeg->jpeg_tbl_virt[base + 122] = 0x09C1B1A1;
@@ -401,11 +388,11 @@ void ast_init_jpeg_table(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg->jpeg_tbl_virt[base + 159] = 0x003F0011;
 
 #if 0
-	for(i = 0; i<12; i++) {
-		base = (1024*i);
+	for (i = 0; i < 12; i++) {
+		base = (1024 * i);
 		ast_jpeg->jpeg_tbl_virt[base + 46] = 0x00220103; //for YUV420 mode
 	}
-#endif	
+#endif
 }
 
 static irqreturn_t ast_jpeg_isr(int this_irq, void *dev_id)
@@ -417,23 +404,23 @@ static irqreturn_t ast_jpeg_isr(int this_irq, void *dev_id)
 
 	JPEG_DBG("%x \n", status);
 
-	if(status & JPEG_HANG_WDT_ISR) {
+	if (status & JPEG_HANG_WDT_ISR) {
 		printk("JPEG_HANG_WDT_ISR\n");
 		ast_jpeg_write(ast_jpeg, JPEG_HANG_WDT_ISR, AST_JPEG_ISR);
 		complete(&ast_jpeg->jpeg_complete);
 	}
-		
-	if(status & JPEG_COMPLETE_ISR) {
+
+	if (status & JPEG_COMPLETE_ISR) {
 		printk("JPEG_COMPLETE_ISR\n");
 		ast_jpeg_write(ast_jpeg, JPEG_COMPLETE_ISR, AST_JPEG_ISR);
 		complete(&ast_jpeg->jpeg_complete);
-	}		
+	}
 
-	if(status & JPEG_COMPRESS_COMPLETE) {
+	if (status & JPEG_COMPRESS_COMPLETE) {
 		printk("JPEG_COMPRESS_COMPLETE\n");
 		ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_COMPLETE, AST_JPEG_ISR);
 		complete(&ast_jpeg->jpeg_complete);
-	}		
+	}
 
 	return IRQ_HANDLED;
 }
@@ -444,43 +431,43 @@ static void ast_jpeg_config(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_mode
 	ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_H(jpeg_mode->x) | JPEG_COMPRESS_V(jpeg_mode->y), AST_JPEG_SIZE_SETTING);
 
 	ast_jpeg_write(ast_jpeg, 0x80400, AST_JPEG_COMPRESS_CTRL);
-	
-	if(jpeg_mode->format) { //NV12
+
+	if (jpeg_mode->format) { //NV12
 		ast_jpeg_write(ast_jpeg, jpeg_mode->x, AST_JPEG_SOURCE_SCAN_LINE);
-		ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_MODE_MASK) | 
-						JPEG_NV12_COMPRESS, AST_JPEG_SEQ_CTRL);	
+		ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_MODE_MASK) |
+					   JPEG_NV12_COMPRESS, AST_JPEG_SEQ_CTRL);
 	} else {
-		ast_jpeg_write(ast_jpeg, jpeg_mode->x * 2, AST_JPEG_SOURCE_SCAN_LINE);	
-		ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_MODE_MASK) | 
-						JPEG_YUY2_COMPRESS, AST_JPEG_SEQ_CTRL);
-	}	
+		ast_jpeg_write(ast_jpeg, jpeg_mode->x * 2, AST_JPEG_SOURCE_SCAN_LINE);
+		ast_jpeg_write(ast_jpeg, (ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_MODE_MASK) |
+					   JPEG_YUY2_COMPRESS, AST_JPEG_SEQ_CTRL);
+	}
 
 	ast_jpeg->x = jpeg_mode->x;
 	ast_jpeg->y = jpeg_mode->y;
 	ast_jpeg->format = jpeg_mode->format;
 }
 
-static u32 ast_jpeg_trigger(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_trigger* jpeg_trigger)
+static u32 ast_jpeg_trigger(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_trigger *jpeg_trigger)
 {
-	int timeout = 0;	
+	int timeout = 0;
 
 	JPEG_DBG("\n");
 
 	ast_jpeg_write(ast_jpeg, (u32)jpeg_trigger->dest, AST_JPEG_STREAM_BUFF);
 	ast_jpeg_write(ast_jpeg, (u32)jpeg_trigger->src, AST_JPEG_SOURCE_BUFF0);
-	if(ast_jpeg->format) {
+	if (ast_jpeg->format) {
 		ast_jpeg_write(ast_jpeg, (u32)jpeg_trigger->src + (ast_jpeg->x * ast_jpeg->y), AST_JPEG_SOURCE_BUFF1);
-	} 
-	
+	}
+
 	init_completion(&ast_jpeg->jpeg_complete);
 
 	ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) & ~JPEG_COMPRESS_TRIGGER, AST_JPEG_SEQ_CTRL);
-	//If CPU is too fast, pleas read back and trigger 
+	//If CPU is too fast, pleas read back and trigger
 	ast_jpeg_write(ast_jpeg, ast_jpeg_read(ast_jpeg, AST_JPEG_SEQ_CTRL) | JPEG_COMPRESS_TRIGGER, AST_JPEG_SEQ_CTRL);
-	
-	timeout = wait_for_completion_interruptible_timeout(&ast_jpeg->jpeg_complete, HZ/2);
-	
-	if (timeout == 0) { 
+
+	timeout = wait_for_completion_interruptible_timeout(&ast_jpeg->jpeg_complete, HZ / 2);
+
+	if (timeout == 0) {
 		printk("compression timeout sts %x \n", ast_jpeg_read(ast_jpeg, AST_JPEG_ISR));
 		jpeg_trigger->jpeg_size = 0;
 //		printk("size %d \n", *jpeg_size);
@@ -489,7 +476,7 @@ static u32 ast_jpeg_trigger(struct ast_jpeg_data *ast_jpeg, struct ast_jpeg_trig
 		jpeg_trigger->jpeg_size = ast_jpeg_read(ast_jpeg, AST_JPEG_STREAM_SIZE);
 //		JPEG_DBG("compress size %d \n",*jpeg_size);
 		return 1;
-	}	
+	}
 }
 
 static long ast_jpeg_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
@@ -497,57 +484,57 @@ static long ast_jpeg_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	int ret = 1;
 	struct miscdevice *c = fp->private_data;
 	struct ast_jpeg_data *ast_jpeg = dev_get_drvdata(c->this_device);
-	
-	struct ast_jpeg_mode mode;	
-	struct ast_jpeg_trigger jpeg_trigger;	
+
+	struct ast_jpeg_mode mode;
+	struct ast_jpeg_trigger jpeg_trigger;
 	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
-		case AST_JPEG_SET_CONFIG:
-			ret = copy_from_user(&mode, argp, sizeof(struct ast_jpeg_mode));
-			ast_jpeg_config(ast_jpeg, &mode);
-			ret = copy_to_user(argp, &mode, sizeof(struct ast_jpeg_mode));
-			break;
-		case AST_JPEG_GET_CONFIG:
-			mode.x = ast_jpeg->x;
-			mode.y = ast_jpeg->y;
-			mode.format = ast_jpeg->format;
-			ret = copy_to_user(argp, &mode, sizeof(struct ast_jpeg_mode));
-			break;
-		case AST_JPEG_TRIGGER:
-			ret = copy_from_user(&jpeg_trigger, argp, sizeof(struct ast_jpeg_trigger));
-			ast_jpeg_trigger(ast_jpeg, &jpeg_trigger);
-			ret = copy_to_user(argp, &jpeg_trigger, sizeof(struct ast_jpeg_trigger));
-			break;
+	case AST_JPEG_SET_CONFIG:
+		ret = copy_from_user(&mode, argp, sizeof(struct ast_jpeg_mode));
+		ast_jpeg_config(ast_jpeg, &mode);
+		ret = copy_to_user(argp, &mode, sizeof(struct ast_jpeg_mode));
+		break;
+	case AST_JPEG_GET_CONFIG:
+		mode.x = ast_jpeg->x;
+		mode.y = ast_jpeg->y;
+		mode.format = ast_jpeg->format;
+		ret = copy_to_user(argp, &mode, sizeof(struct ast_jpeg_mode));
+		break;
+	case AST_JPEG_TRIGGER:
+		ret = copy_from_user(&jpeg_trigger, argp, sizeof(struct ast_jpeg_trigger));
+		ast_jpeg_trigger(ast_jpeg, &jpeg_trigger);
+		ret = copy_to_user(argp, &jpeg_trigger, sizeof(struct ast_jpeg_trigger));
+		break;
 
-		default:
-			ret = 3;
-			break;
+	default:
+		ret = 3;
+		break;
 	}
 	return ret;
 
 }
 
 /** @note munmap handler is done by vma close handler */
-static int ast_jpeg_mmap(struct file * file, struct vm_area_struct * vma)
+static int ast_jpeg_mmap(struct file *file, struct vm_area_struct *vma)
 {
-        struct miscdevice *c = file->private_data;
-        struct ast_jpeg_data *ast_jpeg = dev_get_drvdata(c->this_device);
-        size_t size = vma->vm_end - vma->vm_start;
-        vma->vm_private_data = ast_jpeg;
+	struct miscdevice *c = file->private_data;
+	struct ast_jpeg_data *ast_jpeg = dev_get_drvdata(c->this_device);
+	size_t size = vma->vm_end - vma->vm_start;
+	vma->vm_private_data = ast_jpeg;
 
-        vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-        if (io_remap_pfn_range(vma, vma->vm_start,
-                        ((u32)ast_jpeg->jpeg_phy >> PAGE_SHIFT),
-                        size,
-                        vma->vm_page_prot)) {
-                printk(KERN_ERR "remap_pfn_range faile at %s()\n", __func__);
-                return -EAGAIN;
-        }
+	if (io_remap_pfn_range(vma, vma->vm_start,
+						   ((u32)ast_jpeg->jpeg_phy >> PAGE_SHIFT),
+						   size,
+						   vma->vm_page_prot)) {
+		printk(KERN_ERR "remap_pfn_range faile at %s()\n", __func__);
+		return -EAGAIN;
+	}
 
-        return 0;
-	
+	return 0;
+
 }
 
 static int ast_jpeg_open(struct inode *inode, struct file *file)
@@ -557,22 +544,22 @@ static int ast_jpeg_open(struct inode *inode, struct file *file)
 
 	JPEG_DBG("\n");
 
-	if(ast_jpeg->is_open == true)
+	if (ast_jpeg->is_open == true)
 		return -1;
 	else
 		ast_jpeg->is_open = true;
-        return 0;
+	return 0;
 }
 
 static int ast_jpeg_release(struct inode *inode, struct file *file)
 {
-        struct miscdevice *c = file->private_data;
-        struct ast_jpeg_data *ast_jpeg = dev_get_drvdata(c->this_device);
+	struct miscdevice *c = file->private_data;
+	struct ast_jpeg_data *ast_jpeg = dev_get_drvdata(c->this_device);
 
-        JPEG_DBG("\n");
+	JPEG_DBG("\n");
 
-        ast_jpeg->is_open = false;
-        return 0;
+	ast_jpeg->is_open = false;
+	return 0;
 }
 
 static const struct file_operations ast_jpeg_fops = {
@@ -596,9 +583,9 @@ static void ast_jpeg_ctrl_init(struct ast_jpeg_data *ast_jpeg)
 
 	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_tbl_dma_addr, AST_JPEG_HEADER_BUFF);
 
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff0_phy, AST_JPEG_SOURCE_BUFF0);
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff1_phy, AST_JPEG_SOURCE_BUFF1);
-	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_phy, AST_JPEG_STREAM_BUFF);
+//	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff0_phy, AST_JPEG_SOURCE_BUFF0);
+//	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->buff1_phy, AST_JPEG_SOURCE_BUFF1);
+//	ast_jpeg_write(ast_jpeg, (u32)ast_jpeg->jpeg_phy, AST_JPEG_STREAM_BUFF);
 
 	ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_MODE_ENABLE, AST_JPEG_SEQ_CTRL);
 
@@ -612,7 +599,7 @@ static void ast_jpeg_ctrl_init(struct ast_jpeg_data *ast_jpeg)
 
 	//for CONFIG_QUANTIZATION_TABLE
 	ast_jpeg_write(ast_jpeg, JPEG_QUANT_TABLE_LOAD | JPEG_VERTICAL_BORDER_MASK | JPEG_PROGRAM_QUANT_TABLE_EN, AST_JPEG_CTRL); //[18] Vr_TblBufEnable, [30] Vr_SRAMTblSel[0]
-	
+
 	ast_jpeg_write(ast_jpeg, 0x04ed0672, 0x400);
 	ast_jpeg_write(ast_jpeg, 0x080006ca, 0x404);
 	ast_jpeg_write(ast_jpeg, 0x0c3f0d9b, 0x408);
@@ -678,18 +665,18 @@ static void ast_jpeg_ctrl_init(struct ast_jpeg_data *ast_jpeg)
 	ast_jpeg_write(ast_jpeg, 0x027702bd, 0x4f8);
 	ast_jpeg_write(ast_jpeg, 0x03390253, 0x4fC);
 
-	//enable ier 
+	//enable ier
 	ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_COMPLETE , AST_JPEG_IER);
 }
 
 /************************************************** SYS FS End ***********************************************************/
 static int ast_jpeg_probe(struct platform_device *pdev)
 {
-	int ret=0;
-	struct resource *res0, *res1;
+	int ret = 0;
+	struct resource *res0;
 	struct ast_jpeg_data *ast_jpeg;
 
-	ast_jpeg= devm_kzalloc(&pdev->dev, sizeof(struct ast_jpeg_data), GFP_KERNEL);
+	ast_jpeg = devm_kzalloc(&pdev->dev, sizeof(struct ast_jpeg_data), GFP_KERNEL);
 	if (!ast_jpeg) {
 		return -ENOMEM;
 	}
@@ -704,66 +691,54 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 	ast_jpeg->reg_base = devm_ioremap_resource(&pdev->dev, res0);
 	if (!ast_jpeg->reg_base) {
 		ret = -EIO;
-		goto out_region0;
+		goto out_region;
 	}
 
-	res1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res1)
-		return -ENODEV;
-	
 	ast_jpeg->jpeg_tbl_virt = dma_alloc_coherent(NULL,
-					 1024 * 4 * 12,
-					 &ast_jpeg->jpeg_tbl_dma_addr, GFP_KERNEL);
+							  1024 * 4 * 12,
+							  &ast_jpeg->jpeg_tbl_dma_addr, GFP_KERNEL);
 
 	JPEG_DBG("JPEG TABLE DMA %x, virt = %x \n", ast_jpeg->jpeg_tbl_dma_addr, (u32)ast_jpeg->jpeg_tbl_virt);
-	
-	//Phy assign
-	ast_jpeg->jpeg_mem_size = resource_size(res1);
-	JPEG_DBG("jpeg_mem_size %d MB\n",ast_jpeg->jpeg_mem_size/1024/1024);
 
-	//Total = 16 * 3 = 48MB
 
-	//Dest JPEG 
-	//4096 * 2048 / 2 = 4MB
-	
-	ast_jpeg->jpeg_phy = (phys_addr_t *) res1->start;		// 4M * 2 = 8MB
-
-	//SRC raw x*y 
-	//YUYV = 4096x2048x2 = 16MB, 
+	//SRC raw x*y
+	//YUYV = 4096x2048x2 = 16MB,
 	//NV12 = Y:4096x2048x1 = 8MB, CbCr : 4096x2048x0.5 = 4MB
-	
-	ast_jpeg->buff0_phy = (phys_addr_t *) (res1->start + JPEG_RAW_BUFF0_OFFSET);  //24M : 16M 
+#if 0
+	ast_jpeg->buff0_phy = (phys_addr_t *)(res1->start + JPEG_RAW_BUFF0_OFFSET);   //24M : 16M
 	ast_jpeg->raw_buff0_offset = JPEG_RAW_BUFF0_OFFSET;
-	ast_jpeg->buff1_phy = (phys_addr_t *) (res1->start + JPEG_RAW_BUFF1_OFFSET);  //24M + 16M : 16M 
+	ast_jpeg->buff1_phy = (phys_addr_t *)(res1->start + JPEG_RAW_BUFF1_OFFSET);   //24M + 16M : 16M
 	ast_jpeg->raw_buff1_offset = JPEG_RAW_BUFF1_OFFSET;
 
 	JPEG_DBG("\n jpeg_phy: %x, buff0_phy: %x, buff1_phy:%x \n",
-	        (u32)ast_jpeg->jpeg_phy, (u32)ast_jpeg->buff0_phy, (u32)ast_jpeg->buff1_phy);
+			 (u32)ast_jpeg->jpeg_phy, (u32)ast_jpeg->buff0_phy, (u32)ast_jpeg->buff1_phy);
 
 	//virt assign
 	ast_jpeg->jpeg_virt = devm_ioremap_resource(&pdev->dev, res1);
 	if (!ast_jpeg->jpeg_virt) {
-	        ret = -EIO;
-	        goto out_region1;
+		ret = -EIO;
+		goto out_region1;
 	}
 
 	ast_jpeg->buff0_virt = ast_jpeg->jpeg_virt + JPEG_RAW_BUFF0_OFFSET; //24M : size 10MB
 	ast_jpeg->buff1_virt = ast_jpeg->jpeg_virt + JPEG_RAW_BUFF1_OFFSET; //34M : size 10MB
 
-	JPEG_DBG("\n jpeg_virt: %x, buff0_virt: %x, buff1_virt:%x \n",
-	        (u32)ast_jpeg->jpeg_virt, (u32)ast_jpeg->buff0_virt, (u32)ast_jpeg->buff1_virt);
 
-	memset(ast_jpeg->jpeg_virt, 0, resource_size(res1));	
+	JPEG_DBG("\n jpeg_virt: %x, buff0_virt: %x, buff1_virt:%x \n",
+			 (u32)ast_jpeg->jpeg_virt, (u32)ast_jpeg->buff0_virt, (u32)ast_jpeg->buff1_virt);
+
+	memset(ast_jpeg->jpeg_virt, 0, resource_size(res1));
+#endif
 
 	ast_jpeg->irq = platform_get_irq(pdev, 0);
 	if (ast_jpeg->irq < 0) {
 		dev_err(&pdev->dev, "no irq specified\n");
 		ret = -ENOENT;
-		goto out_region1;
+		goto out_region;
 	}
 
 	ret = misc_register(&ast_jpeg_misc);
-	if (ret){		
+	if (ret) {
 		printk(KERN_ERR "JPEG : failed to request interrupt\n");
 		goto out_irq;
 	}
@@ -775,10 +750,10 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 	ast_jpeg_ctrl_init(ast_jpeg);
 
 	ret = devm_request_irq(&pdev->dev, ast_jpeg->irq, ast_jpeg_isr,
-					   0, dev_name(&pdev->dev), ast_jpeg);
+						   0, dev_name(&pdev->dev), ast_jpeg);
 	if (ret) {
 		printk(KERN_INFO "JPEG: Failed request irq %d\n", ast_jpeg->irq);
-		goto out_region1;
+		goto out_region;
 	}
 
 	printk(KERN_INFO "ast_jpeg: driver successfully loaded.\n");
@@ -788,12 +763,9 @@ static int ast_jpeg_probe(struct platform_device *pdev)
 out_irq:
 	free_irq(ast_jpeg->irq, NULL);
 
-out_region1:
-	release_mem_region(res1->start, res1->end - res1->start + 1);	
-
-out_region0:
+out_region:
 	release_mem_region(res0->start, res0->end - res0->start + 1);
-	
+
 out:
 	printk(KERN_WARNING "applesmc: driver init failed (ret=%d)!\n", ret);
 	return ret;
@@ -822,18 +794,18 @@ static int ast_jpeg_remove(struct platform_device *pdev)
 
 	release_mem_region(res1->start, res1->end - res1->start + 1);
 
-	return 0;	
+	return 0;
 }
 
 #ifdef CONFIG_PM
-static int 
+static int
 ast_jpeg_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	printk("ast_jpeg_suspend : TODO \n");
 	return 0;
 }
 
-static int 
+static int
 ast_jpeg_resume(struct platform_device *pdev)
 {
 	return 0;
@@ -850,10 +822,10 @@ MODULE_DEVICE_TABLE(of, ast_jpeg_of_table);
 static struct platform_driver ast_jpeg_driver = {
 	.probe	= ast_jpeg_probe,
 	.remove	= ast_jpeg_remove,
-#ifdef CONFIG_PM	
+#ifdef CONFIG_PM
 	.suspend	= ast_jpeg_suspend, /* optional but recommended */
 	.resume	= ast_jpeg_resume,   /* optional but recommended */
-#endif	
+#endif
 	.driver         = {
 		.name   = KBUILD_MODNAME,
 		.of_match_table = ast_jpeg_of_table,

@@ -84,7 +84,7 @@
 //16byte align
 #define G5_BYTE_ALIGN						16
 #define G5_BMC_ADDR(x)						(x & 0x3ffffff0)
-//old ast soc 
+//old ast soc
 //8byte align
 #define BYTE_ALIGN						8
 #define BMC_ADDR(x)						(x & 0x1ffffff8)
@@ -95,14 +95,14 @@
 #define INTER_CMD_FINISH						(1 << 31)
 #define FRAM_LINE_NUM(x)						(x << 16)
 #define INTER_DIRECTION_BMC					(1 << 15)
-//g5 
+//g5
 #define G5_FRAM_LINE_BYTE(x)						((x & 0x7ff) << 4)
 //old soc
 #define FRAM_LINE_BYTE(x)						((x & 0xfff) << 3)
 
 #define CMD2_XFER_ID							(2)
 /*************************************************************************************/
-//ast g5 
+//ast g5
 #define G5_UPDATE_WRITE_POINT				4
 #define G5_DEFAULT_END_POINT					8
 struct ast_g5_xdma_cmd_desc {
@@ -136,7 +136,7 @@ struct ast_xdma_xfer {
 	unsigned int xfer_len;
 	unsigned int bmc_addr;
 	unsigned int host_addr_low;
-	unsigned int host_addr_high;	
+	unsigned int host_addr_high;
 };
 
 #define XDMAIOC_BASE       'D'
@@ -144,7 +144,7 @@ struct ast_xdma_xfer {
 #define AST_XDMA_IOCXFER		_IOWR(XDMAIOC_BASE, 0x0, struct ast_xdma_xfer)
 /*************************************************************************************/
 //#define AST_XDMA_DEBUG
-	
+
 #ifdef AST_XDMA_DEBUG
 #define XDMA_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt,__FUNCTION__, ## args)
 #else
@@ -154,12 +154,12 @@ struct ast_xdma_xfer {
 #define XDMA_MSG(fmt, args...) printk(fmt, ## args)
 
 struct ast_xdma_info {
-	void __iomem	*reg_base;	
-	int irq;				//XDMA IRQ number 	
+	void __iomem	*reg_base;
+	int irq;				//XDMA IRQ number
 	struct reset_control *reset;
-	u32 dram_base;	
+	u32 dram_base;
 	u8 				ast_g5;
-	wait_queue_head_t xdma_wq;	
+	wait_queue_head_t xdma_wq;
 
 	u8 desc_index;
 	struct ast_xdma_cmd_desc *xfer_cmd_desc;
@@ -178,18 +178,18 @@ struct ast_xdma_info {
 static DEFINE_SPINLOCK(xdma_state_lock);
 /******************************************************************************/
 
-static inline u32 
+static inline u32
 ast_xdma_read(struct ast_xdma_info *ast_xdma, u32 reg)
 {
 	u32 val;
-		
+
 	val = readl(ast_xdma->reg_base + reg);
 	XDMA_DBUG("reg = 0x%08x, val = 0x%08x\n", reg, val);
 	return val;
 }
 
 static inline void
-ast_xdma_write(struct ast_xdma_info *ast_xdma, u32 val, u32 reg) 
+ast_xdma_write(struct ast_xdma_info *ast_xdma, u32 val, u32 reg)
 {
 	XDMA_DBUG("reg = 0x%08x, val = 0x%08x\n", reg, val);
 	writel(val, ast_xdma->reg_base + reg);
@@ -199,14 +199,14 @@ ast_xdma_write(struct ast_xdma_info *ast_xdma, u32 val, u32 reg)
 void ast_xdma_wait_us_complete(struct ast_xdma_info *ast_xdma)
 {
 	wait_event_interruptible(ast_xdma->xdma_wq, (ast_xdma->flag == XDMA_US_COMPLETE));
-	XDMA_DBUG("\n");	
+	XDMA_DBUG("\n");
 	ast_xdma->flag = 0;
 }
 
 void ast_xdma_wait_ds_complete(struct ast_xdma_info *ast_xdma)
 {
 	wait_event_interruptible(ast_xdma->xdma_wq, (ast_xdma->flag == XDMA_DS_COMPLETE));
-	XDMA_DBUG("\n");	
+	XDMA_DBUG("\n");
 	ast_xdma->flag = 0;
 }
 
@@ -215,53 +215,53 @@ static void ast_xdma_xfer(struct ast_xdma_info *ast_xdma, struct ast_xdma_xfer *
 	u32 xfer_len = 0;
 	u32 bmc_addr = 0;
 
-	XDMA_DBUG("\n");	
-	if(xdma_xfer->bmc_addr == 0)
+	XDMA_DBUG("\n");
+	if (xdma_xfer->bmc_addr == 0)
 		bmc_addr = ast_xdma->xfer_data_dma;
 	else
 		bmc_addr = xdma_xfer->bmc_addr;
 
 	ast_xdma->desc_index %= 2;
 
-	XDMA_DBUG("cmd index [%x] : bmc addr : %x , host addr : %x (L) %x (H), size : %d \n",ast_xdma->desc_index, bmc_addr, xdma_xfer->host_addr_low, xdma_xfer->host_addr_high, xdma_xfer->xfer_len);	
+	XDMA_DBUG("cmd index [%x] : bmc addr : %x , host addr : %x (L) %x (H), size : %d \n", ast_xdma->desc_index, bmc_addr, xdma_xfer->host_addr_low, xdma_xfer->host_addr_high, xdma_xfer->xfer_len);
 
-	if(xdma_xfer->xfer_len % BYTE_ALIGN)
-		xfer_len = (xdma_xfer->xfer_len/BYTE_ALIGN) + 1;
+	if (xdma_xfer->xfer_len % BYTE_ALIGN)
+		xfer_len = (xdma_xfer->xfer_len / BYTE_ALIGN) + 1;
 	else
-		xfer_len = xdma_xfer->xfer_len/BYTE_ALIGN;
+		xfer_len = xdma_xfer->xfer_len / BYTE_ALIGN;
 
 	ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd0_high = xdma_xfer->host_addr_high;
 	ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd0_low = xdma_xfer->host_addr_low;
 
-	if(xdma_xfer->stream_dir) {
+	if (xdma_xfer->stream_dir) {
 		ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low = UP_STREAM_XFER | BMC_ADDR(bmc_addr) | CMD1_XFER_ID;
-		XDMA_DBUG("US cmd desc %x \n",ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low);	
-		if(xdma_xfer->bmc_addr == 0)
+		XDMA_DBUG("US cmd desc %x \n", ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low);
+		if (xdma_xfer->bmc_addr == 0)
 			memcpy(ast_xdma->xfer_data, xdma_xfer->xfer_buff,  xdma_xfer->xfer_len);
 	} else {
 		ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low = BMC_ADDR(bmc_addr) | CMD1_XFER_ID;
-		XDMA_DBUG("DS cmd desc %x \n",ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low);
+		XDMA_DBUG("DS cmd desc %x \n", ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low);
 		memset(ast_xdma->xfer_data, 0,  4096);
 	}
 
-	ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd2_low = INTER_CMD_FINISH | FRAM_LINE_NUM(1) | INTER_DIRECTION_BMC | FRAM_LINE_BYTE(xfer_len) |CMD2_XFER_ID;
+	ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd2_low = INTER_CMD_FINISH | FRAM_LINE_NUM(1) | INTER_DIRECTION_BMC | FRAM_LINE_BYTE(xfer_len) | CMD2_XFER_ID;
 
-	//trigger tx 
-	if(ast_xdma->desc_index == 0)
+	//trigger tx
+	if (ast_xdma->desc_index == 0)
 		ast_xdma_write(ast_xdma, UPDATE_WRITE_POINT, AST_XDMA_BMC_CMDQ_WRITEP);
 	else
 		ast_xdma_write(ast_xdma, 0, AST_XDMA_BMC_CMDQ_WRITEP);
-	
+
 	ast_xdma->desc_index++;
 
-	if(xdma_xfer->stream_dir) {
+	if (xdma_xfer->stream_dir) {
 		ast_xdma_wait_us_complete(ast_xdma);
 	} else {
 		ast_xdma_wait_ds_complete(ast_xdma);
-		if(xdma_xfer->bmc_addr == 0)
+		if (xdma_xfer->bmc_addr == 0)
 			memcpy(xdma_xfer->xfer_buff, ast_xdma->xfer_data, xdma_xfer->xfer_len);
 	}
-	
+
 }
 
 static void ast_g5_xdma_xfer(struct ast_xdma_info *ast_xdma, struct ast_xdma_xfer *xdma_xfer)
@@ -269,53 +269,53 @@ static void ast_g5_xdma_xfer(struct ast_xdma_info *ast_xdma, struct ast_xdma_xfe
 	u32 xfer_len = 0;
 	u32 bmc_addr = 0;
 
-	XDMA_DBUG("\n");	
-	if(xdma_xfer->bmc_addr == 0)
+	XDMA_DBUG("\n");
+	if (xdma_xfer->bmc_addr == 0)
 		bmc_addr = ast_xdma->xfer_data_dma;
 	else
 		bmc_addr = xdma_xfer->bmc_addr;
 
 	ast_xdma->desc_index %= 2;
 
-	XDMA_DBUG("cmd index [%x] : bmc addr : %x , host addr : %x (L) %x (H), size : %d \n",ast_xdma->desc_index, bmc_addr, xdma_xfer->host_addr_low, xdma_xfer->host_addr_high, xdma_xfer->xfer_len);	
+	XDMA_DBUG("cmd index [%x] : bmc addr : %x , host addr : %x (L) %x (H), size : %d \n", ast_xdma->desc_index, bmc_addr, xdma_xfer->host_addr_low, xdma_xfer->host_addr_high, xdma_xfer->xfer_len);
 
-	if(xdma_xfer->xfer_len % G5_BYTE_ALIGN)
-		xfer_len = (xdma_xfer->xfer_len/G5_BYTE_ALIGN) + 1;
+	if (xdma_xfer->xfer_len % G5_BYTE_ALIGN)
+		xfer_len = (xdma_xfer->xfer_len / G5_BYTE_ALIGN) + 1;
 	else
-		xfer_len = xdma_xfer->xfer_len/G5_BYTE_ALIGN;
+		xfer_len = xdma_xfer->xfer_len / G5_BYTE_ALIGN;
 
 	ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd0_high = xdma_xfer->host_addr_high;
 	ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd0_low = xdma_xfer->host_addr_low;
 
-	if(xdma_xfer->stream_dir) {
+	if (xdma_xfer->stream_dir) {
 		ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low = UP_STREAM_XFER | G5_BMC_ADDR(bmc_addr) | CMD1_XFER_ID;
-		XDMA_DBUG("US cmd desc %x \n",ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low);	
-		if(xdma_xfer->bmc_addr == 0)
+		XDMA_DBUG("US cmd desc %x \n", ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low);
+		if (xdma_xfer->bmc_addr == 0)
 			memcpy(ast_xdma->xfer_data, xdma_xfer->xfer_buff,  xdma_xfer->xfer_len);
 	} else {
 		ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low = G5_BMC_ADDR(bmc_addr) | CMD1_XFER_ID;
-		XDMA_DBUG("DS cmd desc %x \n",ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low);
+		XDMA_DBUG("DS cmd desc %x \n", ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd1_low);
 		memset(ast_xdma->xfer_data, 0,  4096);
 	}
 
-	ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd2_low = INTER_CMD_FINISH | FRAM_LINE_NUM(1) | INTER_DIRECTION_BMC | G5_FRAM_LINE_BYTE(xfer_len) |CMD2_XFER_ID;
+	ast_xdma->xfer_cmd_desc[ast_xdma->desc_index].cmd2_low = INTER_CMD_FINISH | FRAM_LINE_NUM(1) | INTER_DIRECTION_BMC | G5_FRAM_LINE_BYTE(xfer_len) | CMD2_XFER_ID;
 
-	//trigger tx 
-	if(ast_xdma->desc_index == 0)
+	//trigger tx
+	if (ast_xdma->desc_index == 0)
 		ast_xdma_write(ast_xdma, G5_UPDATE_WRITE_POINT, AST_XDMA_BMC_CMDQ_WRITEP);
 	else
 		ast_xdma_write(ast_xdma, 0, AST_XDMA_BMC_CMDQ_WRITEP);
-	
+
 	ast_xdma->desc_index++;
 
-	if(xdma_xfer->stream_dir) {
+	if (xdma_xfer->stream_dir) {
 		ast_xdma_wait_us_complete(ast_xdma);
 	} else {
 		ast_xdma_wait_ds_complete(ast_xdma);
-		if(xdma_xfer->bmc_addr == 0)
+		if (xdma_xfer->bmc_addr == 0)
 			memcpy(xdma_xfer->xfer_buff, ast_xdma->xfer_data, xdma_xfer->xfer_len);
 	}
-	
+
 }
 
 static irqreturn_t ast_xdma_isr(int this_irq, void *dev_id)
@@ -324,7 +324,7 @@ static irqreturn_t ast_xdma_isr(int this_irq, void *dev_id)
 	u32 status = ast_xdma_read(ast_xdma, AST_XDMA_CTRL_ISR);
 
 
-	XDMA_DBUG("%x \n",status);
+	XDMA_DBUG("%x \n", status);
 
 
 	if (status & XDMA_DS_DIRTY_FRAME) {
@@ -342,34 +342,33 @@ static irqreturn_t ast_xdma_isr(int this_irq, void *dev_id)
 		XDMA_DBUG("XDMA_US_COMPLETE \n");
 	}
 
-	ast_xdma_write(ast_xdma, status,AST_XDMA_CTRL_ISR);
+	ast_xdma_write(ast_xdma, status, AST_XDMA_CTRL_ISR);
 
 	if (ast_xdma->flag) {
 		wake_up_interruptible(&ast_xdma->xdma_wq);
 		return IRQ_HANDLED;
-	}
-	else {
-		printk ("TODO Check MCTP's interrupt %x\n",status);
+	} else {
+		printk("TODO Check MCTP's interrupt %x\n", status);
 		return IRQ_NONE;
 	}
-		
-}		
 
-static void ast_xdma_ctrl_init(struct ast_xdma_info *ast_xdma) 
+}
+
+static void ast_xdma_ctrl_init(struct ast_xdma_info *ast_xdma)
 {
 	//xfer buff
 	ast_xdma->xfer_data = dma_alloc_coherent(NULL,
-					 4096,
-					 &ast_xdma->xfer_data_dma, GFP_KERNEL);
+						  4096,
+						  &ast_xdma->xfer_data_dma, GFP_KERNEL);
 
 	XDMA_DBUG("xfer buff %x , dma %x \n", (u32)ast_xdma->xfer_data, (u32)ast_xdma->xfer_data_dma);
 
 	//tx cmd
 	ast_xdma->xfer_cmd_desc = dma_alloc_coherent(NULL,
-					 sizeof(struct ast_xdma_cmd_desc) * AST_XDMA_CMD_DESC_NUM,
-					 &ast_xdma->xfer_cmd_desc_dma, GFP_KERNEL);
+							  sizeof(struct ast_xdma_cmd_desc) * AST_XDMA_CMD_DESC_NUM,
+							  &ast_xdma->xfer_cmd_desc_dma, GFP_KERNEL);
 
-	if(((u32)ast_xdma->xfer_cmd_desc & 0xff) != 0x00)
+	if (((u32)ast_xdma->xfer_cmd_desc & 0xff) != 0x00)
 		printk("ERROR dma addr !!!!\n");
 
 	XDMA_DBUG("xfer cmd desc %x , cmd desc dma %x \n", (u32)ast_xdma->xfer_cmd_desc, (u32)ast_xdma->xfer_cmd_desc_dma);
@@ -384,27 +383,27 @@ static void ast_xdma_ctrl_init(struct ast_xdma_info *ast_xdma)
 	ast_xdma_write(ast_xdma, DEFAULT_END_POINT, AST_XDMA_BMC_CMDQ_ENDP);
 	ast_xdma_write(ast_xdma, 0, AST_XDMA_BMC_CMDQ_WRITEP);
 
-	//register 
+	//register
 	ast_xdma_write(ast_xdma, XDMA_CK_DS_CMD_ID_EN | XDMA_DS_DATA_TO_EN | XDMA_DS_PKS_256 |
-					XDMA_DS_DIRTY_FRAME |XDMA_DS_COMPLETE | XDMA_US_COMPLETE, AST_XDMA_CTRL_IER);
-	
+				   XDMA_DS_DIRTY_FRAME | XDMA_DS_COMPLETE | XDMA_US_COMPLETE, AST_XDMA_CTRL_IER);
+
 }
 
-static void ast_g5_xdma_ctrl_init(struct ast_xdma_info *ast_xdma) 
+static void ast_g5_xdma_ctrl_init(struct ast_xdma_info *ast_xdma)
 {
 	//xfer buff
 	ast_xdma->xfer_data = dma_alloc_coherent(NULL,
-					 4096,
-					 &ast_xdma->xfer_data_dma, GFP_KERNEL);
+						  4096,
+						  &ast_xdma->xfer_data_dma, GFP_KERNEL);
 
 	XDMA_DBUG("xfer buff %x , dma %x \n", (u32)ast_xdma->xfer_data, (u32)ast_xdma->xfer_data_dma);
 
 	//tx cmd
 	ast_xdma->xfer_cmd_desc = dma_alloc_coherent(NULL,
-					 sizeof(struct ast_g5_xdma_cmd_desc) * AST_XDMA_CMD_DESC_NUM,
-					 &ast_xdma->xfer_cmd_desc_dma, GFP_KERNEL);
+							  sizeof(struct ast_g5_xdma_cmd_desc) * AST_XDMA_CMD_DESC_NUM,
+							  &ast_xdma->xfer_cmd_desc_dma, GFP_KERNEL);
 
-	if(((u32)ast_xdma->xfer_cmd_desc & 0xff) != 0x00)
+	if (((u32)ast_xdma->xfer_cmd_desc & 0xff) != 0x00)
 		printk("ERROR dma addr !!!!\n");
 
 	XDMA_DBUG("xfer cmd desc %x , cmd desc dma %x \n", (u32)ast_xdma->xfer_cmd_desc, (u32)ast_xdma->xfer_cmd_desc_dma);
@@ -419,45 +418,45 @@ static void ast_g5_xdma_ctrl_init(struct ast_xdma_info *ast_xdma)
 	ast_xdma_write(ast_xdma, G5_DEFAULT_END_POINT, AST_XDMA_BMC_CMDQ_ENDP);
 	ast_xdma_write(ast_xdma, 0, AST_XDMA_BMC_CMDQ_WRITEP);
 
-	//register 
+	//register
 	ast_xdma_write(ast_xdma, XDMA_CK_DS_CMD_ID_EN | XDMA_DS_DATA_TO_EN | XDMA_DS_PKS_256 |
-					XDMA_DS_DIRTY_FRAME |XDMA_DS_COMPLETE | XDMA_US_COMPLETE, AST_XDMA_CTRL_IER);
-	
+				   XDMA_DS_DIRTY_FRAME | XDMA_DS_COMPLETE | XDMA_US_COMPLETE, AST_XDMA_CTRL_IER);
+
 }
 
 static long xdma_ioctl(struct file *file, unsigned int cmd,
-			unsigned long arg)
+					   unsigned long arg)
 {
 	int ret = 0;
 	struct miscdevice *c = file->private_data;
 	struct ast_xdma_info *ast_xdma = dev_get_drvdata(c->this_device);
-	void  *argp = (void  *)arg;	
+	void  *argp = (void *)arg;
 	struct ast_xdma_xfer xfer;
 
 	switch (cmd) {
-		case AST_XDMA_IOCXFER:
-			XDMA_DBUG("AST_XDMA_IOCXFER \n");	
-			if (copy_from_user(&xfer, argp, sizeof(struct ast_xdma_xfer))) {
-				printk("copy_from_user  fail\n");
-				ret = -EFAULT;
-			} else {
-				if(ast_xdma->ast_g5)
-					ast_g5_xdma_xfer(ast_xdma, &xfer);
-				else
-					ast_xdma_xfer(ast_xdma, &xfer);
-			}
+	case AST_XDMA_IOCXFER:
+		XDMA_DBUG("AST_XDMA_IOCXFER \n");
+		if (copy_from_user(&xfer, argp, sizeof(struct ast_xdma_xfer))) {
+			printk("copy_from_user  fail\n");
+			ret = -EFAULT;
+		} else {
+			if (ast_xdma->ast_g5)
+				ast_g5_xdma_xfer(ast_xdma, &xfer);
+			else
+				ast_xdma_xfer(ast_xdma, &xfer);
+		}
 
-			if(!xfer.stream_dir) {
-				if (copy_to_user(argp, &xfer, sizeof(struct ast_xdma_xfer)))
-					ret = -EFAULT;
-			}
-			break;
-		default:
-			XDMA_DBUG("ERROR \n");	
-			return -ENOTTY;
+		if (!xfer.stream_dir) {
+			if (copy_to_user(argp, &xfer, sizeof(struct ast_xdma_xfer)))
+				ret = -EFAULT;
+		}
+		break;
+	default:
+		XDMA_DBUG("ERROR \n");
+		return -ENOTTY;
 	}
-	
-    return ret;
+
+	return ret;
 }
 
 static int xdma_open(struct inode *inode, struct file *file)
@@ -465,7 +464,7 @@ static int xdma_open(struct inode *inode, struct file *file)
 	struct miscdevice *c = file->private_data;
 	struct ast_xdma_info *ast_xdma = dev_get_drvdata(c->this_device);
 
-	XDMA_DBUG("\n");	
+	XDMA_DBUG("\n");
 	spin_lock(&xdma_state_lock);
 
 	if (ast_xdma->is_open) {
@@ -485,7 +484,7 @@ static int xdma_release(struct inode *inode, struct file *file)
 	struct miscdevice *c = file->private_data;
 	struct ast_xdma_info *ast_xdma = dev_get_drvdata(c->this_device);
 
-	XDMA_DBUG("\n");	
+	XDMA_DBUG("\n");
 	spin_lock(&xdma_state_lock);
 
 	ast_xdma->is_open = false;
@@ -512,9 +511,9 @@ static int ast_xdma_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct ast_xdma_info *ast_xdma;
-	int ret=0;
+	int ret = 0;
 
-	XDMA_DBUG("\n");	
+	XDMA_DBUG("\n");
 
 	if (!(ast_xdma = devm_kzalloc(&pdev->dev, sizeof(struct ast_xdma_info), GFP_KERNEL))) {
 		return -ENOMEM;
@@ -526,7 +525,7 @@ static int ast_xdma_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto out;
 	}
-	
+
 	ast_xdma->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (!ast_xdma->reg_base) {
 		ret = -EIO;
@@ -555,16 +554,16 @@ static int ast_xdma_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	if(of_machine_is_compatible("aspeed,ast2500"))
+	if (of_machine_is_compatible("aspeed,ast2500"))
 		ast_xdma->ast_g5 = 1;
-	else 
+	else
 		ast_xdma->ast_g5 = 0;
 
 	ast_xdma->flag = 0;
 	init_waitqueue_head(&ast_xdma->xdma_wq);
 
 	ret = misc_register(&ast_xdma_misc);
-	if (ret){		
+	if (ret) {
 		printk(KERN_ERR "MCTP : failed to request interrupt\n");
 		goto out_irq;
 	}
@@ -572,7 +571,7 @@ static int ast_xdma_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ast_xdma);
 	dev_set_drvdata(ast_xdma_misc.this_device, ast_xdma);
 
-	if(ast_xdma->ast_g5)
+	if (ast_xdma->ast_g5)
 		ast_g5_xdma_ctrl_init(ast_xdma);
 	else
 		ast_xdma_ctrl_init(ast_xdma);
@@ -610,17 +609,17 @@ static int ast_xdma_remove(struct platform_device *pdev)
 
 	release_mem_region(res->start, res->end - res->start + 1);
 
-	return 0;	
+	return 0;
 }
 
 #ifdef CONFIG_PM
-static int 
+static int
 ast_xdma_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	return 0;
 }
 
-static int 
+static int
 ast_xdma_resume(struct platform_device *pdev)
 {
 	return 0;
@@ -639,10 +638,10 @@ static const struct of_device_id ast_xdma_match[] = {
 static struct platform_driver ast_xdma_driver = {
 	.probe		= ast_xdma_probe,
 	.remove 		= ast_xdma_remove,
-#ifdef CONFIG_PM	
+#ifdef CONFIG_PM
 	.suspend		= ast_xdma_suspend,
 	.resume 		= ast_xdma_resume,
-#endif	
+#endif
 	.driver = {
 		.name		= "ast-xdma",
 		.of_match_table = ast_xdma_match,

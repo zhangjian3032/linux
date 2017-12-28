@@ -18,7 +18,7 @@
 
 
 	chosen {
-		bootargs = "console=ttyS0,115200 root=/dev/ram rw init=/linuxrc";
+		bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk0p1 rw rootfstype=ext2 init=/linuxrc";
 	};
 
 };
@@ -35,28 +35,6 @@
 		partition@0 {
 			label = "fullpart";
 			reg = <0x00000000 0x02000000>;	
-		};
-		partition@1 {
-			label = "U-Boota";
-			reg = <0x00000000 0x00060000>;
-			read-only;
-		};
-		partition@2 {
-			label = "env";
-			reg = <0x00060000 0x00020000>;
-		};
-		partition@3 {
-			label = "uImage";
-			reg = <0x00080000 0x00400000>;
-			read-only;
-		};
-		partition@4 {
-			label = "Rootfs";
-			reg = <0x00400000 0x00300000>;
-		};
-		partition@5 {
-			label = "PD Rootfs";
-			reg = <0x00700000 0x02000000>;
 		};
 	};
 };

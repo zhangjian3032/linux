@@ -1,0 +1,25 @@
+/dts-v1/;
+
+#include "ast1220.dtsi"
+
+/ {
+	model = "AST1220 EMMC EVB";
+	compatible = "aspeed,ast1220";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;	
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+	};
+
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk0p1 rw rootfstype=ext2 init=/linuxrc";
+	};
+
+};
+
