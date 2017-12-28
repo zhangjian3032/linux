@@ -263,7 +263,6 @@
 			reg = <0x1e700000 0x300>;
 			interrupts = <5>;
 		};
-#if 0
 		sdio: sdio@1e740100 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e740100 0x100>;
@@ -272,7 +271,6 @@
 			reset-names = "sdhci";
 			clocks = <&clk_sdio>;
 		};
-#endif
 		sdhci_irq: sdhci_irq {
 			compatible = "aspeed,ast-sdhci-irq";
 			interrupt-controller;

@@ -2250,8 +2250,10 @@ again:
 	 * Set the read-only status based on the supported commands
 	 * and the write protect switch.
 	 */
+#ifdef CONFIG_ARCH_AST1220
+#else
 	md->read_only = mmc_blk_readonly(card);
-
+#endif
 	md->disk = alloc_disk(perdev_minors);
 	if (md->disk == NULL) {
 		ret = -ENOMEM;
