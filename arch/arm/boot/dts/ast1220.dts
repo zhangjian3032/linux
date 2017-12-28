@@ -18,21 +18,10 @@
 
 
 	chosen {
-		bootargs = "console=ttyS0,115200 root=/dev/ram rw init=/linuxrc";
+		bootargs = "console=ttyS0,115200n8 root=/dev/ram rw init=/linuxrc";
 	};
 
 };
-
-#if 1
-&mac0 {
-        status = "disable";
-};
-
-&gmac0 {
-	status = "okay";
-};
-
-#endif
 
 &fmc_spi {
 	status = "okay";

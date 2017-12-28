@@ -184,12 +184,12 @@
 				compatible = "fixed-clock";
 				clock-frequency = <52000000>;
 			};
-			clk_sdio:clk_sdio@08 {
+			clk_sdio:clk_sdio@D8 {
 				#clock-cells = <0>;
 				compatible = "fixed-clock";
 				clock-frequency = <52000000>;
 			};
-			clk_sd: clk_sd@08 {
+			clk_sd: clk_sd@D8 {
 				#clock-cells = <0>;
 				compatible = "fixed-clock";
 				clock-frequency = <52000000>;
@@ -422,11 +422,10 @@
 			status = "disabled";
 		};
 
-		h264: h264@1e7a0000 {
-			compatible = "aspeed,ast-h264";
+		hx280enc: hx280enc@1e7a0000 {
+			compatible = "aspeed,hx280enc";
 			reg = <0x1e7a0000 0x2000>;
 			interrupts = <4>;
-			status = "disabled";
 		};
 
 		zsp: zsp@1e7c0000 {

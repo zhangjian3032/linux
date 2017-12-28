@@ -4,7 +4,7 @@
 
 / {
 	model = "AST1220 EMMC EVB";
-	compatible = "aspeed,ast1220-evb", "aspeed,ast1220";
+	compatible = "aspeed,ast1220";
 
 	aliases {
 		serial0 = &uart0;
@@ -18,7 +18,7 @@
 
 
 	chosen {
-		bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk1p1 rw rootfstype=ext2 init=/linuxrc";
+		bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk0p1 rw rootfstype=ext2 init=/linuxrc";
 	};
 
 };

@@ -49,11 +49,11 @@
 #endif
 /*******************************************************************/
 void ast_sd_set_8bit_mode(struct ast_sdhci_irq *sdhci_irq, u8 mode)
-{	
-	if(mode)
-		writel( (1 << 24) | readl(sdhci_irq->regs), sdhci_irq->regs);
+{
+	if (mode)
+		writel((1 << 24) | readl(sdhci_irq->regs), sdhci_irq->regs);
 	else
-		writel( ~(1 << 24) & readl(sdhci_irq->regs), sdhci_irq->regs);
+		writel(~(1 << 24) & readl(sdhci_irq->regs), sdhci_irq->regs);
 }
 
 EXPORT_SYMBOL(ast_sd_set_8bit_mode);
@@ -92,12 +92,12 @@ struct irq_chip sdhci_irq_chip = {
 	.irq_ack	= noop,
 	.irq_mask	= noop,
 	.irq_unmask	= noop,
-//	.irq_set_type	= noop_ret,	
+//	.irq_set_type	= noop_ret,
 	.flags		= IRQCHIP_SKIP_SET_WAKE,
 };
 
 static int ast_sdhci_map_irq_domain(struct irq_domain *domain,
-					unsigned int irq, irq_hw_number_t hwirq)
+									unsigned int irq, irq_hw_number_t hwirq)
 {
 	irq_set_chip_and_handler(irq, &sdhci_irq_chip, handle_simple_irq);
 	irq_set_chip_data(irq, domain->host_data);
@@ -113,7 +113,7 @@ static const struct irq_domain_ops ast_sdhci_irq_domain_ops = {
 static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 {
 	struct ast_sdhci_irq *sdhci_irq;
-	
+
 	SDHCI_IRQ_DBUG("ast_sdhci_irq_init \n");
 
 	sdhci_irq = kzalloc(sizeof(*sdhci_irq), GFP_KERNEL);
@@ -138,35 +138,36 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 		return PTR_ERR(sdhci_irq->reset);
 	}
 	sdhci_irq->clk = devm_clk_get(&pdev->dev, NULL);
-	
+
 	if (IS_ERR(sdhci_irq->clk)) {
 		dev_err(&pdev->dev, "no clock defined\n");
-		
-		return -ENODEV;
-	}		
 
+		return -ENODEV;
+	}
+#ifdef CONFIG_ARCH_AST1220
+#else
 	//SDHCI Host's Clock Enable and Reset
 	reset_control_assert(sdhci_irq->reset);
 	mdelay(10);
 	clk_prepare_enable(sdhci_irq->clk);
-	clk_enable(sdhci_irq->clk);	
+	clk_enable(sdhci_irq->clk);
 	mdelay(10);
 	reset_control_deassert(sdhci_irq->reset);
-
+#endif
 	sdhci_irq->parent_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (sdhci_irq->parent_irq < 0)
 		return sdhci_irq->parent_irq;
 
 	sdhci_irq->irq_domain = irq_domain_add_linear(
-			pdev->dev.of_node, sdhci_irq->slot_num,
-			&ast_sdhci_irq_domain_ops, NULL);
+								pdev->dev.of_node, sdhci_irq->slot_num,
+								&ast_sdhci_irq_domain_ops, NULL);
 	if (!sdhci_irq->irq_domain)
 		return -ENOMEM;
 
 	sdhci_irq->irq_domain->name = "ast-sdhci-irq";
 
 	irq_set_chained_handler_and_data(sdhci_irq->parent_irq,
-					 ast_sdhci_irq_handler, sdhci_irq);
+									 ast_sdhci_irq_handler, sdhci_irq);
 
 	pr_info("sdhci irq controller registered, irq %d\n", sdhci_irq->parent_irq);
 

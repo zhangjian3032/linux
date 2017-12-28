@@ -95,7 +95,7 @@
 			resets = <&sys_reset SCU_RESET_MAC>;
 			reset-names = "mac";
 			clocks = <&clk_mac>;
-			#status = "disabled";
+			status = "disabled";
 		};
 
 		ehci0: ehci@0x1e6a1000 {
@@ -189,17 +189,17 @@
 				div = <0x28 0x0>;
 				clocks = <&clk_clkin>;
 			};
-			clk_sdio:clk_sdio@08 {
+			clk_sdio:clk_sdio@D8 {
 				#clock-cells = <0>;
-				compatible = "aspeed,cam-sdclock";
-				div = <0x08 0x0>;
+				compatible = "aspeed,cam-sdioclock";
+				div = <0xD8 0x0>;
 				enable = <0x0C 0x0>;
 				clocks = <&clk_hpll>;
 			};
-			clk_sd: clk_sd@08 {
+			clk_sd: clk_sd@D8 {
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-sdclock";
-				div = <0x08 0x0>;
+				div = <0xD8 0x0>;
 				enable = <0x0C 0x0>;
 				clocks = <&clk_hpll>;
 			};
@@ -263,7 +263,7 @@
 			reg = <0x1e700000 0x300>;
 			interrupts = <5>;
 		};
-
+#if 0
 		sdio: sdio@1e740100 {
 			compatible = "aspeed,sdhci-ast";
 			reg = <0x1e740100 0x100>;
@@ -272,7 +272,7 @@
 			reset-names = "sdhci";
 			clocks = <&clk_sdio>;
 		};
-
+#endif
 		sdhci_irq: sdhci_irq {
 			compatible = "aspeed,ast-sdhci-irq";
 			interrupt-controller;
@@ -433,11 +433,10 @@
 			status = "disabled";
 		};
 
-		h264: h264@1e7a0000 {
-			compatible = "aspeed,ast-h264";
+		hx280enc: hx280enc@1e7a0000 {
+			compatible = "aspeed,hx280enc";
 			reg = <0x1e7a0000 0x2000>;
 			interrupts = <4>;
-			status = "disabled";
 		};
 
 		zsp: zsp@1e7c0000 {

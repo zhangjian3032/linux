@@ -18,7 +18,7 @@
 
 
 	chosen {
-		bootargs = "console=ttyS0,115200n8 root=/dev/mtdblock1 rw rootfstype=ext2 init=/linuxrc";
+		bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk0p1 rw rootfstype=ext2 init=/linuxrc";
 	};
 
 };
