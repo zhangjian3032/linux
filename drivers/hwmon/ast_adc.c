@@ -248,6 +248,7 @@ ast_adc_read(struct ast_adc_data *ast_adc, u32 reg)
 
 static void ast_g5_adc_ctrl_init(struct ast_adc_data *ast_adc)
 {
+	//Auto Compensating Sensing Mode : do not use in AST-G5
 	u8 trim;
 
 	//Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[31:17] + 1) * (ADC0c[9:0] +1)
@@ -284,6 +285,7 @@ static void ast_g5_adc_ctrl_init(struct ast_adc_data *ast_adc)
 
 static void ast_g4_adc_ctrl_init(struct ast_adc_data *ast_adc)
 {
+	//Compensating Sensing Mode
 	//Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[31:17] + 1) * (ADC0c[9:0] +1)
 	//ex : pclk = 48Mhz , ADC0c[31:17] = 0,  ADC0c[9:0] = 0x40 : 64,  ADC0c[31:17] = 0x3e7 : 999 
 	// --> 0.0325s	= 12 * 2 * (0x3e7 + 1) *(64+1) / 48000000
@@ -911,6 +913,8 @@ static const struct of_device_id ast_adc_matches[] = {
 	{},
 };
 
+MODULE_DEVICE_TABLE(of, ast_adc_matches);
+
 static int 
 ast_adc_probe(struct platform_device *pdev)
 {
@@ -970,7 +974,7 @@ ast_adc_probe(struct platform_device *pdev)
 	if (!adc_dev_id)
 		return -EINVAL;
 
-	ast_adc->config = (struct ast_adc_config *) ast_adc_matches->data;
+	ast_adc->config = (struct ast_adc_config *) adc_dev_id->data;
 
 	/* Register sysfs hooks */
 	ast_adc->dev = hwmon_device_register(&pdev->dev);
@@ -1004,7 +1008,7 @@ ast_adc_probe(struct platform_device *pdev)
 	} else if (ast_adc->config->adc_version == 4) {
 		ast_g4_adc_ctrl_init(ast_adc);
 	} else if(ast_adc->config->adc_version == 5) {
-		ast_g5_adc_ctrl_init(ast_adc);
+		ast_g4_adc_ctrl_init(ast_adc);
 	} else {
 		dev_err(&pdev->dev, "adc config error \n");	
 		return -ENODEV;
@@ -1073,8 +1077,6 @@ ast_adc_resume(struct platform_device *pdev)
 #define ast_adc_suspend        NULL
 #define ast_adc_resume         NULL
 #endif
-
-MODULE_DEVICE_TABLE(of, ast_adc_matches);
 
 static struct platform_driver ast_adc_driver = {
 	.probe 		= ast_adc_probe,
