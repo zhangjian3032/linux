@@ -263,14 +263,7 @@
 			reg = <0x1e700000 0x300>;
 			interrupts = <5>;
 		};
-		sdio: sdio@1e740100 {
-			compatible = "aspeed,sdhci-ast";
-			reg = <0x1e740100 0x100>;
-			interrupts = <2>;
-			resets = <&sys_reset SCU_RESET_SDIO>;
-			reset-names = "sdhci";
-			clocks = <&clk_sdio>;
-		};
+
 		sdhci_irq: sdhci_irq {
 			compatible = "aspeed,ast-sdhci-irq";
 			interrupt-controller;
@@ -301,6 +294,15 @@
 			slot = <1>;
 			sdhci,auto-cmd12;
 			clocks = <&clk_sd>;
+		};
+
+		sdio: sdio@1e740100 {
+			compatible = "aspeed,sdhci-ast";
+			reg = <0x1e740100 0x100>;
+			interrupts = <2>;
+			resets = <&sys_reset SCU_RESET_SDIO>;
+			reset-names = "sdhci";
+			clocks = <&clk_sdio>;
 		};
 
 		gpio: gpio@1e780000 {
