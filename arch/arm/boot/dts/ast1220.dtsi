@@ -482,6 +482,7 @@
 		bus-frequency = <100000>;
 		interrupts = <1>;
 		interrupt-parent = <&i2c_irq>;
+		status = "disable";
 	};
 	i2c2: i2c@C0 {
 		reg = <0xc0 0x40>;
@@ -490,6 +491,7 @@
 		bus-frequency = <100000>;
 		interrupts = <2>;
 		interrupt-parent = <&i2c_irq>;
+		status = "disable";
 	};
 	i2c3: i2c@100 {
 		reg = <0x100 0x40>;
@@ -498,6 +500,7 @@
 		bus-frequency = <100000>;
 		interrupts = <3>;
 		interrupt-parent = <&i2c_irq>;
+		status = "disable";
 	};
 	i2c4: i2c@140 {
 		reg = <0x140 0x40>;
@@ -506,6 +509,7 @@
 		bus-frequency = <100000>;
 		interrupts = <4>;
 		interrupt-parent = <&i2c_irq>;
+		status = "disable";
 	};
 	i2c5: i2c@180 {
 		reg = <0x180 0x40>;
@@ -514,6 +518,7 @@
 		bus-frequency = <100000>;
 		interrupts = <5>;
 		interrupt-parent = <&i2c_irq>;
+		status = "disable";
 	};
 	i2c6: i2c@1c0 {
 		reg = <0x1c0 0x40>;
@@ -522,6 +527,7 @@
 		bus-frequency = <100000>;
 		interrupts = <6>;
 		interrupt-parent = <&i2c_irq>;
+		status = "disable";
 	};
 	i2c7: i2c@300 {
 		reg = <0x300 0x40>;
@@ -529,6 +535,15 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <7>;
+		interrupt-parent = <&i2c_irq>;
+		status = "disable";
+	};
+	i2c7: i2c@340 {
+		reg = <0x340 0x40>;
+		compatible = "aspeed,ast-g5-i2c";
+		clocks = <&clk_apb>;
+		bus-frequency = <100000>;
+		interrupts = <8>;
 		interrupt-parent = <&i2c_irq>;
 	};
 };
