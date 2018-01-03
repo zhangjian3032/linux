@@ -153,6 +153,8 @@ static int sdhci_ast_probe(struct platform_device *pdev)
 	sdhci_irq = sdhci_pltfm_priv(pltfm_host);
 	
 	host->quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN;
+	host->quirks2 = SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN;
+	sdhci_get_of_property(pdev);
 
 	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
 

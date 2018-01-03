@@ -1783,7 +1783,9 @@ static int sdhci_check_ro(struct sdhci_host *host)
 				& SDHCI_WRITE_PROTECT);
 
 	spin_unlock_irqrestore(&host->lock, flags);
-
+#ifdef CONFIG_ARCH_AST1220
+	is_readonly = 0;
+#endif
 	/* This quirk needs to be replaced by a callback-function later */
 	return host->quirks & SDHCI_QUIRK_INVERTED_WRITE_PROTECT ?
 		!is_readonly : is_readonly;
