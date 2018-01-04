@@ -538,7 +538,7 @@
 		interrupt-parent = <&i2c_irq>;
 		status = "disable";
 	};
-	i2c7: i2c@340 {
+	i2c8: i2c@340 {
 		reg = <0x340 0x40>;
 		compatible = "aspeed,ast-g5-i2c";
 		clocks = <&clk_apb>;
