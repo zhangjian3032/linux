@@ -228,6 +228,7 @@
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-mac-clock";
 				enable = <0x0C 0x0>;
+				clocks = <&clk_hpll>;
 			};
 		};
 
