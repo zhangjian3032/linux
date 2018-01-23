@@ -34,6 +34,7 @@
 /*******************************************************************/
 #define AST_SDHCI_INFO				0x00
 #define AST_SDHCI_BLOCK				0x04
+#define AST_SDHCI_CTRL				0xF0
 #define AST_SDHCI_ISR				0xFC
 
 /* #define AST_SDHCI_INFO			0x00*/
@@ -113,6 +114,7 @@ static const struct irq_domain_ops ast_sdhci_irq_domain_ops = {
 static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 {
 	struct ast_sdhci_irq *sdhci_irq;
+	u32 slot0_clk_delay, slot1_clk_delay;
 
 	SDHCI_IRQ_DBUG("ast_sdhci_irq_init \n");
 
@@ -124,7 +126,7 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 	//node->data = sdhci_irq;
 	pdev->dev.of_node->data = sdhci_irq;
 
-	if (of_property_read_u32(pdev->dev.of_node, "slot_num", &sdhci_irq->slot_num) == 0) {
+	if (!of_property_read_u32(pdev->dev.of_node, "slot_num", &sdhci_irq->slot_num)) {
 		SDHCI_IRQ_DBUG("sdhci_irq->slot_num = %d \n", sdhci_irq->slot_num);
 	}
 
@@ -144,8 +146,6 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 
 		return -ENODEV;
 	}
-#ifdef CONFIG_ARCH_AST1220
-#else
 	//SDHCI Host's Clock Enable and Reset
 	reset_control_assert(sdhci_irq->reset);
 	mdelay(10);
@@ -153,7 +153,7 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 	clk_enable(sdhci_irq->clk);
 	mdelay(10);
 	reset_control_deassert(sdhci_irq->reset);
-#endif
+
 	sdhci_irq->parent_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (sdhci_irq->parent_irq < 0)
 		return sdhci_irq->parent_irq;
@@ -168,6 +168,19 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 
 	irq_set_chained_handler_and_data(sdhci_irq->parent_irq,
 									 ast_sdhci_irq_handler, sdhci_irq);
+
+
+	//1e7600f0[17:16] = 0x3 //slot0 clock delay mode
+	//1e7600f0[24:20] = 0x8 //slot0 delay
+	if (!of_property_read_u32(pdev->dev.of_node, "slot0-clk-delay", &slot0_clk_delay)) {
+		writel((readl(sdhci_irq->regs + AST_SDHCI_CTRL) & ~0x01f30000) | (0x3 << 16) | (slot0_clk_delay << 20), sdhci_irq->regs + AST_SDHCI_CTRL);
+	}
+
+	//1e7600f0[19:18] = 0x3 //slot1 clock delay mode
+	//1e7600f0[29:25] = 0x8 //slot1 delay
+	if (!of_property_read_u32(pdev->dev.of_node, "slot1-clk-delay", &slot1_clk_delay)) {
+		writel((readl(sdhci_irq->regs + AST_SDHCI_CTRL) & ~0x3e0c0000) | (0x3 << 18) | (slot1_clk_delay << 25), sdhci_irq->regs + AST_SDHCI_CTRL);
+	}
 
 	pr_info("sdhci irq controller registered, irq %d\n", sdhci_irq->parent_irq);
 
