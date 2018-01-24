@@ -143,7 +143,6 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 
 	if (IS_ERR(sdhci_irq->clk)) {
 		dev_err(&pdev->dev, "no clock defined\n");
-
 		return -ENODEV;
 	}
 	//SDHCI Host's Clock Enable and Reset
