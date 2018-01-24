@@ -602,7 +602,6 @@ static void __init aspeed_mac_clk_init(struct device_node *node)
 CLK_OF_DECLARE(aspeed_mac_clk, "aspeed,cam-mac-clock", aspeed_mac_clk_init);
 static void __init aspeed_usb20p1_clk_init(struct device_node *node)
 {
-	printk("aspeed_usb20p1_clk_init \n");
 	aspeed_clk_common_init(node, &aspeed_usb20p1_clk_ops, 0);
 }
 CLK_OF_DECLARE(aspeed_usb20p1_clk, "aspeed,cam-usb20p1clock", aspeed_usb20p1_clk_init);
