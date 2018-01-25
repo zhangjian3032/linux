@@ -88,7 +88,7 @@
 #define JPEG_COMPRESS_MODE_ENABLE	(1 << 13)	/*  0: ASPEED proprietary compression mode,  1: Enable JPEG compatible mode  */
 #define JPEG_HALT_ENG_TRIGGER			(1 << 12)
 #define JPEG_COMPRESS_MODE_MASK		(3 << 10)
-//only support YUV420 no YUV444
+//only support YUV420 no YUV444, 11: NV12, 01:YUV422, 10:YUV444, 10: no
 #define JPEG_YUY2_COMPRESS			(1 << 10)
 #define JPEG_NV12_COMPRESS			(3 << 10)
 
