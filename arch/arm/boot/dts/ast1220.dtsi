@@ -108,7 +108,7 @@
 		};
 
 		udc: udc@0x1e6a0000 {
-			compatible = "aspeed,ast-udc";
+			compatible = "aspeed,ast1220-udc";
 			reg = <0x1e6a0000 0x300>;
 			interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_usb20>;
