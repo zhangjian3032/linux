@@ -1715,7 +1715,6 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 {
 	struct ast_i2c_bus *i2c_bus = dev_id;
 	u32 sts = ast_i2c_read(i2c_bus, I2C_INTR_STS_REG);
-	u32 filter = 0;
 	i2c_bus->state = (ast_i2c_read(i2c_bus, I2C_CMD_REG) >> 19) & 0xf;
 
 	dev_dbg(i2c_bus->dev, "ISR : %x\n", sts);
@@ -1767,14 +1766,13 @@ static irqreturn_t ast_i2c_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	filter |= AST_I2CD_INTR_STS_TX_ACK;
-	filter |= AST_I2CD_INTR_STS_NORMAL_STOP;
-	filter |= AST_I2CD_INTR_STS_ARBIT_LOSS;
-	filter |= AST_I2CD_INTR_STS_TX_NAK;
-	filter |= AST_I2CD_INTR_STS_RX_DOWN;
-	filter |= AST_I2CD_INTR_STS_SLAVE_MATCH;
-	filter |= AST_I2CD_INTR_STS_ABNORMAL;
-	sts &= filter;
+	sts &= (AST_I2CD_INTR_STS_TX_ACK |
+		AST_I2CD_INTR_STS_NORMAL_STOP |
+		AST_I2CD_INTR_STS_ARBIT_LOSS |
+		AST_I2CD_INTR_STS_TX_NAK |
+		AST_I2CD_INTR_STS_RX_DOWN |
+		AST_I2CD_INTR_STS_SLAVE_MATCH |
+		AST_I2CD_INTR_STS_ABNORMAL);
 
 	if (i2c_bus->master_operation) {
 		if (AST_I2CD_INTR_STS_ARBIT_LOSS & sts) {
