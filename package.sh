@@ -34,8 +34,8 @@ if [ "$2" == "bmc" ]; then
 	rm -f $1/arch/arm/configs/ast2500_ramfs_defconfig
 	rm -f $1/arch/arm/configs/ast2500_squashfs_defconfig
 	rm -f $1/arch/arm/configs/ast2400_defconfig
-	rm -f $1/arch/arm/boot/dts/ast1220.dts
-	rm -f $1/arch/arm/boot/dts/ast1220*.dts
+	rm -f $1/arch/arm/boot/dts/ast1220.*
+	rm -f $1/arch/arm/boot/dts/ast1220*.*
 	rm -f $1/arch/arm/boot/dts/ast2400.dts
 	rm -f $1/arch/arm/boot/dts/ast2500.dts
 	rm -f $1/drivers/memory/ast-cam-sdmc.c
