@@ -28,12 +28,14 @@ if [ "$2" == "bmc" ]; then
 	rm -f $1/arch/arm/plat-aspeed/include/plat/regs-cam-scu.h
 	rm -f $1/arch/arm/plat-aspeed/ast-cam-scu.c
 	rm -rf $1/driver/media/platform/ast-jpeg
+	rm -f $1/arch/arm/mach-aspeed/include/mach/regs-cam-scu.h
 	rm -f $1/arch/arm/configs/ast2500_dbg_defconfig
 	rm -f $1/arch/arm/configs/ast2500_defconfig
 	rm -f $1/arch/arm/configs/ast2500_ramfs_defconfig
 	rm -f $1/arch/arm/configs/ast2500_squashfs_defconfig
 	rm -f $1/arch/arm/configs/ast2400_defconfig
 	rm -f $1/arch/arm/boot/dts/ast1220.dts
+	rm -f $1/arch/arm/boot/dts/ast1220*.dts
 	rm -f $1/arch/arm/boot/dts/ast2400.dts
 	rm -f $1/arch/arm/boot/dts/ast2500.dts
 	rm -f $1/drivers/memory/ast-cam-sdmc.c
