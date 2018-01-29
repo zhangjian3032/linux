@@ -294,7 +294,7 @@ static void ast_g5_adc_ctrl_init(struct ast_adc_data *ast_adc)
 	ast_adc->compen_value = 0x200 - (ast_adc_read(ast_adc, AST_ADC_CH0_1) & AST_ADC_L_CH_MASK);
 	dev_dbg(ast_adc->dev, "compensating value %d \n",ast_adc->compen_value);
 
-	ast_adc_write(ast_adc, ~AST_ADC_CTRL_COMPEN & ast_adc_read(ast_adc, AST_ADC_CTRL), AST_ADC_CTRL);	
+	ast_adc_write(ast_adc, ~(AST_ADC_CTRL_COMPEN | AST_ADC_CTRL_CH0_EN) & ast_adc_read(ast_adc, AST_ADC_CTRL), AST_ADC_CTRL);	
 
 #endif
 		
@@ -312,7 +312,7 @@ static void ast_g4_adc_ctrl_init(struct ast_adc_data *ast_adc)
 //	ast_adc_write(ast_adc, (0x3e7<< 17) | 0x40, AST_ADC_CLK);
 	ast_adc_write(ast_adc, 0x40, AST_ADC_CLK);
 
-	ast_adc_write(ast_adc, AST_ADC_CTRL_CH0_EN | AST_G4_ADC_CTRL_COMPEN | 
+	ast_adc_write(ast_adc, AST_ADC_CTRL_CH0_EN | AST_ADC_CTRL_COMPEN | 
 							AST_ADC_CTRL_NORMAL | AST_ADC_CTRL_EN, 
 							AST_ADC_CTRL);
 
@@ -324,7 +324,7 @@ static void ast_g4_adc_ctrl_init(struct ast_adc_data *ast_adc)
 	ast_adc->compen_value = 0x200 - (ast_adc_read(ast_adc, AST_ADC_CH0_1) & AST_ADC_L_CH_MASK);
 	dev_dbg(ast_adc->dev, "compensating value %d \n",ast_adc->compen_value);
 
-	ast_adc_write(ast_adc, ~AST_G4_ADC_CTRL_COMPEN & ast_adc_read(ast_adc, AST_ADC_CTRL), AST_ADC_CTRL);	
+	ast_adc_write(ast_adc, ~AST_ADC_CTRL_COMPEN & ast_adc_read(ast_adc, AST_ADC_CTRL), AST_ADC_CTRL);	
 }
 
 static void ast_g3_adc_ctrl_init(struct ast_adc_data *ast_adc)
