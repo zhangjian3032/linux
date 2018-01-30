@@ -454,7 +454,7 @@ static void aspeed_mac_clk_disable(struct clk_hw *hw)
 	}
 }
 
-#define SCU_USB20_PHY_CLK_EN		(0x1 << 14)
+#define SCU_USB20_PHY_CLK_EN		(0x1 << 12)
 
 static int aspeed_usb20p1_clk_enable(struct clk_hw *hw)
 {

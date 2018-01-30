@@ -151,7 +151,7 @@ static int sdhci_ast_probe(struct platform_device *pdev)
 
 	pltfm_host = sdhci_priv(host);
 	sdhci_irq = sdhci_pltfm_priv(pltfm_host);
-	
+
 	host->quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN;
 	host->quirks2 = SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN;
 	sdhci_get_of_property(pdev);
@@ -160,17 +160,12 @@ static int sdhci_ast_probe(struct platform_device *pdev)
 
 	reset = devm_reset_control_get_exclusive(&pdev->dev, "sdhci");
 	if (!IS_ERR(reset)) {
-		printk("have reset ctrl \n");
-		//dev_err(&pdev->dev, "can't get peci reset\n");
 		//scu init
-#ifdef CONFIG_ARCH_AST1220
-#else
 		reset_control_assert(reset);
 		mdelay(10);
 		clk_prepare_enable(pltfm_host->clk);
 		mdelay(10);
 		reset_control_deassert(reset);
-#endif
 	}
 
 //	pnode = of_node_get(np->parent);

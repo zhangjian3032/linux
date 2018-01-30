@@ -266,8 +266,6 @@ ast_get_ahbclk(void)
 	printk("TODO ~~\n");
 
 	return 0;
-
-
 }
 
 EXPORT_SYMBOL(ast_get_ahbclk);
@@ -275,7 +273,6 @@ EXPORT_SYMBOL(ast_get_ahbclk);
 extern u32
 ast_get_d_pll_clk(void)
 {
-
 	return 10000000;
 }
 EXPORT_SYMBOL(ast_get_d_pll_clk);
@@ -283,9 +280,7 @@ EXPORT_SYMBOL(ast_get_d_pll_clk);
 extern u32
 ast_get_pclk(void)
 {
-
 	return (10000000);
-
 }
 
 EXPORT_SYMBOL(ast_get_pclk);
@@ -518,19 +513,24 @@ static int ast_cam_scu_probe(struct platform_device *pdev)
 	//SCU I2C Reset 
 	//ast_scu_init_i2c();
 	//ast_scu_multi_func_i2c(idx);
+	//I2C 1/9
+	ast_scu_write(ast_scu_read(0x80) | (0x3 << 24), 0x80);
+	ast_scu_write(ast_scu_read(0x90) | (0x1 <<  8), 0x90);
 
+	ast_scu_write(ast_scu_read(0x88) | (0x3 << 30), 0x88);
+	ast_scu_write(ast_scu_read(0x90) | (0x1 << 21), 0x90);
+
+#if 1
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-ehci")) {
 		printk("aspeed,ast-ehci found in SCU \n");
 		ast_scu_multi_func_usb_port1_mode(1);
-		ast_scu_init_usb_port1();					
 	}
-
+#else
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-udc")) {
 		printk("aspeed,ast-udc found in SCU \n");
 		ast_scu_multi_func_usb_port1_mode(0);
-		ast_scu_init_usb_port1();
 	}
-
+#endif
 	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-jpeg")) {
 		printk("aspeed,ast-jpeg found in SCU, ");
 		ast_scu_init_jpeg(0);

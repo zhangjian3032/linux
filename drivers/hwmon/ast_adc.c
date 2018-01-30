@@ -106,12 +106,12 @@
 
 //AST_G3
 #define AST_ADC_CTRL_COMPEN_CLR		(0x1 << 6)
-#define AST_G3_ADC_CTRL_COMPEN			(0x1 << 5)
-//AST_G4
-#define AST_G4_ADC_CTRL_COMPEN			(0x1 << 4)
-//ASG_G5
+#define AST_G3_ADC_CTRL_COMPEN		(0x1 << 5)
+#define AST_ADC_CTRL_COMPEN			(0x1 << 4)
+//AST_G5 support 
 #define AST_ADC_CTRL_INIT_RDY		(0x1 << 8)
-#define AST_G5_ADC_CTRL_COMPEN			(0x1 << 5)
+//AST_G5 support Auto Compesating
+#define AST_ADC_CTRL_AUTO_COMPEN	(0x1 << 5)
 
 #define AST_ADC_CTRL_NORMAL			(0x7 << 1)
 
@@ -255,7 +255,7 @@ static void ast_g5_adc_ctrl_init(struct ast_adc_data *ast_adc)
 	//ex : pclk = 48Mhz , ADC0c[31:17] = 0,  ADC0c[9:0] = 0x40 : 64,  ADC0c[31:17] = 0x3e7 : 999 
 	// --> 0.0325s	= 12 * 2 * (0x3e7 + 1) *(64+1) / 48000000
 	// --> 0.0005s	= 12 * 2 * (0x3e7 + 1) / 48000000	
-	
+
 //	TODO ... 
 //	scu read trim 
 //	write trim 0xC4 [3:0]
@@ -265,21 +265,38 @@ static void ast_g5_adc_ctrl_init(struct ast_adc_data *ast_adc)
 		trim = 0x8;
 
 	ast_adc_write(ast_adc, trim, AST_ADC_COMP_TRIM);
-	
+
 	ast_adc_write(ast_adc, 0x40, AST_ADC_CLK);
 
 	ast_adc_write(ast_adc, AST_ADC_CTRL_NORMAL | AST_ADC_CTRL_EN, AST_ADC_CTRL);
 
 	while(!(ast_adc_read(ast_adc, AST_ADC_CTRL) & AST_ADC_CTRL_INIT_RDY));
 
-	ast_adc_write(ast_adc, AST_G5_ADC_CTRL_COMPEN  | AST_ADC_CTRL_NORMAL | 
+#if 0
+	ast_adc_write(ast_adc, AST_ADC_CTRL_AUTO_COMPEN  | AST_ADC_CTRL_NORMAL | 
 							AST_ADC_CTRL_EN, AST_ADC_CTRL);
 
-	while(ast_adc_read(ast_adc, AST_ADC_CTRL) & AST_G5_ADC_CTRL_COMPEN);
-	
+	while(ast_adc_read(ast_adc, AST_ADC_CTRL) & AST_ADC_CTRL_AUTO_COMPEN);
+
 	//compensating value = 0x200 - ADC10[9:0]
 	ast_adc->compen_value = 0x200 - ((ast_adc_read(ast_adc, AST_ADC_COMP_TRIM) >> 16) & 0x3ff);
 	dev_dbg(ast_adc->dev, "compensating value %d \n",ast_adc->compen_value);
+#else
+	ast_adc_write(ast_adc, AST_ADC_CTRL_CH0_EN | AST_ADC_CTRL_COMPEN | 
+							AST_ADC_CTRL_NORMAL | AST_ADC_CTRL_EN, 
+							AST_ADC_CTRL);
+
+	ast_adc_read(ast_adc, AST_ADC_CTRL);
+
+	mdelay(1);
+
+	//compensating value = 0x200 - ADC10[9:0]
+	ast_adc->compen_value = 0x200 - (ast_adc_read(ast_adc, AST_ADC_CH0_1) & AST_ADC_L_CH_MASK);
+	dev_dbg(ast_adc->dev, "compensating value %d \n",ast_adc->compen_value);
+
+	ast_adc_write(ast_adc, ~(AST_ADC_CTRL_COMPEN | AST_ADC_CTRL_CH0_EN) & ast_adc_read(ast_adc, AST_ADC_CTRL), AST_ADC_CTRL);	
+
+#endif
 		
 }
 
@@ -295,7 +312,7 @@ static void ast_g4_adc_ctrl_init(struct ast_adc_data *ast_adc)
 //	ast_adc_write(ast_adc, (0x3e7<< 17) | 0x40, AST_ADC_CLK);
 	ast_adc_write(ast_adc, 0x40, AST_ADC_CLK);
 
-	ast_adc_write(ast_adc, AST_ADC_CTRL_CH0_EN | AST_G4_ADC_CTRL_COMPEN | 
+	ast_adc_write(ast_adc, AST_ADC_CTRL_CH0_EN | AST_ADC_CTRL_COMPEN | 
 							AST_ADC_CTRL_NORMAL | AST_ADC_CTRL_EN, 
 							AST_ADC_CTRL);
 
@@ -307,7 +324,7 @@ static void ast_g4_adc_ctrl_init(struct ast_adc_data *ast_adc)
 	ast_adc->compen_value = 0x200 - (ast_adc_read(ast_adc, AST_ADC_CH0_1) & AST_ADC_L_CH_MASK);
 	dev_dbg(ast_adc->dev, "compensating value %d \n",ast_adc->compen_value);
 
-	ast_adc_write(ast_adc, ~AST_G4_ADC_CTRL_COMPEN & ast_adc_read(ast_adc, AST_ADC_CTRL), AST_ADC_CTRL);	
+	ast_adc_write(ast_adc, ~AST_ADC_CTRL_COMPEN & ast_adc_read(ast_adc, AST_ADC_CTRL), AST_ADC_CTRL);	
 }
 
 static void ast_g3_adc_ctrl_init(struct ast_adc_data *ast_adc)
@@ -1008,7 +1025,7 @@ ast_adc_probe(struct platform_device *pdev)
 	} else if (ast_adc->config->adc_version == 4) {
 		ast_g4_adc_ctrl_init(ast_adc);
 	} else if(ast_adc->config->adc_version == 5) {
-		ast_g4_adc_ctrl_init(ast_adc);
+		ast_g5_adc_ctrl_init(ast_adc);
 	} else {
 		dev_err(&pdev->dev, "adc config error \n");	
 		return -ENODEV;

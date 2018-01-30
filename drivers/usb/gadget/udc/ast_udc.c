@@ -23,6 +23,8 @@
 #include <linux/prefetch.h>
 #include <linux/clk.h>
 #include <linux/usb/ch9.h>
+#include <linux/delay.h>
+#include <linux/reset.h>
 
 #include <linux/usb/gadget.h>
 #include <linux/of.h>
@@ -204,9 +206,12 @@
 #define EP_SINGLE_DMA_MODE			(0x1 << 1)
 
 /*************************************************************************************/
+struct ast_udc_config {
+	u8 end_point_num;
+};
 
 struct ast_udc_request {
-	struct usb_request	req;
+	struct usb_request		req;
 	struct list_head		queue;
 	unsigned mapped:1;	
 };
@@ -216,22 +221,25 @@ struct ast_udc_ep {
 	struct list_head		queue;
 	struct ast_udc	*udc;
 	void __iomem			*ep_reg;
-	unsigned			stopped:1;
-	u8				ep_dir;
+	unsigned				stopped:1;
+	u8						ep_dir;
 	void					*ep_buf;
-	dma_addr_t			ep_dma;
+	dma_addr_t				ep_dma;
 	const struct usb_endpoint_descriptor	*desc;	
 };
 
-#define AST_NUM_ENDPOINTS		16
 /*
  * driver is non-SMP, and just blocks IRQs whenever it needs
  * access protection for chip registers or driver state
  */
 struct ast_udc {
 	void __iomem			*reg;
+	struct reset_control 	*reset;
+	struct clk 				*clk;	
 	struct usb_gadget			gadget;
-	struct ast_udc_ep			ep[AST_NUM_ENDPOINTS];
+	//struct ast_udc_ep			ep[AST_NUM_ENDPOINTS];
+	struct ast_udc_ep			*ep;
+	struct ast_udc_config		*udc_config;
 	struct usb_gadget_driver	*driver;
 	unsigned			suspended:1;
 	unsigned			req_pending:1;
@@ -601,7 +609,7 @@ static int ast_udc_ep_queue(struct usb_ep *_ep,
 	}
 
 	if (ep->ep.desc == NULL) {	/* ep0 */
-		if((req->req.dma % 4) != 0) {printk("EP0 dma error ~~~~ \n", req->req.dma); while(1); }
+		if((req->req.dma % 4) != 0) {printk("EP0 dma  %x error ~~~~ \n", req->req.dma); while(1); }
 		ast_udc_ep0_queue(ep, req);
 	} else {
 		if (list_is_singular(&ep->queue)) {
@@ -718,7 +726,7 @@ void ast_udc_ep0_out(struct ast_udc *udc)
 {
 	struct ast_udc_ep *ep = &udc->ep[0];
 	struct ast_udc_request	*req;
-	int i;
+/*	int i;*/
 	u16 rx_len = EP0_GET_RX_LEN(ast_udc_read(udc, AST_VHUB_EP0_CTRL));	
 	u8 *buf;
 
@@ -1116,7 +1124,7 @@ static int ast_udc_stop(struct usb_gadget *gadget,
 }
 
 static const struct usb_gadget_ops ast_udc_ops = {
-	.get_frame		= ast_udc_gadget_getframe,	
+	.get_frame		= ast_udc_gadget_getframe,
 	.wakeup			= ast_udc_wakeup,
 	.pullup			= ast_udc_pullup,
 	.udc_start		= ast_udc_start,
@@ -1140,10 +1148,24 @@ static void ast_udc_init(struct ast_udc *udc)
 	ast_udc_write(udc, 0x7ffff, AST_VHUB_EP_ACK_IER);	
 	ast_udc_write(udc, 0, AST_VHUB_EP0_CTRL);
 //	ast_udc_write(udc, 0x1, AST_VHUB_EP1_CTRL);
-ast_udc_write(udc, 0, AST_VHUB_EP1_CTRL);
-
-
+	ast_udc_write(udc, 0, AST_VHUB_EP1_CTRL);
 }
+
+static const struct ast_udc_config ast_config = { 
+	.end_point_num = 16, 
+};
+
+static const struct ast_udc_config ast1220_config = { 
+	.end_point_num = 5, 
+};
+
+static const struct of_device_id ast_udc_of_dt_ids[] = {
+	{ .compatible = "aspeed,ast-udc", 		.data = &ast_config, },
+	{ .compatible = "aspeed,ast1220-udc",	.data = &ast1220_config, },
+	{}
+};
+
+MODULE_DEVICE_TABLE(of, ast_udc_of_dt_ids);
 
 #define EP_DMA_SIZE		2048
 
@@ -1152,12 +1174,12 @@ static int ast_udc_probe(struct platform_device *pdev)
 	struct ast_udc	*udc;
 	struct ast_udc_ep	*ep;		
 	int				ret = 0;
+	const struct of_device_id *udc_dev_id;	
 	struct resource	*res;
 
 	int i;
 
 	UDC_DBG(" \n");
-
 
 	udc = devm_kzalloc(&pdev->dev, sizeof(struct ast_udc), GFP_KERNEL);
 	if (!udc)
@@ -1175,11 +1197,34 @@ static int ast_udc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	udc->reset = devm_reset_control_get_exclusive(&pdev->dev, "udc");
+	if (IS_ERR(udc->reset)) {
+		dev_err(&pdev->dev, "can't get udc reset\n");
+		return PTR_ERR(udc->reset);
+	}
+
+	udc->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(udc->clk)) {
+		dev_err(&pdev->dev, "no clock defined \n");
+		return -ENODEV;
+	}
+
+	reset_control_assert(udc->reset);
+	clk_prepare_enable(udc->clk);
+	mdelay(10);
+	reset_control_deassert(udc->reset);
+
+	udc_dev_id = of_match_node(ast_udc_of_dt_ids, pdev->dev.of_node);
+	if (!udc_dev_id)
+		return -EINVAL;
+
+	udc->udc_config = (struct ast_udc_config*) udc_dev_id->data;
+
 	/* init software state */
 	udc->pdev = pdev;
 
 	spin_lock_init(&udc->lock);
-
+	udc->ep = devm_kzalloc(&pdev->dev, sizeof(struct ast_udc_ep) * udc->udc_config->end_point_num,GFP_KERNEL);
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
 	udc->gadget.max_speed = USB_SPEED_HIGH;
 	udc->gadget.dev.parent = &pdev->dev;
@@ -1201,9 +1246,9 @@ static int ast_udc_probe(struct platform_device *pdev)
 
 	//1024 * 16
 	udc->ep0_ctrl_buf = dma_alloc_coherent(udc->gadget.dev.parent,
-					EP_DMA_SIZE * AST_NUM_ENDPOINTS, &udc->ep0_ctrl_dma, GFP_KERNEL);
+					EP_DMA_SIZE * udc->udc_config->end_point_num, &udc->ep0_ctrl_dma, GFP_KERNEL);
 
-	for (i = 0; i < AST_NUM_ENDPOINTS; i++) {
+	for (i = 0; i < udc->udc_config->end_point_num; i++) {
 		ep = &udc->ep[i];
 		ep->ep.name = ast_ep_name[i];
 		if(i == 0) {
@@ -1215,7 +1260,7 @@ static int ast_udc_probe(struct platform_device *pdev)
 		}
 		ep->ep.caps.dir_in = true;
 		ep->ep.caps.dir_out = true;
-		
+
 		ep->ep.ops = &ast_udc_ep_ops;
 		ep->udc = udc;
 		if(i) {
@@ -1229,10 +1274,10 @@ static int ast_udc_probe(struct platform_device *pdev)
 			usb_ep_set_maxpacket_limit(&ep->ep, 64);		
 		}
 		printk("%s : maxpacket  %d, dma: %x \n ", ep->ep.name, ep->ep.maxpacket, ep->ep_dma);
-		
+
 		if(i) 
 			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
-		
+
 		INIT_LIST_HEAD(&ep->queue);				
 	}
 
@@ -1240,7 +1285,6 @@ static int ast_udc_probe(struct platform_device *pdev)
 	ast_udc_init(udc);
 
 	/* request UDC and maybe VBUS irqs */
-	
 	ret = devm_request_irq(&pdev->dev, udc->irq, ast_udc_irq, 0,
 			      KBUILD_MODNAME, udc);
 	if (ret < 0) {
@@ -1264,7 +1308,6 @@ err_map:
 	if (udc->reg)
 		iounmap(udc->reg);
 
-err_alloc:
 	kfree(udc);
 
 	printk("ast udc probe failed, %d\n", ret);
@@ -1288,7 +1331,10 @@ static int __exit ast_udc_remove(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 0);
 	free_irq(udc->irq, udc);
+
 	iounmap(udc->reg);
+	devm_kfree(&pdev->dev, udc->ep);
+	devm_kfree(&pdev->dev, udc);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
@@ -1344,13 +1390,6 @@ static int ast_udc_resume(struct platform_device *pdev)
 	return 0;
 }
 #endif
-
-static const struct of_device_id ast_udc_of_dt_ids[] = {
-        { .compatible = "aspeed,ast-udc", },
-        {}
-};
-
-MODULE_DEVICE_TABLE(of, ast_udc_of_dt_ids);
 
 static struct platform_driver ast_udc_driver = {
 	.probe 		= ast_udc_probe,

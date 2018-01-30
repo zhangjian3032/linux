@@ -105,17 +105,15 @@
 			clocks = <&clk_usb20>;
 			resets = <&sys_reset SCU_RESET_USB20>;
 			reset-names = "ehci";
-			
 		};
 
 		udc: udc@0x1e6a0000 {
-			compatible = "aspeed,ast-udc";
+			compatible = "aspeed,ast1220-udc";
 			reg = <0x1e6a0000 0x300>;
 			interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_usb20>;
 			resets = <&sys_reset SCU_RESET_USB20>;
 			reset-names = "udc";
-			status = "disabled";
 		};
 
 		vic: vic@1e6c0080 {
@@ -217,7 +215,7 @@
 			};
 			clk_usb20: clk_usb20@0C {
 				#clock-cells = <0>;
-				compatible = "aspeed,cam-usb20clock";
+				compatible = "aspeed,cam-usb20p1clock";
 				enable = <0x0C 0x0>;
 			};
 			clk_y: clk_y@0c {
@@ -230,6 +228,7 @@
 				#clock-cells = <0>;
 				compatible = "aspeed,cam-mac-clock";
 				enable = <0x0C 0x0>;
+				clocks = <&clk_hpll>;
 			};
 		};
 
@@ -273,6 +272,8 @@
 			slot_num = <2>;
 			resets = <&sys_reset SCU_RESET_SDHCI>;
 			reset-names = "sdhci";
+			slot0-clk-delay = <0x8>;
+			slot1-clk-delay = <0x8>;
 			clocks = <&clk_sd>;
 		};
 
@@ -462,13 +463,14 @@
 		interrupts = <20>;
 		interrupt-controller;
 		bus_num = <9>;
+		cmd-source = <0x5554>; /* I2C1 & I2C9 by ARM: 0, I2C2 ~ I2C8 by Coprocessor1: 1 */
 		resets = <&sys_reset SCU_RESET_I2C>;
 		reset-names = "i2c";		
 	};
 
 	i2c0: i2c@40 {
 		reg = <0x40 0x40 0x200 0x10>;
-		compatible = "aspeed,ast-g5-i2c", "aspeed,ast-dma-i2c";
+		compatible = "aspeed,ast-g5-i2c";
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <0>;

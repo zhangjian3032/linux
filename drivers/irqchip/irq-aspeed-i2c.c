@@ -24,6 +24,7 @@
 #include <linux/io.h>
 /*******************************************************************/
 #define AST_I2CG_ISR		0x00
+#define AST_I2CG_OWNER		0x08
 #define AST_I2CG_CTRL		0x0C
 #define I2C_SRAM_BUFF_EN	0x1
 /*******************************************************************/
@@ -96,6 +97,7 @@ static int irq_aspeed_i2c_probe(struct platform_device *pdev)
 {
 	struct ast_i2c_irq *i2c_irq;
 	struct device_node *node = pdev->dev.of_node;
+	u32 cmd_source;
 
 	i2c_irq = kzalloc(sizeof(*i2c_irq), GFP_KERNEL);
 	if (!i2c_irq)
@@ -120,10 +122,12 @@ static int irq_aspeed_i2c_probe(struct platform_device *pdev)
 	reset_control_assert(i2c_irq->reset);
 	udelay(3);
 	reset_control_deassert(i2c_irq->reset);
-	
-	if(of_machine_is_compatible("aspeed,ast2500")) {
-		/* only support in ast-g5 platform */
-		writel(I2C_SRAM_BUFF_EN, i2c_irq->regs + AST_I2CG_CTRL);
+
+	/* only support in ast-g5 platform */
+	writel(I2C_SRAM_BUFF_EN, i2c_irq->regs + AST_I2CG_CTRL);
+
+	if (!of_property_read_u32(node, "cmd-source", &cmd_source)) {
+		writel(cmd_source, i2c_irq->regs + AST_I2CG_OWNER);
 	}
 
 	i2c_irq->parent_irq = irq_of_parse_and_map(node, 0);

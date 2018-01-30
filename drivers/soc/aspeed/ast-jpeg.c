@@ -88,7 +88,7 @@
 #define JPEG_COMPRESS_MODE_ENABLE	(1 << 13)	/*  0: ASPEED proprietary compression mode,  1: Enable JPEG compatible mode  */
 #define JPEG_HALT_ENG_TRIGGER			(1 << 12)
 #define JPEG_COMPRESS_MODE_MASK		(3 << 10)
-//only support YUV420 no YUV444
+//only support YUV420 no YUV444, 11: NV12, 01:YUV422, 10:YUV444, 10: no
 #define JPEG_YUY2_COMPRESS			(1 << 10)
 #define JPEG_NV12_COMPRESS			(3 << 10)
 
@@ -172,7 +172,8 @@ struct ast_jpeg_trigger {
 
 #define AST_JPEG_SET_CONFIG					_IOW(JPEGIOC_BASE, 0x0, struct ast_jpeg_mode*)
 #define AST_JPEG_GET_CONFIG					_IOR(JPEGIOC_BASE, 0x1, struct ast_jpeg_mode*)
-#define AST_JPEG_TRIGGER						_IOWR(JPEGIOC_BASE, 0x6, struct ast_jpeg_trigger*)
+#define AST_JPEG_SET_TABLE					_IOW(JPEGIOC_BASE, 0x2, unsigned long*)
+#define AST_JPEG_TRIGGER					_IOWR(JPEGIOC_BASE, 0x6, struct ast_jpeg_trigger*)
 /***********************************************************************/
 
 static inline void
@@ -416,11 +417,11 @@ static irqreturn_t ast_jpeg_isr(int this_irq, void *dev_id)
 		complete(&ast_jpeg->jpeg_complete);
 	}
 
-	if (status & JPEG_COMPRESS_COMPLETE) {
+//	if (status & JPEG_COMPRESS_COMPLETE) {
 		printk("JPEG_COMPRESS_COMPLETE\n");
 		ast_jpeg_write(ast_jpeg, JPEG_COMPRESS_COMPLETE, AST_JPEG_ISR);
 		complete(&ast_jpeg->jpeg_complete);
-	}
+//	}
 
 	return IRQ_HANDLED;
 }
@@ -500,6 +501,9 @@ static long ast_jpeg_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		mode.y = ast_jpeg->y;
 		mode.format = ast_jpeg->format;
 		ret = copy_to_user(argp, &mode, sizeof(struct ast_jpeg_mode));
+		break;
+	case AST_JPEG_SET_TABLE:
+		ret = copy_from_user(ast_jpeg->reg_base + 0x400, argp, 0X100);
 		break;
 	case AST_JPEG_TRIGGER:
 		ret = copy_from_user(&jpeg_trigger, argp, sizeof(struct ast_jpeg_trigger));
