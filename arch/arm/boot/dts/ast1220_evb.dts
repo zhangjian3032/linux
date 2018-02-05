@@ -8,7 +8,8 @@
 
 	aliases {
 		serial0 = &uart0;
-		serial1 = &uart1;	
+		serial1 = &uart1;
+		serial2 = &uart2;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -30,7 +31,7 @@
 &fmc_spi {
 	status = "okay";
 	flash: m25p80@0 {
-	compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
+	compatible = "mx25u4033e", "m25p80", "jedec,spi-nor";
 	reg = <0x0>;
 	#address-cells = <0x1>;
 	#size-cells = <0x1>;
@@ -38,7 +39,7 @@
 	#m25p,fast-read;
 		partition@0 {
 			label = "fullpart";
-			reg = <0x00000000 0x02000000>;	
+			reg = <0x00000000 0x00080000>;	
 		};
 	};
 };
