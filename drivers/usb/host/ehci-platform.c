@@ -247,10 +247,10 @@ static int ehci_platform_probe(struct platform_device *dev)
 			priv->rsts[rst] = NULL;
 			break;
 		}
-
-		err = reset_control_deassert(priv->rsts[rst]);
-		if (err)
-			goto err_reset;
+		//fix for reset drive : need to modify
+		reset_control_deassert(priv->rsts[rst]);
+//		if (err)
+//			goto err_reset;
 	}
 
 	if (pdata->big_endian_desc)
