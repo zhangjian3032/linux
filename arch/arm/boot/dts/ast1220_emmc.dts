@@ -8,7 +8,8 @@
 
 	aliases {
 		serial0 = &uart0;
-		serial1 = &uart1;	
+		serial1 = &uart1;
+		serial2 = &uart2;	
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
