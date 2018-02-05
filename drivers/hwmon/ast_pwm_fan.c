@@ -2247,13 +2247,13 @@ ast_pwm_tacho_remove(struct platform_device *pdev)
 
 	hwmon_device_unregister(ast_pwm_tacho->hwmon_dev);
 
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < TACHO_NUM; i++)
 		sysfs_remove_group(&pdev->dev.kobj, &tacho_attribute_groups[i]);
 
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < PWM_TYPE_NUM; i++)
 		sysfs_remove_group(&pdev->dev.kobj, &pwm_type_attribute_groups[i]);
 
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < PWM_CH_NUM; i++)
 		sysfs_remove_group(&pdev->dev.kobj, &pwm_attribute_groups[i]);
 
 	sysfs_remove_group(&pdev->dev.kobj, &clk_attribute_groups);
