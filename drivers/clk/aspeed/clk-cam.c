@@ -15,7 +15,7 @@
 #include <linux/regmap.h>
 
 #include "clk-aspeed.h"
-#define AST_CLK_DEBUG
+//#define AST_CLK_DEBUG
 
 #ifdef AST_CLK_DEBUG
 //#define CLK_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
