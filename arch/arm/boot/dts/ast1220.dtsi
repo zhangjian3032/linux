@@ -30,7 +30,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-		
+
 		ahbc: ahbc@1e600000 {
 			compatible = "aspeed,ast-ahbc";
 			reg = <0x1e600000 0x100>;
@@ -96,24 +96,6 @@
 			reset-names = "mac";
 			clocks = <&clk_mac>;
 			status = "disabled";
-		};
-
-		ehci0: ehci@0x1e6a1000 {
-			compatible = "aspeed,ast-ehci", "generic-ehci";
-			reg = <0x1e6a1000 0x100>;
-			interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_usb20>;
-			resets = <&sys_reset SCU_RESET_USB20>;
-			reset-names = "ehci";
-		};
-
-		udc: udc@0x1e6a0000 {
-			compatible = "aspeed,ast1220-udc";
-			reg = <0x1e6a0000 0x300>;
-			interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_usb20>;
-			resets = <&sys_reset SCU_RESET_USB20>;
-			reset-names = "udc";
 		};
 
 		vic: vic@1e6c0080 {
@@ -327,6 +309,24 @@
 			clock-names = "PCLK";
 		};
 
+        ehci0: ehci@0x1e6a1000 {
+                compatible = "aspeed,ast-ehci", "generic-ehci";
+                reg = <0x1e6a1000 0x100>;
+                interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
+                clocks = <&clk_usb20>;
+                resets = <&sys_reset SCU_RESET_USB20>;
+                reset-names = "ehci";
+        };
+
+        udc: udc@0x1e6a0000 {
+                compatible = "aspeed,ast1220-udc";
+                reg = <0x1e6a0000 0x300>;
+                interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
+                clocks = <&clk_usb20>;
+                resets = <&sys_reset SCU_RESET_USB20>;
+                reset-names = "udc";
+        };
+
 		uart0: serial@1e783000 {
 			compatible = "ns16550a";
 			reg = <0x1e783000 0x1000>;
@@ -451,6 +451,22 @@
 			compatible = "aspeed,ast-cam";
 			interrupts = <0>, <1>;
 		};
+		ast_speaker: ast_speaker@00{
+            compatible = "aspeed,ast-speaker";
+            interrupts = <15>;
+            reg = <0x1e788000 0x40> , <0x1E6E2000 0x100> ;
+		};
+
+		ast_audio: ast_audio@00{
+            compatible = "aspeed,ast-audio";
+            interrupts = <15>;
+            reg = <0x1e788040 0xC0>,  <0x1E6E2000 0x300>, <0x1E7C0000 0x20000>,<0x1e782000 0x100>;
+		};
+		ast_clock: ast_clock@00{
+            compatible = "aspeed,ast-clock";
+            interrupts = <23>,<24>,<25>,<26>,<27>,<28>,<29>;
+            reg = <0x1e782000 0x100> , <0x1E6E2000 0x100> ;
+		};
 	};
 
 };
@@ -470,7 +486,7 @@
 
 	i2c0: i2c@40 {
 		reg = <0x40 0x40 0x200 0x10>;
-		compatible = "aspeed,ast-g5-i2c";
+		compatible = "aspeed,ast-g5-i2c", "aspeed,ast-dma-i2c";
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <0>;
@@ -542,7 +558,7 @@
 	};
 	i2c8: i2c@340 {
 		reg = <0x340 0x40>;
-		compatible = "aspeed,ast-g5-i2c";
+		compatible = "aspeed,ast-g5-i2c", "aspeed,ast-dma-i2c";
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <8>;
