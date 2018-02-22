@@ -20,6 +20,7 @@
 
 #include <mach/ast-bmc-scu.h>
 #include <mach/regs-bmc-scu.h>
+//#include <mach/ast_i2c.h>
 
 //#define ASPEED_SCU_LOCK
 //#define AST_BMC_SCU_DBG
@@ -669,6 +670,157 @@ ast_scu_multi_func_romcs(u8 num)
 		AST_SCU_FUN_PIN_CTRL3);
 }
 
+extern void
+ast_scu_multi_func_i2c(u8 bus_no)
+{
+	//TODO check ... //In AST2400 Due to share pin with SD , please not enable I2C 10 ~14 
+	// AST 2400 have 14 , AST 2300 9 ...
+	u32 pin_ctrl = ast_scu_read(AST_SCU_FUN_PIN_CTRL5);
+	switch(bus_no) {
+		case 0:
+			break;
+		case 1:
+			break;
+		case 2:
+			pin_ctrl |= SCU_FUC_PIN_I2C3;
+			break;
+		case 3:
+			pin_ctrl |= SCU_FUC_PIN_I2C4;			
+			break;
+		case 4:
+			pin_ctrl |= SCU_FUC_PIN_I2C5;			
+			break;
+		case 5:
+			pin_ctrl |= SCU_FUC_PIN_I2C6;			
+			break;
+		case 6:
+			pin_ctrl |= SCU_FUC_PIN_I2C7;			
+			break;
+		case 7:
+			pin_ctrl |= SCU_FUC_PIN_I2C8;			
+			break;
+		case 8:
+			pin_ctrl |= SCU_FUC_PIN_I2C9;	
+			break;
+		case 9:
+			pin_ctrl |= SCU_FUC_PIN_I2C10;
+			pin_ctrl &= ~SCU_FUC_PIN_SD1;
+			break;
+		case 10:
+			pin_ctrl |= SCU_FUC_PIN_I2C11;			
+			pin_ctrl &= ~SCU_FUC_PIN_SD1;
+			break;
+		case 11:
+			pin_ctrl |= SCU_FUC_PIN_I2C12;			
+			pin_ctrl &= ~SCU_FUC_PIN_SD1;		
+			break;
+		case 12:
+			pin_ctrl |= SCU_FUC_PIN_I2C13;			
+			pin_ctrl &= ~SCU_FUC_PIN_SD1;
+			break;
+		case 13:
+			pin_ctrl |= SCU_FUC_PIN_I2C14;	
+			break;
+	}
+
+	ast_scu_write(pin_ctrl, AST_SCU_FUN_PIN_CTRL5);
+}	
+
+EXPORT_SYMBOL(ast_scu_multi_func_i2c);
+
+extern void
+ast_scu_multi_func_pwm_tacho(void)
+{
+	u32 sts = 0;
+	spin_lock(&ast_scu_lock);	
+
+	sts = ast_scu_read(AST_SCU_FUN_PIN_CTRL3) &~0xcfffff;
+	ast_scu_write(sts | 0xc000ff, AST_SCU_FUN_PIN_CTRL3);
+	spin_unlock(&ast_scu_lock);	
+
+}	
+
+EXPORT_SYMBOL(ast_scu_multi_func_pwm_tacho);
+
+//0 : usb 2.0 hub mode, 1:usb 2.0 host2 controller
+extern void
+ast_scu_multi_func_usb_port1_mode(u8 mode)
+{
+	if(mode)
+		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_USB20_HOST, 
+					AST_SCU_FUN_PIN_CTRL5);
+	else
+		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) & ~SCU_FUC_PIN_USB20_HOST, 
+					AST_SCU_FUN_PIN_CTRL5);
+}	
+
+EXPORT_SYMBOL(ast_scu_multi_func_usb_port1_mode);
+
+//0 : 1.1 hid 1, 1.1 host , 2, 2.0 host 3, 2.0 device 
+extern void
+ast_scu_multi_func_usb_port2_mode(u8 mode)
+{
+#if defined(AST_SOC_G5)
+	if(mode == 0)
+		ast_scu_write((ast_scu_read(AST_SCU_FUN_PIN_CTRL6) & ~SCU_FUN_PIN_USBP1_MASK), 
+					AST_SCU_FUN_PIN_CTRL6);
+	else if ((mode == 1) || (mode == 2))
+		ast_scu_write((ast_scu_read(AST_SCU_FUN_PIN_CTRL6) & ~SCU_FUN_PIN_USBP1_MASK) |
+					SCU_FUN_PIN_USBP1_MODE(0x2), 
+					AST_SCU_FUN_PIN_CTRL6);
+	else if (mode == 3)
+		ast_scu_write((ast_scu_read(AST_SCU_FUN_PIN_CTRL6) & ~SCU_FUN_PIN_USBP1_MASK) |
+					SCU_FUN_PIN_USBP1_MODE(0x1), 
+					AST_SCU_FUN_PIN_CTRL6);
+	else {
+		printk("nothing\n");
+	}
+#else
+	if(mode == 0)
+		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) & ~SCU_FUC_PIN_USB11_PORT2, 
+					AST_SCU_FUN_PIN_CTRL5);
+	else if ((mode == 1) || (mode == 2))
+		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_USB11_PORT2 | SCU_FUC_PIN_USB20_HOST, 
+			AST_SCU_FUN_PIN_CTRL5);
+	else {
+		printk("nothing\n");
+	}
+#endif	
+}	
+
+EXPORT_SYMBOL(ast_scu_multi_func_usb_port2_mode);
+
+//0 : gpioQ6,7 mode , 1: usb1.1 host port 4 mode
+extern void
+ast_scu_multi_func_usb_port34_mode(u8 mode)
+{
+#if defined(AST_SOC_G5)
+	if(mode) {
+		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_USB11_PORT4, 
+					AST_SCU_FUN_PIN_CTRL5);
+		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL3) | 
+					(SCU_FUN_PIN_USBP3_DP |SCU_FUN_PIN_USBP3_DN | SCU_FUN_PIN_USBP4_DP | SCU_FUN_PIN_USBP4_DN),
+					AST_SCU_FUN_PIN_CTRL3);		
+	} else {
+		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) & ~SCU_FUC_PIN_USB11_PORT4, 
+					AST_SCU_FUN_PIN_CTRL5);
+		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL3) & 
+					~(SCU_FUN_PIN_USBP3_DP |SCU_FUN_PIN_USBP3_DN | SCU_FUN_PIN_USBP4_DP | SCU_FUN_PIN_USBP4_DN),
+					AST_SCU_FUN_PIN_CTRL3);		
+	}
+#else
+	if(mode) {
+		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_USB11_PORT4, 
+					AST_SCU_FUN_PIN_CTRL5);
+	} else {
+		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) & ~SCU_FUC_PIN_USB11_PORT4, 
+					AST_SCU_FUN_PIN_CTRL5);
+	}
+#endif
+}	
+
+EXPORT_SYMBOL(ast_scu_multi_func_usb_port34_mode);
+
 //0 : 1: SD1 function 
 extern void
 ast_scu_multi_func_sdhc_8bit_mode(void)
@@ -678,6 +830,27 @@ ast_scu_multi_func_sdhc_8bit_mode(void)
 }	
 
 EXPORT_SYMBOL(ast_scu_multi_func_sdhc_8bit_mode);
+
+extern void
+ast_scu_multi_func_sdhc_slot(u8 slot)
+{
+	switch(slot) {
+		case 0:
+			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_SD1, 
+						AST_SCU_FUN_PIN_CTRL5);						
+			break;
+		case 1:
+			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_SD2, 
+						AST_SCU_FUN_PIN_CTRL5);									
+			break;
+		case 3:
+			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) | SCU_FUC_PIN_SD1 | SCU_FUC_PIN_SD2, 
+						AST_SCU_FUN_PIN_CTRL5);						
+			break;			
+	}
+}	
+
+EXPORT_SYMBOL(ast_scu_multi_func_sdhc_slot);
 
 //0: VGA , 1 : CRT, 2 : PASS through Port -A, 3 : PASS through Port -B  
 extern void
@@ -969,7 +1142,6 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ast_scu_base = devm_ioremap_resource(&pdev->dev, res);
-	return 0;
 
 #ifdef CONFIG_AST_RUNTIME_DMA_UARTS
 	if(of_machine_is_compatible("aspeed,ast2500")) {
@@ -977,6 +1149,73 @@ static int ast_bmc_scu_probe(struct platform_device *pdev)
 			ast_scu_uartx_init();
 		}
 	}
+#endif
+
+#ifdef CONFIG_SERIAL_AST_DMA_UART
+	//UART Setting 
+	for_each_compatible_node(np, NULL, "aspeed,ast-sdma-uart") {
+		BMC_SCUDBG("np->name %s %s \n", np->name, np->properties->name);
+		idx = of_alias_get_id(np, "serial");
+		if(idx > 0)
+			ast_scu_multi_func_uart(idx);
+	}
+#endif 
+
+	for_each_compatible_node(np, NULL, "ns16550a") {
+		BMC_SCUDBG("np->name %s %s \n", np->name, np->properties->name);
+		idx = of_alias_get_id(np, "serial");
+		if(idx > 0)
+			ast_scu_multi_func_uart(idx);
+	}
+
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-pwm-tacho")) {
+		BMC_SCUDBG("aspeed,ast-pwm-tacho found in SCU \n");
+		//SCU Pin-MUX	//PWM & TACHO 
+		ast_scu_multi_func_pwm_tacho();		
+	}
+
+	for_each_compatible_node(np, NULL, "aspeed,ast-mac") {
+		BMC_SCUDBG("aspeed,ast-mac found in SCU, ");
+		if (of_property_read_u32(np, "pinmux", &idx) == 0) {
+			BMC_SCUDBG("pinmux = %d \n", idx);
+			ast_scu_multi_func_eth(idx);
+		}
+	}
+
+	for_each_compatible_node(np, NULL, "aspeed,ast-i2c") {
+		BMC_SCUDBG("aspeed,ast-i2c found in SCU, ");
+		idx = of_alias_get_id(np, "i2c");		
+		BMC_SCUDBG("bus = %d ", idx);
+		if(idx > 0)
+			ast_scu_multi_func_i2c(idx);
+		BMC_SCUDBG("\n");
+	}
+
+	for_each_compatible_node(np, NULL, "aspeed,sdhci-ast") {
+		BMC_SCUDBG("aspeed,sdhci-ast found in SCU, ");
+		if (of_property_read_u32(np, "slot", &idx) == 0) {
+			BMC_SCUDBG("slot = %d ", idx);
+			ast_scu_multi_func_sdhc_slot(idx);
+		}
+		BMC_SCUDBG("\n");
+	}
+
+	if(of_find_compatible_node(NULL, NULL, "aspeed,ast-udc")) {
+		BMC_SCUDBG("aspeed,ast-udc found in SCU \n");
+		ast_scu_multi_func_usb_port1_mode(0);
+	}
+#if 1
+	if((of_find_compatible_node(NULL, NULL, "aspeed,ast-uhci")) || (of_find_compatible_node(NULL, NULL, "aspeed,ast-ehci"))) {
+		BMC_SCUDBG("aspeed,usb host found in SCU \n");
+		ast_scu_multi_func_usb_port1_mode(1);
+		ast_scu_multi_func_usb_port2_mode(2);
+#ifdef AST_SOC_G4		
+		ast_scu_multi_func_usb_port34_mode(1);
+#endif
+	} 
+#else
+	ast_scu_multi_func_usb_port1_mode(0);
+
 #endif
 
 //TODO Fix for ast2400
