@@ -11,11 +11,11 @@ if [ "$2" == "" ]; then
 fi
 
 #Patch replace ...
-find $1/. -name  '*.patch' | while read filename; do mv -v "${filename}" "`echo "${filename}" | sed -e 's/.patch//'`"; done
+find $1/. -name  '*.patch' | while read filename; do mv -v "${filename}" "`echo "${filename}" | sed -e 's/\.patch//'`"; done
 
 #BMC
 if [ "$2" == "bmc" ]; then
-        find $1/. -name  '*.bmc' | while read filename; do mv -v "${filename}" "`echo "${filename}" | sed -e 's/.bmc//'`"; done
+        find $1/. -name  '*.bmc' | while read filename; do mv -v "${filename}" "`echo "${filename}" | sed -e 's/\.bmc//'`"; done
         find $1/. -name  '*.cam' | while read filename; do rm -f "${filename}"; done
 	find $1/. -name  '*_cam_*.h' | while read filename; do rm -f "${filename}"; done
 	find $1/. -name  '*_cam_*.c' | while read filename; do rm -f "${filename}"; done
@@ -46,7 +46,7 @@ fi
 
 #CAM
 if [ "$2" == "cam" ]; then
-        find $1/. -name  '*.cam' | while read filename; do mv -v "${filename}" "`echo "${filename}" | sed -e 's/.cam//'`"; done
+        find $1/. -name  '*.cam' | while read filename; do mv -v "${filename}" "`echo "${filename}" | sed -e 's/\.cam//'`"; done
         find $1/. -name  '*.bmc' | while read filename; do rm -f "${filename}"; done
 	rm -f $1/include/dt-bindings/reset/ast-g4-reset.h
 	rm -f $1/include/dt-bindings/reset/ast-g5-reset.h
