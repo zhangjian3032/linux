@@ -46,7 +46,6 @@
 };
 #endif
 
-#if 1
 &mac0 {
 	status = "okay";
 };
@@ -62,7 +61,6 @@
 &gmac1 {
 	status = "disable";
 };
-#endif
 
 &fmc_spi {
 	status = "okay";

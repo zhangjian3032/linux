@@ -8,7 +8,8 @@
 
 	aliases {
 		serial0 = &uart0;
-		serial1 = &uart1;	
+		serial1 = &uart1;
+		serial2 = &uart2;	
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -22,7 +23,7 @@
 
 
 	chosen {
-		bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk0p1 rw rootfstype=ext2 rootwait init=/linuxrc";
+		bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk0p1 rw rootfstype=ext2 rootwait init=/linuxrc lpj=3977216 quiet";
 	};
 
 };
