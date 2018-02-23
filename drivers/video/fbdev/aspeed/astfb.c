@@ -1441,7 +1441,7 @@ static int astfb_probe(struct platform_device *pdev)
 			return -ENOMEM;
 
 		info->fix.smem_start = fb_dma;
-		info->fix.smem_len = SZ_8M;
+		info->fix.smem_len = SZ_2M;
 
 	}
 
