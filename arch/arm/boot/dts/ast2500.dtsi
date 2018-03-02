@@ -165,7 +165,7 @@
 		syscon: syscon@1e6e2000 {
 			compatible = "aspeed,g5-scu", "syscon", "simple-mfd";
 			reg = <0x1e6e2000 0x200>;
-			ranges = <0x0 0x1e6e2000 0x1a8>;
+			ranges = <0 0 0x1e6e2000 0x1a8>;
 
 			#address-cells = <1>;
 			#size-cells = <1>;
