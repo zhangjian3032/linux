@@ -65,35 +65,49 @@
 &fmc_spi {
 	status = "okay";
 	flash: m25p80@0 {
-	compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
-	reg = <0x0>;
-	#address-cells = <0x1>;
-	#size-cells = <0x1>;
-	spi-max-frequency = <50000000>;
-	m25p,fast-read;
-		partition@0 {
-			label = "u-boot";
-			reg = <0x000000 0x060000>; /* 384 KiB */
-		};
-		partition@1 {
-			label = "u-boot-env";
-			reg = <0x060000 0x010000>; /* 64 KiB */
-		};
-		partition@2 {
-			label = "dts";
-			reg = <0x070000 0x010000>; /* 64 Kib */
-		};
-		partition@3 {
-			label = "kernel";
-			reg = <0x080000 0x380000>; /* 3.5 MiB */
-		};
-		partition@4 {
-			label = "rootfs";
-			reg = <0x400000 0x400000>; /* 4 MiB */
-		};
-		partition@5 {
-			label = "pd_rootfs";
-			reg = <0x800000 0x0>; 
-		};
+		compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
+		reg = <0x0>;
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		spi-max-frequency = <50000000>;
+		m25p,fast-read;
+			partition@0 {
+				label = "u-boot";
+				reg = <0x000000 0x060000>; /* 384 KiB */
+			};
+			partition@1 {
+				label = "u-boot-env";
+				reg = <0x060000 0x010000>; /* 64 KiB */
+			};
+			partition@2 {
+				label = "dts";
+				reg = <0x070000 0x010000>; /* 64 Kib */
+			};
+			partition@3 {
+				label = "kernel";
+				reg = <0x080000 0x380000>; /* 3.5 MiB */
+			};
+			partition@4 {
+				label = "rootfs";
+				reg = <0x400000 0x400000>; /* 4 MiB */
+			};
+			partition@5 {
+				label = "pd_rootfs";
+				reg = <0x800000 0x0>; 
+			};
 	};
 };
+
+#if 0
+&spi1 {
+	status = "okay";
+	flash: m25p80@0 {
+		compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
+		reg = <0x0>;
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		spi-max-frequency = <50000000>;
+		m25p,fast-read;
+	};
+};
+#endif
