@@ -39,20 +39,36 @@
 		fmc_spi: fmc_spi@1e620000 {
 			status = "disable";
 			compatible = "aspeed,fmc-spi";
-			number_of_chip_select = /bits/ 8  <2>;
+			number_of_chip_select = /bits/ 8 <2>;
 			/* reg : cs0 : cs1 : cs2 : cs3 : cs4 : cs5 */
 			reg = <0x1e620000 0x100 0x20000000 0x20 0x28000000 0x20>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&clk_ahb>;
-                };
-
+		};
+#if 0
 		spi1: spi1@1e630000 {
+			status = "disable";
+			compatible = "aspeed,fmc-spi";
+			number_of_chip_select = /bits/ 8 <2>;
+			/* reg : cs0 : cs1 */
+			reg = <0x1e630000 0x100 0x30000000 0x20 0x32000000 0x20>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clk_ahb>;
 		};
 
 		spi2: spi2@1e631000 {
+			status = "disable";
+			compatible = "aspeed,fmc-spi";
+			number_of_chip_select = /bits/ 8 <2>;
+			/* reg : cs0 : cs1 */
+			reg = <0x1e631000 0x100 0x38000000 0x20 0x3A000000 0x20>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clk_ahb>;
 		};
-
+#endif
 		mac0: ftgmac@1e660000 {
 			compatible = "aspeed,ast-mac";
 			reg = <0x1e660000 0x180>;
