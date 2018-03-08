@@ -187,6 +187,7 @@
 			#size-cells = <1>;
 
 			pinctrl: pinctrl {
+				aspeed,external-nodes = <&gfx>, <&lpc_host>;
 				compatible = "aspeed,g5-pinctrl";
 			};
 
@@ -358,7 +359,7 @@
 			resets = <&sys_reset SCU_RESET_ADC>;
 			reset-names = "adc";
 			pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
+			pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
 				&pinctrl_adc2_default &pinctrl_adc3_default
 				&pinctrl_adc4_default &pinctrl_adc5_default
 				&pinctrl_adc6_default &pinctrl_adc7_default
@@ -525,10 +526,29 @@
 			serial_irq = <4>;
 		};
 
-		lpc:lpc@1e789000 {
-			compatible = "aspeed,ast-lpc";
-			reg = <0x1e789000 0x200>;
+		lpc: lpc@1e789000 {
+			compatible = "aspeed,ast-lpc", "simple-mfd", "syscon";
+			reg = <0x1e789000 0x1000>;
 			interrupts = <8>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x1e789000 0x1000>;
+
+			lpc_bmc: lpc-bmc@0 {
+				compatible = "aspeed,ast2500-lpc-bmc";
+				reg = <0x0 0x80>;
+			};
+
+			lpc_host: lpc-host@80 {
+				compatible = "aspeed,ast2500-lpc-host";
+				reg = <0x80 0x1e0>;
+				reg-io-width = <4>;
+
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x80 0x1e0>;
+			};
 		};
 
 		uart2: serial@1e78d000 {
