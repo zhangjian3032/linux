@@ -68,7 +68,7 @@ static unsigned int noop_ret(struct irq_data *data)
 	return 0;
 }
 
-struct irq_chip i2c_irq_chip = {
+static struct irq_chip i2c_irq_chip = {
 	.name			= "i2c-irq",
 	.irq_startup	= noop_ret,
 	.irq_shutdown	= noop,
