@@ -886,6 +886,7 @@ static int ast_jtag_probe(struct platform_device *pdev)
 	reset_control_deassert(ast_jtag->reset);
 
 	ast_jtag_write(ast_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN , AST_JTAG_CTRL); //Eanble Clock
+	//Enable sw mode for disable clk 
 	ast_jtag_write(ast_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO, AST_JTAG_SW);
 
 	ret = devm_request_irq(&pdev->dev, ast_jtag->irq, ast_jtag_interrupt,
