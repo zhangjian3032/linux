@@ -761,7 +761,7 @@ sub seed_camelcase_file {
 sub is_maintained_obsolete {
 	my ($filename) = @_;
 
-	return 0 if (!(-e "$root/scripts/get_maintainer.pl"));
+	return 0 if (!$tree || !(-e "$root/scripts/get_maintainer.pl"));
 
 	my $status = `perl $root/scripts/get_maintainer.pl --status --nom --nol --nogit --nogit-fallback -f $filename 2>&1`;
 
@@ -2137,7 +2137,7 @@ sub process {
        my $commit_log_possible_stack_dump = 0;
 	my $commit_log_long_line = 0;
 	my $commit_log_has_diff = 0;
-	my $reported_maintainer_file = 0;
+	my $reported_maintainer_file = 1;
 	my $non_utf8_charset = 0;
 
 	my $last_blank_line = 0;
