@@ -655,7 +655,7 @@ static void aspeed_eclk_disable(struct clk_hw *hw)
 }
 
 #define SCU_RSACLK_STOP_EN			(0x1 << 24)
-#define SCU_YCLK_STOP_EN			(0x1 << 16)
+#define SCU_YCLK_STOP_EN			(0x1 << 13)
 
 static unsigned long aspeed_yclk_recalc_rate(struct clk_hw *hw,
 		unsigned long clkin_rate)
