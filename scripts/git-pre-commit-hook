@@ -11,9 +11,14 @@ else
     exit -1
 fi
 
-git diff --cached HEAD | $CHECKPATCH --no-tree --no-signoff --summary-file -q
-
-if [ $? != 0 ]; then
+RESULT=$(git diff --cached HEAD | $CHECKPATCH --no-signoff -q --color=always)
+echo "$RESULT"
+ERR_NUM=$(echo "$RESULT" | grep total | cut -d " " -f 2)
+if [ "$RESULT" == "" ]; then
+    echo "No result."
+    exit 0
+fi
+if [ "$ERR_NUM" != "0" ]; then
     echo "Coding style checked failed.  Please fix warnings and errors and try committing again."
     exit -1
 fi
