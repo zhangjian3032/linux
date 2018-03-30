@@ -1910,6 +1910,13 @@ static void ast_video_auto_mode_trigger(struct ast_video_data *ast_video, struct
 		} else {
 			auto_mode->total_size = ast_video_read(ast_video, AST_VIDEO_COMPRESS_DATA_COUNT);
 			auto_mode->block_count = ast_video_read(ast_video, AST_VIDEO_COMPRESS_BLOCK_COUNT) >> 16;
+
+			if(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & G5_VIDEO_COMPRESS_JPEG_MODE) {
+				auto_mode->total_size = ast_video_read(ast_video, AST_VIDEO_JPEG_COUNT);
+//				printk("jpeg %d auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);
+			} else {
+//				printk("%d  auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);					
+			}
 		}
 
 		break;

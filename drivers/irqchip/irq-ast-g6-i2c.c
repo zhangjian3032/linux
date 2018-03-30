@@ -23,10 +23,17 @@
 #include <linux/of.h>
 #include <linux/io.h>
 /*******************************************************************/
-#define AST_I2CG_ISR		0x00
-#define AST_I2CG_OWNER		0x08
-#define AST_I2CG_CTRL		0x0C
-#define I2C_SRAM_BUFF_EN	0x1
+#define AST_I2CG_MASTER_ISR		0x00
+#define AST_I2CG_SLAVE_ISR		0x04
+#define AST_I2CG_OWNER			0x08
+#define AST_I2CG_CTRL			0x0C
+#define AST_I2CG_CLK_DIV_CTRL	0x10
+
+/* 0x0C : I2CDG Global Control Register  */
+#define AST_I2CG_SLAVE_PKT_NAK		(0x1 << 4)
+
+#define AST_I2CG_CTRL_NEW_REG		(0x1 << 2)
+#define AST_I2CG_CTRL_NEW_CLK_DIV	(0x1 << 1)
 /*******************************************************************/
 //#define AST_I2C_IRQ_DEBUG
 
@@ -35,7 +42,6 @@
 #else
 #define I2C_IRQ_DBUG(fmt, args...)
 #endif
-
 /*******************************************************************/
 struct ast_i2c_irq {
 	void __iomem	*regs;
@@ -53,12 +59,21 @@ static void ast_i2c_irq_handler(struct irq_desc *desc)
 	unsigned int bus_irq;
 
 	chained_irq_enter(chip, desc);
-	status = readl(i2c_irq->regs + AST_I2CG_ISR);
+	status = readl(i2c_irq->regs + AST_I2CG_MASTER_ISR);
 	for_each_set_bit(bit, &status, i2c_irq->bus_num) {
 		bus_irq = irq_find_mapping(i2c_irq->irq_domain, bit);
 		generic_handle_irq(bus_irq);
 	}
+	printk("TODO \n");
+#if 0	
+	status = readl(i2c_irq->regs + AST_I2CG_SLAVE_ISR);
+	for_each_set_bit(bit, &status, i2c_irq->bus_num) {
+		bus_irq = irq_find_mapping(i2c_irq->irq_domain, bit);
+		generic_handle_irq(bus_irq + 32);
+	}
+#endif	
 	chained_irq_exit(chip, desc);
+
 }
 
 static void noop(struct irq_data *data) { }
@@ -123,8 +138,19 @@ static int irq_aspeed_i2c_probe(struct platform_device *pdev)
 	udelay(3);
 	reset_control_deassert(i2c_irq->reset);
 
-	/* only support in ast-g5 platform */
-	writel(I2C_SRAM_BUFF_EN, i2c_irq->regs + AST_I2CG_CTRL);
+	/* only support in ast-g6 platform */
+	writel(AST_I2CG_SLAVE_PKT_NAK | AST_I2CG_CTRL_NEW_REG | AST_I2CG_CTRL_NEW_CLK_DIV, i2c_irq->regs + AST_I2CG_CTRL);
+
+
+	/* assign 4 base clock 
+	 * base clk1 : 1M for 1KHz
+	 * base clk2 : 4M for 400KHz	 
+	 * base clk3 : 10M for 1MHz	 
+	 * base clk4 : 35M for 3.4MHz	 
+	*/
+	writel(xx , i2c_irq->regs + AST_I2CG_CLK_DIV_CTRL);
+
+	
 
 	if (!of_property_read_u32(node, "cmd-source", &cmd_source)) {
 		writel(cmd_source, i2c_irq->regs + AST_I2CG_OWNER);
