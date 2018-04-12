@@ -26,23 +26,23 @@
 #include <linux/io.h>
 #include <asm/uaccess.h>
 /* register ************************************************************************************/
-#define AST_MCTP_CTRL 		0x00
-#define AST_MCTP_TX_CMD		0x04
-#define AST_MCTP_RX_CMD		0x08
-#define AST_MCTP_ISR 		0x0c
-#define AST_MCTP_IER 		0x10
-#define AST_MCTP_EID 		0x14
-#define AST_MCTP_OBFF 		0x18
+#define ASPEED_MCTP_CTRL 		0x00
+#define ASPEED_MCTP_TX_CMD		0x04
+#define ASPEED_MCTP_RX_CMD		0x08
+#define ASPEED_MCTP_ISR 		0x0c
+#define ASPEED_MCTP_IER 		0x10
+#define ASPEED_MCTP_EID 		0x14
+#define ASPEED_MCTP_OBFF 		0x18
 
 /* AST_MCTP_CTRL 		0x00 */
-#define MCTP_RX_RDY			(1 << 4)
-#define MCTP_TX				(1)
+#define MCTP_RX_CMD_RDY			(1 << 4)
+#define MCTP_TX_TRIGGER			(1)
 
 /* AST_MCTP_ISR 		0x0c */
 #define MCTP_RX_NO_CMD			(1 << 9)
 #define MCTP_RX_COMPLETE		(1 << 8)
 
-#define MCTP_TX_LAST			(1 <<1 )
+#define MCTP_TX_LAST			(1 << 1)
 #define MCTP_TX_COMPLETE		(1)
 
 /*************************************************************************************/
@@ -176,14 +176,14 @@ ast_mctp_write(struct ast_mctp_info *ast_mctp, u32 val, u32 reg)
 }
 
 /*************************************************************************************/
-void ast_mctp_wait_tx_complete(struct ast_mctp_info *ast_mctp)
+static void ast_mctp_wait_tx_complete(struct ast_mctp_info *ast_mctp)
 {
 	wait_event_interruptible(ast_mctp->mctp_wq, (ast_mctp->flag == MCTP_TX_LAST));
 	MCTP_DBUG("\n");
 	ast_mctp->flag = 0;
 }
 
-void ast_mctp_wait_rx_complete(struct ast_mctp_info *ast_mctp)
+static void ast_mctp_wait_rx_complete(struct ast_mctp_info *ast_mctp)
 {
 	wait_event_interruptible(ast_mctp->mctp_wq, (ast_mctp->flag == MCTP_EOM));
 	MCTP_DBUG("\n");
@@ -226,7 +226,7 @@ static void ast_mctp_tx_xfer(struct ast_mctp_info *ast_mctp, struct ast_mctp_xfe
 	memcpy(ast_mctp->tx_data, mctp_xfer->xfer_buff,  mctp_xfer->xfer_len);
 
 	//trigger tx
-	ast_mctp_write(ast_mctp, ast_mctp_read(ast_mctp, AST_MCTP_CTRL) | MCTP_TX, AST_MCTP_CTRL);
+	ast_mctp_write(ast_mctp, ast_mctp_read(ast_mctp, ASPEED_MCTP_CTRL) | MCTP_TX_TRIGGER, ASPEED_MCTP_CTRL);
 
 	//wait intr
 	ast_mctp_wait_tx_complete(ast_mctp);
@@ -291,29 +291,29 @@ static void ast_mctp_rx_combine_data(struct ast_mctp_info *ast_mctp)
 static irqreturn_t ast_mctp_isr(int this_irq, void *dev_id)
 {
 	struct ast_mctp_info *ast_mctp = dev_id;
-	u32 status = ast_mctp_read(ast_mctp, AST_MCTP_ISR);
+	u32 status = ast_mctp_read(ast_mctp, ASPEED_MCTP_ISR);
 
 	MCTP_DBUG("%x \n", status);
 
 	if (status & MCTP_TX_LAST) {
-		ast_mctp_write(ast_mctp, MCTP_TX_LAST | (status), AST_MCTP_ISR);
+		ast_mctp_write(ast_mctp, MCTP_TX_LAST | (status), ASPEED_MCTP_ISR);
 		ast_mctp->flag = MCTP_TX_LAST;
 	}
 
 	if (status & MCTP_TX_COMPLETE) {
-		ast_mctp_write(ast_mctp, MCTP_TX_COMPLETE | (status), AST_MCTP_ISR);
+		ast_mctp_write(ast_mctp, MCTP_TX_COMPLETE | (status), ASPEED_MCTP_ISR);
 //		ast_mctp->flag = MCTP_TX_COMPLETE;
 	}
 
 	if (status & MCTP_RX_COMPLETE) {
-		ast_mctp_write(ast_mctp, MCTP_RX_COMPLETE | (status), AST_MCTP_ISR);
+		ast_mctp_write(ast_mctp, MCTP_RX_COMPLETE | (status), ASPEED_MCTP_ISR);
 //		ast_mctp->flag = MCTP_RX_COMPLETE;
 //		ast_mctp->flag = 0;
 		ast_mctp_rx_combine_data(ast_mctp);
 	}
 
 	if (status & MCTP_RX_NO_CMD) {
-		ast_mctp_write(ast_mctp, MCTP_RX_NO_CMD | (status), AST_MCTP_ISR);
+		ast_mctp_write(ast_mctp, MCTP_RX_NO_CMD | (status), ASPEED_MCTP_ISR);
 		ast_mctp->flag = MCTP_RX_NO_CMD;
 		printk("MCTP_RX_NO_CMD \n");
 	}
@@ -333,7 +333,7 @@ static void ast_mctp_ctrl_init(struct ast_mctp_info *ast_mctp)
 	int i = 0;
 
 	MCTP_DBUG("dram base %x \n", ast_mctp->dram_base);
-	ast_mctp_write(ast_mctp, ast_mctp->dram_base, AST_MCTP_EID);
+	ast_mctp_write(ast_mctp, ast_mctp->dram_base, ASPEED_MCTP_EID);
 	//4K size memory
 	//1st 1024 : cmd desc --> 0~512 : tx desc , 512 ~ 1024 : rx desc
 	//2nd 1024 : tx data
@@ -342,8 +342,8 @@ static void ast_mctp_ctrl_init(struct ast_mctp_info *ast_mctp)
 
 	//tx
 	ast_mctp->mctp_dma = dma_alloc_coherent(NULL,
-											4096,
-											&ast_mctp->mctp_dma_addr, GFP_KERNEL);
+						4096,
+						&ast_mctp->mctp_dma_addr, GFP_KERNEL);
 
 	if (((u32)ast_mctp->mctp_dma & 0xff) != 0x00)
 		printk("ERROR dma addr !!!!\n");
@@ -368,7 +368,7 @@ static void ast_mctp_ctrl_init(struct ast_mctp_info *ast_mctp)
 
 	MCTP_DBUG("tx data %x , tx data dma %x \n", (u32)ast_mctp->tx_data, (u32)ast_mctp->tx_data_dma);
 
-	ast_mctp_write(ast_mctp, ast_mctp->tx_cmd_desc_dma, AST_MCTP_TX_CMD);
+	ast_mctp_write(ast_mctp, ast_mctp->tx_cmd_desc_dma, ASPEED_MCTP_TX_CMD);
 
 	//RX 8 buffer
 	ast_mctp->rx_cmd_desc = (struct ast_mctp_cmd_desc *)(ast_mctp->mctp_dma + 512);
@@ -400,15 +400,15 @@ static void ast_mctp_ctrl_init(struct ast_mctp_info *ast_mctp)
 
 //	MCTP_DBUG("rx cmd desc %x , data dma %x \n", ast_mctp->rx_cmd_desc_dma, ast_mctp->rx_data_dma);
 
-	ast_mctp_write(ast_mctp, ast_mctp->rx_cmd_desc_dma, AST_MCTP_RX_CMD);
+	ast_mctp_write(ast_mctp, ast_mctp->rx_cmd_desc_dma, ASPEED_MCTP_RX_CMD);
 
-	ast_mctp_write(ast_mctp, ast_mctp_read(ast_mctp, AST_MCTP_CTRL) | MCTP_RX_RDY, AST_MCTP_CTRL);
+	ast_mctp_write(ast_mctp, ast_mctp_read(ast_mctp, ASPEED_MCTP_CTRL) | MCTP_RX_CMD_RDY, ASPEED_MCTP_CTRL);
 
-	ast_mctp_write(ast_mctp, MCTP_RX_COMPLETE | MCTP_TX_LAST, AST_MCTP_IER);
+	ast_mctp_write(ast_mctp, MCTP_RX_COMPLETE | MCTP_TX_LAST, ASPEED_MCTP_IER);
 }
 
 static long mctp_ioctl(struct file *file, unsigned int cmd,
-					   unsigned long arg)
+		       unsigned long arg)
 {
 	struct miscdevice *c = file->private_data;
 	struct ast_mctp_info *ast_mctp = dev_get_drvdata(c->this_device);
@@ -492,7 +492,7 @@ static const struct file_operations ast_mctp_fops = {
 	.release			= mctp_release,
 };
 
-struct miscdevice ast_mctp_misc = {
+static struct miscdevice ast_mctp_misc = {
 	.minor = MISC_DYNAMIC_MINOR,
 	.name = "ast-mctp",
 	.fops = &ast_mctp_fops,
@@ -569,7 +569,7 @@ static int ast_mctp_probe(struct platform_device *pdev)
 	ast_mctp_ctrl_init(ast_mctp);
 
 	ret = devm_request_irq(&pdev->dev, ast_mctp->irq, ast_mctp_isr,
-						   0, dev_name(&pdev->dev), ast_mctp);
+			       0, dev_name(&pdev->dev), ast_mctp);
 	if (ret) {
 		printk("MCTP Unable to get IRQ");
 		goto out_irq;
@@ -577,7 +577,7 @@ static int ast_mctp_probe(struct platform_device *pdev)
 
 #if 0
 	ret = sysfs_create_group(&ast_mctp_misc.this_device->kobj,
-							 &mctp_attribute_group);
+				 &mctp_attribute_group);
 	if (ret) {
 		printk(KERN_ERR "lattice: failed to create sysfs device attributes.\n");
 		return -1;
