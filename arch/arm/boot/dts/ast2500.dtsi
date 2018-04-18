@@ -717,12 +717,14 @@
 			no-loopback-test;
 			status = "disabled";
 		};
+
 		i2c: i2c@1e78a000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x1e78a000 0x1000>;
 		};
+
 		peci: peci@1e78b000 {
 			compatible = "aspeed,ast-peci";
 			reg = <0x1e78b000 0x60>;
@@ -736,15 +738,13 @@
 };
 
 &i2c {
-	i2c_irq: i2c_irq@00 {
+	i2c_ic: interrupt-controller@0 {
 		#interrupt-cells = <1>;
-		compatible = "aspeed,ast-i2c-irq";
-		reg = <0x00 0x10>;
+		compatible = "aspeed,ast2500-i2c-ic";
+		resets = <&sys_reset SCU_RESET_I2C>;
+		reg = <0x0 0x40>;
 		interrupts = <12>;
 		interrupt-controller;
-		bus_num = <14>;
-		resets = <&sys_reset SCU_RESET_I2C>;
-		reset-names = "i2c";		
 	};
 
 	i2c0: i2c@40 {
@@ -757,7 +757,7 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <0>;
-		interrupt-parent = <&i2c_irq>;
+		interrupt-parent = <&i2c_ic>;
 		/* Does not need pinctrl properties */
 	};
 
@@ -771,7 +771,7 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <1>;
-		interrupt-parent = <&i2c_irq>;
+		interrupt-parent = <&i2c_ic>;
 		/* Does not need pinctrl properties */
 	};
 	i2c2: i2c@C0 {
@@ -784,7 +784,7 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <2>;
-		interrupt-parent = <&i2c_irq>;
+		interrupt-parent = <&i2c_ic>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c3_default>;		
 	};
@@ -798,7 +798,7 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <3>;
-		interrupt-parent = <&i2c_irq>;
+		interrupt-parent = <&i2c_ic>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c4_default>;
 	};
@@ -812,7 +812,7 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <4>;
-		interrupt-parent = <&i2c_irq>;
+		interrupt-parent = <&i2c_ic>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c5_default>;
 	};
@@ -826,7 +826,7 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <5>;
-		interrupt-parent = <&i2c_irq>;
+		interrupt-parent = <&i2c_ic>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c6_default>;
 	};
@@ -840,7 +840,7 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <6>;
-		interrupt-parent = <&i2c_irq>;
+		interrupt-parent = <&i2c_ic>;
 		pinctrl-0 = <&pinctrl_i2c7_default>;
 	};
 	i2c7: i2c@300 {
@@ -853,7 +853,7 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <7>;
-		interrupt-parent = <&i2c_irq>;
+		interrupt-parent = <&i2c_ic>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c8_default>;
 	};
@@ -867,7 +867,7 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <8>;
-		interrupt-parent = <&i2c_irq>;
+		interrupt-parent = <&i2c_ic>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c9_default>;
 	};
@@ -881,7 +881,7 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <9>;
-		interrupt-parent = <&i2c_irq>;
+		interrupt-parent = <&i2c_ic>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c10_default>;
 		status = "disabled";
@@ -896,7 +896,7 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <10>;
-		interrupt-parent = <&i2c_irq>;
+		interrupt-parent = <&i2c_ic>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c11_default>;
 		status = "disabled";
@@ -911,7 +911,7 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <11>;
-		interrupt-parent = <&i2c_irq>;
+		interrupt-parent = <&i2c_ic>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c12_default>;
 		status = "disabled";
@@ -926,7 +926,7 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <12>;
-		interrupt-parent = <&i2c_irq>;
+		interrupt-parent = <&i2c_ic>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c13_default>;
 		status = "disabled";
@@ -941,7 +941,7 @@
 		clocks = <&clk_apb>;
 		bus-frequency = <100000>;
 		interrupts = <13>;
-		interrupt-parent = <&i2c_irq>;
+		interrupt-parent = <&i2c_ic>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c14_default>;
 		status = "disabled";
