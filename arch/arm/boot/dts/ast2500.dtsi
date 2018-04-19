@@ -408,40 +408,11 @@
                         reg = <0x1e720000 0x9000>;      /* 36K */
                 };
 
-		sdhci_irq: sdhci_irq {
-			compatible = "aspeed,ast-sdhci-irq";
-			interrupt-controller;
-			#interrupt-cells = <1>;
-			reg = <0x1e740000 0x100>;
-			interrupts = <26>;
-			slot_num = <2>;
-			resets = <&sys_reset SCU_RESET_SDHCI>;
-			reset-names = "sdhci";
-			clocks = <&clk_sd>;
-		};
-
-		sdhci_slot0: sdhci_slot0@1e740100 {
-			compatible = "aspeed,sdhci-ast";
-			reg = <0x1e740100 0x100>;
-			interrupts = <0>;
-			interrupt-parent = <&sdhci_irq>;
-			slot = <0>;
-			sdhci,auto-cmd12;
-			clocks = <&clk_sd>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_sd1_default>;
-		};
-
-		sdhci_slot1: sdhci_slot1@1e740200 {
-			compatible = "aspeed,sdhci-ast";
-			reg = <0x1e740200 0x100>;
-			interrupts = <1>;
-			interrupt-parent = <&sdhci_irq>;
-			slot = <1>;
-			sdhci,auto-cmd12;
-			clocks = <&clk_sd>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_sd2_default>;
+		sdhci: sdhci@1e740000 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x1e740000 0x1000>;
 		};
 
 		gpio: gpio@1e780000 {
@@ -735,6 +706,44 @@
 		};
 	};
 
+};
+
+&sdhci {
+	sdhci_ic: sdhci_ic@00 {
+		compatible = "aspeed,ast-sdhci-irq";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0x0 0x100>;
+		interrupts = <26>;
+		slot_num = <2>;
+		resets = <&sys_reset SCU_RESET_SDHCI>;
+		reset-names = "sdhci";
+		clocks = <&clk_sd>;
+	};
+
+	sdhci_slot0: sdhci_slot0@100 {
+		compatible = "aspeed,sdhci-ast";
+		reg = <0x100 0x100>;
+		interrupts = <0>;
+		interrupt-parent = <&sdhci_ic>;
+		slot = <0>;
+		sdhci,auto-cmd12;
+		clocks = <&clk_sd>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sd1_default>;
+	};
+
+	sdhci_slot1: sdhci_slot1@200 {
+		compatible = "aspeed,sdhci-ast";
+		reg = <0x200 0x100>;
+		interrupts = <1>;
+		interrupt-parent = <&sdhci_ic>;
+		slot = <1>;
+		sdhci,auto-cmd12;
+		clocks = <&clk_sd>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sd2_default>;
+	};
 };
 
 &i2c {
