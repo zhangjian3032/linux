@@ -109,7 +109,7 @@ static int aspeed_i2c_ic_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	u32 bus_owner;
 	int ret = 0;
-printk("aspeed_i2c_ic_probe \n");
+
 	i2c_ic = kzalloc(sizeof(*i2c_ic), GFP_KERNEL);
 	if (!i2c_ic)
 		return -ENOMEM;
