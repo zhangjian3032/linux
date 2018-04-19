@@ -14,6 +14,7 @@
 #include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
+#include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
@@ -188,4 +189,12 @@ static struct platform_driver aspeed_i2c_ic_driver = {
 	},
 };
 
-builtin_platform_driver(aspeed_i2c_ic_driver);
+static int __init aspeed_i2c_ic_init(void)
+{
+	return platform_driver_register(&aspeed_i2c_ic_driver);
+}
+postcore_initcall(aspeed_i2c_ic_init);
+
+MODULE_AUTHOR("Ryan Chen");
+MODULE_DESCRIPTION("ASPEED I2C INTC Driver");
+MODULE_LICENSE("GPL v2");
