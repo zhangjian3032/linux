@@ -1,5 +1,5 @@
 /*
- *  Aspeed 24XX/25XX I2C Interrupt Controller.
+ *  Aspeed I2C Interrupt Controller.
  *
  *  Copyright (C) 2012-2017 ASPEED Technology Inc.
  *  Copyright 2017 IBM Corporation
@@ -75,9 +75,16 @@ static unsigned int noop_ret(struct irq_data *data)
 }
 
 static struct irq_chip i2c_irq_chip = {
-	.name			= "i2c-irq",
+	.name			= "i2c-ic",
+	.irq_startup	= noop_ret,
+	.irq_shutdown	= noop,
+	.irq_enable		= noop,
+	.irq_disable	= noop,
+	.irq_ack		= noop,
+	.irq_mask		= noop,
+	.irq_unmask		= noop,
+	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
-
 /*
  * Set simple handler and mark IRQ as valid. Nothing interesting to do here
  * since we are using a dummy interrupt chip.
@@ -85,7 +92,7 @@ static struct irq_chip i2c_irq_chip = {
 static int aspeed_i2c_ic_map_irq_domain(struct irq_domain *domain,
 					unsigned int irq, irq_hw_number_t hwirq)
 {
-	irq_set_chip_and_handler(irq, &dummy_irq_chip, handle_simple_irq);
+	irq_set_chip_and_handler(irq, &i2c_irq_chip, handle_simple_irq);
 	irq_set_chip_data(irq, domain->host_data);
 
 	return 0;
