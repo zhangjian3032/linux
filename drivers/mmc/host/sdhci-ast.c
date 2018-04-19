@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
-#include <mach/ast-sdhci.h>
+#include <linux/mmc/sdhci-aspeed-data.h>
 #include <linux/reset.h>
 #include "sdhci-pltfm.h"
 
@@ -79,15 +79,15 @@ out:
 static void sdhci_ast_set_bus_width(struct sdhci_host *host, int width)
 {
 	struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
-	struct ast_sdhci_irq *sdhci_irq = sdhci_pltfm_priv(pltfm_priv);
+	struct aspeed_sdhci_irq *sdhci_irq = sdhci_pltfm_priv(pltfm_priv);
 
 	u8 ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
 
 	if(sdhci_irq->regs) {
 		if (width == MMC_BUS_WIDTH_8) {
-			ast_sd_set_8bit_mode(sdhci_irq, 1);
+			aspeed_sdhci_set_8bit_mode(sdhci_irq, 1);
 		} else {
-			ast_sd_set_8bit_mode(sdhci_irq, 0);
+			aspeed_sdhci_set_8bit_mode(sdhci_irq, 0);
 		}
 	}
 	if (width == MMC_BUS_WIDTH_4)
@@ -140,12 +140,12 @@ static int sdhci_ast_probe(struct platform_device *pdev)
 	struct device_node *pnode;
 	struct device_node *np = pdev->dev.of_node;
 	struct sdhci_pltfm_host *pltfm_host;
-	struct ast_sdhci_irq *sdhci_irq;
+	struct aspeed_sdhci_irq *sdhci_irq;
 	struct reset_control *reset;	
 
 	int ret;
 
-	host = sdhci_pltfm_init(pdev, &sdhci_ast_pdata, sizeof(struct ast_sdhci_irq));
+	host = sdhci_pltfm_init(pdev, &sdhci_ast_pdata, sizeof(struct aspeed_sdhci_irq));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
@@ -171,7 +171,7 @@ static int sdhci_ast_probe(struct platform_device *pdev)
 //	pnode = of_node_get(np->parent);
 	pnode = of_parse_phandle(np, "interrupt-parent", 0);
 	if(pnode)
-		memcpy(sdhci_irq, pnode->data, sizeof(struct ast_sdhci_irq));
+		memcpy(sdhci_irq, pnode->data, sizeof(struct aspeed_sdhci_irq));
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)

@@ -30,7 +30,7 @@
 #include <linux/of_irq.h>
 #include <linux/of.h>
 #include <linux/io.h>
-#include <mach/ast-sdhci.h>
+#include <linux/mmc/sdhci-aspeed-data.h>
 /*******************************************************************/
 #define AST_SDHCI_INFO				0x00
 #define AST_SDHCI_BLOCK				0x04
@@ -40,16 +40,10 @@
 /* #define AST_SDHCI_INFO			0x00*/
 #define AST_SDHCI_S1MMC8			(1 << 25)
 #define AST_SDHCI_S0MMC8			(1 << 24)
-/*******************************************************************/
-//#define AST_SDHCI_IRQ_DEBUG
 
-#ifdef AST_SDHCI_IRQ_DEBUG
-#define SDHCI_IRQ_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
-#else
-#define SDHCI_IRQ_DBUG(fmt, args...)
-#endif
-/*******************************************************************/
-void ast_sd_set_8bit_mode(struct ast_sdhci_irq *sdhci_irq, u8 mode)
+#define ASPEED_SDHCI_SLOT_NUM			2
+
+void aspeed_sdhci_set_8bit_mode(struct aspeed_sdhci_irq *sdhci_irq, u8 mode)
 {
 	if (mode)
 		writel((1 << 24) | readl(sdhci_irq->regs), sdhci_irq->regs);
@@ -57,11 +51,11 @@ void ast_sd_set_8bit_mode(struct ast_sdhci_irq *sdhci_irq, u8 mode)
 		writel(~(1 << 24) & readl(sdhci_irq->regs), sdhci_irq->regs);
 }
 
-EXPORT_SYMBOL(ast_sd_set_8bit_mode);
+EXPORT_SYMBOL(aspeed_sdhci_set_8bit_mode);
 
-static void ast_sdhci_irq_handler(struct irq_desc *desc)
+static void aspeed_sdhci_irq_handler(struct irq_desc *desc)
 {
-	struct ast_sdhci_irq *sdhci_irq = irq_desc_get_handler_data(desc);
+	struct aspeed_sdhci_irq *sdhci_irq = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long bit, status;
 	unsigned int slot_irq;
@@ -69,7 +63,7 @@ static void ast_sdhci_irq_handler(struct irq_desc *desc)
 	chained_irq_enter(chip, desc);
 	status = readl(sdhci_irq->regs + AST_SDHCI_ISR) & 0x3;
 //	printk("sdhci irq status %x \n", status);
-	for_each_set_bit(bit, &status, sdhci_irq->slot_num) {
+	for_each_set_bit(bit, &status, ASPEED_SDHCI_SLOT_NUM) {
 		slot_irq = irq_find_mapping(sdhci_irq->irq_domain, bit);
 //		printk("slot_irq %x \n", slot_irq);
 		generic_handle_irq(slot_irq);
@@ -98,7 +92,7 @@ struct irq_chip sdhci_irq_chip = {
 };
 
 static int ast_sdhci_map_irq_domain(struct irq_domain *domain,
-									unsigned int irq, irq_hw_number_t hwirq)
+				    unsigned int irq, irq_hw_number_t hwirq)
 {
 	irq_set_chip_and_handler(irq, &sdhci_irq_chip, handle_simple_irq);
 	irq_set_chip_data(irq, domain->host_data);
@@ -107,16 +101,14 @@ static int ast_sdhci_map_irq_domain(struct irq_domain *domain,
 	return 0;
 }
 
-static const struct irq_domain_ops ast_sdhci_irq_domain_ops = {
+static const struct irq_domain_ops aspeed_sdhci_irq_domain_ops = {
 	.map = ast_sdhci_map_irq_domain,
 };
 
 static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 {
-	struct ast_sdhci_irq *sdhci_irq;
+	struct aspeed_sdhci_irq *sdhci_irq;
 	u32 slot0_clk_delay, slot1_clk_delay;
-
-	SDHCI_IRQ_DBUG("ast_sdhci_irq_init \n");
 
 	sdhci_irq = kzalloc(sizeof(*sdhci_irq), GFP_KERNEL);
 	if (!sdhci_irq)
@@ -125,10 +117,6 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, sdhci_irq);
 	//node->data = sdhci_irq;
 	pdev->dev.of_node->data = sdhci_irq;
-
-	if (!of_property_read_u32(pdev->dev.of_node, "slot_num", &sdhci_irq->slot_num)) {
-		SDHCI_IRQ_DBUG("sdhci_irq->slot_num = %d \n", sdhci_irq->slot_num);
-	}
 
 	sdhci_irq->regs = of_iomap(pdev->dev.of_node, 0);
 	if (IS_ERR(sdhci_irq->regs))
@@ -158,15 +146,15 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 		return sdhci_irq->parent_irq;
 
 	sdhci_irq->irq_domain = irq_domain_add_linear(
-								pdev->dev.of_node, sdhci_irq->slot_num,
-								&ast_sdhci_irq_domain_ops, NULL);
+					pdev->dev.of_node, ASPEED_SDHCI_SLOT_NUM,
+					&aspeed_sdhci_irq_domain_ops, NULL);
 	if (!sdhci_irq->irq_domain)
 		return -ENOMEM;
 
 	sdhci_irq->irq_domain->name = "ast-sdhci-irq";
 
 	irq_set_chained_handler_and_data(sdhci_irq->parent_irq,
-									 ast_sdhci_irq_handler, sdhci_irq);
+					 aspeed_sdhci_irq_handler, sdhci_irq);
 
 
 	//1e7600f0[17:16] = 0x3 //slot0 clock delay mode
