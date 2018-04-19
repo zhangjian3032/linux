@@ -252,7 +252,7 @@ static int spi_nor_ready(struct spi_nor *nor)
  * Returns non-zero if error.
  */
 static int spi_nor_wait_till_ready_with_timeout(struct spi_nor *nor,
-		unsigned long timeout_jiffies)
+						unsigned long timeout_jiffies)
 {
 	unsigned long deadline;
 	int timeout = 0, ret;
@@ -280,7 +280,7 @@ static int spi_nor_wait_till_ready_with_timeout(struct spi_nor *nor,
 static int spi_nor_wait_till_ready(struct spi_nor *nor)
 {
 	return spi_nor_wait_till_ready_with_timeout(nor,
-			DEFAULT_READY_WAIT_JIFFIES);
+						    DEFAULT_READY_WAIT_JIFFIES);
 }
 
 /*
@@ -354,7 +354,7 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 	int ret;
 
 	dev_dbg(nor->dev, "at 0x%llx, len %lld\n", (long long)instr->addr,
-		(long long)instr->len);
+			(long long)instr->len);
 
 	div_u64_rem(instr->len, mtd->erasesize, &rem);
 	if (rem)
@@ -391,12 +391,12 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 		if (ret)
 			goto erase_err;
 
-		/* REVISIT in some cases we could speed up erasing large regions
-		 * by using SPINOR_OP_SE instead of SPINOR_OP_BE_4K.  We may have set up
-		 * to use "small sector erase", but that's not always optimal.
-		 */
+	/* REVISIT in some cases we could speed up erasing large regions
+	 * by using SPINOR_OP_SE instead of SPINOR_OP_BE_4K.  We may have set up
+	 * to use "small sector erase", but that's not always optimal.
+	 */
 
-		/* "sector"-at-a-time erase */
+	/* "sector"-at-a-time erase */
 	} else {
 		while (len) {
 			write_enable(nor);
@@ -539,7 +539,7 @@ static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 
 	/* If anything above us is unlocked, we can't use 'top' protection */
 	if (!stm_is_locked_sr(nor, ofs + len, mtd->size - (ofs + len),
-			      status_old))
+				status_old))
 		can_be_top = false;
 
 	if (!can_be_bottom && !can_be_top)
@@ -799,7 +799,7 @@ static const struct flash_info spi_nor_ids[] = {
 	{ "at25fs040",  INFO(0x1f6604, 0, 64 * 1024,   8, SECT_4K) },
 
 	{ "at25df041a", INFO(0x1f4401, 0, 64 * 1024,   8, SECT_4K) },
-	{ "at25df321",  INFO(0x1f4700, 0, 64 * 1024,  64, SECT_4K) },
+    { "at25df321",  INFO(0x1f4700, 0, 64 * 1024,  64, SECT_4K) },
 	{ "at25df321a", INFO(0x1f4701, 0, 64 * 1024,  64, SECT_4K) },
 	{ "at25df641",  INFO(0x1f4800, 0, 64 * 1024, 128, SECT_4K) },
 
@@ -824,9 +824,9 @@ static const struct flash_info spi_nor_ids[] = {
 	{ "f25l32pa", INFO(0x8c2016, 0, 64 * 1024, 64, SECT_4K) },
 
 	/* Everspin */
-	{ "mr25h256", CAT25_INFO(32  * 1024, 1, 256, 2, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
+	{ "mr25h256", CAT25_INFO( 32 * 1024, 1, 256, 2, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
 	{ "mr25h10",  CAT25_INFO(128 * 1024, 1, 256, 3, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
-	{ "mr25h40",  CAT25_INFO(512 * 1024, 1, 256, 3, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
+    { "mr25h40",  CAT25_INFO(512 * 1024, 1, 256, 3, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
 
 	/* Fujitsu */
 	{ "mb85rs1mt", INFO(0x047f27, 0, 128 * 1024, 1, SPI_NOR_NO_ERASE) },
@@ -834,28 +834,23 @@ static const struct flash_info spi_nor_ids[] = {
 	/* GigaDevice */
 	{
 		"gd25q32", INFO(0xc84016, 0, 64 * 1024,  64,
-				SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-				SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
 	},
 	{
 		"gd25q64", INFO(0xc84017, 0, 64 * 1024, 128,
-				SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-				SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
 	},
 	{
 		"gd25lq64c", INFO(0xc86017, 0, 64 * 1024, 128,
-				  SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-				  SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
 	},
 	{
 		"gd25q128", INFO(0xc84018, 0, 64 * 1024, 256,
-				 SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-				 SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
-	},
-	{
-		"gd25q256", INFO(0xc84019, 0, 64 * 1024, 512,
-				 SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-				 SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
 	},
 
 	/* Intel/Numonyx -- xxxs33b */
@@ -870,7 +865,7 @@ static const struct flash_info spi_nor_ids[] = {
 	{ "mx25l512e",   INFO(0xc22010, 0, 64 * 1024,   1, SECT_4K) },
 	{ "mx25l2005a",  INFO(0xc22012, 0, 64 * 1024,   4, SECT_4K) },
 	{ "mx25l4005a",  INFO(0xc22013, 0, 64 * 1024,   8, SECT_4K) },
-	{ "mx25u4033e",	 INFO(0xc22533, 0, 64 * 1024,   8, SECT_4K) },
+	{ "mx25u4033e",	 INFO(0xc22533, 0, 64 * 1024,   8, SECT_4K) },	
 	{ "mx25l8005",   INFO(0xc22014, 0, 64 * 1024,  16, 0) },
 	{ "mx25l1606e",  INFO(0xc22015, 0, 64 * 1024,  32, SECT_4K) },
 	{ "mx25l3205d",  INFO(0xc22016, 0, 64 * 1024,  64, SECT_4K) },
@@ -880,13 +875,13 @@ static const struct flash_info spi_nor_ids[] = {
 	{ "mx25l12805d", INFO(0xc22018, 0, 64 * 1024, 256, 0) },
 	{ "mx25l12855e", INFO(0xc22618, 0, 64 * 1024, 256, 0) },
 	{ "mx25l25635e", INFO(0xc22019, 0, 64 * 1024, 512, 0) },
-	{ "mx25u25635f", INFO(0xc22539, 0, 64 * 1024, 512, SECT_4K) },
+    { "mx25u25635f", INFO(0xc22539, 0, 64 * 1024, 512, SECT_4K) },
 	{ "mx25l25655e", INFO(0xc22619, 0, 64 * 1024, 512, 0) },
 	{ "mx66l51235l", INFO(0xc2201a, 0, 64 * 1024, 1024, SPI_NOR_QUAD_READ) },
 	{ "mx66l1g55g",  INFO(0xc2261b, 0, 64 * 1024, 2048, SPI_NOR_QUAD_READ) },
 
 	/* Micron */
-	{ "n25q016a",    INFO(0x20bb15, 0, 64 * 1024,   32, SECT_4K | SPI_NOR_QUAD_READ) },
+    { "n25q016a",    INFO(0x20bb15, 0, 64 * 1024,   32, SECT_4K | SPI_NOR_QUAD_READ) },
 	{ "n25q032",	 INFO(0x20ba16, 0, 64 * 1024,   64, SPI_NOR_QUAD_READ) },
 	{ "n25q032a",	 INFO(0x20bb16, 0, 64 * 1024,   64, SPI_NOR_QUAD_READ) },
 	{ "n25q064",     INFO(0x20ba17, 0, 64 * 1024,  128, SECT_4K | SPI_NOR_QUAD_READ) },
@@ -915,7 +910,7 @@ static const struct flash_info spi_nor_ids[] = {
 	{ "s70fl01gs",  INFO(0x010221, 0x4d00, 256 * 1024, 256, 0) },
 	{ "s25sl12800", INFO(0x012018, 0x0300, 256 * 1024,  64, 0) },
 	{ "s25sl12801", INFO(0x012018, 0x0301,  64 * 1024, 256, 0) },
-	{ "s25fl128s",  INFO6(0x012018, 0x4d0180, 64 * 1024, 256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+    { "s25fl128s",  INFO6(0x012018, 0x4d0180, 64 * 1024, 256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ "s25fl129p0", INFO(0x012018, 0x4d00, 256 * 1024,  64, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ "s25fl129p1", INFO(0x012018, 0x4d01,  64 * 1024, 256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ "s25sl004a",  INFO(0x010212,      0,  64 * 1024,   8, 0) },
@@ -931,7 +926,7 @@ static const struct flash_info spi_nor_ids[] = {
 	{ "s25fl132k",  INFO(0x014016,      0,  64 * 1024,  64, SECT_4K) },
 	{ "s25fl164k",  INFO(0x014017,      0,  64 * 1024, 128, SECT_4K) },
 	{ "s25fl204k",  INFO(0x014013,      0,  64 * 1024,   8, SECT_4K | SPI_NOR_DUAL_READ) },
-	{ "s25fl208k",  INFO(0x014014,      0,  64 * 1024,  16, SECT_4K | SPI_NOR_DUAL_READ) },
+    { "s25fl208k",  INFO(0x014014,      0,  64 * 1024,  16, SECT_4K | SPI_NOR_DUAL_READ) },
 
 	/* SST -- large erase sizes are "overlays", "sectors" are 4K */
 	{ "sst25vf040b", INFO(0xbf258d, 0, 64 * 1024,  8, SECT_4K | SST_WRITE) },
@@ -995,20 +990,20 @@ static const struct flash_info spi_nor_ids[] = {
 	{ "w25q32", INFO(0xef4016, 0, 64 * 1024,  64, SECT_4K) },
 	{
 		"w25q32dw", INFO(0xef6016, 0, 64 * 1024,  64,
-				 SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-				 SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
 	},
 	{ "w25x64", INFO(0xef3017, 0, 64 * 1024, 128, SECT_4K) },
 	{ "w25q64", INFO(0xef4017, 0, 64 * 1024, 128, SECT_4K) },
 	{
 		"w25q64dw", INFO(0xef6017, 0, 64 * 1024, 128,
-				 SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-				 SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
 	},
 	{
 		"w25q128fw", INFO(0xef6018, 0, 64 * 1024, 256,
-				  SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-				  SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
 	},
 	{ "w25q80", INFO(0xef5014, 0, 64 * 1024,  16, SECT_4K) },
 	{ "w25q80bl", INFO(0xef4014, 0, 64 * 1024,  16, SECT_4K) },
@@ -1019,23 +1014,21 @@ static const struct flash_info spi_nor_ids[] = {
 	{ "w25q32fw", INFO(0xef6016, 0, 64 * 1024,  64, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)},
 	{ "w25q64dw", INFO(0xef6017, 0, 64 * 1024, 128,	SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)},
 	{ "w25q64fw", INFO(0xef6017, 0, 64 * 1024, 128,	SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)},
-	{ "w25q128fw", INFO(0xef6018, 0, 64 * 1024, 256, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)},
-	{ "w25q256fw", INFO(0xef6019, 0, 64 * 1024, 512, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)},
+    { "w25q128fw", INFO(0xef6018, 0, 64 * 1024, 256,SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)},
+	{ "w25q256fw", INFO(0xef6019, 0, 64 * 1024, 512,SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)},
 	{ "w25q16JV", INFO(0xef7015, 0, 64 * 1024,  32, SECT_4K) },
 	{ "w25q32JV", INFO(0xef7016, 0, 64 * 1024,  64, SECT_4K) },
-	{ "w25q64JV", INFO(0xef7017, 0, 64 * 1024, 128, SECT_4K) },
-	{ "w25q128JV", INFO(0xef7018, 0, 64 * 1024, 256, SECT_4K) },
-	{ "w25q256JV", INFO(0xef7019, 0, 64 * 1024, 512, SECT_4K) },
-	{
-		"w25m512jv", INFO(0xef7119, 0, 64 * 1024, 1024,
-				  SECT_4K | SPI_NOR_QUAD_READ | SPI_NOR_DUAL_READ)
-	},
+    { "w25q64JV", INFO(0xef7017, 0, 64 * 1024, 128, SECT_4K) },
+    { "w25q128JV", INFO(0xef7018, 0, 64 * 1024, 256, SECT_4K) },
+    { "w25q256JV", INFO(0xef7019, 0, 64 * 1024, 512, SECT_4K) },
+	{ "w25m512jv", INFO(0xef7119, 0, 64 * 1024, 1024,
+			SECT_4K | SPI_NOR_QUAD_READ | SPI_NOR_DUAL_READ) },
 
 	/* Catalyst / On Semiconductor -- non-JEDEC */
-	{ "cat25c11", CAT25_INFO(16,   8, 16, 1, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
-	{ "cat25c03", CAT25_INFO(32,   8, 16, 2, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
-	{ "cat25c09", CAT25_INFO(128,  8, 32, 2, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
-	{ "cat25c17", CAT25_INFO(256,  8, 32, 2, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
+	{ "cat25c11", CAT25_INFO(  16, 8, 16, 1, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
+	{ "cat25c03", CAT25_INFO(  32, 8, 16, 2, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
+	{ "cat25c09", CAT25_INFO( 128, 8, 32, 2, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
+	{ "cat25c17", CAT25_INFO( 256, 8, 32, 2, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
 	{ "cat25128", CAT25_INFO(2048, 8, 64, 2, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
 	{ },
 };
@@ -1100,7 +1093,7 @@ read_err:
 }
 
 static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
-		     size_t *retlen, const u_char *buf)
+		size_t *retlen, const u_char *buf)
 {
 	struct spi_nor *nor = mtd_to_spi_nor(mtd);
 	size_t actual;
@@ -1184,7 +1177,7 @@ sst_write_err:
  * it is within the physical boundaries.
  */
 static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
-			 size_t *retlen, const u_char *buf)
+	size_t *retlen, const u_char *buf)
 {
 	struct spi_nor *nor = mtd_to_spi_nor(mtd);
 	size_t page_offset, page_remain, i;
@@ -1196,7 +1189,7 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < len;) {
+	for (i = 0; i < len; ) {
 		ssize_t written;
 		/* Porting from kernel-4.13 for modify warning message*/
 		loff_t addr = to + i;
@@ -1296,12 +1289,12 @@ static int spansion_quad_enable(struct spi_nor *nor)
 		return -EINVAL;
 	}
 
-	ret = spi_nor_wait_till_ready(nor);
-	if (ret) {
-		dev_err(nor->dev,
-			"timeout while writing configuration register\n");
-		return ret;
-	}
+    ret = spi_nor_wait_till_ready(nor);
+    if (ret) {
+            dev_err(nor->dev,
+                    "timeout while writing configuration register\n");
+            return ret;
+    }
 
 	/* read back and check it */
 	ret = read_cr(nor);
@@ -1340,7 +1333,7 @@ static int set_quad_mode(struct spi_nor *nor, const struct flash_info *info)
 static int spi_nor_check(struct spi_nor *nor)
 {
 	if (!nor->dev || !nor->read || !nor->write ||
-	    !nor->read_reg || !nor->write_reg) {
+		!nor->read_reg || !nor->write_reg) {
 		pr_err("spi-nor: please fill all the necessary fields!\n");
 		return -EINVAL;
 	}
@@ -1421,7 +1414,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 
 	/* NOR protection support for STmicro/Micron chips and similar */
 	if (JEDEC_MFR(info) == SNOR_MFR_MICRON ||
-	    info->flags & SPI_NOR_HAS_LOCK) {
+			info->flags & SPI_NOR_HAS_LOCK) {
 		nor->flash_lock = stm_lock;
 		nor->flash_unlock = stm_unlock;
 		nor->flash_is_locked = stm_is_locked;
@@ -1554,7 +1547,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	nor->read_dummy = spi_nor_read_dummy_cycles(nor);
 
 	dev_info(dev, "%s (%lld Kbytes)\n", info->name,
-		 (long long)mtd->size >> 10);
+			(long long)mtd->size >> 10);
 
 	dev_dbg(dev,
 		"mtd .name = %s, .size = 0x%llx (%lldMiB), "
