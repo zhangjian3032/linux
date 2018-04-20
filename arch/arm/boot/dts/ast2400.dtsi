@@ -378,13 +378,11 @@
 			compatible = "aspeed,ast-rng";
 		};
 
-		timer:timer@1e782000 {
-			compatible = "aspeed,ast-timer";
-			reg = <0x1e782000 0x1000>;
-			interrupt-parent = <&vic>;
-			interrupts = <16 IRQ_TYPE_EDGE_FALLING>, /* Timer 1 */
-                                     <17 IRQ_TYPE_EDGE_FALLING>, /* Timer 2 */
-                                     <18 IRQ_TYPE_EDGE_FALLING>; /* Timer 3 */
+		timer: timer@1e782000 {
+			/* This timer is a Faraday FTTMR010 derivative */
+			compatible = "aspeed,ast2400-timer";
+			reg = <0x1e782000 0x90>;
+			interrupts = <16 17 18 35 36 37 38 39>;
 			clocks = <&clk_apb>;
 			clock-names = "PCLK";
 		};
