@@ -5,7 +5,7 @@
 
 / {
 	model = "AST2400 SOC";
-	compatible = "aspeed,ast2400";
+	compatible = "aspeed";
 	#address-cells = <1>;
 	#size-cells = <1>;
 	interrupt-parent = <&vic>;

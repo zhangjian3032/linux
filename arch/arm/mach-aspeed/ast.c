@@ -27,15 +27,11 @@ static void ast_restart(enum reboot_mode mode, const char *cmd)
 
 
 static const char *const ast_dt_match[] __initconst = {
-	"aspeed,ast1220",
-	"aspeed,ast2400",
-	"aspeed,ast2500",
-	"aspeed,ast2600",
+	"aspeed",
 	NULL,
 };
 
 DT_MACHINE_START(ast_dt, "ASpeed BMC SoC")
 	.dt_compat		= ast_dt_match,
 	.restart			= ast_restart,
-
 MACHINE_END

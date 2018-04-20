@@ -12,12 +12,12 @@ config AST_CAM_SDMC
 	bool "ASPEED CAM DRAM Controller"
 
 config AST_G5_SDMC
-	depends on (ARCH_AST2500 || ARCH_AST3200)
+	depends on MACH_ASPEED_G5
 	bool "ASPEED G5 DRAM Controller"
 	
 config AST_SDMC
         bool "ASPEED DRAM Controller"
-	depends on (ARCH_AST2300 || ARCH_AST2400)
+	depends on MACH_ASPEED_G4
 
 config ARM_PL172_MPMC
 	tristate "ARM PL172 MPMC driver"

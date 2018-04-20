@@ -14,12 +14,11 @@
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <mach/aspeed.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 
-#include <mach/ast-bmc-scu.h>
-#include <mach/regs-bmc-scu.h>
+#include <linux/ast-bmc-scu.h>
+#include <linux/regs-bmc-scu.h>
 
 //#define ASPEED_SCU_LOCK
 //#define AST_BMC_SCU_DBG
@@ -272,7 +271,7 @@ EXPORT_SYMBOL(ast_scu_init_h264);
 extern void
 ast_scu_spi_master(u8 mode)
 {
-#ifdef AST_SOC_G5
+#ifdef CONFIG_MACH_ASPEED_G5
 	switch(mode) {
 		case 0:
 			ast_scu_write(SCU_HW_STRAP_SPI_MODE_MASK, AST_SCU_REVISION_ID);
@@ -319,7 +318,7 @@ ast_scu_init_crt(void)
 	//ast2500 : VGA use D1 clk, CRT use 40Mhz 
 	//ast3200/ast1520 : VGA use D1 clk, CRT use D1/D2 clk select L: SCU08[bit 8] - H SCU2C[bit 21]
 
-#ifdef AST_SOC_G5
+#ifdef CONFIG_MACH_ASPEED_G5
 
 #ifdef CONFIG_ARCH_AST3200
 	//Select D2 CLK source 00:D-PLL, 01: D2-PLL, 1x : 40Mhz
@@ -452,7 +451,7 @@ FPGA revision starts from 0x08, 8~10 means A0, 11+ means A1, AST2300 should be a
 extern void
 ast_scu_set_lpc_mode(void)
 {
-#ifdef AST_SOC_G5
+#ifdef CONFIG_MACH_ASPEED_G5
 	ast_scu_write(SCU_HW_STRAP_ESPI_MODE , AST_SCU_REVISION_ID);
 #endif
 }
@@ -462,7 +461,7 @@ extern void
 ast_scu_show_system_info (void)
 {
 #if 0
-#ifdef AST_SOC_G5
+#ifdef CONFIG_MACH_ASPEED_G5
 	u32 axi_div, ahb_div, h_pll, pclk_div;
 
 	h_pll = ast_get_h_pll_clk();
@@ -555,7 +554,7 @@ ast_scu_multi_func_uart(u8 uart)
 						SCU_FUC_PIN_UART6, 
 				AST_SCU_FUN_PIN_CTRL5); 
 			break;
-#ifdef AST_SOC_G5			
+#ifdef CONFIG_MACH_ASPEED_G5			
 		case 7:
 			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL6) |
 						SCU_FUN_PIN_UART7,
@@ -622,7 +621,7 @@ ast_scu_multi_func_eth(u8 num)
 					AST_SCU_FUN_PIN_CTRL1); 
 			}
 
-#ifdef AST_SOC_G5
+#ifdef CONFIG_MACH_ASPEED_G5
 			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL1) | 
 						SCU_FUN_PIN_MAC0_PHY_LINK, 
 				AST_SCU_FUN_PIN_CTRL1); 
@@ -862,7 +861,7 @@ EXPORT_SYMBOL(ast_scu_get_who_init_dram);
 extern int
 ast_scu_espi_mode(void)
 {
-#ifdef AST_SOC_G5
+#ifdef CONFIG_MACH_ASPEED_G5
 	return(ast_scu_read(AST_SCU_HW_STRAP1) & SCU_HW_STRAP_ESPI_MODE);
 #else
 	return 0;
@@ -940,7 +939,7 @@ EXPORT_SYMBOL(ast_scu_otp_read);
 extern u32
 ast_get_dram_base(void)
 {
-#ifdef AST_SOC_G5
+#ifdef CONFIG_MACH_ASPEED_G5
 	return 0x80000000;
 #else
 	return 0x40000000;

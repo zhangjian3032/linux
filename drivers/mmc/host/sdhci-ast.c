@@ -109,7 +109,7 @@ static unsigned int sdhci_ast_get_timeout_clk(struct sdhci_host *host)
 	AST2500 : ADMA/SDMA/PIO
 */
 static struct sdhci_ops  sdhci_ast_ops= {
-#ifdef CONFIG_RT360_CAM
+#ifdef CONFIG_CAM
 	.set_clock = sdhci_set_clock,
 #else
 	.set_clock = sdhci_ast_set_clock,
