@@ -62,7 +62,6 @@
 #include <linux/etherdevice.h>
 #include <linux/platform_device.h>
 #include <linux/ip.h>
-#include <linux/reset.h>
 #include <linux/clk.h>
 
 #include <linux/skbuff.h>
@@ -1824,9 +1823,9 @@ static int ast_gmac_probe(struct platform_device *pdev)
     priv->netdev = netdev;
     priv->dev = &pdev->dev;
     netdev->ml_priv = priv;
-    
+
     priv->ids.macId = pdev->id; 
-    
+
     spin_lock_init(&priv->tx_lock);
 
     /* initialize NAPI */
@@ -1848,25 +1847,12 @@ static int ast_gmac_probe(struct platform_device *pdev)
         err = -EIO;
         goto err_ioremap;
     }
-	priv->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "no clock defined\n");
-		return -ENODEV;
-	}
-	//scu init
-	priv->reset = devm_reset_control_get_exclusive(&pdev->dev, "mac");
-	if (IS_ERR(priv->reset)) {
-		dev_err(&pdev->dev, "can't get mac reset\n");
-		return PTR_ERR(priv->reset);
-	}
-	
-	//scu init
-	reset_control_assert(priv->reset);
-	udelay(100);
+
+	priv->clk = devm_clk_get(priv->dev, NULL);
+	if (IS_ERR(priv->clk))
+		return;
+
 	clk_prepare_enable(priv->clk);
-	udelay(1000);	
-	reset_control_deassert(priv->reset);
-	
 
 //	priv->irq = irq;
 #if 0//CONFIG_AST_MDIO

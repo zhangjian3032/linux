@@ -21,6 +21,7 @@
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
+#include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -35,13 +36,12 @@
 #include <linux/crc32.h>
 #include <linux/if_vlan.h>
 #include <linux/of_net.h>
-#include <linux/reset.h>
-#include <linux/clk.h>
 #include <net/ip.h>
 #include <net/ncsi.h>
 
 #include "ftgmac100.h"
 
+#define DRV_NAME	"ftgmac100"
 #define DRV_VERSION	"0.7"
 
 /* Arbitrary values, I am not sure the HW has limits */
@@ -60,12 +60,13 @@
 /* Min number of tx ring entries before stopping queue */
 #define TX_THRESHOLD		(MAX_SKB_FRAGS + 1)
 
+#define FTGMAC_100MHZ		100000000
+#define FTGMAC_25MHZ		25000000
+
 struct ftgmac100 {
 	/* Registers */
 	struct resource *res;
 	void __iomem *base;
-	struct reset_control *reset;
-	struct clk 			*clk;
 
 	/* Rx ring */
 	unsigned int rx_q_entries;
@@ -99,6 +100,7 @@ struct ftgmac100 {
 	struct napi_struct napi;
 	struct work_struct reset_task;
 	struct mii_bus *mii_bus;
+	struct clk *clk;
 
 	/* Link management */
 	int cur_speed;
@@ -1160,7 +1162,7 @@ static int ftgmac100_mdiobus_write(struct mii_bus *bus, int phy_addr,
 static void ftgmac100_get_drvinfo(struct net_device *netdev,
 				  struct ethtool_drvinfo *info)
 {
-///	strlcpy(info->driver, "ast-mac", sizeof(info->driver));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, dev_name(&netdev->dev), sizeof(info->bus_info));
 }
@@ -1735,6 +1737,22 @@ static void ftgmac100_ncsi_handler(struct ncsi_dev *nd)
 		    nd->link_up ? "up" : "down");
 }
 
+static void ftgmac100_setup_clk(struct ftgmac100 *priv)
+{
+	priv->clk = devm_clk_get(priv->dev, NULL);
+	if (IS_ERR(priv->clk))
+		return;
+
+	clk_prepare_enable(priv->clk);
+
+	/* Aspeed specifies a 100MHz clock is required for up to
+	 * 1000Mbit link speeds. As NCSI is limited to 100Mbit, 25MHz
+	 * is sufficient
+	 */
+	clk_set_rate(priv->clk, priv->use_ncsi ? FTGMAC_25MHZ :
+			FTGMAC_100MHZ);
+}
+
 static int ftgmac100_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -1803,26 +1821,8 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	ftgmac100_initial_mac(priv);
 
 	np = pdev->dev.of_node;
-	if (np && (of_device_is_compatible(np, "aspeed,ast-mac"))) {
-		priv->clk = devm_clk_get(&pdev->dev, NULL);
-		if (IS_ERR(priv->clk)) {
-			dev_err(&pdev->dev, "no clock defined\n");
-			return -ENODEV;
-		}
-		//scu init
-		priv->reset = devm_reset_control_get_exclusive(&pdev->dev, "mac");
-		if (IS_ERR(priv->reset)) {
-			dev_err(&pdev->dev, "can't get mac reset\n");
-			return PTR_ERR(priv->reset);
-		}
-
-		//scu init
-		reset_control_assert(priv->reset);
-		udelay(100);
-		clk_prepare_enable(priv->clk);
-		udelay(1000);	
-		reset_control_deassert(priv->reset);
-
+	if (np && (of_device_is_compatible(np, "aspeed,ast2400-mac") ||
+		   of_device_is_compatible(np, "aspeed,ast2500-mac"))) {
 		priv->rxdes0_edorr_mask = BIT(30);
 		priv->txdes0_edotr_mask = BIT(30);
 		priv->is_aspeed = true;
@@ -1848,6 +1848,9 @@ static int ftgmac100_probe(struct platform_device *pdev)
 		if (err)
 			goto err_setup_mdio;
 	}
+
+	if (priv->is_aspeed)
+		ftgmac100_setup_clk(priv);
 
 	/* Default ring sizes */
 	priv->rx_q_entries = priv->new_rx_q_entries = DEF_RX_QUEUE_ENTRIES;
@@ -1899,6 +1902,8 @@ static int ftgmac100_remove(struct platform_device *pdev)
 
 	unregister_netdev(netdev);
 
+	clk_disable_unprepare(priv->clk);
+
 	/* There's a small chance the reset task will have been re-queued,
 	 * during stop, make sure it's gone before we free the structure.
 	 */
@@ -1915,7 +1920,7 @@ static int ftgmac100_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id ftgmac100_of_match[] = {
-	{ .compatible = "aspeed,ast-mac" },		
+	{ .compatible = "faraday,ftgmac100" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ftgmac100_of_match);
@@ -1924,7 +1929,7 @@ static struct platform_driver ftgmac100_driver = {
 	.probe	= ftgmac100_probe,
 	.remove	= ftgmac100_remove,
 	.driver	= {
-		.name		= KBUILD_MODNAME,
+		.name		= DRV_NAME,
 		.of_match_table	= ftgmac100_of_match,
 	},
 };
