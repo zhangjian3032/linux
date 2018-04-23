@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
-
 #ifndef DT_BINDINGS_ASPEED_CLOCK_H
 #define DT_BINDINGS_ASPEED_CLOCK_H
 
@@ -31,7 +30,7 @@
 #define ASPEED_CLK_AHB			25
 #define ASPEED_CLK_APB			26
 #define ASPEED_CLK_UART			27
-#define ASPEED_CLK_SDHCI		28
+#define ASPEED_CLK_SDIO			28
 #define ASPEED_CLK_ECLK			29
 #define ASPEED_CLK_ECLK_MUX		30
 #define ASPEED_CLK_LHCLK		31
@@ -39,7 +38,6 @@
 #define ASPEED_CLK_BCLK			33
 #define ASPEED_CLK_MPLL			34
 
-#if 0
 #define ASPEED_RESET_XDMA		0
 #define ASPEED_RESET_MCTP		1
 #define ASPEED_RESET_ADC		2
@@ -49,36 +47,6 @@
 #define ASPEED_RESET_PCIVGA		6
 #define ASPEED_RESET_I2C		7
 #define ASPEED_RESET_AHB		8
-#else
-#define ASPEED_RESET_I2S        31
-#define ASPEED_RESET_IR         30
-#define ASPEED_RESET_PS2_P2     29
-#define ASPEED_RESET_PS2_P1     28
-#define ASPEED_RESET_XDMA       25
-#define ASPEED_RESET_MCTP       24
-#define ASPEED_RESET_ADC        23
-#define ASPEED_RESET_JTAG_MASTER 22
-#define ASPEED_RESET_PCIE       19
-#define ASPEED_RESET_MIC        18
-#define ASPEED_RESET_RFX        17
-#define ASPEED_RESET_SDHCI      16
-#define ASPEED_RESET_UHCI       15
-#define ASPEED_RESET_USB_PORTA  14
-#define ASPEED_RESET_CRT        13
-#define ASPEED_RESET_MAC1       12
-#define ASPEED_RESET_MAC0       11
-#define ASPEED_RESET_PECI       10
-#define ASPEED_RESET_PWM        9
-#define ASPEED_RESET_PCIVGA     8
-#define ASPEED_RESET_2D         7
-#define ASPEED_RESET_VIDEO      6
-#define ASPEED_RESET_LPC        5
-#define ASPEED_RESET_ESPI       5
-#define ASPEED_RESET_HACE       4
-#define ASPEED_RESET_USB_PORTB  3
-#define ASPEED_RESET_I2C        2
-#define ASPEED_RESET_AHB        1
-#define ASPEED_RESET_SRAM_CTRL  0
-#endif
+#define ASPEED_RESET_CRT1		9
 
 #endif
