@@ -1,118 +1,41 @@
+menuconfig ARCH_ASPEED
+	bool "Aspeed BMC architectures"
+	depends on ARCH_MULTI_V5 || ARCH_MULTI_V6
+#	select SRAM
+#	select WATCHDOG
+#	select ASPEED_WATCHDOG
+	select FTTMR010_TIMER
+	select MFD_SYSCON
+	select PINCTRL
+	help
+	  Say Y here if you want to run your kernel on an ASpeed BMC SoC.
+
 if ARCH_ASPEED
 
-menu "ASPEED AST SoC Selection"
-
-choice
-	prompt "ASPEED Processor Family"
-	default CONFIG_IRMP
-
-config IRMP
-	bool "IRMP Serials"
-
-config PCEXT
-	bool "PC Extender Serials"
-
-config REMOTEFX
-	bool "RemoteFX Zero-Client Serials"
-
-config RT360_CAM
-	bool "Real Time 360 Cam"
-
-endchoice
-
-if IRMP
-
-choice
-	prompt "IRMP Serials"
-	default CONFIG_ARCH_AST2300
-
-config ARCH_AST2300
+config MACH_ASPEED_G4
+	bool "Aspeed SoC 4th Generation"
+	depends on ARCH_MULTI_V5
 	select CPU_ARM926T
-	bool "AST2300"
+	select PINCTRL_ASPEED_G4
+	help
+	 Say yes if you intend to run on an Aspeed ast2400 or similar
+	 fourth generation BMCs, such as those used by OpenPower Power8
+	 systems.
 
-config ARCH_AST2400
-	select CPU_ARM926T
-	select USB_ARCH_HAS_EHCI
-	bool "AST2400"
-
-config ARCH_AST2500
+config MACH_ASPEED_G5
+	bool "Aspeed SoC 5th Generation"
+	depends on ARCH_MULTI_V6
 	select CPU_V6
-	select USB_ARCH_HAS_EHCI
-	select EGFX_IRQ
-	bool "AST2500"
+	select PINCTRL_ASPEED_G5
+	help
+	 Say yes if you intend to run on an Aspeed ast2500 or similar
+	 fifth generation Aspeed BMCs.
 
-endchoice
+config BMC
+	bool "BMC"
 
-endif
 
-if PCEXT
-
-choice
-	prompt "PC Extender Serials"
-	default CONFIG_ARCH_AST1510
-
-config ARCH_AST1500
-	select CPU_ARM926T
-	bool "AST1500"
-
-config ARCH_AST1510
-	select CPU_ARM926T
-	bool "AST1510"
-
-config ARCH_AST1520
-	select CPU_V6
-	select USB_ARCH_HAS_EHCI
-	bool "AST1520"
-
-endchoice
-
-endif
-
-if REMOTEFX
-
-choice
-	prompt "RemoteFX Zero-Client Serials"
-	default CONFIG_ARCH_AST3100
-
-config ARCH_AST3100
-	select CPU_ARM926T
-	select USB_ARCH_HAS_EHCI
-	bool "AST3100"
-
-config ARCH_AST3200
-	select CPU_V6
-	select USB_ARCH_HAS_EHCI
-	select EGFX_IRQ
-	bool "AST3200"
-
-endchoice
-
-endif
-
-if RT360_CAM
-
-choice
-        prompt "Real Time 360 Cam Serials"
-        default CONFIG_ARCH_AST1220
-
-config ARCH_AST1220
-	select CPU_V6
-        select USB_ARCH_HAS_EHCI
-        bool "AST1220"
-
-endchoice
-
-config AST_CAM_FPGA
-	bool "AST CAM FPGA"
-
-endif
-
-config AST_SCU_LOCK
-	bool "AST SCU Protection Key"
-
-config AST1070_UART_DMA
-	bool
-
-endmenu
+config CAM
+	bool "CAM"
 
 endif

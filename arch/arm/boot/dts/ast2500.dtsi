@@ -5,7 +5,7 @@
 
 / {
 	model = "AST2500 SOC";
-	compatible = "aspeed,ast2500";
+	compatible = "aspeed";
 	#address-cells = <1>;
 	#size-cells = <1>;
 	interrupt-parent = <&vic>;
@@ -173,13 +173,13 @@
 			status = "disabled";
 		};
 
-		vic: vic@1e6c0080 {
-			compatible = "aspeed,ast-vic";
+		vic: interrupt-controller@1e6c0080 {
+			compatible = "aspeed,ast2500-vic";
 			interrupt-controller;
 			#interrupt-cells = <1>;
 			valid-sources = <0xfefff7ff 0x0807ffff>;
 			reg = <0x1e6c0080 0x80>;
-                };
+		};
 
 		mmc: mmc@1e6e0000 {
 			compatible = "aspeed,ast-g5-sdmc";
@@ -309,7 +309,7 @@
 				compatible = "aspeed,g5-uart-clock";
 				reg = <0x2c 0x0>;
 			};
-			hwrng@1e6e2078 {
+			hwrng@78 {
 				compatible = "timeriomem_rng";
 				reg = <0x78 0x4>;
 				period = <1>;
@@ -436,13 +436,11 @@
 			compatible = "aspeed,ast-rng";
 		};
 
-		timer:timer@1e782000 {
-			compatible = "aspeed,ast-timer";
-			reg = <0x1e782000 0x1000>;
-			interrupt-parent = <&vic>;
-			interrupts = <16 IRQ_TYPE_EDGE_FALLING>, /* Timer 1 */
-                                     <17 IRQ_TYPE_EDGE_FALLING>, /* Timer 2 */
-                                     <18 IRQ_TYPE_EDGE_FALLING>; /* Timer 3 */
+		timer: timer@1e782000 {
+			/* This timer is a Faraday FTTMR010 derivative */
+			compatible = "aspeed,ast2500-timer";
+			reg = <0x1e782000 0x90>;
+			interrupts = <16 17 18 35 36 37 38 39>;
 			clocks = <&clk_apb>;
 			clock-names = "PCLK";
 		};

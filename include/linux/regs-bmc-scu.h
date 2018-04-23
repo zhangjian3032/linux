@@ -31,7 +31,7 @@
 #define AST_SCU_M_PLL				0x20		/*	M-PLL Parameter register		*/
 #define AST_SCU_H_PLL				0x24		/*	H-PLL Parameter register		*/
 #define AST_SCU_MH_PLL_EXTEND		0x148		/*	Extended Parameter of M/H-PLL register */
-#ifdef AST_SOC_G5
+#ifdef CONFIG_MACH_ASPEED_G5
 #define AST_SCU_D_PLL				0x28		/*	D-PLL Parameter  register	*/
 #define AST_SCU_D_PLL_EXTEND0		0x130		/*	D-PLL Extended Parameter  register	*/
 #define AST_SCU_D_PLL_EXTEND1		0x134		/*	D-PLL Extended Parameter  register	*/
@@ -138,7 +138,7 @@
 #define SCU_RESET_P2X				(0x1 << 24)
 #define SCU_RESET_ADC				(0x1 << 23)
 #define SCU_RESET_JTAG				(0x1 << 22)
-#ifdef AST_SOC_G5
+#ifdef CONFIG_MACH_ASPEED_G5
 #define SCU_RESET_PCIE_DIR			(0x1 << 21)
 #define SCU_RESET_PCIE				(0x1 << 19)
 #else
@@ -188,7 +188,7 @@
 #define SCU_CLK_MAC_MASK			(0x7 << 16)
 
 #define SCU_CLK_VIDE0_SO_D2			(0x1 << 8)
-#if defined(AST_SOC_G5)
+#ifdef CONFIG_MACH_ASPEED_G5
 #define SCU_CRT_CLK_L_SOURCE			(0x1 << 8)
 #else
 #define SCU_CLK_VIDEO_DELAY(x)		(x << 8)
@@ -234,7 +234,7 @@
 //bit 23 must keep 1 
 #define SCU_H264_STOP_EN			(0x1 << 22)
 //bit 19 must keep 1 
-#if defined(AST_SOC_G5)
+#ifdef CONFIG_MACH_ASPEED_G5
 #define SCU_ESPI_CLK_STOP_EN		(0x1 << 19)
 #define SCU_D1CLK_STOP				(0x1 << 10)
 #endif
@@ -273,7 +273,7 @@
 #define SCU_D2CLK_STOP				(0x1)
 
 /* AST_SCU_COUNT_CTRL : 0x10 - frequency counter control register	*/
-#if defined(AST_SOC_G5)
+#ifdef CONFIG_MACH_ASPEED_G5
 #define SCU_OSC_OUT_EN				(0x1 << 8)
 #endif
 #define SCU_FREQ_COMP_RESULT			(0x1 << 7) 
@@ -282,7 +282,7 @@
 #define SCU_FREQ_SOURCE_FOR_MEASU_MASK	(0xf << 2)
 #define SCU_FREQ_SOURCE_FOR_MEASU_12MHZ 0xC //0b1100
 
-#if defined(AST_SOC_G5)
+#ifdef CONFIG_MACH_ASPEED_G5
 #define SCU_SOURCE_PCLK					0xf
 #define SCU_SOURCE_VPACLK				0xe
 #define SCU_SOURCE_VPBCLK				0xd
@@ -322,7 +322,7 @@
 
 
 /*	AST_SCU_D2_PLL: 0x1C - D2-PLL Parameter  register */
-#ifdef AST_SOC_G5
+#ifdef CONFIG_MACH_ASPEED_G5
 
 #else
 #endif
@@ -330,7 +330,7 @@
 /*	AST_SCU_M_PLL : 0x20	- M-PLL Parameter register	*/
 
 /*	AST_SCU_H_PLL: 0x24- H-PLL Parameter register		*/
-#if defined(AST_SOC_G5)
+#ifdef CONFIG_MACH_ASPEED_G5
 #define SCU_H_PLL_PARAMETER0(x)			((x) << 22)
 #define SCU_H_PLL_GET_PARAMETER0(x)		((x >> 22) & 0x3ff)
 #define SCU_H_PLL_PARAMETER0_MASK(x)	(0x3ff << 22)
@@ -345,7 +345,7 @@
 #define SCU_M_PLL_GET_PARAMETER1(x)		(x & 0x3f)
 #define SCU_M_PLL_PARAMETER1_MASK(x)	(0x3f)
 
-#ifdef AST_SOC_G5
+#ifdef CONFIG_MACH_ASPEED_G5
 
 #else
 /*	AST_SCU_FREQ_LIMIT : 0x28 - frequency counter comparsion register */
@@ -361,7 +361,7 @@
 #define SCU_MISC_SPI_W_P2A_DIS		(0x1 << 24)
 #define SCU_MISC_SOC_W_P2A_DIS		(0x1 << 23)
 #define SCU_MISC_FLASH_W_P2A_DIS	(0x1 << 22)
-#ifdef AST_SOC_G5
+#ifdef CONFIG_MACH_ASPEED_G5
 #define SCU_MISC_CRT_CLK_H_SOURCE		(0x1 << 21)
 #define SCU_MISC_D_PLL_SOURCE			(0x1 << 20)
 #else
@@ -406,7 +406,7 @@
 #if defined(CONFIG_ARCH_AST1010)
 #define SCU_SYS_WDT_FULL_FLAG			(0x1 << 2)
 #define SCU_SYS_WDT_SOC_RESET			(0x1 << 1)
-#elif defined(AST_SOC_G5)
+#elif defined(CONFIG_MACH_ASPEED_G5)
 #define SCU_SYS_WDT3_RESET_FLAG			(0x1 << 4)
 #define SCU_SYS_WDT2_RESET_FLAG			(0x1 << 3)
 #define SCU_SYS_WDT1_RESET_FLAG			(0x1 << 2)
@@ -451,7 +451,7 @@
 
 
 /*	AST_SCU_MISC2_CTRL		0x4C		Misc. 2 Control register */
-#ifdef AST_SOC_G5
+#ifdef CONFIG_MACH_ASPEED_G5
 #define SCU_PCIE_MAPPING_HIGH			(1 << 15)
 #define SCU_MALI_DTY_MODE				(1 << 8)
 #define SCU_MALI_RC_MODE				(1 << 7)
@@ -470,7 +470,7 @@
 /*	AST_SCU_VGA_SCRATCH7	0x6c		VGA Scratch register */
 
 /*	AST_SCU_HW_STRAP1			0x70		hardware strapping register */
-#ifdef AST_SOC_G5
+#ifdef CONFIG_MACH_ASPEED_G5
 #define SCU_HW_STRAP_ESPI_MODE			(0x1 << 25)
 
 
@@ -677,7 +677,7 @@
 #define SCU_FUN_PIN_SGPMLD		(0x1 << 9)
 #define SCU_FUN_PIN_SGPMCK		(0x1 << 8)
 
-#if defined(AST_SOC_G5)
+#if defined(CONFIG_MACH_ASPEED_G5)
 #define SCU_FUN_PIN_I2C4_SALT4	(0x1 << 7)
 #define SCU_FUN_PIN_I2C3_SALT3	(0x1 << 6)
 #define SCU_FUN_PIN_I2C2_SALT2	(0x1 << 5)

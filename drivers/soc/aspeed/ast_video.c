@@ -38,11 +38,9 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <mach/hardware.h>
-#include <mach/aspeed.h>
-#include <mach/ast-sdmc.h>
-#include <mach/ast-scu.h>
-#include <mach/ast_lcd.h>
+#include <linux/ast-sdmc.h>
+#include <linux/ast-scu.h>
+#include <linux/ast_lcd.h>
 /***********************************************************************/
 /* Register for VIDEO */
 #define AST_VIDEO_PROTECT		0x000		/*	protection key register	*/

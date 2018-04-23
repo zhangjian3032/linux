@@ -189,7 +189,7 @@ static int fttmr010_timer_set_periodic(struct clock_event_device *evt)
 	struct fttmr010 *fttmr010 = to_fttmr010(evt);
 	u32 period = DIV_ROUND_CLOSEST(fttmr010->tick_rate, HZ);
 	u32 cr;
-	printk("__FUNCTION__ = %s,  fttmr010->count_down %d \n", __FUNCTION__, fttmr010->count_down);
+
 	/* Stop */
 	cr = readl(fttmr010->base + TIMER_CR);
 	cr &= ~fttmr010->t1_enable_val;
@@ -197,12 +197,10 @@ static int fttmr010_timer_set_periodic(struct clock_event_device *evt)
 
 	/* Setup timer to fire at 1/HZ intervals. */
 	if (fttmr010->count_down) {
-		printk("fttmr010->count_down period %d \n", period);
-		writel(period - 1, fttmr010->base + TIMER1_LOAD);
+		writel(period, fttmr010->base + TIMER1_LOAD);
 		writel(0, fttmr010->base + TIMER1_MATCH1);
 	} else {
 		cr = 0xffffffff - (period - 1);
-		printk("! fttmr010->count_down cr %x \n", cr);
 		writel(cr, fttmr010->base + TIMER1_COUNT);
 		writel(cr, fttmr010->base + TIMER1_LOAD);
 
@@ -239,7 +237,6 @@ static int __init fttmr010_common_init(struct device_node *np, bool is_aspeed)
 	struct clk *clk;
 	int ret;
 	u32 val;
-printk("fttmr010_common_init ~~~~~~~~~~~~\n");
 	/*
 	 * These implementations require a clock reference.
 	 * FIXME: we currently only support clocking using PCLK
@@ -250,7 +247,6 @@ printk("fttmr010_common_init ~~~~~~~~~~~~\n");
 		pr_err("could not get PCLK\n");
 		return PTR_ERR(clk);
 	}
-	
 	ret = clk_prepare_enable(clk);
 	if (ret) {
 		pr_err("failed to enable PCLK\n");
@@ -262,20 +258,19 @@ printk("fttmr010_common_init ~~~~~~~~~~~~\n");
 		ret = -ENOMEM;
 		goto out_disable_clock;
 	}
-
 	fttmr010->tick_rate = clk_get_rate(clk);
 	printk("fttmr010->tick_rate %d \n", fttmr010->tick_rate);
 
 	fttmr010->base = of_iomap(np, 0);
 	if (!fttmr010->base) {
-		pr_err("Can't remap registers");
+		pr_err("Can't remap registers\n");
 		ret = -ENXIO;
 		goto out_free;
 	}
 	/* IRQ for timer 1 */
 	irq = irq_of_parse_and_map(np, 0);
 	if (irq <= 0) {
-		pr_err("Can't parse IRQ");
+		pr_err("Can't parse IRQ\n");
 		ret = -EINVAL;
 		goto out_unmap;
 	}

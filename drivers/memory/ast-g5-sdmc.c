@@ -26,7 +26,7 @@
 #include <linux/of_device.h>
 #include <linux/hwmon-sysfs.h>
 
-#include <mach/ast-sdmc.h>
+#include <linux/ast-sdmc.h>
 /************************************  Registers for SDMC ****************************************/ 
 #define AST_SDMC_PROTECT				0x00		/*	protection key register	*/
 #define AST_SDMC_CONFIG				0x04		/*	Configuration register */

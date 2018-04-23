@@ -34,7 +34,7 @@
 #include <linux/io.h>
 #include <linux/reset.h>
 #include <linux/of.h>
-#include <mach/ast-scu.h>
+#include <linux/ast-scu.h>
 /****************************************************************************************/
 /*AST ADC Register Definition */
 #define AST_ADC_CTRL			0x00

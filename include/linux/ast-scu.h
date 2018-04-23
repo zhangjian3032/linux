@@ -1,5 +1,5 @@
 /*
- *  arch/arm/plat-aspeed/include/plat/ast_vhub_irqs.h
+ *  arch/arm/plat-aspeed/include/plat/ast-scu.h
  *
  *  Copyright (C) 2012-2020  ASPEED Technology Inc.
  *
@@ -18,15 +18,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef _VHUB_IRQS_H_
-#define _VHUB_IRQS_H_                 			1
-
-#define ARCH_NR_VHUB 					(5)
-
-#define IRQ_VHUB_DEV0					(IRQ_VHUB_CHAIN_START + 0)
-#define IRQ_VHUB_DEV1					(IRQ_VHUB_CHAIN_START + 1)
-#define IRQ_VHUB_DEV2					(IRQ_VHUB_CHAIN_START + 2)
-#define IRQ_VHUB_DEV3					(IRQ_VHUB_CHAIN_START + 3)
-#define IRQ_VHUB_DEV4					(IRQ_VHUB_CHAIN_START + 4)
-
+#if defined(CONFIG_BMC)
+#include "ast-bmc-scu.h"
+#elif defined(CONFIG_RT360_CAM)
+#include "ast-cam-scu.h"
+#else
+#err "no define for ast-scu.h"
 #endif

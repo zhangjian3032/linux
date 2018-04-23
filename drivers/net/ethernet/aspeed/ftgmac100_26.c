@@ -69,14 +69,6 @@
 #include <linux/dma-mapping.h>
 
 #include "ftgmac100_26.h"
-
-#if defined(CONFIG_ARM)
-#include <mach/hardware.h>
-#include <asm/cacheflush.h>
-#else
-#err "Not define include for GMAC"
-#endif
-
 /*------------------------------------------------------------------------
  .
  . Configuration options, for the experienced user to change.
