@@ -134,4 +134,4 @@ static int __init ast_scu_irq_of_init(struct device_node *node,
 	return 0;
 }
 
-IRQCHIP_DECLARE(ast_scu_irq, "aspeed,ast-scu-irq", ast_scu_irq_of_init);
+IRQCHIP_DECLARE(ast_scu_irq, "aspeed,aspeed-scu-ic", ast_scu_irq_of_init);

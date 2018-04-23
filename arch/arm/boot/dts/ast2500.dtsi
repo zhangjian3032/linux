@@ -317,7 +317,7 @@
 			};
 		};
 
-		scu_irq: scu_irq {
+		scu_irq: interrupt-controller@1e6e2018 {
 			compatible = "aspeed,ast-scu-irq";
 			interrupt-controller;
 			#interrupt-cells = <1>;
