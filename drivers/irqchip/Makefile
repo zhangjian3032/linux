@@ -1,6 +1,6 @@
 obj-$(CONFIG_IRQCHIP)			+= irqchip.o
 
-obj-$(CONFIG_ARCH_ASPEED)		+= irq-aspeed-vic.o irq-ast-scu.o
+obj-$(CONFIG_ARCH_ASPEED)		+= irq-aspeed-vic.o irq-aspeed-scu-ic.o
 obj-$(CONFIG_ASPEED_SDHCI_IRQCHIP)	+= irq-aspeed-sdhci-ic.o
 obj-$(CONFIG_ASPEED_I2C_IRQCHIP)	+= irq-aspeed-i2c-ic.o #irq-ast-g6-i2c.o
 obj-$(CONFIG_RFX_AST_IRQ)		+= egfx-irq.o
