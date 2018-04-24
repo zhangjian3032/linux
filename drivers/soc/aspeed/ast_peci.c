@@ -497,7 +497,7 @@ static int ast_peci_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	ast_peci.reset = devm_reset_control_get_exclusive(&pdev->dev, "peci");
+	ast_peci.reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(ast_peci.reset)) {
 		dev_err(&pdev->dev, "can't get peci reset\n");
 		return PTR_ERR(ast_peci.reset);
