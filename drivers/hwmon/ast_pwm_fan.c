@@ -2149,7 +2149,7 @@ ast_pwm_tacho_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	ast_pwm_tacho->reset = devm_reset_control_get_exclusive(&pdev->dev, "ast_pwm_tacho");
+	ast_pwm_tacho->reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(ast_pwm_tacho->reset)) {
 		dev_err(&pdev->dev, "can't get ast_pwm_tacho reset\n");
 		return PTR_ERR(ast_pwm_tacho->reset);
