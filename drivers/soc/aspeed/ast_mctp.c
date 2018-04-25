@@ -544,7 +544,7 @@ static int ast_mctp_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	ast_mctp->reset = devm_reset_control_get_exclusive(&pdev->dev, "mctp");
+	ast_mctp->reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(ast_mctp->reset)) {
 		dev_err(&pdev->dev, "can't get mctp reset\n");
 		return PTR_ERR(ast_mctp->reset);
