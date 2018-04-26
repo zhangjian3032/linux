@@ -62,8 +62,8 @@ config AST_IPMI_BT
 
 endif 
 
-config AST_ESPI
-	tristate "AST eSPI"
+config ASPEED_ESPI
+	tristate "ASPEED eSPI"
 
 if AST_ESPI
 
