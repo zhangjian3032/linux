@@ -1,5 +1,5 @@
 /*
- * ast-crypto.c - Crypto driver for the Aspeed SoC
+ * Crypto driver for the Aspeed SoC
  *
  * Copyright (C) ASPEED Technology Inc.
  * Ryan Chen <ryan_chen@aspeedtech.com>
@@ -34,7 +34,6 @@
 
 #include <linux/completion.h>
 #include <linux/clk.h>
-#include <linux/reset.h>
 #include <linux/crypto.h>
 #include <linux/cryptohash.h>
 #include <linux/delay.h>
@@ -57,49 +56,49 @@
 #include <linux/slab.h>
 #include <linux/timer.h>
 
-#define AST_CRYPTO_IRQ
-//#define AST_CRYPTO_DEBUG
-//#define AST_HASH_DEBUG
+#define ASPEED_CRYPTO_IRQ
+//#define ASPEED_CRYPTO_DEBUG
+//#define ASPEED_HASH_DEBUG
 
-#define AST_AES_QUEUE_LENGTH	1
-#define AST_HASH_BUFF_SIZE 	8192
+#define ASPEED_AES_QUEUE_LENGTH	1
+#define ASPEED_HASH_BUFF_SIZE 	8192
 
 //#define CDBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
 
-#ifdef AST_CRYPTO_DEBUG
+#ifdef ASPEED_CRYPTO_DEBUG
 #define CRYPTO_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
 #else
 #define CRYPTO_DBUG(fmt, args...)
 #endif
 
-#ifdef AST_HASH_DEBUG
+#ifdef ASPEED_HASH_DEBUG
 #define HASH_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
 #else
 #define HASH_DBUG(fmt, args...)
 #endif
 
 /*************************************************************************************/
-#define AST_HACE_SRC					0x00
-#define AST_HACE_DEST					0x04
-#define AST_HACE_CONTEXT				0x08
-#define AST_HACE_DATA_LEN				0x0C
-#define AST_HACE_CMD					0x10
-#define AST_HACE_TAG					0x18
-#define AST_HACE_STS					0x1C
-#define AST_HACE_HASH_SRC				0x20
-#define AST_HACE_HASH_DIGEST_BUFF	0x24
-#define AST_HACE_HASH_KEY_BUFF		0x28
-#define AST_HACE_HASH_DATA_LEN		0x2C
-#define AST_HACE_HASH_CMD				0x30
+#define ASPEED_HACE_SRC					0x00
+#define ASPEED_HACE_DEST					0x04
+#define ASPEED_HACE_CONTEXT				0x08
+#define ASPEED_HACE_DATA_LEN				0x0C
+#define ASPEED_HACE_CMD					0x10
+#define ASPEED_HACE_TAG					0x18
+#define ASPEED_HACE_STS					0x1C
+#define ASPEED_HACE_HASH_SRC				0x20
+#define ASPEED_HACE_HASH_DIGEST_BUFF	0x24
+#define ASPEED_HACE_HASH_KEY_BUFF		0x28
+#define ASPEED_HACE_HASH_DATA_LEN		0x2C
+#define ASPEED_HACE_HASH_CMD				0x30
 
-#define AST_HACE_RSA_MD_EXP_BIT		0x40
-#define AST_HACE_RSA_CMD				0x4C
+#define ASPEED_HACE_RSA_MD_EXP_BIT		0x40
+#define ASPEED_HACE_RSA_CMD				0x4C
 
-#define AST_HACE_CMD_QUEUE			0x50
-#define AST_HACE_CMD_QUEUE_EP		0x54
-#define AST_HACE_CMD_QUEUE_WP		0x58
-#define AST_HACE_CMD_QUEUE_RP		0x5C
-#define AST_HACE_ENG_FEATURE			0x60
+#define ASPEED_HACE_CMD_QUEUE			0x50
+#define ASPEED_HACE_CMD_QUEUE_EP		0x54
+#define ASPEED_HACE_CMD_QUEUE_WP		0x58
+#define ASPEED_HACE_CMD_QUEUE_RP		0x5C
+#define ASPEED_HACE_ENG_FEATURE			0x60
 
 /*************************************************************************************/
 
@@ -111,7 +110,7 @@
 #define HACE_CRYPTO_ISR				(0x1 << 12)
 #define HACE_RSA_ISR					(0x1 << 13)
 
-/* 	AST_HACE_CMD					0x10		*/
+/* 	ASPEED_HACE_CMD					0x10		*/
 #define HACE_CMD_SINGLE_DES				(0)
 #define HACE_CMD_TRIPLE_DES				(0x1 << 17)
 
@@ -151,7 +150,7 @@
 #define HACE_CMD_OP_INDEPENDENT			(0x1)
 
 
-/* AST_HACE_HASH_CMD				0x30		*/
+/* ASPEED_HACE_HASH_CMD				0x30		*/
 #define HASH_CMD_INT_ENABLE				(0x1 << 9)
 #define HASH_CMD_INT_DISABLE				(0)
 
@@ -171,15 +170,14 @@
  * This structure defines a request that is either queued for processing or
  * being processed.
  */
-struct ast_crypto_req {
+struct aspeed_crypto_req {
 	struct list_head		list;
-	struct ast_crypto_dev		*crypto_dev;
+	struct aspeed_crypto_dev		*crypto_dev;
 	struct crypto_async_request	*req;
 	int				result;
 	bool				is_encrypt;
 	unsigned			ctx_id;
 	dma_addr_t			src_addr, dst_addr;
-	struct reset_control *reset;
 	struct clk 			*clk;
 	u32					apb_clk;	
 
@@ -189,29 +187,28 @@ struct ast_crypto_req {
 	dma_addr_t			giv_pa;
 };
 
-struct ast_crypto_reqctx {
+struct aspeed_crypto_reqctx {
 	unsigned long mode;
 };
 
-struct ast_crypto_dev {
+struct aspeed_crypto_dev {
 	void __iomem			*regs;
 	struct list_head		list;
 
 	struct completion		cmd_complete;
 	u32 					isr;
-	struct reset_control *reset;
 	struct clk 			*clk;
 	u32					yclk;	
 	
 	spinlock_t			lock;
 
 	//crypto
-	struct ast_aes_ctx	*aes_ctx;
-	struct ast_des_ctx	*des_ctx;
-	struct ast_rc4_ctx		*rc4_ctx;
+	struct aspeed_aes_ctx	*aes_ctx;
+	struct aspeed_des_ctx	*des_ctx;
+	struct aspeed_rc4_ctx		*rc4_ctx;
 
 	//hash
-	struct ast_sham_reqctx *sham_reqctx;
+	struct aspeed_sham_reqctx *sham_reqctx;
 
 	struct crypto_queue	queue;
 
@@ -258,8 +255,8 @@ struct ast_crypto_dev {
 #define SPACC_CRYPTO_ALG_MASK		0x7
 
 /* Block cipher context. */
-struct ast_aes_ctx {
-	struct ast_crypto_dev		*crypto_dev;
+struct aspeed_aes_ctx {
+	struct aspeed_crypto_dev		*crypto_dev;
 	u8				*iv;	
 	u8				key[0xff];
 	u8				key_len;	
@@ -267,36 +264,36 @@ struct ast_aes_ctx {
 	u8				done;
 };
 
-struct ast_des_ctx {
-	struct ast_crypto_dev		*crypto_dev;
+struct aspeed_des_ctx {
+	struct aspeed_crypto_dev		*crypto_dev;
 	u8				*iv;	
 	u8				key[0x24];
 	u8				key_len;	
 	u8				done;
 };
 
-struct ast_rc4_ctx {
-	struct ast_crypto_dev		*crypto_dev;
+struct aspeed_rc4_ctx {
+	struct aspeed_crypto_dev		*crypto_dev;
 	u8				rc4_key[256];		
 	int				key_len;	
 	u8				done;
 };
 
-struct ast_cipher_context {
-	struct ast_crypto_dev		*crypto_dev;	
+struct aspeed_cipher_context {
+	struct aspeed_crypto_dev		*crypto_dev;	
 	int			key_len;
 	int			enc_type;
 	union {
-		u8		ast_aes[AES_MAX_KEY_SIZE];
-		u8		ast_des[DES_KEY_SIZE];
-		u8		ast_des3[3 * DES_KEY_SIZE];
-		u8		ast_arc4[258]; /* S-box, X, Y */
+		u8		aspeed_aes[AES_MAX_KEY_SIZE];
+		u8		aspeed_des[DES_KEY_SIZE];
+		u8		aspeed_des3[3 * DES_KEY_SIZE];
+		u8		aspeed_arc4[258]; /* S-box, X, Y */
 	} key;	
 	u8				done;	
 };
 /*************************************************************************************/
-struct ast_sham_ctx {
-	struct ast_crypto_dev	*crypto_dev;
+struct aspeed_sham_ctx {
+	struct aspeed_crypto_dev	*crypto_dev;
 	
 	unsigned long		flags;	//hmac flag
 	
@@ -305,8 +302,8 @@ struct ast_sham_ctx {
 	struct crypto_shash 	*base_hash;		//for hmac
 };
 
-struct ast_sham_reqctx {
-	struct ast_crypto_dev	*crypto_dev;
+struct aspeed_sham_reqctx {
+	struct aspeed_crypto_dev	*crypto_dev;
 	unsigned long	flags;	//final update flag should no use
 	u8			op; 	  	////0: init, 1 : upate , 2: final update	
 
@@ -402,14 +399,14 @@ void AESKeyExpan(unsigned int bits, u32 *aeskeyin, u32* aeskeydram)
 }
 /*************************************************************************************/
 static inline void
-ast_crypto_write(struct ast_crypto_dev *crypto, u32 val, u32 reg)
+aspeed_crypto_write(struct aspeed_crypto_dev *crypto, u32 val, u32 reg)
 {
 //	printk("uart dma write : val: %x , reg : %x \n",val,reg);	
 	writel(val, crypto->regs + reg);
 }
 
 static inline u32
-ast_crypto_read(struct ast_crypto_dev *crypto, u32 reg)
+aspeed_crypto_read(struct aspeed_crypto_dev *crypto, u32 reg)
 {
 #if 0
 	u32 val = readl(crypto->regs + reg);
@@ -421,18 +418,18 @@ ast_crypto_read(struct ast_crypto_dev *crypto, u32 reg)
 }
 
 /*************************************************************************************/
-struct ast_crypto_drv {
+struct aspeed_crypto_drv {
 	struct list_head	dev_list;
 	spinlock_t		lock;
 };
 
-static struct ast_crypto_drv ast_drv = {
-	.dev_list = LIST_HEAD_INIT(ast_drv.dev_list),
-	.lock = __SPIN_LOCK_UNLOCKED(ast_drv.lock),
+static struct aspeed_crypto_drv aspeed_drv = {
+	.dev_list = LIST_HEAD_INIT(aspeed_drv.dev_list),
+	.lock = __SPIN_LOCK_UNLOCKED(aspeed_drv.lock),
 };
 
 /*************************************************************************************/
-static int ast_crypto_sg_length(struct ablkcipher_request *req,
+static int aspeed_crypto_sg_length(struct ablkcipher_request *req,
 			struct scatterlist *sg)
 {
 	unsigned int total = req->nbytes;
@@ -459,78 +456,78 @@ static int ast_crypto_sg_length(struct ablkcipher_request *req,
 }
 
 /*************************************************************************************/
-static int ast_crypto_trigger(struct ast_crypto_dev *ast_crypto)
+static int aspeed_crypto_trigger(struct aspeed_crypto_dev *aspeed_crypto)
 {
 	u32 nbytes = 0;
 	unsigned int	nb_in_sg = 0, nb_out_sg = 0;
-	struct ablkcipher_request	*req = ast_crypto->ablkcipher_req;
+	struct ablkcipher_request	*req = aspeed_crypto->ablkcipher_req;
 //	struct scatterlist	*org_in_sg = req->src, *org_out_sg = req->dst;
 	struct scatterlist	*in_sg = req->src, *out_sg = req->dst;
 
-	if(ast_crypto->cmd & HACE_CMD_RC4) {
+	if(aspeed_crypto->cmd & HACE_CMD_RC4) {
 		//RC4		
-		if(!ast_crypto->rc4_ctx->done) {
-			 *(u32 *) (ast_crypto->ctx_buf + 8) = 0x0001;
-			memcpy(ast_crypto->ctx_buf + 16, ast_crypto->rc4_ctx->rc4_key, 256);
-			ast_crypto->rc4_ctx->done = 1;
+		if(!aspeed_crypto->rc4_ctx->done) {
+			 *(u32 *) (aspeed_crypto->ctx_buf + 8) = 0x0001;
+			memcpy(aspeed_crypto->ctx_buf + 16, aspeed_crypto->rc4_ctx->rc4_key, 256);
+			aspeed_crypto->rc4_ctx->done = 1;
 		}
 	} else { 
-		if(ast_crypto->cmd & HACE_CMD_DES_SELECT) {
+		if(aspeed_crypto->cmd & HACE_CMD_DES_SELECT) {
 			//DES
-			if(!ast_crypto->des_ctx->done) {
-				if(ast_crypto->des_ctx->iv) {
-					memcpy(ast_crypto->ctx_buf + 8, ast_crypto->des_ctx->iv, 8);
+			if(!aspeed_crypto->des_ctx->done) {
+				if(aspeed_crypto->des_ctx->iv) {
+					memcpy(aspeed_crypto->ctx_buf + 8, aspeed_crypto->des_ctx->iv, 8);
 #if 0				
 					for(i = 0; i < 8; i++) {
-						ctxbuf[i + 8] = ast_crypto->des_ctx->iv[i];
+						ctxbuf[i + 8] = aspeed_crypto->des_ctx->iv[i];
 					}
 #endif 				
 				}
 #if 0			
 				for(i = 0; i < 24; i++) {
-					ctxbuf[0x10 + i] = ast_crypto->des_ctx->key[i];
+					ctxbuf[0x10 + i] = aspeed_crypto->des_ctx->key[i];
 				}
 #else
-				memcpy(ast_crypto->ctx_buf + 16, ast_crypto->des_ctx->key, 24);
+				memcpy(aspeed_crypto->ctx_buf + 16, aspeed_crypto->des_ctx->key, 24);
 #endif
-				ast_crypto->des_ctx->done = 1;
+				aspeed_crypto->des_ctx->done = 1;
 			}
 		} else {
 			//AES
-			if(!ast_crypto->aes_ctx->done) {
+			if(!aspeed_crypto->aes_ctx->done) {
 
-				if(ast_crypto->aes_ctx->iv) {		
+				if(aspeed_crypto->aes_ctx->iv) {		
 #if 1				
-					memcpy(ast_crypto->ctx_buf, ast_crypto->aes_ctx->iv, 16);
+					memcpy(aspeed_crypto->ctx_buf, aspeed_crypto->aes_ctx->iv, 16);
 #else
 					printk("Set iv: \n");
 					for(i = 0; i < 0x10; i++) {
-						ctxbuf[i] = ast_crypto->aes_ctx->iv[i];
+						ctxbuf[i] = aspeed_crypto->aes_ctx->iv[i];
 						printk("%02x ", ctxbuf[i]);
 					}		
 					printk("\n");
 #endif				
 				}
 #if 1
-				memcpy(ast_crypto->ctx_buf + 16, ast_crypto->aes_ctx->key, 0xff);
+				memcpy(aspeed_crypto->ctx_buf + 16, aspeed_crypto->aes_ctx->key, 0xff);
 #else
 				printk("Set key: \n");			
 				for(i = 0; i < 0xff; i++) {
-					ctxbuf[0x10 + i] = ast_crypto->aes_ctx->key[i];
+					ctxbuf[0x10 + i] = aspeed_crypto->aes_ctx->key[i];
 					printk("%02x ", ctxbuf[0x10 + i]);
 				}
 				printk("\n");
 #endif			
-				ast_crypto->aes_ctx->done = 1;
+				aspeed_crypto->aes_ctx->done = 1;
 			}		
 		}
 	}
 
-	nb_in_sg = ast_crypto_sg_length(req, in_sg);
+	nb_in_sg = aspeed_crypto_sg_length(req, in_sg);
 	if (!nb_in_sg)
 		return -EINVAL;
 
-	nb_out_sg = ast_crypto_sg_length(req, out_sg);
+	nb_out_sg = aspeed_crypto_sg_length(req, out_sg);
 	if (!nb_out_sg)
 		return -EINVAL;
 
@@ -538,18 +535,18 @@ static int ast_crypto_trigger(struct ast_crypto_dev *ast_crypto)
 		printk("ERROR !!!~~~~ \n");
 	}
 #if 0	
-	err = dma_map_sg(ast_crypto->dev, org_in_sg, nb_in_sg,
+	err = dma_map_sg(aspeed_crypto->dev, org_in_sg, nb_in_sg,
 			 DMA_TO_DEVICE);
 	if (!err) {
-		dev_err(ast_crypto->dev, "dma_map_sg() error\n");
+		dev_err(aspeed_crypto->dev, "dma_map_sg() error\n");
 		return -EINVAL;
 	}
 
-	err = dma_map_sg(ast_crypto->dev, org_out_sg, nb_out_sg,
+	err = dma_map_sg(aspeed_crypto->dev, org_out_sg, nb_out_sg,
 			 DMA_FROM_DEVICE);
 
 	if (!err) {
-		dev_err(ast_crypto->dev, "dma_map_sg() error\n");
+		dev_err(aspeed_crypto->dev, "dma_map_sg() error\n");
 		return -EINVAL;
 	}
 
@@ -558,33 +555,33 @@ static int ast_crypto_trigger(struct ast_crypto_dev *ast_crypto)
 	for(i = 0; i <nb_in_sg; i++)  {
 //		printk("sg phy %x ", sg_phys(in_sg));
 
-#ifdef AST_CRYPTO_IRQ
-		ast_crypto->cmd |= HACE_CMD_INT_ENABLE;
-		printk("ast_crypto->cmd %x \n", ast_crypto->cmd);
-		ast_crypto->isr = 0;
-		init_completion(&ast_crypto->cmd_complete); 	
+#ifdef ASPEED_CRYPTO_IRQ
+		aspeed_crypto->cmd |= HACE_CMD_INT_ENABLE;
+		printk("aspeed_crypto->cmd %x \n", aspeed_crypto->cmd);
+		aspeed_crypto->isr = 0;
+		init_completion(&aspeed_crypto->cmd_complete); 	
 
 #endif 
 	
-		ast_crypto_write(ast_crypto, sg_phys(in_sg), AST_HACE_SRC);
-		ast_crypto_write(ast_crypto, sg_phys(out_sg), AST_HACE_DEST);
-		ast_crypto_write(ast_crypto, in_sg->length, AST_HACE_DATA_LEN);
+		aspeed_crypto_write(aspeed_crypto, sg_phys(in_sg), ASPEED_HACE_SRC);
+		aspeed_crypto_write(aspeed_crypto, sg_phys(out_sg), ASPEED_HACE_DEST);
+		aspeed_crypto_write(aspeed_crypto, in_sg->length, ASPEED_HACE_DATA_LEN);
 		printk("src : %x , dst : %x , len %d , out len %d \n", sg_phys(in_sg), sg_phys(out_sg), in_sg->length, out_sg->length);		
 		
-		ast_crypto_write(ast_crypto, ast_crypto->cmd, AST_HACE_CMD);
+		aspeed_crypto_write(aspeed_crypto, aspeed_crypto->cmd, ASPEED_HACE_CMD);
 		
 
-#ifdef AST_CRYPTO_IRQ
-		wait_for_completion_interruptible(&ast_crypto->cmd_complete);
+#ifdef ASPEED_CRYPTO_IRQ
+		wait_for_completion_interruptible(&aspeed_crypto->cmd_complete);
 		printk("done \n");
 
 #if 0
-		if(!(ast_crypto->isr & HACE_CRYPTO_ISR)) {
-			printk("INTR ERROR ast_crypto->isr %x \n", ast_crypto->isr);
+		if(!(aspeed_crypto->isr & HACE_CRYPTO_ISR)) {
+			printk("INTR ERROR aspeed_crypto->isr %x \n", aspeed_crypto->isr);
 		}
 #endif			
 #else
-		while(ast_crypto_read(ast_crypto, AST_HACE_STS) & HACE_CRYPTO_BUSY);
+		while(aspeed_crypto_read(aspeed_crypto, ASPEED_HACE_STS) & HACE_CRYPTO_BUSY);
 #endif
 	
 		nbytes +=  in_sg->length;
@@ -595,10 +592,10 @@ static int ast_crypto_trigger(struct ast_crypto_dev *ast_crypto)
 	if(nbytes != req->nbytes) {
 		printk("~~~ EOOERR  nbytes %d , req->nbytes %d \n", nbytes, req->nbytes);
 	}
-	dma_unmap_sg(ast_crypto->dev, org_in_sg, nb_in_sg, DMA_TO_DEVICE);
-	dma_unmap_sg(ast_crypto->dev, org_out_sg, nb_out_sg, DMA_FROM_DEVICE);
+	dma_unmap_sg(aspeed_crypto->dev, org_in_sg, nb_in_sg, DMA_TO_DEVICE);
+	dma_unmap_sg(aspeed_crypto->dev, org_out_sg, nb_out_sg, DMA_FROM_DEVICE);
 #else
-	nbytes = sg_copy_to_buffer(in_sg, nb_in_sg, 	ast_crypto->buf_in, req->nbytes);
+	nbytes = sg_copy_to_buffer(in_sg, nb_in_sg, 	aspeed_crypto->buf_in, req->nbytes);
 //	printk("copy nbytes %d, req->nbytes %d , nb_in_sg %d, nb_out_sg %d \n", nbytes, req->nbytes, nb_in_sg, nb_out_sg);
 
 	if (!nbytes)
@@ -608,41 +605,41 @@ static int ast_crypto_trigger(struct ast_crypto_dev *ast_crypto)
 		printk("~~~ EOOERR  nbytes %d , req->nbytes %d \n", nbytes, req->nbytes);
 	}
 
-#ifdef AST_CRYPTO_IRQ
-	ast_crypto->cmd |= HACE_CMD_INT_ENABLE;
-	ast_crypto->isr = 0;
-//	CDBUG("crypto cmd %x\n", ast_crypto->cmd);
-	init_completion(&ast_crypto->cmd_complete); 	
+#ifdef ASPEED_CRYPTO_IRQ
+	aspeed_crypto->cmd |= HACE_CMD_INT_ENABLE;
+	aspeed_crypto->isr = 0;
+//	CDBUG("crypto cmd %x\n", aspeed_crypto->cmd);
+	init_completion(&aspeed_crypto->cmd_complete); 	
 #endif 
 	
-	ast_crypto_write(ast_crypto, ast_crypto->dma_addr_in, AST_HACE_SRC);
-	ast_crypto_write(ast_crypto, ast_crypto->dma_addr_out, AST_HACE_DEST);
-	ast_crypto_write(ast_crypto, req->nbytes, AST_HACE_DATA_LEN);
+	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->dma_addr_in, ASPEED_HACE_SRC);
+	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->dma_addr_out, ASPEED_HACE_DEST);
+	aspeed_crypto_write(aspeed_crypto, req->nbytes, ASPEED_HACE_DATA_LEN);
 
-	ast_crypto_write(ast_crypto, ast_crypto->cmd, AST_HACE_CMD);
+	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->cmd, ASPEED_HACE_CMD);
 		
-#ifdef AST_CRYPTO_IRQ
-	wait_for_completion_interruptible(&ast_crypto->cmd_complete);
+#ifdef ASPEED_CRYPTO_IRQ
+	wait_for_completion_interruptible(&aspeed_crypto->cmd_complete);
 #if 0
-	if(!(ast_crypto->isr & HACE_CRYPTO_ISR)) {
-		printk("INTR ERROR ast_crypto->isr %x \n", ast_crypto->isr);
-		printk("INTR ERROR ast_crypto->isr %x \n", ast_crypto->isr);
-		printk("INTR ERROR ast_crypto->isr %x \n", ast_crypto->isr);
-		printk("INTR ERROR ast_crypto->isr %x \n", ast_crypto->isr);
-		printk("INTR ERROR ast_crypto->isr %x \n", ast_crypto->isr);
-		printk("INTR ERROR ast_crypto->isr %x \n", ast_crypto->isr);
-		printk("INTR ERROR ast_crypto->isr %x \n", ast_crypto->isr);
-		printk("INTR ERROR ast_crypto->isr %x \n", ast_crypto->isr);
-		printk("INTR ERROR ast_crypto->isr %x \n", ast_crypto->isr);		
+	if(!(aspeed_crypto->isr & HACE_CRYPTO_ISR)) {
+		printk("INTR ERROR aspeed_crypto->isr %x \n", aspeed_crypto->isr);
+		printk("INTR ERROR aspeed_crypto->isr %x \n", aspeed_crypto->isr);
+		printk("INTR ERROR aspeed_crypto->isr %x \n", aspeed_crypto->isr);
+		printk("INTR ERROR aspeed_crypto->isr %x \n", aspeed_crypto->isr);
+		printk("INTR ERROR aspeed_crypto->isr %x \n", aspeed_crypto->isr);
+		printk("INTR ERROR aspeed_crypto->isr %x \n", aspeed_crypto->isr);
+		printk("INTR ERROR aspeed_crypto->isr %x \n", aspeed_crypto->isr);
+		printk("INTR ERROR aspeed_crypto->isr %x \n", aspeed_crypto->isr);
+		printk("INTR ERROR aspeed_crypto->isr %x \n", aspeed_crypto->isr);		
 	}
-	if(ast_crypto->isr == 0)
-		CDBUG("~~~ ast_crypto->isr %x \n", ast_crypto->isr);
+	if(aspeed_crypto->isr == 0)
+		CDBUG("~~~ aspeed_crypto->isr %x \n", aspeed_crypto->isr);
 #endif	
 #else
-	while(ast_crypto_read(ast_crypto, AST_HACE_STS) & HACE_CRYPTO_BUSY);
+	while(aspeed_crypto_read(aspeed_crypto, ASPEED_HACE_STS) & HACE_CRYPTO_BUSY);
 #endif
 
-	nbytes = sg_copy_from_buffer(out_sg, nb_out_sg, ast_crypto->buf_out, req->nbytes);
+	nbytes = sg_copy_from_buffer(out_sg, nb_out_sg, aspeed_crypto->buf_out, req->nbytes);
 
 //	printk("sg_copy_from_buffer nbytes %d req->nbytes %d\n",nbytes, req->nbytes);
 
@@ -656,25 +653,25 @@ static int ast_crypto_trigger(struct ast_crypto_dev *ast_crypto)
 	return 0;
 }
 
-static int ast_crypto_handle_queue(struct ast_crypto_dev *ast_crypto,
+static int aspeed_crypto_handle_queue(struct aspeed_crypto_dev *aspeed_crypto,
 				struct ablkcipher_request *req)
 {
 	struct crypto_async_request *async_req, *backlog;
-//	struct ast_crypto_reqctx *rctx;
+//	struct aspeed_crypto_reqctx *rctx;
 	unsigned long flags;
 	int ret = 0;
-	spin_lock_irqsave(&ast_crypto->lock, flags);
+	spin_lock_irqsave(&aspeed_crypto->lock, flags);
 	if (req)
-		ret = ablkcipher_enqueue_request(&ast_crypto->queue, req);
+		ret = ablkcipher_enqueue_request(&aspeed_crypto->queue, req);
 
-	if(ast_crypto_read(ast_crypto, AST_HACE_STS) & HACE_CRYPTO_BUSY) {
+	if(aspeed_crypto_read(aspeed_crypto, ASPEED_HACE_STS) & HACE_CRYPTO_BUSY) {
 		printk("Engine Busy \n");
-		spin_unlock_irqrestore(&ast_crypto->lock, flags);
+		spin_unlock_irqrestore(&aspeed_crypto->lock, flags);
 		return ret;
 	}
-	backlog = crypto_get_backlog(&ast_crypto->queue);
-	async_req = crypto_dequeue_request(&ast_crypto->queue);
-	spin_unlock_irqrestore(&ast_crypto->lock, flags);
+	backlog = crypto_get_backlog(&aspeed_crypto->queue);
+	async_req = crypto_dequeue_request(&aspeed_crypto->queue);
+	spin_unlock_irqrestore(&aspeed_crypto->lock, flags);
 
 	if (!async_req)
 		return ret;
@@ -685,21 +682,21 @@ static int ast_crypto_handle_queue(struct ast_crypto_dev *ast_crypto,
 	req = ablkcipher_request_cast(async_req);
 
 	/* assign new request to device */
-	ast_crypto->ablkcipher_req = req;
+	aspeed_crypto->ablkcipher_req = req;
 
-	if(ast_crypto_trigger(ast_crypto) != 0)
-		printk("ast_crypto_trigger error \n");
+	if(aspeed_crypto_trigger(aspeed_crypto) != 0)
+		printk("aspeed_crypto_trigger error \n");
 
 	req->base.complete(&req->base, 0);
 
 	return 0;
 }
 
-static void ast_aes_done_task(unsigned long data)
+static void aspeed_aes_done_task(unsigned long data)
 {
 #if 0	
 
-	struct ast_crypto_dev *ast_crypto = (struct ast_crypto_dev *)data;
+	struct aspeed_crypto_dev *aspeed_crypto = (struct aspeed_crypto_dev *)data;
 	int err;
 	CRYPTO_DBUG("\n");
 
@@ -716,52 +713,52 @@ static void ast_aes_done_task(unsigned long data)
 #endif	
 }
 
-static void ast_aes_queue_task(unsigned long data)
+static void aspeed_aes_queue_task(unsigned long data)
 {
-	struct ast_crypto_dev *ast_crypto = (struct ast_crypto_dev *)data;
+	struct aspeed_crypto_dev *aspeed_crypto = (struct aspeed_crypto_dev *)data;
 	CRYPTO_DBUG("\n");
 
-	ast_crypto_handle_queue(ast_crypto, NULL);
+	aspeed_crypto_handle_queue(aspeed_crypto, NULL);
 }
 
 /*************************************************************************************/
-static int ast_rc4_crypt(struct ablkcipher_request *req, u32 cmd)
+static int aspeed_rc4_crypt(struct ablkcipher_request *req, u32 cmd)
 {
-	struct ast_rc4_ctx *ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
-//	struct ast_crypto_reqctx *rctx = ablkcipher_request_ctx(req);
-	struct ast_crypto_dev *ast_crypto = NULL, *tmp;
+	struct aspeed_rc4_ctx *ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
+//	struct aspeed_crypto_reqctx *rctx = ablkcipher_request_ctx(req);
+	struct aspeed_crypto_dev *aspeed_crypto = NULL, *tmp;
 
 	CRYPTO_DBUG("\n");	
 
-	spin_lock_bh(&ast_drv.lock);
+	spin_lock_bh(&aspeed_drv.lock);
 	if (!ctx->crypto_dev) {
-		list_for_each_entry(tmp, &ast_drv.dev_list, list) {
-			ast_crypto = tmp;
+		list_for_each_entry(tmp, &aspeed_drv.dev_list, list) {
+			aspeed_crypto = tmp;
 			break;
 		}
-		ctx->crypto_dev = ast_crypto;
+		ctx->crypto_dev = aspeed_crypto;
 	} else {
-		ast_crypto = ctx->crypto_dev;
+		aspeed_crypto = ctx->crypto_dev;
 	}
 
-	spin_unlock_bh(&ast_drv.lock);
+	spin_unlock_bh(&aspeed_drv.lock);
 
 
 	cmd |= HACE_CMD_RI_WO_DATA_ENABLE | 
 			HACE_CMD_CONTEXT_LOAD_ENABLE | HACE_CMD_CONTEXT_SAVE_ENABLE;
 
-	ast_crypto->cmd = cmd;
-	ast_crypto->rc4_ctx = ctx;
+	aspeed_crypto->cmd = cmd;
+	aspeed_crypto->rc4_ctx = ctx;
 	
-	return ast_crypto_handle_queue(ast_crypto, req);
+	return aspeed_crypto_handle_queue(aspeed_crypto, req);
 }
 
-static int ast_rc4_setkey(struct crypto_ablkcipher *tfm, const u8 *in_key,
+static int aspeed_rc4_setkey(struct crypto_ablkcipher *tfm, const u8 *in_key,
 							unsigned int key_len)
 			   
 {	
 	int i, j = 0, k = 0;
-	struct ast_rc4_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+	struct aspeed_rc4_ctx *ctx = crypto_ablkcipher_ctx(tfm);
 	CRYPTO_DBUG("keylen : %d \n", key_len);	
 
 	for (i = 0; i < 256; i++)
@@ -783,57 +780,57 @@ static int ast_rc4_setkey(struct crypto_ablkcipher *tfm, const u8 *in_key,
 	return 0;
 }
 
-static int ast_rc4_decrypt(struct ablkcipher_request *req)
+static int aspeed_rc4_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_rc4_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_RC4);
+	return aspeed_rc4_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_RC4);
 }
 
-static int ast_rc4_encrypt(struct ablkcipher_request *req)
+static int aspeed_rc4_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_rc4_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_RC4);
+	return aspeed_rc4_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_RC4);
 }
 
 /*************************************************************************************/
 
-static int ast_des_crypt(struct ablkcipher_request *req, u32 cmd)
+static int aspeed_des_crypt(struct ablkcipher_request *req, u32 cmd)
 {
-	struct ast_des_ctx *ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
-//	struct ast_crypto_reqctx *rctx = ablkcipher_request_ctx(req);
-	struct ast_crypto_dev *ast_crypto = NULL, *tmp;
+	struct aspeed_des_ctx *ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
+//	struct aspeed_crypto_reqctx *rctx = ablkcipher_request_ctx(req);
+	struct aspeed_crypto_dev *aspeed_crypto = NULL, *tmp;
 
 	CRYPTO_DBUG("\n");	
 
-	spin_lock_bh(&ast_drv.lock);
+	spin_lock_bh(&aspeed_drv.lock);
 	if (!ctx->crypto_dev) {
-		list_for_each_entry(tmp, &ast_drv.dev_list, list) {
-			ast_crypto = tmp;
+		list_for_each_entry(tmp, &aspeed_drv.dev_list, list) {
+			aspeed_crypto = tmp;
 			break;
 		}
-		ctx->crypto_dev = ast_crypto;
+		ctx->crypto_dev = aspeed_crypto;
 	} else {
-		ast_crypto = ctx->crypto_dev;
+		aspeed_crypto = ctx->crypto_dev;
 	}
 
-	spin_unlock_bh(&ast_drv.lock);
+	spin_unlock_bh(&aspeed_drv.lock);
 	
 	ctx->iv = req->info;
 
 	cmd |= HACE_CMD_DES_SELECT | HACE_CMD_RI_WO_DATA_ENABLE | 
 			HACE_CMD_CONTEXT_LOAD_ENABLE | HACE_CMD_CONTEXT_SAVE_ENABLE;
 
-	ast_crypto->cmd = cmd;
-	ast_crypto->des_ctx = ctx;
+	aspeed_crypto->cmd = cmd;
+	aspeed_crypto->des_ctx = ctx;
 
-	return ast_crypto_handle_queue(ast_crypto, req);
+	return aspeed_crypto_handle_queue(aspeed_crypto, req);
 }
 
-static int ast_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+static int aspeed_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 			   unsigned int keylen)
 {
 //	struct crypto_tfm *ctfm = crypto_ablkcipher_tfm(tfm);
-	struct ast_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+	struct aspeed_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
 
 	CRYPTO_DBUG("bits : %d \n", (keylen * 8));
 
@@ -849,146 +846,146 @@ static int ast_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 	return 0;
 }
 
-static int ast_tdes_ctr_decrypt(struct ablkcipher_request *req)
+static int aspeed_tdes_ctr_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CTR | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CTR | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
 }
 
-static int ast_tdes_ctr_encrypt(struct ablkcipher_request *req)
+static int aspeed_tdes_ctr_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CTR | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CTR | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
 }
 
-static int ast_tdes_ofb_decrypt(struct ablkcipher_request *req)
+static int aspeed_tdes_ofb_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_OFB | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_OFB | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
 }
 
-static int ast_tdes_ofb_encrypt(struct ablkcipher_request *req)
+static int aspeed_tdes_ofb_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_OFB | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_OFB | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
 }
 
-static int ast_tdes_cfb_decrypt(struct ablkcipher_request *req)
+static int aspeed_tdes_cfb_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CFB | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CFB | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
 }
 
-static int ast_tdes_cfb_encrypt(struct ablkcipher_request *req)
+static int aspeed_tdes_cfb_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CFB | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CFB | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
 }
 
-static int ast_tdes_cbc_decrypt(struct ablkcipher_request *req)
+static int aspeed_tdes_cbc_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CBC | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CBC | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
 }
 
-static int ast_tdes_cbc_encrypt(struct ablkcipher_request *req)
+static int aspeed_tdes_cbc_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CBC | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CBC | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
 }
 
-static int ast_tdes_ecb_decrypt(struct ablkcipher_request *req)
+static int aspeed_tdes_ecb_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_ECB | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_ECB | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
 }
 
-static int ast_tdes_ecb_encrypt(struct ablkcipher_request *req)
+static int aspeed_tdes_ecb_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_ECB | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_ECB | HACE_CMD_TRIPLE_DES | HACE_CMD_DES);
 }
 
-static int ast_des_ctr_decrypt(struct ablkcipher_request *req)
+static int aspeed_des_ctr_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CTR | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CTR | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
 }
 
-static int ast_des_ctr_encrypt(struct ablkcipher_request *req)
+static int aspeed_des_ctr_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CTR | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CTR | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
 }
 
-static int ast_des_ofb_decrypt(struct ablkcipher_request *req)
+static int aspeed_des_ofb_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_OFB | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_OFB | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
 }
 
-static int ast_des_ofb_encrypt(struct ablkcipher_request *req)
+static int aspeed_des_ofb_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_OFB | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_OFB | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
 }
 
-static int ast_des_cfb_decrypt(struct ablkcipher_request *req)
+static int aspeed_des_cfb_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CFB | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CFB | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
 }
 
-static int ast_des_cfb_encrypt(struct ablkcipher_request *req)
+static int aspeed_des_cfb_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CFB | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CFB | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
 }
 
-static int ast_des_cbc_decrypt(struct ablkcipher_request *req)
+static int aspeed_des_cbc_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CBC | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CBC | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
 }
 
-static int ast_des_cbc_encrypt(struct ablkcipher_request *req)
+static int aspeed_des_cbc_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CBC | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CBC | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
 }
 
-static int ast_des_ecb_decrypt(struct ablkcipher_request *req)
+static int aspeed_des_ecb_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_ECB | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_ECB | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
 }
 
-static int ast_des_ecb_encrypt(struct ablkcipher_request *req)
+static int aspeed_des_ecb_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_ECB | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
+	return aspeed_des_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_ECB | HACE_CMD_SINGLE_DES | HACE_CMD_DES);
 }
 /* AES *************************************************************************************/
-static int ast_aes_crypt(struct ablkcipher_request *areq, u32 cmd)
+static int aspeed_aes_crypt(struct ablkcipher_request *areq, u32 cmd)
 {
-	struct ast_aes_ctx *ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(areq));
-//	struct ast_crypto_reqctx *rctx = ablkcipher_request_ctx(areq);
-	struct ast_crypto_dev *ast_crypto = NULL, *tmp;
+	struct aspeed_aes_ctx *ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(areq));
+//	struct aspeed_crypto_reqctx *rctx = ablkcipher_request_ctx(areq);
+	struct aspeed_crypto_dev *aspeed_crypto = NULL, *tmp;
 	
 	CRYPTO_DBUG("\n");	
 
-	spin_lock_bh(&ast_drv.lock);
+	spin_lock_bh(&aspeed_drv.lock);
 	if (!ctx->crypto_dev) {
-		list_for_each_entry(tmp, &ast_drv.dev_list, list) {
-			ast_crypto = tmp;
+		list_for_each_entry(tmp, &aspeed_drv.dev_list, list) {
+			aspeed_crypto = tmp;
 			break;
 		}
-		ctx->crypto_dev = ast_crypto;
+		ctx->crypto_dev = aspeed_crypto;
 	} else {
-		ast_crypto = ctx->crypto_dev;
+		aspeed_crypto = ctx->crypto_dev;
 	}
 
-	spin_unlock_bh(&ast_drv.lock);
+	spin_unlock_bh(&aspeed_drv.lock);
 
 	ctx->iv = areq->info;	
 
@@ -1007,18 +1004,18 @@ static int ast_aes_crypt(struct ablkcipher_request *areq, u32 cmd)
 			break;
 	}
 
-	ast_crypto->cmd = cmd;
+	aspeed_crypto->cmd = cmd;
 
-	ast_crypto->aes_ctx = ctx;
+	aspeed_crypto->aes_ctx = ctx;
 
-	return ast_crypto_handle_queue(ast_crypto, areq);
+	return aspeed_crypto_handle_queue(aspeed_crypto, areq);
 
 }
 
-static int ast_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+static int aspeed_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 			    unsigned int keylen)
 {
-	struct ast_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+	struct aspeed_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
 	CRYPTO_DBUG("bits : %d \n", (keylen * 8));
 
 	if (keylen != AES_KEYSIZE_128 && keylen != AES_KEYSIZE_192 &&
@@ -1033,93 +1030,93 @@ static int ast_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 	return 0;
 }
 
-static int ast_aes_ctr_decrypt(struct ablkcipher_request *req)
+static int aspeed_aes_ctr_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_aes_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CTR);
+	return aspeed_aes_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CTR);
 }
 
-static int ast_aes_ctr_encrypt(struct ablkcipher_request *req)
+static int aspeed_aes_ctr_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_aes_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CTR);
+	return aspeed_aes_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CTR);
 }
 
-static int ast_aes_ofb_decrypt(struct ablkcipher_request *req)
+static int aspeed_aes_ofb_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_aes_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_OFB);
+	return aspeed_aes_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_OFB);
 }
 
-static int ast_aes_ofb_encrypt(struct ablkcipher_request *req)
+static int aspeed_aes_ofb_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_aes_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_OFB);
+	return aspeed_aes_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_OFB);
 }
 
-static int ast_aes_cfb_decrypt(struct ablkcipher_request *req)
+static int aspeed_aes_cfb_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_aes_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CFB);
+	return aspeed_aes_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CFB);
 }
 
-static int ast_aes_cfb_encrypt(struct ablkcipher_request *req)
+static int aspeed_aes_cfb_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_aes_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CFB);
+	return aspeed_aes_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CFB);
 }
 
-static int ast_aes_ecb_decrypt(struct ablkcipher_request *req)
+static int aspeed_aes_ecb_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_aes_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_ECB);
+	return aspeed_aes_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_ECB);
 }
 
-static int ast_aes_ecb_encrypt(struct ablkcipher_request *req)
+static int aspeed_aes_ecb_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_aes_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_ECB);
+	return aspeed_aes_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_ECB);
 }
 
-static int ast_aes_cbc_decrypt(struct ablkcipher_request *req)
+static int aspeed_aes_cbc_decrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_aes_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CBC);
+	return aspeed_aes_crypt(req, HACE_CMD_DECRYPT | HACE_CMD_CBC);
 }
 
-static int ast_aes_cbc_encrypt(struct ablkcipher_request *req)
+static int aspeed_aes_cbc_encrypt(struct ablkcipher_request *req)
 {
 	CRYPTO_DBUG("\n");	
-	return ast_aes_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CBC);
+	return aspeed_aes_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CBC);
 }
 
 /*************************************************************************************/
-static int ast_crypto_cra_init(struct crypto_tfm *tfm)
+static int aspeed_crypto_cra_init(struct crypto_tfm *tfm)
 {
 	CRYPTO_DBUG("\n");
 
-	tfm->crt_ablkcipher.reqsize = sizeof(struct ast_crypto_reqctx);
+	tfm->crt_ablkcipher.reqsize = sizeof(struct aspeed_crypto_reqctx);
 
 	return 0;
 }
 
-static void ast_crypto_cra_exit(struct crypto_tfm *tfm)
+static void aspeed_crypto_cra_exit(struct crypto_tfm *tfm)
 {
 	CRYPTO_DBUG("\n");
 
 }
 
 /*************************************************************************************/
-static size_t ast_sha_append_sg(struct ast_sham_reqctx *ctx)
+static size_t aspeed_sha_append_sg(struct aspeed_sham_reqctx *ctx)
 {
 	size_t count;
-	struct ast_crypto_dev	*ast_crypto = ctx->crypto_dev;
-	u8	*hash_buff = ast_crypto->hash_src;
+	struct aspeed_crypto_dev	*aspeed_crypto = ctx->crypto_dev;
+	u8	*hash_buff = aspeed_crypto->hash_src;
 	HASH_DBUG("ctx->bufcnt %d, ctx->offset %d, ctx->total %d\n", ctx->bufcnt, ctx->offset, ctx->total);
 
-	while ((ctx->bufcnt < AST_HASH_BUFF_SIZE) && ctx->total) {
+	while ((ctx->bufcnt < ASPEED_HASH_BUFF_SIZE) && ctx->total) {
 		count = min(ctx->sg->length - ctx->offset, ctx->total);
-		count = min(count, AST_HASH_BUFF_SIZE - ctx->bufcnt);
+		count = min(count, ASPEED_HASH_BUFF_SIZE - ctx->bufcnt);
 
 		if (count <= 0) {
 			/*
@@ -1155,77 +1152,77 @@ static size_t ast_sha_append_sg(struct ast_sham_reqctx *ctx)
 	return 0;
 }
 
-static int ast_hash_trigger(struct ast_crypto_dev *ast_crypto)
+static int aspeed_hash_trigger(struct aspeed_crypto_dev *aspeed_crypto)
 {
-	struct ahash_request *req = ast_crypto->ahash_req;
-	struct ast_sham_reqctx *ctx = ahash_request_ctx(req);
+	struct ahash_request *req = aspeed_crypto->ahash_req;
+	struct aspeed_sham_reqctx *ctx = ahash_request_ctx(req);
 
 	HASH_DBUG("ctx->bufcnt %d\n", ctx->bufcnt);
 
-#ifdef AST_CRYPTO_IRQ
-	ast_crypto->cmd |= HASH_CMD_INT_ENABLE;
-	ast_crypto->isr = 0;
-	init_completion(&ast_crypto->cmd_complete); 	
-//	CDBUG("hash cmd %x\n", ast_crypto->cmd);
+#ifdef ASPEED_CRYPTO_IRQ
+	aspeed_crypto->cmd |= HASH_CMD_INT_ENABLE;
+	aspeed_crypto->isr = 0;
+	init_completion(&aspeed_crypto->cmd_complete); 	
+//	CDBUG("hash cmd %x\n", aspeed_crypto->cmd);
 #endif 
 
-	ast_crypto_write(ast_crypto, ast_crypto->hash_src_dma, AST_HACE_HASH_SRC);
-	ast_crypto_write(ast_crypto, ast_crypto->hash_digst_dma, AST_HACE_HASH_DIGEST_BUFF);
-	ast_crypto_write(ast_crypto, ast_crypto->hash_key_dma, AST_HACE_HASH_KEY_BUFF);	
-	ast_crypto_write(ast_crypto, ctx->bufcnt, AST_HACE_HASH_DATA_LEN);
+	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->hash_src_dma, ASPEED_HACE_HASH_SRC);
+	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->hash_digst_dma, ASPEED_HACE_HASH_DIGEST_BUFF);
+	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->hash_key_dma, ASPEED_HACE_HASH_KEY_BUFF);	
+	aspeed_crypto_write(aspeed_crypto, ctx->bufcnt, ASPEED_HACE_HASH_DATA_LEN);
 
-	ast_crypto_write(ast_crypto, ast_crypto->cmd, AST_HACE_HASH_CMD);
+	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->cmd, ASPEED_HACE_HASH_CMD);
 
 
-#ifdef AST_CRYPTO_IRQ
-	wait_for_completion_interruptible(&ast_crypto->cmd_complete);
+#ifdef ASPEED_CRYPTO_IRQ
+	wait_for_completion_interruptible(&aspeed_crypto->cmd_complete);
 #if 0
-	if(!(ast_crypto->isr & HACE_HASH_ISR)) {
-		printk("INTR ERROR ast_crypto->isr %x \n", ast_crypto->isr);
+	if(!(aspeed_crypto->isr & HACE_HASH_ISR)) {
+		printk("INTR ERROR aspeed_crypto->isr %x \n", aspeed_crypto->isr);
 	}
-	CDBUG("irq %x\n", ast_crypto->isr);
+	CDBUG("irq %x\n", aspeed_crypto->isr);
 #endif 
 #else
-	while(ast_crypto_read(ast_crypto, AST_HACE_STS) & HACE_HASH_BUSY);
+	while(aspeed_crypto_read(aspeed_crypto, ASPEED_HACE_STS) & HACE_HASH_BUSY);
 #endif
 
 #if 0
-	printk("digst dma : %x \n",ast_crypto->hash_digst_dma);	
+	printk("digst dma : %x \n",aspeed_crypto->hash_digst_dma);	
 	for(i=0;i<ctx->digcnt;i++)
 		printk("%02x ", digst[i]);
 
 	printk("\n");		
 #endif 
 
-	memcpy(ast_crypto->ahash_req->result, ast_crypto->hash_digst, ctx->digcnt);
+	memcpy(aspeed_crypto->ahash_req->result, aspeed_crypto->hash_digst, ctx->digcnt);
 
 //	printk("copy to sg done \n");	
 	return 0;
 }
 
-static int ast_hash_handle_queue(struct ast_crypto_dev *ast_crypto,
+static int aspeed_hash_handle_queue(struct aspeed_crypto_dev *aspeed_crypto,
 				  struct ahash_request *req) 
 {
 	struct crypto_async_request *async_req, *backlog;
-	struct ast_sham_reqctx *ctx;
+	struct aspeed_sham_reqctx *ctx;
 	unsigned long flags;
 	int ret = 0;
 	
 	HASH_DBUG("nbytes : %d \n",req->nbytes);
 
-	spin_lock_irqsave(&ast_crypto->lock, flags);
+	spin_lock_irqsave(&aspeed_crypto->lock, flags);
 	if (req)
-		ret = ahash_enqueue_request(&ast_crypto->queue, req);
+		ret = ahash_enqueue_request(&aspeed_crypto->queue, req);
 
-	if(ast_crypto_read(ast_crypto, AST_HACE_STS) & HACE_HASH_BUSY) {
+	if(aspeed_crypto_read(aspeed_crypto, ASPEED_HACE_STS) & HACE_HASH_BUSY) {
 		printk("hash Engine Busy \n");
-		spin_unlock_irqrestore(&ast_crypto->lock, flags);
+		spin_unlock_irqrestore(&aspeed_crypto->lock, flags);
 		return -1;
 	}
 
-	backlog = crypto_get_backlog(&ast_crypto->queue);
-	async_req = crypto_dequeue_request(&ast_crypto->queue);
-	spin_unlock_irqrestore(&ast_crypto->lock, flags);
+	backlog = crypto_get_backlog(&aspeed_crypto->queue);
+	async_req = crypto_dequeue_request(&aspeed_crypto->queue);
+	spin_unlock_irqrestore(&aspeed_crypto->lock, flags);
 
 	if (!async_req)
 		return -1;
@@ -1234,42 +1231,42 @@ static int ast_hash_handle_queue(struct ast_crypto_dev *ast_crypto,
 		backlog->complete(backlog, -EINPROGRESS);
 
 	req = ahash_request_cast(async_req);
-	ast_crypto->ahash_req = req;
+	aspeed_crypto->ahash_req = req;
 	ctx = ahash_request_ctx(req);
 
-	ast_crypto->cmd = ctx->cmd;
+	aspeed_crypto->cmd = ctx->cmd;
 	
-	ast_hash_trigger(ast_crypto);		
+	aspeed_hash_trigger(aspeed_crypto);		
 
 	req->base.complete(&req->base, 0);
 
 	return ret;
 }
 
-static int ast_sham_init(struct ahash_request *req)
+static int aspeed_sham_init(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ast_sham_ctx *tctx = crypto_ahash_ctx(tfm);
-	struct ast_sham_reqctx *ctx = ahash_request_ctx(req);
-	struct ast_crypto_dev *ast_crypto = NULL, *tmp;
+	struct aspeed_sham_ctx *tctx = crypto_ahash_ctx(tfm);
+	struct aspeed_sham_reqctx *ctx = ahash_request_ctx(req);
+	struct aspeed_crypto_dev *aspeed_crypto = NULL, *tmp;
 	
 	HASH_DBUG("init: digest size: %d\n", crypto_ahash_digestsize(tfm));
 
-	spin_lock_bh(&ast_drv.lock);
+	spin_lock_bh(&aspeed_drv.lock);
 	if (!ctx->crypto_dev) {
-		list_for_each_entry(tmp, &ast_drv.dev_list, list) {
-			ast_crypto = tmp;
+		list_for_each_entry(tmp, &aspeed_drv.dev_list, list) {
+			aspeed_crypto = tmp;
 			break;
 		}
-		tctx->crypto_dev = ast_crypto;
+		tctx->crypto_dev = aspeed_crypto;
 
 	} else {
-		ast_crypto = tctx->crypto_dev;
+		aspeed_crypto = tctx->crypto_dev;
 	}
 
-	ctx->crypto_dev = ast_crypto;
+	ctx->crypto_dev = aspeed_crypto;
 
-	spin_unlock_bh(&ast_drv.lock);
+	spin_unlock_bh(&aspeed_drv.lock);
 
 	ctx->flags = 0;
 	ctx->cmd = 0;
@@ -1310,10 +1307,10 @@ static int ast_sham_init(struct ahash_request *req)
 	return 0;
 }
 
-static int ast_sha_update(struct ahash_request *req)
+static int aspeed_sha_update(struct ahash_request *req)
 {
-	struct ast_sham_reqctx *ctx = ahash_request_ctx(req);
-//	struct ast_crypto_dev *ast_crypto = ctx->crypto_dev;
+	struct aspeed_sham_reqctx *ctx = ahash_request_ctx(req);
+//	struct aspeed_crypto_dev *aspeed_crypto = ctx->crypto_dev;
 
 	if (!req->nbytes)
 		return -1;
@@ -1324,46 +1321,46 @@ static int ast_sha_update(struct ahash_request *req)
 	ctx->sg = req->src;
 	ctx->offset = 0;
 
-	if (ctx->bufcnt + ctx->total <= AST_HASH_BUFF_SIZE) {
-		ast_sha_append_sg(ctx);
+	if (ctx->bufcnt + ctx->total <= ASPEED_HASH_BUFF_SIZE) {
+		aspeed_sha_append_sg(ctx);
 		return 0;
 	} else {
-		printk("ast_sha_update TODO ...ctx->bufcnt %d, ctx->total %d \n", ctx->bufcnt, ctx->total);
-//		return ast_hash_handle_queue(ast_crypto, req);
+		printk("aspeed_sha_update TODO ...ctx->bufcnt %d, ctx->total %d \n", ctx->bufcnt, ctx->total);
+//		return aspeed_hash_handle_queue(aspeed_crypto, req);
 	}
 
 	return 0;
 }
 
-static int ast_sha_final(struct ahash_request *req)
+static int aspeed_sha_final(struct ahash_request *req)
 {
-	struct ast_sham_reqctx *ctx = ahash_request_ctx(req);
-	struct ast_sham_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
-	struct ast_crypto_dev *ast_crypto = tctx->crypto_dev;
+	struct aspeed_sham_reqctx *ctx = ahash_request_ctx(req);
+	struct aspeed_sham_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
+	struct aspeed_crypto_dev *aspeed_crypto = tctx->crypto_dev;
 
 	ctx->flags = 1;
 	ctx->op = 2;
 	
 	HASH_DBUG("ctx->bufcnt : %d , ctx->total : %d,  req->nbytes : %d \n",ctx->bufcnt, ctx->total, req->nbytes);
 	if(req->nbytes) {
-		printk("ast_sha_final ~~ TODO req->nbytes %d ~~~ \n", req->nbytes);
-		ast_sha_update(req);
+		printk("aspeed_sha_final ~~ TODO req->nbytes %d ~~~ \n", req->nbytes);
+		aspeed_sha_update(req);
 	}
 
-	return ast_hash_handle_queue(ast_crypto, req);
+	return aspeed_hash_handle_queue(aspeed_crypto, req);
 
 }
 
-static int ast_sha_finup(struct ahash_request *req)
+static int aspeed_sha_finup(struct ahash_request *req)
 {
-//	struct ast_sham_reqctx *ctx = ahash_request_ctx(req);
+//	struct aspeed_sham_reqctx *ctx = ahash_request_ctx(req);
 	int err1, err2;
 
 	HASH_DBUG("Final up TODO ...\n");
 
 //	ctx->flags |= SHA_FLAGS_FINUP;
 
-	err1 = ast_sha_update(req);
+	err1 = aspeed_sha_update(req);
 	if (err1 == -EINPROGRESS || err1 == -EBUSY)
 		return err1;
 
@@ -1371,57 +1368,57 @@ static int ast_sha_finup(struct ahash_request *req)
 	 * final() has to be always called to cleanup resources
 	 * even if udpate() failed, except EINPROGRESS
 	 */
-	err2 = ast_sha_final(req);
+	err2 = aspeed_sha_final(req);
 
 	return err1 ?: err2;
 
 }
 
-static int ast_sha_digest(struct ahash_request *req)
+static int aspeed_sha_digest(struct ahash_request *req)
 {
 	HASH_DBUG("TOTO~~~~~~\n");
 
-	return ast_sham_init(req) ?: ast_sha_finup(req);
+	return aspeed_sham_init(req) ?: aspeed_sha_finup(req);
 }
 
-static int ast_sham_setkey(struct crypto_ahash *tfm, const u8 *key,
+static int aspeed_sham_setkey(struct crypto_ahash *tfm, const u8 *key,
 			  unsigned int keylen)
 {
-	struct ast_sham_ctx *ctx = crypto_ahash_ctx(tfm);
+	struct aspeed_sham_ctx *ctx = crypto_ahash_ctx(tfm);
 //	int bs = crypto_shash_blocksize(ctx->base_hash);
 //	int ds = crypto_shash_digestsize(ctx->base_hash);
-	struct ast_crypto_dev *ast_crypto = NULL, *tmp;
+	struct aspeed_crypto_dev *aspeed_crypto = NULL, *tmp;
 	int err=0;
 
 	HASH_DBUG("keylen %d\n", keylen);
 
-	spin_lock_bh(&ast_drv.lock);
+	spin_lock_bh(&aspeed_drv.lock);
 	if (!ctx->crypto_dev) {
-		list_for_each_entry(tmp, &ast_drv.dev_list, list) {
-			ast_crypto = tmp;
+		list_for_each_entry(tmp, &aspeed_drv.dev_list, list) {
+			aspeed_crypto = tmp;
 			break;
 		}
-		ctx->crypto_dev = ast_crypto;
+		ctx->crypto_dev = aspeed_crypto;
 
 	} else {
-		ast_crypto = ctx->crypto_dev;
+		aspeed_crypto = ctx->crypto_dev;
 	}
 
-	spin_unlock_bh(&ast_drv.lock);
+	spin_unlock_bh(&aspeed_drv.lock);
 
 	err = crypto_shash_setkey(ctx->fallback, key, keylen);
 	if (err)
 		return err;
 
-	memcpy(ast_crypto->hash_key, key, keylen);
+	memcpy(aspeed_crypto->hash_key, key, keylen);
 
 	return err;
 }
 
 /*************************************************************************************/
-static int ast_sha_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base)
+static int aspeed_sha_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base)
 {
-	struct ast_sham_ctx *tctx = crypto_tfm_ctx(tfm);
+	struct aspeed_sham_ctx *tctx = crypto_tfm_ctx(tfm);
 	const char *alg_name = crypto_tfm_alg_name(tfm);
 
 	HASH_DBUG("%s \n", alg_name);
@@ -1430,13 +1427,13 @@ static int ast_sha_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base)
 	tctx->fallback = crypto_alloc_shash(alg_name, 0,
 						CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(tctx->fallback)) {
-		pr_err("ast-sham: fallback driver '%s' "
+		pr_err("aspeed-sham: fallback driver '%s' "
 				"could not be loaded.\n", alg_name);
 		return PTR_ERR(tctx->fallback);
 	}
 
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
-				 sizeof(struct ast_sham_reqctx));
+				 sizeof(struct aspeed_sham_reqctx));
 
 	tctx->flags = 0;
 	
@@ -1445,7 +1442,7 @@ static int ast_sha_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base)
 		tctx->base_hash = crypto_alloc_shash(alg_base, 0,
 						CRYPTO_ALG_NEED_FALLBACK);
 		if (IS_ERR(tctx->base_hash)) {
-			pr_err("ast-sham: base driver '%s' "
+			pr_err("aspeed-sham: base driver '%s' "
 					"could not be loaded.\n", alg_base);
 			crypto_free_shash(tctx->fallback);
 			return PTR_ERR(tctx->base_hash);
@@ -1456,34 +1453,34 @@ static int ast_sha_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base)
 
 }
 
-static int ast_sham_cra_init(struct crypto_tfm *tfm)
+static int aspeed_sham_cra_init(struct crypto_tfm *tfm)
 {
-	return ast_sha_cra_init_alg(tfm, NULL);
+	return aspeed_sha_cra_init_alg(tfm, NULL);
 }
 
-static int ast_sha_cra_sha1_init(struct crypto_tfm *tfm)
+static int aspeed_sha_cra_sha1_init(struct crypto_tfm *tfm)
 {
-	return ast_sha_cra_init_alg(tfm, "sha1");
+	return aspeed_sha_cra_init_alg(tfm, "sha1");
 }
 
-static int ast_sha_cra_sha224_init(struct crypto_tfm *tfm)
+static int aspeed_sha_cra_sha224_init(struct crypto_tfm *tfm)
 {
-	return ast_sha_cra_init_alg(tfm, "sha224");
+	return aspeed_sha_cra_init_alg(tfm, "sha224");
 }
 
-static int ast_sha_cra_sha256_init(struct crypto_tfm *tfm)
+static int aspeed_sha_cra_sha256_init(struct crypto_tfm *tfm)
 {
-	return ast_sha_cra_init_alg(tfm, "sha256");
+	return aspeed_sha_cra_init_alg(tfm, "sha256");
 }
 
-static int ast_sha_cra_md5_init(struct crypto_tfm *tfm)
+static int aspeed_sha_cra_md5_init(struct crypto_tfm *tfm)
 {
-	return ast_sha_cra_init_alg(tfm, "md5");
+	return aspeed_sha_cra_init_alg(tfm, "md5");
 }
 
-static void ast_sham_cra_exit(struct crypto_tfm *tfm)
+static void aspeed_sham_cra_exit(struct crypto_tfm *tfm)
 {
-	struct ast_sham_ctx *tctx = crypto_tfm_ctx(tfm);
+	struct aspeed_sham_ctx *tctx = crypto_tfm_ctx(tfm);
 
 	HASH_DBUG("\n");
 
@@ -1495,618 +1492,618 @@ static void ast_sham_cra_exit(struct crypto_tfm *tfm)
 	}
 }
 
-static struct crypto_alg ast_crypto_algs[] = {	
+static struct crypto_alg aspeed_crypto_algs[] = {	
 	{
 		.cra_name 		= "ecb(aes)",
-		.cra_driver_name 	= "ast-ecb-aes",
+		.cra_driver_name 	= "aspeed-ecb-aes",
 		.cra_priority 		= 300,
 		.cra_flags 		= CRYPTO_ALG_TYPE_ABLKCIPHER | 
 							CRYPTO_ALG_KERN_DRIVER_ONLY | 
 							CRYPTO_ALG_ASYNC,
 		.cra_blocksize 	= AES_BLOCK_SIZE,
-		.cra_ctxsize 		= sizeof(struct ast_aes_ctx),
+		.cra_ctxsize 		= sizeof(struct aspeed_aes_ctx),
 		.cra_alignmask	= 0xf,			
 		.cra_type 		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init 		= ast_crypto_cra_init,
-		.cra_exit 		= ast_crypto_cra_exit,			
+		.cra_init 		= aspeed_crypto_cra_init,
+		.cra_exit 		= aspeed_crypto_cra_exit,			
 		.cra_u.ablkcipher = {
 			//no iv
 			.min_keysize 	= AES_MIN_KEY_SIZE,
 			.max_keysize 	= AES_MAX_KEY_SIZE,			
-			.setkey 		= ast_aes_setkey,
-			.encrypt 	= ast_aes_ecb_encrypt,
-			.decrypt	= ast_aes_ecb_decrypt,
+			.setkey 		= aspeed_aes_setkey,
+			.encrypt 	= aspeed_aes_ecb_encrypt,
+			.decrypt	= aspeed_aes_ecb_decrypt,
 		},
 	},	
 	{
 		.cra_name 		= "cbc(aes)",
-		.cra_driver_name 	= "ast-cbc-aes",
+		.cra_driver_name 	= "aspeed-cbc-aes",
 		.cra_priority 		= 300,
 		.cra_flags 		= CRYPTO_ALG_TYPE_ABLKCIPHER | 
 							CRYPTO_ALG_KERN_DRIVER_ONLY |
 							CRYPTO_ALG_ASYNC,
 		.cra_blocksize 	= AES_BLOCK_SIZE,
-		.cra_ctxsize 		= sizeof(struct ast_aes_ctx),
+		.cra_ctxsize 		= sizeof(struct aspeed_aes_ctx),
 		.cra_alignmask	= 0xf,			
 		.cra_type 		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init 		= ast_crypto_cra_init,
-		.cra_exit 		= ast_crypto_cra_exit,			
+		.cra_init 		= aspeed_crypto_cra_init,
+		.cra_exit 		= aspeed_crypto_cra_exit,			
 		.cra_u.ablkcipher = {
 			.ivsize		= AES_BLOCK_SIZE,	
 			.min_keysize 	= AES_MIN_KEY_SIZE,
 			.max_keysize 	= AES_MAX_KEY_SIZE,			
-			.setkey 		= ast_aes_setkey,
-			.encrypt 	= ast_aes_cbc_encrypt,
-			.decrypt	= ast_aes_cbc_decrypt,
+			.setkey 		= aspeed_aes_setkey,
+			.encrypt 	= aspeed_aes_cbc_encrypt,
+			.decrypt	= aspeed_aes_cbc_decrypt,
 		},
 	},	
 	{
 		.cra_name		= "cfb(aes)",
-		.cra_driver_name	= "ast-cfb-aes",
+		.cra_driver_name	= "aspeed-cfb-aes",
 		.cra_priority		= 300,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 							CRYPTO_ALG_KERN_DRIVER_ONLY |
 							CRYPTO_ALG_ASYNC,
 		.cra_blocksize	= AES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct ast_aes_ctx),
+		.cra_ctxsize		= sizeof(struct aspeed_aes_ctx),
 		.cra_alignmask	= 0xf,			
 		.cra_type		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init		= ast_crypto_cra_init,
-		.cra_exit		= ast_crypto_cra_exit, 		
+		.cra_init		= aspeed_crypto_cra_init,
+		.cra_exit		= aspeed_crypto_cra_exit, 		
 		.cra_u.ablkcipher = {
 			.ivsize		= AES_BLOCK_SIZE,		
 			.min_keysize	= AES_MIN_KEY_SIZE,
 			.max_keysize	= AES_MAX_KEY_SIZE, 		
-			.setkey 		= ast_aes_setkey,
-			.encrypt	= ast_aes_cfb_encrypt,
-			.decrypt	= ast_aes_cfb_decrypt,
+			.setkey 		= aspeed_aes_setkey,
+			.encrypt	= aspeed_aes_cfb_encrypt,
+			.decrypt	= aspeed_aes_cfb_decrypt,
 		},
 	},	
 	{
 		.cra_name		= "ofb(aes)",
-		.cra_driver_name	= "ast-ofb-aes",
+		.cra_driver_name	= "aspeed-ofb-aes",
 		.cra_priority		= 300,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 						CRYPTO_ALG_KERN_DRIVER_ONLY |
 						CRYPTO_ALG_ASYNC,
 		.cra_blocksize	= AES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct ast_aes_ctx),
+		.cra_ctxsize		= sizeof(struct aspeed_aes_ctx),
 		.cra_alignmask	= 0xf,			
 		.cra_type		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init		= ast_crypto_cra_init,
-		.cra_exit		= ast_crypto_cra_exit, 		
+		.cra_init		= aspeed_crypto_cra_init,
+		.cra_exit		= aspeed_crypto_cra_exit, 		
 		.cra_u.ablkcipher = {
 			.ivsize		= AES_BLOCK_SIZE,		
 			.min_keysize	= AES_MIN_KEY_SIZE,
 			.max_keysize	= AES_MAX_KEY_SIZE, 		
-			.setkey 		= ast_aes_setkey,
-			.encrypt	= ast_aes_ofb_encrypt,
-			.decrypt	= ast_aes_ofb_decrypt,
+			.setkey 		= aspeed_aes_setkey,
+			.encrypt	= aspeed_aes_ofb_encrypt,
+			.decrypt	= aspeed_aes_ofb_decrypt,
 		},
 	},	
 	{
 		.cra_name		= "ctr(aes)",
-		.cra_driver_name	= "ast-ctr-aes",
+		.cra_driver_name	= "aspeed-ctr-aes",
 		.cra_priority		= 300,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 						CRYPTO_ALG_KERN_DRIVER_ONLY |
 						CRYPTO_ALG_ASYNC,
 		.cra_blocksize	= AES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct ast_aes_ctx),
+		.cra_ctxsize		= sizeof(struct aspeed_aes_ctx),
 		.cra_alignmask	= 0xf,			
 		.cra_type		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init		= ast_crypto_cra_init,
-		.cra_exit		= ast_crypto_cra_exit, 		
+		.cra_init		= aspeed_crypto_cra_init,
+		.cra_exit		= aspeed_crypto_cra_exit, 		
 		.cra_u.ablkcipher = {
 			.ivsize		= AES_BLOCK_SIZE,		
 			.min_keysize	= AES_MIN_KEY_SIZE,
 			.max_keysize	= AES_MAX_KEY_SIZE, 		
-			.setkey 		= ast_aes_setkey,
-			.encrypt	= ast_aes_ctr_encrypt,
-			.decrypt	= ast_aes_ctr_decrypt,
+			.setkey 		= aspeed_aes_setkey,
+			.encrypt	= aspeed_aes_ctr_encrypt,
+			.decrypt	= aspeed_aes_ctr_decrypt,
 		},
 	},
 	{
 		.cra_name		= "ecb(des)",
-		.cra_driver_name	= "ast-ecb-des",
+		.cra_driver_name	= "aspeed-ecb-des",
 		.cra_priority		= 300,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 							CRYPTO_ALG_KERN_DRIVER_ONLY |
 							CRYPTO_ALG_ASYNC,
 		.cra_blocksize		= DES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct ast_des_ctx),
+		.cra_ctxsize		= sizeof(struct aspeed_des_ctx),
 		.cra_alignmask	= 0xf,
 		.cra_type		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init		= ast_crypto_cra_init,
-		.cra_exit		= ast_crypto_cra_exit,
+		.cra_init		= aspeed_crypto_cra_init,
+		.cra_exit		= aspeed_crypto_cra_exit,
 		.cra_u.ablkcipher = {
 			//no iv
 			.min_keysize	= DES_KEY_SIZE,
 			.max_keysize	= DES_KEY_SIZE,
-			.setkey		= ast_des_setkey,
-			.encrypt	= ast_des_ecb_encrypt,
-			.decrypt	= ast_des_ecb_decrypt,
+			.setkey		= aspeed_des_setkey,
+			.encrypt	= aspeed_des_ecb_encrypt,
+			.decrypt	= aspeed_des_ecb_decrypt,
 		},
 	},
 	{
 		.cra_name		= "cbc(des)",
-		.cra_driver_name	= "ast-cbc-des",
+		.cra_driver_name	= "aspeed-cbc-des",
 		.cra_priority		= 300,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | 
 							CRYPTO_ALG_KERN_DRIVER_ONLY |
 							CRYPTO_ALG_ASYNC,
 		.cra_blocksize		= DES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct ast_des_ctx),
+		.cra_ctxsize		= sizeof(struct aspeed_des_ctx),
 		.cra_alignmask	= 0xf,
 		.cra_type		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init		= ast_crypto_cra_init,
-		.cra_exit		= ast_crypto_cra_exit,
+		.cra_init		= aspeed_crypto_cra_init,
+		.cra_exit		= aspeed_crypto_cra_exit,
 		.cra_u.ablkcipher = {
 			.ivsize		= DES_BLOCK_SIZE,
 			.min_keysize	= DES_KEY_SIZE,
 			.max_keysize	= DES_KEY_SIZE,
-			.setkey 	= ast_des_setkey,
-			.encrypt	= ast_des_cbc_encrypt,
-			.decrypt	= ast_des_cbc_decrypt,
+			.setkey 	= aspeed_des_setkey,
+			.encrypt	= aspeed_des_cbc_encrypt,
+			.decrypt	= aspeed_des_cbc_decrypt,
 		},
 	},
 	{
 		.cra_name		= "cfb(des)",
-		.cra_driver_name	= "ast-cfb-des",
+		.cra_driver_name	= "aspeed-cfb-des",
 		.cra_priority		= 300,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | 
 							CRYPTO_ALG_KERN_DRIVER_ONLY |
 							CRYPTO_ALG_ASYNC,
 		.cra_blocksize		= DES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct ast_des_ctx),
+		.cra_ctxsize		= sizeof(struct aspeed_des_ctx),
 		.cra_alignmask	= 0xf,
 		.cra_type		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init		= ast_crypto_cra_init,
-		.cra_exit		= ast_crypto_cra_exit,
+		.cra_init		= aspeed_crypto_cra_init,
+		.cra_exit		= aspeed_crypto_cra_exit,
 		.cra_u.ablkcipher = {
 			.ivsize		= DES_BLOCK_SIZE,		
 			.min_keysize	= DES_KEY_SIZE,
 			.max_keysize	= DES_KEY_SIZE,
-			.setkey 	= ast_des_setkey,
-			.encrypt	= ast_des_cfb_encrypt,
-			.decrypt	= ast_des_cfb_decrypt,
+			.setkey 	= aspeed_des_setkey,
+			.encrypt	= aspeed_des_cfb_encrypt,
+			.decrypt	= aspeed_des_cfb_decrypt,
 		},
 	},
 	{
 		.cra_name		= "ofb(des)",
-		.cra_driver_name	= "ast-ofb-des",
+		.cra_driver_name	= "aspeed-ofb-des",
 		.cra_priority		= 300,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | 
 							CRYPTO_ALG_KERN_DRIVER_ONLY |
 							CRYPTO_ALG_ASYNC,
 		.cra_blocksize		= DES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct ast_des_ctx),
+		.cra_ctxsize		= sizeof(struct aspeed_des_ctx),
 		.cra_alignmask	= 0xf,
 		.cra_type		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init		= ast_crypto_cra_init,
-		.cra_exit		= ast_crypto_cra_exit,
+		.cra_init		= aspeed_crypto_cra_init,
+		.cra_exit		= aspeed_crypto_cra_exit,
 		.cra_u.ablkcipher = {
 			.ivsize		= DES_BLOCK_SIZE,		
 			.min_keysize	= 2*DES_KEY_SIZE,
 			.max_keysize	= 3*DES_KEY_SIZE,
-			.setkey 	= ast_des_setkey,
-			.encrypt	= ast_des_ofb_encrypt,
-			.decrypt	= ast_des_ofb_decrypt,
+			.setkey 	= aspeed_des_setkey,
+			.encrypt	= aspeed_des_ofb_encrypt,
+			.decrypt	= aspeed_des_ofb_decrypt,
 		},
 	},
 	{
 		.cra_name		= "ctr(des)",
-		.cra_driver_name	= "ast-ctr-des",
+		.cra_driver_name	= "aspeed-ctr-des",
 		.cra_priority		= 300,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | 
 							CRYPTO_ALG_KERN_DRIVER_ONLY |
 							CRYPTO_ALG_ASYNC,
 		.cra_blocksize		= DES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct ast_des_ctx),
+		.cra_ctxsize		= sizeof(struct aspeed_des_ctx),
 		.cra_alignmask	= 0xf,
 		.cra_type		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init		= ast_crypto_cra_init,
-		.cra_exit		= ast_crypto_cra_exit,
+		.cra_init		= aspeed_crypto_cra_init,
+		.cra_exit		= aspeed_crypto_cra_exit,
 		.cra_u.ablkcipher = {
 			.ivsize		= DES_BLOCK_SIZE,		
 			.min_keysize	= 2*DES_KEY_SIZE,
 			.max_keysize	= 3*DES_KEY_SIZE,
-			.setkey 	= ast_des_setkey,
-			.encrypt	= ast_des_ctr_encrypt,
-			.decrypt	= ast_des_ctr_decrypt,
+			.setkey 	= aspeed_des_setkey,
+			.encrypt	= aspeed_des_ctr_encrypt,
+			.decrypt	= aspeed_des_ctr_decrypt,
 		},
 	},	
 	{
 		.cra_name		= "ecb(des3_ede)",
-		.cra_driver_name	= "ast-ecb-tdes",
+		.cra_driver_name	= "aspeed-ecb-tdes",
 		.cra_priority		= 300,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | 
 							CRYPTO_ALG_KERN_DRIVER_ONLY |
 							CRYPTO_ALG_ASYNC,
 		.cra_blocksize		= DES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct ast_des_ctx),
+		.cra_ctxsize		= sizeof(struct aspeed_des_ctx),
 		.cra_alignmask	= 0xf,
 		.cra_type		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init		= ast_crypto_cra_init,
-		.cra_exit		= ast_crypto_cra_exit,
+		.cra_init		= aspeed_crypto_cra_init,
+		.cra_exit		= aspeed_crypto_cra_exit,
 		.cra_u.ablkcipher = {
 			.ivsize		= DES_BLOCK_SIZE,		
 			.min_keysize	= 2*DES_KEY_SIZE,
 			.max_keysize	= 3*DES_KEY_SIZE,
-			.setkey		= ast_des_setkey,
-			.encrypt	= ast_tdes_ecb_encrypt,
-			.decrypt	= ast_tdes_ecb_decrypt,
+			.setkey		= aspeed_des_setkey,
+			.encrypt	= aspeed_tdes_ecb_encrypt,
+			.decrypt	= aspeed_tdes_ecb_decrypt,
 		},
 	},
 	{
 		.cra_name		= "cbc(des3_ede)",
-		.cra_driver_name	= "ast-cbc-tdes",
+		.cra_driver_name	= "aspeed-cbc-tdes",
 		.cra_priority		= 300,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | 
 							CRYPTO_ALG_KERN_DRIVER_ONLY |
 							CRYPTO_ALG_ASYNC,
 		.cra_blocksize		= DES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct ast_des_ctx),
+		.cra_ctxsize		= sizeof(struct aspeed_des_ctx),
 		.cra_alignmask	= 0xf,
 		.cra_type		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init		= ast_crypto_cra_init,
-		.cra_exit		= ast_crypto_cra_exit,
+		.cra_init		= aspeed_crypto_cra_init,
+		.cra_exit		= aspeed_crypto_cra_exit,
 		.cra_u.ablkcipher = {
 			.ivsize		= DES_BLOCK_SIZE,		
 			.min_keysize	= 2*DES_KEY_SIZE,
 			.max_keysize	= 3*DES_KEY_SIZE,
-			.setkey 	= ast_des_setkey,
-			.encrypt	= ast_tdes_cbc_encrypt,
-			.decrypt	= ast_tdes_cbc_decrypt,
+			.setkey 	= aspeed_des_setkey,
+			.encrypt	= aspeed_tdes_cbc_encrypt,
+			.decrypt	= aspeed_tdes_cbc_decrypt,
 		},
 	},
 	{
 		.cra_name		= "cfb(des3_ede)",
-		.cra_driver_name	= "ast-cfb-tdes",
+		.cra_driver_name	= "aspeed-cfb-tdes",
 		.cra_priority		= 300,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | 
 							CRYPTO_ALG_KERN_DRIVER_ONLY |
 							CRYPTO_ALG_ASYNC,
 		.cra_blocksize		= DES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct ast_des_ctx),
+		.cra_ctxsize		= sizeof(struct aspeed_des_ctx),
 		.cra_alignmask	= 0xf,
 		.cra_type		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init		= ast_crypto_cra_init,
-		.cra_exit		= ast_crypto_cra_exit,
+		.cra_init		= aspeed_crypto_cra_init,
+		.cra_exit		= aspeed_crypto_cra_exit,
 		.cra_u.ablkcipher = {
 			.ivsize		= DES_BLOCK_SIZE,		
 			.min_keysize	= 2*DES_KEY_SIZE,
 			.max_keysize	= 3*DES_KEY_SIZE,
-			.setkey 	= ast_des_setkey,
-			.encrypt	= ast_tdes_cfb_encrypt,
-			.decrypt	= ast_tdes_cfb_decrypt,
+			.setkey 	= aspeed_des_setkey,
+			.encrypt	= aspeed_tdes_cfb_encrypt,
+			.decrypt	= aspeed_tdes_cfb_decrypt,
 		},
 	},
 	{
 		.cra_name		= "ofb(des3_ede)",
-		.cra_driver_name	= "ast-ofb-tdes",
+		.cra_driver_name	= "aspeed-ofb-tdes",
 		.cra_priority		= 300,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | 
 							CRYPTO_ALG_KERN_DRIVER_ONLY |
 							CRYPTO_ALG_ASYNC,
 		.cra_blocksize		= DES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct ast_des_ctx),
+		.cra_ctxsize		= sizeof(struct aspeed_des_ctx),
 		.cra_alignmask	= 0xf,
 		.cra_type		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init		= ast_crypto_cra_init,
-		.cra_exit		= ast_crypto_cra_exit,
+		.cra_init		= aspeed_crypto_cra_init,
+		.cra_exit		= aspeed_crypto_cra_exit,
 		.cra_u.ablkcipher = {
 			.ivsize		= DES_BLOCK_SIZE,		
 			.min_keysize	= 2*DES_KEY_SIZE,
 			.max_keysize	= 3*DES_KEY_SIZE,
-			.setkey 	= ast_des_setkey,
-			.encrypt	= ast_tdes_ofb_encrypt,
-			.decrypt	= ast_tdes_ofb_decrypt,
+			.setkey 	= aspeed_des_setkey,
+			.encrypt	= aspeed_tdes_ofb_encrypt,
+			.decrypt	= aspeed_tdes_ofb_decrypt,
 		},
 	},
 	{
 		.cra_name		= "ctr(des3_ede)",
-		.cra_driver_name	= "ast-ctr-tdes",
+		.cra_driver_name	= "aspeed-ctr-tdes",
 		.cra_priority		= 300,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | 
 							CRYPTO_ALG_KERN_DRIVER_ONLY |
 							CRYPTO_ALG_ASYNC,
 		.cra_blocksize		= DES_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(struct ast_des_ctx),
+		.cra_ctxsize		= sizeof(struct aspeed_des_ctx),
 		.cra_alignmask	= 0xf,
 		.cra_type		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init		= ast_crypto_cra_init,
-		.cra_exit		= ast_crypto_cra_exit,
+		.cra_init		= aspeed_crypto_cra_init,
+		.cra_exit		= aspeed_crypto_cra_exit,
 		.cra_u.ablkcipher = {
 			.ivsize		= DES_BLOCK_SIZE,		
 			.min_keysize	= 2*DES_KEY_SIZE,
 			.max_keysize	= 3*DES_KEY_SIZE,
-			.setkey 	= ast_des_setkey,
-			.encrypt	= ast_tdes_ctr_encrypt,
-			.decrypt	= ast_tdes_ctr_decrypt,
+			.setkey 	= aspeed_des_setkey,
+			.encrypt	= aspeed_tdes_ctr_encrypt,
+			.decrypt	= aspeed_tdes_ctr_decrypt,
 		},
 	},		
 	{
 		.cra_name		= "ecb(arc4)",
-		.cra_driver_name	= "ast-ecb-arc4",
+		.cra_driver_name	= "aspeed-ecb-arc4",
 		.cra_priority		= 300,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | 
 							CRYPTO_ALG_KERN_DRIVER_ONLY | 
 							CRYPTO_ALG_ASYNC,
 		.cra_blocksize		= 1,
-		.cra_ctxsize		= sizeof(struct ast_rc4_ctx),
+		.cra_ctxsize		= sizeof(struct aspeed_rc4_ctx),
 		.cra_alignmask	= 0xf,
 		.cra_type		= &crypto_ablkcipher_type,
 		.cra_module 		= THIS_MODULE,
-		.cra_init		= ast_crypto_cra_init,
-		.cra_exit		= ast_crypto_cra_exit,
+		.cra_init		= aspeed_crypto_cra_init,
+		.cra_exit		= aspeed_crypto_cra_exit,
 		.cra_u.ablkcipher = {
 			.min_keysize	= 1,
 			.max_keysize	= 256,
-			.setkey 	= ast_rc4_setkey,
-			.encrypt	= ast_rc4_encrypt,
-			.decrypt	= ast_rc4_decrypt,
+			.setkey 	= aspeed_rc4_setkey,
+			.encrypt	= aspeed_rc4_encrypt,
+			.decrypt	= aspeed_rc4_decrypt,
 		},
 	},				
 };
-static struct ahash_alg ast_ahash_alg[] = {	
+static struct ahash_alg aspeed_ahash_alg[] = {	
 #if 1
 	{
-		.init			= ast_sham_init,
-		.update 		= ast_sha_update,
-		.final		= ast_sha_final,
-		.finup		= ast_sha_finup,
-		.digest 		= ast_sha_digest,
+		.init			= aspeed_sham_init,
+		.update 		= aspeed_sha_update,
+		.final		= aspeed_sha_final,
+		.finup		= aspeed_sha_finup,
+		.digest 		= aspeed_sha_digest,
 		.halg = {
 			.digestsize = MD5_DIGEST_SIZE,
-			.statesize	= sizeof(struct ast_sham_reqctx),
+			.statesize	= sizeof(struct aspeed_sham_reqctx),
 			.base	= {
 				.cra_name		= "md5",
-				.cra_driver_name	= "ast-md5",
+				.cra_driver_name	= "aspeed-md5",
 				.cra_priority		= 300,
 				.cra_flags		= CRYPTO_ALG_TYPE_AHASH | 
 							CRYPTO_ALG_ASYNC |
 							CRYPTO_ALG_NEED_FALLBACK |
 							CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize		= MD5_HMAC_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct ast_sham_ctx),
+				.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
 				.cra_alignmask	= 0,
 				.cra_module 		= THIS_MODULE,
-				.cra_init			= ast_sham_cra_init,
-				.cra_exit			= ast_sham_cra_exit,
+				.cra_init			= aspeed_sham_cra_init,
+				.cra_exit			= aspeed_sham_cra_exit,
 			}
 		}
 	},
 #endif	
 	{
-		.init			= ast_sham_init,
-		.update 		= ast_sha_update,
-		.final		= ast_sha_final,
-		.finup		= ast_sha_finup,
-		.digest 		= ast_sha_digest,
+		.init			= aspeed_sham_init,
+		.update 		= aspeed_sha_update,
+		.final		= aspeed_sha_final,
+		.finup		= aspeed_sha_finup,
+		.digest 		= aspeed_sha_digest,
 		.halg = {
 			.digestsize = SHA1_DIGEST_SIZE,
-			.statesize = sizeof(struct ast_sham_reqctx),
+			.statesize = sizeof(struct aspeed_sham_reqctx),
 			.base	= {
 				.cra_name		= "sha1",
-				.cra_driver_name	= "ast-sha1",
+				.cra_driver_name	= "aspeed-sha1",
 				.cra_priority		= 300,
 				.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 							CRYPTO_ALG_ASYNC |
 							CRYPTO_ALG_NEED_FALLBACK |
 							CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize		= SHA1_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct ast_sham_ctx),
+				.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
 				.cra_alignmask	= 0,
 				.cra_module 		= THIS_MODULE,
-				.cra_init			= ast_sham_cra_init,
-				.cra_exit			= ast_sham_cra_exit,				
+				.cra_init			= aspeed_sham_cra_init,
+				.cra_exit			= aspeed_sham_cra_exit,				
 			}
 		}
 	},
 	{
-		.init			= ast_sham_init,
-		.update 		= ast_sha_update,
-		.final		= ast_sha_final,
-		.finup		= ast_sha_finup,
-		.digest 		= ast_sha_digest,
+		.init			= aspeed_sham_init,
+		.update 		= aspeed_sha_update,
+		.final		= aspeed_sha_final,
+		.finup		= aspeed_sha_finup,
+		.digest 		= aspeed_sha_digest,
 		.halg = {
 			.digestsize = SHA256_DIGEST_SIZE,
-			.statesize = sizeof(struct ast_sham_reqctx),
+			.statesize = sizeof(struct aspeed_sham_reqctx),
 			.base	= {
 				.cra_name		= "sha256",
-				.cra_driver_name	= "ast-sha256",
+				.cra_driver_name	= "aspeed-sha256",
 				.cra_priority		= 300,
 				.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 							CRYPTO_ALG_ASYNC |
 							CRYPTO_ALG_NEED_FALLBACK |
 							CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize		= SHA256_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct ast_sham_ctx),
+				.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
 				.cra_alignmask	= 0,
 				.cra_module 		= THIS_MODULE,
-				.cra_init			= ast_sham_cra_init,
-				.cra_exit			= ast_sham_cra_exit,				
+				.cra_init			= aspeed_sham_cra_init,
+				.cra_exit			= aspeed_sham_cra_exit,				
 			}
 		}
 	},
 	{
-		.init			= ast_sham_init,
-		.update		= ast_sha_update,
-		.final		= ast_sha_final,
-		.finup		= ast_sha_finup,
-		.digest		= ast_sha_digest,
+		.init			= aspeed_sham_init,
+		.update		= aspeed_sha_update,
+		.final		= aspeed_sha_final,
+		.finup		= aspeed_sha_finup,
+		.digest		= aspeed_sha_digest,
 		.halg = {
 			.digestsize	= SHA224_DIGEST_SIZE,
-			.statesize = sizeof(struct ast_sham_reqctx),
+			.statesize = sizeof(struct aspeed_sham_reqctx),
 			.base	= {
 				.cra_name		= "sha224",
-				.cra_driver_name	= "ast-sha224",
+				.cra_driver_name	= "aspeed-sha224",
 				.cra_priority		= 300,
 				.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 							CRYPTO_ALG_ASYNC |
 							CRYPTO_ALG_NEED_FALLBACK |
 							CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize		= SHA224_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct ast_sham_ctx),
+				.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
 				.cra_alignmask	= 0,
 				.cra_module		= THIS_MODULE,
-				.cra_init			= ast_sham_cra_init,
-				.cra_exit			= ast_sham_cra_exit,				
+				.cra_init			= aspeed_sham_cra_init,
+				.cra_exit			= aspeed_sham_cra_exit,				
 			}
 		}
 	},
 	{
-		.init			= ast_sham_init,
-		.update		= ast_sha_update,
-		.final		= ast_sha_final,
-		.finup		= ast_sha_finup,
-		.digest		= ast_sha_digest,
-		.setkey		= ast_sham_setkey,
+		.init			= aspeed_sham_init,
+		.update		= aspeed_sha_update,
+		.final		= aspeed_sha_final,
+		.finup		= aspeed_sha_finup,
+		.digest		= aspeed_sha_digest,
+		.setkey		= aspeed_sham_setkey,
 		.halg = {
 			.digestsize	= MD5_DIGEST_SIZE,
-			.statesize = sizeof(struct ast_sham_reqctx),
+			.statesize = sizeof(struct aspeed_sham_reqctx),
 			.base	= {
 				.cra_name		= "hmac(md5)",
-				.cra_driver_name	= "ast-hmac-md5",
+				.cra_driver_name	= "aspeed-hmac-md5",
 				.cra_priority		= 300,
 				.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 								CRYPTO_ALG_ASYNC |
 								CRYPTO_ALG_NEED_FALLBACK |
 								CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize		= MD5_HMAC_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct ast_sham_ctx),
+				.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
 				.cra_alignmask	= 0,
 				.cra_module		= THIS_MODULE,
-				.cra_init		= ast_sha_cra_md5_init,
-				.cra_exit		= ast_sham_cra_exit,
+				.cra_init		= aspeed_sha_cra_md5_init,
+				.cra_exit		= aspeed_sham_cra_exit,
 			}
 		}
 	},	
 	{
-		.init			= ast_sham_init,
-		.update		= ast_sha_update,
-		.final		= ast_sha_final,
-		.finup		= ast_sha_finup,
-		.digest		= ast_sha_digest,
-		.setkey		= ast_sham_setkey,
+		.init			= aspeed_sham_init,
+		.update		= aspeed_sha_update,
+		.final		= aspeed_sha_final,
+		.finup		= aspeed_sha_finup,
+		.digest		= aspeed_sha_digest,
+		.setkey		= aspeed_sham_setkey,
 		.halg = {
 			.digestsize	= SHA1_DIGEST_SIZE,
-			.statesize = sizeof(struct ast_sham_reqctx),
+			.statesize = sizeof(struct aspeed_sham_reqctx),
 			.base	= {
 				.cra_name		= "hmac(sha1)",
-				.cra_driver_name	= "ast-hmac-sha1",
+				.cra_driver_name	= "aspeed-hmac-sha1",
 				.cra_priority		= 300,
 				.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 								CRYPTO_ALG_ASYNC |
 								CRYPTO_ALG_NEED_FALLBACK |
 								CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize		= SHA1_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct ast_sham_ctx),
+				.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
 				.cra_alignmask	= 0,
 				.cra_module		= THIS_MODULE,
-				.cra_init		= ast_sha_cra_sha1_init,
-				.cra_exit		= ast_sham_cra_exit,
+				.cra_init		= aspeed_sha_cra_sha1_init,
+				.cra_exit		= aspeed_sham_cra_exit,
 			}
 		}
 	},
 	{
-		.init			= ast_sham_init,
-		.update 		= ast_sha_update,
-		.final		= ast_sha_final,
-		.finup		= ast_sha_finup,
-		.digest 		= ast_sha_digest,
-		.setkey 		= ast_sham_setkey,
+		.init			= aspeed_sham_init,
+		.update 		= aspeed_sha_update,
+		.final		= aspeed_sha_final,
+		.finup		= aspeed_sha_finup,
+		.digest 		= aspeed_sha_digest,
+		.setkey 		= aspeed_sham_setkey,
 		.halg = {
 			.digestsize	= SHA224_DIGEST_SIZE,
-			.statesize = sizeof(struct ast_sham_reqctx),
+			.statesize = sizeof(struct aspeed_sham_reqctx),
 			.base	= {
 				.cra_name		= "hmac(sha224)",
-				.cra_driver_name	= "ast-hmac-sha224",
+				.cra_driver_name	= "aspeed-hmac-sha224",
 				.cra_priority		= 300,
 				.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 								CRYPTO_ALG_ASYNC |
 								CRYPTO_ALG_NEED_FALLBACK |
 								CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize		= SHA224_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct ast_sham_ctx),
+				.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
 				.cra_alignmask	= 0,
 				.cra_module 	= THIS_MODULE,
-				.cra_init		= ast_sha_cra_sha224_init,
-				.cra_exit		= ast_sham_cra_exit,
+				.cra_init		= aspeed_sha_cra_sha224_init,
+				.cra_exit		= aspeed_sham_cra_exit,
 			}
 		}
 	},
 	{
-		.init			= ast_sham_init,
-		.update 		= ast_sha_update,
-		.final		= ast_sha_final,
-		.finup		= ast_sha_finup,
-		.digest 		= ast_sha_digest,
-		.setkey 		= ast_sham_setkey,
+		.init			= aspeed_sham_init,
+		.update 		= aspeed_sha_update,
+		.final		= aspeed_sha_final,
+		.finup		= aspeed_sha_finup,
+		.digest 		= aspeed_sha_digest,
+		.setkey 		= aspeed_sham_setkey,
 		.halg = {
 			.digestsize	= SHA256_DIGEST_SIZE,
-			.statesize = sizeof(struct ast_sham_reqctx),
+			.statesize = sizeof(struct aspeed_sham_reqctx),
 			.base	= {
 				.cra_name		= "hmac(sha256)",
-				.cra_driver_name	= "ast-hmac-sha256",
+				.cra_driver_name	= "aspeed-hmac-sha256",
 				.cra_priority		= 300,
 				.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
 								CRYPTO_ALG_ASYNC |
 								CRYPTO_ALG_NEED_FALLBACK |
 								CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize		= SHA256_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct ast_sham_ctx),
+				.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
 				.cra_alignmask	= 0,
 				.cra_module 	= THIS_MODULE,
-				.cra_init		= ast_sha_cra_sha256_init,
-				.cra_exit		= ast_sham_cra_exit,
+				.cra_init		= aspeed_sha_cra_sha256_init,
+				.cra_exit		= aspeed_sham_cra_exit,
 			}
 		}
 	},
 };
 
 /*************************************************************************************/
-#ifdef AST_CRYPTO_IRQ
-static irqreturn_t ast_crypto_irq(int irq, void *dev)
+#ifdef ASPEED_CRYPTO_IRQ
+static irqreturn_t aspeed_crypto_irq(int irq, void *dev)
 {
-	struct ast_crypto_dev *ast_crypto = (struct ast_crypto_dev *)dev;
-	ast_crypto->isr = ast_crypto_read(ast_crypto, AST_HACE_STS);
+	struct aspeed_crypto_dev *aspeed_crypto = (struct aspeed_crypto_dev *)dev;
+	aspeed_crypto->isr = aspeed_crypto_read(aspeed_crypto, ASPEED_HACE_STS);
 
-	CRYPTO_DBUG("sts %x \n",ast_crypto->isr);
-//	CDBUG("irq %x\n", ast_crypto->isr);
-	if(ast_crypto->isr == 0)
-		printk("sts %x \n",ast_crypto->isr);
-	ast_crypto_write(ast_crypto, ast_crypto->isr, AST_HACE_STS);
-	complete(&ast_crypto->cmd_complete);
+	CRYPTO_DBUG("sts %x \n",aspeed_crypto->isr);
+//	CDBUG("irq %x\n", aspeed_crypto->isr);
+	if(aspeed_crypto->isr == 0)
+		printk("sts %x \n",aspeed_crypto->isr);
+	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->isr, ASPEED_HACE_STS);
+	complete(&aspeed_crypto->cmd_complete);
 	return IRQ_HANDLED;
 }
 #endif
 
-static int ast_crypto_probe(struct platform_device *pdev)
+static int aspeed_crypto_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;	
 	struct resource *res;	
 	int i, err, ret = -EINVAL;
 	int irq;
-	struct ast_crypto_dev *crypto_dev;
+	struct aspeed_crypto_dev *crypto_dev;
 
-	crypto_dev = devm_kzalloc(&pdev->dev, sizeof(struct ast_crypto_dev), GFP_KERNEL);
+	crypto_dev = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_crypto_dev), GFP_KERNEL);
 	if (!crypto_dev) {
 		dev_err(dev, "unable to alloc data struct.\n");
 		return -ENOMEM;
@@ -2119,12 +2116,12 @@ static int ast_crypto_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&crypto_dev->list);
 	spin_lock_init(&crypto_dev->lock);
 
-	tasklet_init(&crypto_dev->done_task, ast_aes_done_task,
+	tasklet_init(&crypto_dev->done_task, aspeed_aes_done_task,
 					(unsigned long)crypto_dev);
-	tasklet_init(&crypto_dev->queue_task, ast_aes_queue_task,
+	tasklet_init(&crypto_dev->queue_task, aspeed_aes_queue_task,
 					(unsigned long)crypto_dev);
 
-	crypto_init_queue(&crypto_dev->queue, AST_AES_QUEUE_LENGTH);	
+	crypto_init_queue(&crypto_dev->queue, ASPEED_AES_QUEUE_LENGTH);	
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -2142,38 +2139,27 @@ static int ast_crypto_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	crypto_dev->reset = devm_reset_control_get_exclusive(&pdev->dev, "crypto");
-	//crypto_dev->reset = devm_reset_control_get(&pdev->dev, "crypto");
-	if (IS_ERR(crypto_dev->reset)) {
-		dev_err(&pdev->dev, "can't get crypto reset\n");
-		return PTR_ERR(crypto_dev->reset);
-	}
-
 	crypto_dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(crypto_dev->clk)) {
 		dev_err(&pdev->dev, "no clock defined\n");
 		return -ENODEV;
 	}
 
-	//scu init
-	reset_control_assert(crypto_dev->reset);
 	clk_prepare_enable(crypto_dev->clk);
-	mdelay(1);
-	reset_control_deassert(crypto_dev->reset);
 	
-#ifdef AST_CRYPTO_IRQ
-	if (devm_request_irq(&pdev->dev, irq, ast_crypto_irq, 0, dev_name(&pdev->dev), crypto_dev)) {
+#ifdef ASPEED_CRYPTO_IRQ
+	if (devm_request_irq(&pdev->dev, irq, aspeed_crypto_irq, 0, dev_name(&pdev->dev), crypto_dev)) {
 		dev_err(dev, "unable to request aes irq.\n");
 		return -EBUSY;
 	}
 #endif 
 
-	spin_lock(&ast_drv.lock);
-	list_add_tail(&crypto_dev->list, &ast_drv.dev_list);
-	spin_unlock(&ast_drv.lock);
+	spin_lock(&aspeed_drv.lock);
+	list_add_tail(&crypto_dev->list, &aspeed_drv.dev_list);
+	spin_unlock(&aspeed_drv.lock);
 
-	crypto_dev->crypto_algs		= &ast_crypto_algs;
-	crypto_dev->ahash_algs		= &ast_ahash_alg;
+	crypto_dev->crypto_algs		= &aspeed_crypto_algs;
+	crypto_dev->ahash_algs		= &aspeed_ahash_alg;
 
 	// 8-byte aligned
 	crypto_dev->ctx_buf = dma_alloc_coherent(&pdev->dev,
@@ -2197,27 +2183,27 @@ static int ast_crypto_probe(struct platform_device *pdev)
 	crypto_dev->hash_src = crypto_dev->hash_key + 0x1000;
 	crypto_dev->hash_src_dma = crypto_dev->hash_key_dma + 0x1000;
 
-	crypto_dev->hash_digst = crypto_dev->hash_src + AST_HASH_BUFF_SIZE;
-	crypto_dev->hash_digst_dma = crypto_dev->hash_src_dma + AST_HASH_BUFF_SIZE;
+	crypto_dev->hash_digst = crypto_dev->hash_src + ASPEED_HASH_BUFF_SIZE;
+	crypto_dev->hash_digst_dma = crypto_dev->hash_src_dma + ASPEED_HASH_BUFF_SIZE;
 
 //	printk("Crypto ctx %x , in : %x, out: %x\n", crypto_dev->ctx_dma_addr, crypto_dev->dma_addr_in, crypto_dev->dma_addr_out);
 
 //	printk("Hash key %x , src : %x, digst: %x\n", crypto_dev->hash_key_dma, crypto_dev->hash_src_dma, crypto_dev->hash_digst_dma);
 
 	///Ctrl init 
-	ast_crypto_write(crypto_dev, crypto_dev->ctx_dma_addr, AST_HACE_CONTEXT);
+	aspeed_crypto_write(crypto_dev, crypto_dev->ctx_dma_addr, ASPEED_HACE_CONTEXT);
 
 	////////////////////////	
-	for (i = 0; i < ARRAY_SIZE(ast_crypto_algs); i++) {
-		err = crypto_register_alg(&ast_crypto_algs[i]);
+	for (i = 0; i < ARRAY_SIZE(aspeed_crypto_algs); i++) {
+		err = crypto_register_alg(&aspeed_crypto_algs[i]);
 		if(err)
-			printk("ast_crypto_algs ~~~ ERROR ~~~\n");
+			printk("aspeed_crypto_algs ~~~ ERROR ~~~\n");
 	}
 
-	for (i = 0; i < ARRAY_SIZE(ast_ahash_alg); i++) {
-		err = crypto_register_ahash(&ast_ahash_alg[i]);
+	for (i = 0; i < ARRAY_SIZE(aspeed_ahash_alg); i++) {
+		err = crypto_register_ahash(&aspeed_ahash_alg[i]);
 		if(err)
-			printk("ast_ahash_alg~~~ ERROR ~~~\n");
+			printk("aspeed_ahash_alg~~~ ERROR ~~~\n");
 	}	
 
 	printk(KERN_INFO "AST crypto driver successfully loaded \n");
@@ -2225,10 +2211,10 @@ static int ast_crypto_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ast_crypto_remove(struct platform_device *pdev)
+static int aspeed_crypto_remove(struct platform_device *pdev)
 {
-	struct ast_crypto_alg *alg, *next;
-	struct ast_crypto_dev *crypto_dev = platform_get_drvdata(pdev);
+	struct aspeed_crypto_alg *alg, *next;
+	struct aspeed_crypto_dev *crypto_dev = platform_get_drvdata(pdev);
 
 
 //	clk_disable(crypto_dev->clk);
@@ -2238,10 +2224,10 @@ static int ast_crypto_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int ast_crypto_suspend(struct device *dev)
+static int aspeed_crypto_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct ast_crypto_dev *crypto_dev = platform_get_drvdata(pdev);
+	struct aspeed_crypto_dev *crypto_dev = platform_get_drvdata(pdev);
 
 	/*
 	 * We only support standby mode. All we have to do is gate the clock to
@@ -2253,10 +2239,10 @@ static int ast_crypto_suspend(struct device *dev)
 	return 0;
 }
 
-static int ast_crypto_resume(struct device *dev)
+static int aspeed_crypto_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct ast_crypto_dev *crypto_dev = platform_get_drvdata(pdev);
+	struct aspeed_crypto_dev *crypto_dev = platform_get_drvdata(pdev);
 	return 0;
 //	return clk_enable(crypto_dev->clk);
 }
@@ -2265,31 +2251,28 @@ static int ast_crypto_resume(struct device *dev)
 
 
 
-static const struct of_device_id ast_crypto_of_matches[] = {
-	{ .compatible = "aspeed,ast-crypto", },
+static const struct of_device_id aspeed_crypto_of_matches[] = {
+	{ .compatible = "aspeed,ast2500-crypto", },
+	{ .compatible = "aspeed,ast2400-crypto", },
 	{},
 };
 
-MODULE_DEVICE_TABLE(of, ast_crypto_of_matches);
+MODULE_DEVICE_TABLE(of, aspeed_crypto_of_matches);
 
-static struct platform_driver ast_crypto_driver = {
-	.probe 		= ast_crypto_probe,
-	.remove		= ast_crypto_remove,
+static struct platform_driver aspeed_crypto_driver = {
+	.probe 		= aspeed_crypto_probe,
+	.remove		= aspeed_crypto_remove,
 #ifdef CONFIG_PM	
-	.suspend	= ast_crypto_suspend,
-	.resume 	= ast_crypto_resume,
+	.suspend	= aspeed_crypto_suspend,
+	.resume 	= aspeed_crypto_resume,
 #endif	
 	.driver         = {
 		.name   = KBUILD_MODNAME,
-		.of_match_table = ast_crypto_of_matches,
+		.of_match_table = aspeed_crypto_of_matches,
 	},
 };
 
-module_platform_driver(ast_crypto_driver);
-
-MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
-MODULE_DESCRIPTION("AST Crypto driver");
-MODULE_LICENSE("GPL");
+module_platform_driver(aspeed_crypto_driver);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST Crypto driver");

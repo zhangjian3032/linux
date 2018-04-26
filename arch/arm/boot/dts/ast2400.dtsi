@@ -266,7 +266,7 @@
 		};
 
 		hace: hace@1e6e3000 {
-			compatible = "aspeed,ast-crypto";
+			compatible = "aspeed,ast2400-crypto";
 			reg = <0x1e6e3000 0x200>;
 			interrupts = <4>;
 			clocks = <&clk_y>;
