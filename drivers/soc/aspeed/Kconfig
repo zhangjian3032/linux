@@ -107,7 +107,7 @@ config ASPEED_JTAG
 	help
 	  Driver for JTAG Controller
 
-config AST_MCTP
+config ASPEED_MCTP
 	tristate "ASPEED MCTP Driver"
 	depends on !(PCI)
 	default n
