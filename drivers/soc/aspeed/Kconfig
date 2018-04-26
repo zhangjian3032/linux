@@ -3,12 +3,12 @@
 #
 
 if ARCH_ASPEED
-menuconfig AST_MISC
+menuconfig ASPEED_MISC
 	tristate 'ASPEED SOCs MISC drivers'
 	help
 	  We can select misc drivers for ASPEED SOC in this sub-function.
 
-if AST_MISC
+if ASPEED_MISC
 
 config AST_VGAVIDEO
 	tristate "VGA Video Engine driver"
@@ -114,7 +114,7 @@ config AST_MCTP
 	help
 	  Driver for MCTP
 
-config AST_XDMA
+config ASPEED_XDMA
 	tristate "ASPEED XDMA Driver"
 	default n
 	help
