@@ -2193,7 +2193,6 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 	///Ctrl init 
 	aspeed_crypto_write(crypto_dev, crypto_dev->ctx_dma_addr, ASPEED_HACE_CONTEXT);
 
-	////////////////////////	
 	for (i = 0; i < ARRAY_SIZE(aspeed_crypto_algs); i++) {
 		err = crypto_register_alg(&aspeed_crypto_algs[i]);
 		if(err)
@@ -2206,7 +2205,7 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 			printk("aspeed_ahash_alg~~~ ERROR ~~~\n");
 	}	
 
-	printk(KERN_INFO "AST crypto driver successfully loaded \n");
+	printk(KERN_INFO "ASPEED crypto driver successfully loaded \n");
 
 	return 0;
 }
@@ -2275,5 +2274,5 @@ static struct platform_driver aspeed_crypto_driver = {
 module_platform_driver(aspeed_crypto_driver);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
-MODULE_DESCRIPTION("AST Crypto driver");
+MODULE_DESCRIPTION("ASPEED Crypto driver");
 MODULE_LICENSE("GPL");
