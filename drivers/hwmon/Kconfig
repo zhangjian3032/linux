@@ -39,7 +39,7 @@ config HWMON_DEBUG_CHIP
 
 comment "Native drivers"
 
-config SENSORS_AST_ADC
+config SENSORS_ASPEED_ADC
 	tristate "ASPEED ADC Controller Driver"
 	depends on ARCH_ASPEED
 	default n
