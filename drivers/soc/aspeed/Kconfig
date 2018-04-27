@@ -78,7 +78,7 @@ config ADC_CAT9883
 	help
 	  Driver for CAT 9883
 
-config AST_PECI
+config ASPEED_PECI
 	tristate "ASPEED PECI Controller"
 	default n
 	help
