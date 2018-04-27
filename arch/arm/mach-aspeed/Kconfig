@@ -1,5 +1,5 @@
 menuconfig ARCH_ASPEED
-	bool "Aspeed BMC architectures"
+	bool "Aspeed SoC architectures"
 	depends on ARCH_MULTI_V5 || ARCH_MULTI_V6
 #	select SRAM
 #	select WATCHDOG
