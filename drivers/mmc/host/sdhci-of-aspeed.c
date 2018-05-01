@@ -87,7 +87,7 @@ static void sdhci_aspeed_set_bus_width(struct sdhci_host *host, int width)
 		ctrl |= SDHCI_CTRL_4BITBUS;
 	else
 		ctrl &= ~SDHCI_CTRL_4BITBUS;
-		
+
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 
 }
@@ -151,17 +151,6 @@ static int sdhci_aspeed_probe(struct platform_device *pdev)
 
 	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
 
-	reset = devm_reset_control_get_exclusive(&pdev->dev, "sdhci");
-	if (!IS_ERR(reset)) {
-		//scu init
-		reset_control_assert(reset);
-		mdelay(10);
-		clk_prepare_enable(pltfm_host->clk);
-		mdelay(10);
-		reset_control_deassert(reset);
-	}
-
-//	pnode = of_node_get(np->parent);
 	pnode = of_parse_phandle(np, "interrupt-parent", 0);
 	if(pnode)
 		memcpy(sdhci_irq, pnode->data, sizeof(struct aspeed_sdhci_irq));
