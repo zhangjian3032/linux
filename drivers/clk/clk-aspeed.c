@@ -14,7 +14,7 @@
 
 #include <dt-bindings/clock/aspeed-clock.h>
 
-#define ASPEED_NUM_CLKS		35
+#define ASPEED_NUM_CLKS		36
 
 #define ASPEED_RESET2_OFFSET	32
 
@@ -91,7 +91,7 @@ static const struct aspeed_gate_data aspeed_gates[] = {
 	[ASPEED_CLK_GATE_GCLK] =	{  1,  7, "gclk-gate",		NULL,	0 }, /* 2D engine */
 	[ASPEED_CLK_GATE_MCLK] =	{  2, -1, "mclk-gate",		"mpll",	CLK_IS_CRITICAL }, /* SDRAM */
 	[ASPEED_CLK_GATE_VCLK] =	{  3,  6, "vclk-gate",		NULL,	0 }, /* Video Capture */
-	[ASPEED_CLK_GATE_BCLK] =	{  4, 10, "bclk-gate",		"bclk",	CLK_IS_CRITICAL }, /* PCIe/PCI */
+	[ASPEED_CLK_GATE_BCLK] =	{  4, 8, "bclk-gate",		"bclk",	CLK_IS_CRITICAL }, /* PCIe/PCI */
 	[ASPEED_CLK_GATE_DCLK] =	{  5, -1, "dclk-gate",		NULL,	CLK_IS_CRITICAL }, /* DAC */
 	[ASPEED_CLK_GATE_REFCLK] =	{  6, -1, "refclk-gate",	"clkin", CLK_IS_CRITICAL },
 	[ASPEED_CLK_GATE_USBPORT2CLK] =	{  7,  3, "usb-port2-gate",	NULL,	0 }, /* USB2.0 Host port 2 */
@@ -104,6 +104,7 @@ static const struct aspeed_gate_data aspeed_gates[] = {
 	[ASPEED_CLK_GATE_UART2CLK] =	{ 16, -1, "uart2clk-gate",	"uart",	0 }, /* UART2 */
 	[ASPEED_CLK_GATE_UART5CLK] =	{ 17, -1, "uart5clk-gate",	"uart",	0 }, /* UART5 */
 	[ASPEED_CLK_GATE_ESPICLK] =	{ 19, -1, "espiclk-gate",	NULL,	0 }, /* eSPI */
+	//TODO magic number mac reset 11/12 
 	[ASPEED_CLK_GATE_MAC1CLK] =	{ 20, 11, "mac1clk-gate",	"mac",	0 }, /* MAC1 */
 	[ASPEED_CLK_GATE_MAC2CLK] =	{ 21, 12, "mac2clk-gate",	"mac",	0 }, /* MAC2 */
 	[ASPEED_CLK_GATE_RSACLK] =	{ 24, -1, "rsaclk-gate",	NULL,	0 }, /* RSA */
@@ -111,6 +112,32 @@ static const struct aspeed_gate_data aspeed_gates[] = {
 	[ASPEED_CLK_GATE_UART4CLK] =	{ 26, -1, "uart4clk-gate",	"uart",	0 }, /* UART4 */
 	[ASPEED_CLK_GATE_SDCLKCLK] =	{ 27, 16, "sdclk-gate",		NULL,	0 }, /* SDIO/SD */
 	[ASPEED_CLK_GATE_LHCCLK] =	{ 28, -1, "lhclk-gate",		"lhclk", 0 }, /* LPC master/LPC+ */
+	//offset  0x08 
+//	[ASPEED_CLK_GATE_SDEXTCLK] =	{ 15, -1, "sd-extclk-gate",		"hpll",	0 }, /* For card clk */		
+};
+
+static const struct clk_div_table ast2500_eclk_div_table[] = {
+	{ 0x0, 2 }, 
+	{ 0x1, 2 },
+	{ 0x2, 3 },
+	{ 0x3, 4 },
+	{ 0x4, 5 },
+	{ 0x5, 6 },
+	{ 0x6, 7 },
+	{ 0x7, 8 },
+	{ 0 }
+};
+
+static const struct clk_div_table ast2400_eclk_div_table[] = {
+	{ 0x0, 2 }, 
+	{ 0x1, 4 },
+	{ 0x2, 6 },
+	{ 0x3, 8 },
+	{ 0x4, 10 },
+	{ 0x5, 12 },
+	{ 0x6, 14 },
+	{ 0x7, 16 },
+	{ 0 }
 };
 
 static const struct clk_div_table ast2500_mac_div_table[] = {
@@ -149,6 +176,79 @@ static const struct clk_div_table ast2500_div_table[] = {
 	{ 0 }
 };
 
+/*************************************************************************/
+#define SCU_HW_STRAP_VGA_SIZE_GET(x)		((x >> 2)& 0x3)
+
+#define VGA_8M_DRAM			0
+#define VGA_16M_DRAM			1
+#define VGA_32M_DRAM			2
+#define VGA_64M_DRAM			3
+
+extern u32 ast_scu_get_vga_memsize(void)
+{
+	u32 size=0;
+
+	switch(SCU_HW_STRAP_VGA_SIZE_GET(readl(scu_base + ASPEED_STRAP))) {
+		case VGA_8M_DRAM:
+			size = 8*1024*1024;
+			break;
+		case VGA_16M_DRAM:
+			size = 16*1024*1024;
+			break;
+		case VGA_32M_DRAM:
+			size = 32*1024*1024;
+			break;
+		case VGA_64M_DRAM:
+			size = 64*1024*1024;
+			break;
+		default:
+			printk("error vga size \n");
+			break;
+	}
+	return size;
+}
+
+EXPORT_SYMBOL(ast_scu_get_vga_memsize);
+
+// extern function call
+#define AST_SCU_OTP0				0x150
+#define AST_SCU_OTP1				0x154
+#define AST_SCU_OTP2				0x158
+#define AST_SCU_OTP3				0x15C
+
+extern u8 ast_scu_adc_trim_read(void)
+{
+	return (readl(scu_base + AST_SCU_OTP1) >> 28);
+}
+EXPORT_SYMBOL(ast_scu_adc_trim_read);
+
+#define AST_SCU_MISC1_CTRL			0x2C		/*	Misc. Control register */
+#define SCU_MISC_VGA_CRT_DIS		BIT(6)
+
+extern void
+ast_scu_set_vga_display(u8 enable)
+{
+	if(enable)
+		writel(readl(scu_base + AST_SCU_MISC1_CTRL) & ~SCU_MISC_VGA_CRT_DIS, scu_base + AST_SCU_MISC1_CTRL);
+	else
+		writel(readl(scu_base + AST_SCU_MISC1_CTRL) | SCU_MISC_VGA_CRT_DIS, scu_base + AST_SCU_MISC1_CTRL);
+}
+
+EXPORT_SYMBOL(ast_scu_set_vga_display);
+
+extern u8
+ast_scu_get_vga_display(void)
+{
+	if(readl(scu_base + AST_SCU_MISC1_CTRL) & SCU_MISC_VGA_CRT_DIS)
+		return 0;
+	else
+		return 1;
+}
+
+EXPORT_SYMBOL(ast_scu_get_vga_display);
+
+/*************************************************************************/
+
 static struct clk_hw *aspeed_ast2400_calc_pll(const char *name, u32 val)
 {
 	unsigned int mult, div;
@@ -185,7 +285,7 @@ static struct clk_hw *aspeed_ast2500_calc_pll(const char *name, u32 val)
 		mult = (m + 1) / (n + 1);
 		div = p + 1;
 	}
-
+printk("aspeed_ast2500_calc_pll %s \n", name);
 	return clk_hw_register_fixed_factor(NULL, name, "clkin", 0,
 			mult, div);
 }
@@ -193,18 +293,21 @@ static struct clk_hw *aspeed_ast2500_calc_pll(const char *name, u32 val)
 struct aspeed_clk_soc_data {
 	const struct clk_div_table *div_table;
 	const struct clk_div_table *mac_div_table;
+	const struct clk_div_table *eclk_div_table;
 	struct clk_hw *(*calc_pll)(const char *name, u32 val);
 };
 
 static const struct aspeed_clk_soc_data ast2500_data = {
 	.div_table = ast2500_div_table,
 	.mac_div_table = ast2500_mac_div_table,
+	.eclk_div_table = ast2500_eclk_div_table,	
 	.calc_pll = aspeed_ast2500_calc_pll,
 };
 
 static const struct aspeed_clk_soc_data ast2400_data = {
 	.div_table = ast2400_div_table,
 	.mac_div_table = ast2400_div_table,
+	.eclk_div_table = ast2400_eclk_div_table,
 	.calc_pll = aspeed_ast2400_calc_pll,
 };
 
@@ -218,38 +321,50 @@ static int aspeed_clk_enable(struct clk_hw *hw)
 	u32 enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? 0 : clk;
 
 	spin_lock_irqsave(gate->lock, flags);
+	printk("aspeed_clk_enable   ============================================= start \n");
+	printk("gate->clock_idx %d , gate->reset_idx %d \n", gate->clock_idx, gate->reset_idx);
+	printk("before ASPEED_CLK_SELECTION %x \n", readl(scu_base + ASPEED_CLK_SELECTION));
 
-	/*
+	/* The sequence should be [assert reset -> 100us -> enable clk -> 10ms -> deassert reset]
+
+	/* TODO check
 	 * Only reset/enable/unreset if clock is stopped. The LPC clock has
 	 * issues otherwise.
 	 */
-	enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? 0 : clk;
-	regmap_read(gate->map, ASPEED_CLK_STOP_CTRL, &reg);
-	if ((reg & clk) == enval) {
-		spin_unlock_irqrestore(gate->lock, flags);
-		return 0;
-	}
 
 	if (gate->reset_idx >= 0) {
 		/* Put IP in reset */
 		regmap_update_bits(gate->map, ASPEED_RESET_CTRL, rst, rst);
-
+		printk("assert and udelay ASPEED_RESET_CTRL 0x04\n");
 		/* Delay 100us */
 		udelay(100);
 	}
 
 	/* Enable clock */
+#if 1	
+	if(gate->clock_idx == ASPEED_CLK_SDIO) {
+		printk("enable clock ASPEED_CLK_STOP_CTRL ASPEED_CLK_SELECTION 0x08\n");
+		regmap_update_bits(gate->map, ASPEED_CLK_SELECTION, BIT(15), 1);
+	} 
+	printk("enable clock ASPEED_CLK_STOP_CTRL 0x0C\n");
 	regmap_update_bits(gate->map, ASPEED_CLK_STOP_CTRL, clk, enval);
 
+#else
+	regmap_update_bits(gate->map, ASPEED_CLK_STOP_CTRL, clk, enval);
+#endif
 	if (gate->reset_idx >= 0) {
 		/* A delay of 10ms is specified by the ASPEED docs */
 		mdelay(10);
 
 		/* Take IP out of reset */
 		regmap_update_bits(gate->map, ASPEED_RESET_CTRL, rst, 0);
+		printk("dessert reset \n");
 	}
 
+	printk("after ASPEED_CLK_SELECTION %x \n", readl(scu_base + ASPEED_CLK_SELECTION));
+
 	spin_unlock_irqrestore(gate->lock, flags);
+	printk(" ============================================= end \n");
 
 	return 0;
 }
@@ -265,6 +380,7 @@ static void aspeed_clk_disable(struct clk_hw *hw)
 
 	enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? clk : 0;
 	regmap_update_bits(gate->map, ASPEED_CLK_STOP_CTRL, clk, enval);
+	printk("xxxxxxxxxxxxxxxxxxx   aspeed_clk_disable gate->clock_idx %d , gate->reset_idx %d \n", gate->clock_idx, gate->reset_idx);
 
 	spin_unlock_irqrestore(gate->lock, flags);
 }
@@ -277,6 +393,7 @@ static int aspeed_clk_is_enabled(struct clk_hw *hw)
 	u32 reg;
 
 	regmap_read(gate->map, ASPEED_CLK_STOP_CTRL, &reg);
+	printk("xxxxxxxxxxxxxxxxxxx aspeed_clk_is_enabled gate->clock_idx %d , gate->reset_idx %d \n", gate->clock_idx, gate->reset_idx);
 
 	return ((reg & clk) == enval) ? 1 : 0;
 }
@@ -301,15 +418,31 @@ struct aspeed_reset {
 
 static const u8 aspeed_resets[] = {
 	/* SCU04 resets */
+	[ASPEED_RESET_ESPI]	= 5,
 	[ASPEED_RESET_XDMA]	= 25,
 	[ASPEED_RESET_MCTP]	= 24,
+	[ASPEED_RESET_P2X]	= 24,	
 	[ASPEED_RESET_ADC]	= 23,
 	[ASPEED_RESET_JTAG_MASTER] = 22,
+	[ASPEED_RESET_PCIE_DIR]	= 21,
+	[ASPEED_RESET_PCIE]		= 20,
 	[ASPEED_RESET_MIC]	= 18,
+	[ASPEED_RESET_SDHCI]	= 16,
+	[ASPEED_RESET_UHCI]	= 15,
+	[ASPEED_RESET_EHCI_P1]	= 14,
+	[ASPEED_RESET_CRT]		= 13,
+	[ASPEED_RESET_MAC2]	= 12,
+	[ASPEED_RESET_MAC1]	= 11,
+	[ASPEED_RESET_PECI]	= 10,
 	[ASPEED_RESET_PWM]	=  9,
-	[ASPEED_RESET_PCIVGA]	=  8,
+	[ASPEED_RESET_2D]	= 7,
+	[ASPEED_RESET_VIDEO]	= 6,
+	[ASPEED_RESET_LPC]		= 5,
+	[ASPEED_RESET_HACE]	= 4,
+	[ASPEED_RESET_EHCI_P2]	= 3,
 	[ASPEED_RESET_I2C]	=  2,
 	[ASPEED_RESET_AHB]	=  1,
+	[ASPEED_RESET_SRAM_CTRL]	=  0,
 
 	/*
 	 * SCUD4 resets start at an offset to separate them from
@@ -329,6 +462,7 @@ static int aspeed_reset_deassert(struct reset_controller_dev *rcdev,
 		bit -= ASPEED_RESET2_OFFSET;
 		reg = ASPEED_RESET_CTRL2;
 	}
+	printk("aspeed_reset_deassert set offset  %x, %d \n", reg, bit);
 
 	return regmap_update_bits(ar->map, reg, BIT(bit), 0);
 }
@@ -344,6 +478,7 @@ static int aspeed_reset_assert(struct reset_controller_dev *rcdev,
 		bit -= ASPEED_RESET2_OFFSET;
 		reg = ASPEED_RESET_CTRL2;
 	}
+	printk("aspeed_reset_assert set offset  %x, %d \n", reg, bit);
 
 	return regmap_update_bits(ar->map, reg, BIT(bit), BIT(bit));
 }
@@ -355,11 +490,13 @@ static int aspeed_reset_status(struct reset_controller_dev *rcdev,
 	u32 reg = ASPEED_RESET_CTRL;
 	u32 bit = aspeed_resets[id];
 	int ret, val;
+	printk("aspeed_reset_status %d \n", id);
 
 	if (bit >= ASPEED_RESET2_OFFSET) {
 		bit -= ASPEED_RESET2_OFFSET;
 		reg = ASPEED_RESET_CTRL2;
 	}
+
 
 	ret = regmap_read(ar->map, reg, &val);
 	if (ret)
@@ -383,7 +520,7 @@ static struct clk_hw *aspeed_clk_hw_register_gate(struct device *dev,
 	struct clk_init_data init;
 	struct clk_hw *hw;
 	int ret;
-
+printk("aspeed_clk_hw_register_gate clock_idx %d , reset_idx %d\n", clock_idx, reset_idx);
 	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
@@ -420,7 +557,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	struct clk_hw *hw;
 	u32 val, rate;
 	int i, ret;
-
+printk("aspeed_clk_probe  ============================== should second \n");
 	map = syscon_node_to_regmap(dev->of_node);
 	if (IS_ERR(map)) {
 		dev_err(dev, "no syscon regmap\n");
@@ -436,7 +573,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	ar->rcdev.nr_resets = ARRAY_SIZE(aspeed_resets);
 	ar->rcdev.ops = &aspeed_reset_ops;
 	ar->rcdev.of_node = dev->of_node;
-
+printk("register reset controller ====\n");
 	ret = devm_reset_controller_register(dev, &ar->rcdev);
 	if (ret) {
 		dev_err(dev, "could not register reset controller\n");
@@ -461,6 +598,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_clk_data->hws[ASPEED_CLK_UART] = hw;
+	printk("ASPEED_CLK_UART idx %d \n",  ASPEED_CLK_UART);
 
 	/*
 	 * Memory controller (M-PLL) PLL. This clock is configured by the
@@ -471,8 +609,10 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_clk_data->hws[ASPEED_CLK_MPLL] =	hw;
+	printk("ASPEED_CLK_MPLL idx %d \n",  ASPEED_CLK_MPLL);
 
 	/* SD/SDIO clock divider (TODO: There's a gate too) */
+	printk("SDIO --- ASPEED_CLK_SELECTION %x \n", readl(scu_base + ASPEED_CLK_SELECTION));
 	hw = clk_hw_register_divider_table(dev, "sdio", "hpll", 0,
 			scu_base + ASPEED_CLK_SELECTION, 12, 3, 0,
 			soc_data->div_table,
@@ -480,6 +620,10 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_clk_data->hws[ASPEED_CLK_SDIO] = hw;
+	printk("ASPEED_CLK_SELECTION %x \n", readl(scu_base + ASPEED_CLK_SELECTION));
+	printk("set -----------------------  ASPEED_CLK_SDIO clk idx %d \n",  ASPEED_CLK_SDIO);
+
+	printk("ASPEED_CLK_SELECTION %x \n", readl(scu_base + ASPEED_CLK_SELECTION));
 
 	/* MAC AHB bus clock divider */
 	hw = clk_hw_register_divider_table(dev, "mac", "hpll", 0,
@@ -489,7 +633,29 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_clk_data->hws[ASPEED_CLK_MAC] = hw;
+	printk("ASPEED_CLK_SELECTION %x \n", readl(scu_base + ASPEED_CLK_SELECTION));
+	printk("set ------------------------- ASPEED_CLK_MAC clk idx %d \n",  ASPEED_CLK_MAC);
 
+//////////////////////
+	/* Video Engine clock divider */
+printk("ASPEED_CLK_SELECTION %x \n", readl(scu_base + ASPEED_CLK_SELECTION));
+	hw = clk_hw_register_divider_table(dev, "eclk", NULL, 0,
+			scu_base + ASPEED_CLK_SELECTION, 28, 3, 0,
+			soc_data->eclk_div_table,
+			&aspeed_clk_lock);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	aspeed_clk_data->hws[ASPEED_CLK_ECLK] = hw;
+	printk("after ASPEED_CLK_SELECTION %x \n", readl(scu_base + ASPEED_CLK_SELECTION));
+
+#if 0
+if(GET_CHIP_REVISION(ast_scu_read(AST_SCU_REVISION_ID)) == 4)
+	ast_scu_write((ast_scu_read(AST_SCU_CLK_SEL) & ~(SCU_ECLK_SOURCE_MASK | SCU_CLK_VIDEO_SLOW_MASK | SCU_CLK_VIDEO_SLOW_EN)), AST_SCU_CLK_SEL);
+else
+	ast_scu_write((ast_scu_read(AST_SCU_CLK_SEL) & ~(SCU_ECLK_SOURCE_MASK | SCU_CLK_VIDEO_SLOW_EN)) | SCU_ECLK_SOURCE(2), AST_SCU_CLK_SEL);
+#endif
+	
+///////////////////////////////////
 	/* LPC Host (LHCLK) clock divider */
 	hw = clk_hw_register_divider_table(dev, "lhclk", "hpll", 0,
 			scu_base + ASPEED_CLK_SELECTION, 20, 3, 0,
@@ -498,6 +664,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_clk_data->hws[ASPEED_CLK_LHCLK] = hw;
+	printk("set -------------------------- ASPEED_CLK_LHCLK clk idx %d \n",	ASPEED_CLK_LHCLK);
 
 	/* P-Bus (BCLK) clock divider */
 	hw = clk_hw_register_divider_table(dev, "bclk", "hpll", 0,
@@ -507,6 +674,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_clk_data->hws[ASPEED_CLK_BCLK] = hw;
+	printk("set -------------------------- ASPEED_CLK_BCLK clk idx %d \n",	ASPEED_CLK_BCLK);
 
 	/*
 	 * TODO: There are a number of clocks that not included in this driver
@@ -519,7 +687,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	 *   UART[1..5] clock source mux
 	 *   Video Engine (ECLK) mux and clock divider
 	 */
-
+printk("for  for clk and reset ======= \n");
 	for (i = 0; i < ARRAY_SIZE(aspeed_gates); i++) {
 		const struct aspeed_gate_data *gd = &aspeed_gates[i];
 		u32 gate_flags;
@@ -540,8 +708,9 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 		if (IS_ERR(hw))
 			return PTR_ERR(hw);
 		aspeed_clk_data->hws[i] = hw;
+		printk("get idx %x \n", i);
 	}
-
+printk("end for ------------------------------------ \n");
 	return 0;
 };
 
@@ -570,7 +739,7 @@ static void __init aspeed_ast2400_cc(struct regmap *map)
 {
 	struct clk_hw *hw;
 	u32 val, freq, div;
-
+printk("aspeed_ast2400_cc ================================== should first \n");
 	/*
 	 * CLKIN is the crystal oscillator, 24, 48 or 25MHz selected by
 	 * strapping
@@ -622,6 +791,7 @@ static void __init aspeed_ast2500_cc(struct regmap *map)
 {
 	struct clk_hw *hw;
 	u32 val, freq, div;
+	printk("aspeed_ast2500_cc ================================== should first \n");
 
 	/* CLKIN is the crystal oscillator, 24 or 25MHz selected by strapping */
 	regmap_read(map, ASPEED_STRAP, &val);
@@ -631,6 +801,7 @@ static void __init aspeed_ast2500_cc(struct regmap *map)
 		freq = 24000000;
 	hw = clk_hw_register_fixed_rate(NULL, "clkin", NULL, 0, freq);
 	pr_debug("clkin @%u MHz\n", freq / 1000000);
+	printk("clkin @%u MHz\n", freq / 1000000);
 
 	/*
 	 * High-speed PLL clock derived from the crystal. This the CPU clock,
@@ -638,6 +809,7 @@ static void __init aspeed_ast2500_cc(struct regmap *map)
 	 */
 	regmap_read(map, ASPEED_HPLL_PARAM, &val);
 	aspeed_clk_data->hws[ASPEED_CLK_HPLL] = aspeed_ast2500_calc_pll("hpll", val);
+	printk("HPLL idx %d \n",  ASPEED_CLK_HPLL);
 
 	/* Strap bits 11:9 define the AXI/AHB clock frequency ratio (aka HCLK)*/
 	regmap_read(map, ASPEED_STRAP, &val);
@@ -646,6 +818,7 @@ static void __init aspeed_ast2500_cc(struct regmap *map)
 	div = 2 * (val + 1);
 	hw = clk_hw_register_fixed_factor(NULL, "ahb", "hpll", 0, 1, div);
 	aspeed_clk_data->hws[ASPEED_CLK_AHB] = hw;
+	printk("AHB idx %d \n",  ASPEED_CLK_AHB);
 
 	/* APB clock clock selection register SCU08 (aka PCLK) */
 	regmap_read(map, ASPEED_CLK_SELECTION, &val);
@@ -653,6 +826,7 @@ static void __init aspeed_ast2500_cc(struct regmap *map)
 	div = 4 * (val + 1);
 	hw = clk_hw_register_fixed_factor(NULL, "apb", "hpll", 0, 1, div);
 	aspeed_clk_data->hws[ASPEED_CLK_APB] = hw;
+	printk("apb idx %d \n",  ASPEED_CLK_APB);
 };
 
 static void __init aspeed_cc_init(struct device_node *np)
@@ -672,6 +846,8 @@ static void __init aspeed_cc_init(struct device_node *np)
 	if (!aspeed_clk_data)
 		return;
 
+	printk("aspeed_cc_init  ASPEED_NUM_CLKS %d prepare clk array ----------------------------\n", ASPEED_NUM_CLKS);
+	
 	/*
 	 * This way all clocks fetched before the platform device probes,
 	 * except those we assign here for early use, will be deferred.
@@ -695,6 +871,7 @@ static void __init aspeed_cc_init(struct device_node *np)
 		pr_err("failed to read strapping register\n");
 		return;
 	}
+printk("scu 70 strap %x \n", val);
 
 	if (of_device_is_compatible(np, "aspeed,ast2400-scu"))
 		aspeed_ast2400_cc(map);
@@ -707,6 +884,7 @@ static void __init aspeed_cc_init(struct device_node *np)
 	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, aspeed_clk_data);
 	if (ret)
 		pr_err("failed to add DT provider: %d\n", ret);
+	printk("----------------------------------------------- end \n");
 };
 CLK_OF_DECLARE_DRIVER(aspeed_cc_g5, "aspeed,ast2500-scu", aspeed_cc_init);
 CLK_OF_DECLARE_DRIVER(aspeed_cc_g4, "aspeed,ast2400-scu", aspeed_cc_init);
