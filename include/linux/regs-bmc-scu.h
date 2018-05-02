@@ -39,7 +39,7 @@
 #else
 #define AST_SCU_FREQ_LIMIT			0x28		/*	frequency counter comparsion register */
 #endif
-#define AST_SCU_MISC1_CTRL			0x2C		/*	Misc. Control register */
+
 #define AST_SCU_PCI_CONF1			0x30		/*	PCI configuration setting register#1 */
 #define AST_SCU_PCI_CONF2			0x34		/*	PCI configuration setting register#2 */
 #define AST_SCU_PCI_CONF3			0x38		/*	PCI configuration setting register#3 */
@@ -58,7 +58,7 @@
 #define AST_SCU_VGA_SCRATCH5		0x64		/*	VGA Scratch register */
 #define AST_SCU_VGA_SCRATCH6		0x68		/*	VGA Scratch register */
 #define AST_SCU_VGA_SCRATCH7		0x6c		/*	VGA Scratch register */
-#define AST_SCU_HW_STRAP1			0x70		/*	hardware strapping register */
+
 #define AST_SCU_RAMDOM_GEN			0x74		/*	random number generator register */
 #if defined(CONFIG_ARCH_AST1100) || defined(CONFIG_ARCH_AST2050) || defined(CONFIG_ARCH_AST2100) || defined(CONFIG_ARCH_AST2200)
 #define AST_SCU_MULTI_FUNC_2		0x78
@@ -109,10 +109,6 @@
 #define AST_SCU_DPLL_PAR1				0x134
 #define AST_SCU_DPLL_PAR2				0x138
 
-#define AST_SCU_OTP0				0x150
-#define AST_SCU_OTP1				0x154
-#define AST_SCU_OTP2				0x158
-#define AST_SCU_OTP3				0x15C
 
 #define AST_SCU_UART24_REF			0x160		/*	Generate UART 24Mhz Ref from H-PLL when CLKIN is 25Mhz */
 #define AST_SCU_PCIE_CONFIG_SET		0x180		/*	PCI-E Configuration Setting Control Register */
@@ -382,7 +378,7 @@
 #define SCU_MISC_OUT_DELAY				(0x1 << 9)
 #define SCU_MISC_PCI_TO_AHB_DIS			(0x1 << 8)
 #define SCU_MISC_2D_CRT_EN				(0x1 << 7)
-#define SCU_MISC_VGA_CRT_DIS			(0x1 << 6)
+
 #define SCU_MISC_VGA_REG_ACCESS_EN		(0x1 << 5)
 #define SCU_MISC_D2_PLL_DIS				(0x1 << 4)
 #define SCU_MISC_DAC_DIS				(0x1 << 3)
@@ -469,7 +465,6 @@
 /*	AST_SCU_VGA_SCRATCH6	0x68		VGA Scratch register */
 /*	AST_SCU_VGA_SCRATCH7	0x6c		VGA Scratch register */
 
-/*	AST_SCU_HW_STRAP1			0x70		hardware strapping register */
 #ifdef CONFIG_MACH_ASPEED_G5
 #define SCU_HW_STRAP_ESPI_MODE			(0x1 << 25)
 
@@ -490,14 +485,9 @@
 #define SCU_HW_STRAP_VGA_BIOS_ROM	(0x1 << 5)
 #define SCU_HW_STRAP_SPI_WIDTH		(0x1 << 4)
 
-#define SCU_HW_STRAP_VGA_SIZE_GET(x)	((x >> 2)& 0x3)
+
 #define SCU_HW_STRAP_VGA_MASK			(0x3 << 3)
 #define SCU_HW_STRAP_VGA_SIZE_SET(x)	(x << 2)
-
-#define VGA_8M_DRAM				0
-#define VGA_16M_DRAM			1
-#define VGA_32M_DRAM			2
-#define VGA_64M_DRAM			3
 
 #define SCU_HW_STRAP_DIS_BOOT 			(1)
 #else
@@ -545,14 +535,11 @@
 #define SCU_HW_STRAP_MAC0_RGMII		(0x1 << 6)
 #define SCU_HW_STRAP_VGA_BIOS_ROM	(0x1 << 5)
 #define SCU_HW_STRAP_SPI_WIDTH		(0x1 << 4)
-#define SCU_HW_STRAP_VGA_SIZE_GET(x)		((x >> 2)& 0x3)
+
+
 #define SCU_HW_STRAP_VGA_MASK			(0x3 << 2)
 #define SCU_HW_STRAP_VGA_SIZE_SET(x)		(x << 2)
 
-#define VGA_8M_DRAM			0
-#define VGA_16M_DRAM			1
-#define VGA_32M_DRAM			2
-#define VGA_64M_DRAM			3
 
 #define SCU_HW_STRAP_BOOT_MODE(x)		(x)
 #define NOR_BOOT		0

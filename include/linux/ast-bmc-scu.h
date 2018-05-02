@@ -55,7 +55,6 @@ extern u8 ast_scu_get_vga_display(void);
 extern u32 ast_scu_get_vga_memsize(void);
 
 //Ctrl Initial
-extern void ast_scu_init_uart(u8);
 extern void ast_scu_init_video(u8 dynamic_en);
 extern void ast_scu_reset_video(void);
 extern void ast_scu_init_eth(u8 num);
@@ -113,7 +112,5 @@ extern u32 ast_scu_hw_random_read(void);
 extern u8 ast_scu_get_hw_random_type(void);
 extern void ast_scu_set_hw_random_type(u8 type);
 extern u8 ast_scu_adc_trim_read(void);
-extern u32 ast_get_dram_base(void);
-
 
 #endif

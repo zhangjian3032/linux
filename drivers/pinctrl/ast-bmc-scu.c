@@ -108,16 +108,6 @@ static struct soc_id soc_map_table[] = {
 //***********************************Initial control***********************************
 #ifdef SCU_RESET_VIDEO
 extern void
-ast_scu_reset_video(void)
-{
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_VIDEO, AST_SCU_RESET);
-	udelay(100);
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_VIDEO, AST_SCU_RESET);
-}
-
-EXPORT_SYMBOL(ast_scu_reset_video);
-
-extern void
 ast_scu_init_video(u8 dynamic_en)
 {
 	//Video Engine Clock Enable and Reset
@@ -139,35 +129,6 @@ ast_scu_init_video(u8 dynamic_en)
 	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_VIDEO, AST_SCU_RESET);
 }
 EXPORT_SYMBOL(ast_scu_init_video);
-#endif
-
-#ifdef SCU_UART1CLK_STOP_EN
-extern void
-ast_scu_init_uart(u8 uart)
-{
-	u32 clk_stop_en = 0;	
-
-	//uart 1
-	if(uart & 0x2) {
-		clk_stop_en |= SCU_UART1CLK_STOP_EN;
-	}
-
-	if(uart & 0x4) {
-		clk_stop_en |= SCU_UART2CLK_STOP_EN;
-	}
-
-	if(uart & 0x8) {
-		clk_stop_en |= SCU_UART3CLK_STOP_EN;
-	}
-
-	if(uart & 0x10) {
-		clk_stop_en |= SCU_UART4CLK_STOP_EN;
-	}
-	
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~(clk_stop_en), AST_SCU_CLK_STOP);
-	
-}
-EXPORT_SYMBOL(ast_scu_init_uart);
 #endif
 
 
@@ -793,55 +754,6 @@ ast_scu_sys_rest_info(void)
 }	
 
 extern void
-ast_scu_set_vga_display(u8 enable)
-{
-	if(enable)
-		ast_scu_write(ast_scu_read(AST_SCU_MISC1_CTRL) & ~SCU_MISC_VGA_CRT_DIS, AST_SCU_MISC1_CTRL);
-	else
-		ast_scu_write(ast_scu_read(AST_SCU_MISC1_CTRL) | SCU_MISC_VGA_CRT_DIS, AST_SCU_MISC1_CTRL);
-}
-
-EXPORT_SYMBOL(ast_scu_set_vga_display);
-
-extern u8
-ast_scu_get_vga_display(void)
-{
-	if(ast_scu_read(AST_SCU_MISC1_CTRL) & SCU_MISC_VGA_CRT_DIS)
-		return 0;
-	else
-		return 1;
-}
-
-EXPORT_SYMBOL(ast_scu_get_vga_display);
-
-extern u32
-ast_scu_get_vga_memsize(void)
-{
-	u32 size=0;
-
-	switch(SCU_HW_STRAP_VGA_SIZE_GET(ast_scu_read(AST_SCU_HW_STRAP1))) {
-		case VGA_8M_DRAM:
-			size = 8*1024*1024;
-			break;
-		case VGA_16M_DRAM:
-			size = 16*1024*1024;
-			break;
-		case VGA_32M_DRAM:
-			size = 32*1024*1024;
-			break;
-		case VGA_64M_DRAM:
-			size = 64*1024*1024;
-			break;
-		default:
-			BMC_SCUMSG("error vga size \n");
-			break;
-	}
-	return size;
-}
-
-EXPORT_SYMBOL(ast_scu_get_vga_memsize);
-
-extern void
 ast_scu_get_who_init_dram(void)
 {
 	switch(SCU_VGA_DRAM_INIT_MASK(ast_scu_read(AST_SCU_VGA0))) {
@@ -886,12 +798,6 @@ ast_scu_get_superio_addr_config(void)
 		return 0x2E;
 }
 
-extern u8
-ast_scu_adc_trim_read(void)
-{
-	return (ast_scu_read(AST_SCU_OTP1) >> 28);
-}
-EXPORT_SYMBOL(ast_scu_adc_trim_read);
 
 extern void
 ast_scu_hw_random_enable(u8 enable)
@@ -935,19 +841,6 @@ ast_scu_otp_read(u8 reg)
 
 EXPORT_SYMBOL(ast_scu_otp_read);
 #endif
-
-extern u32
-ast_get_dram_base(void)
-{
-#ifdef CONFIG_MACH_ASPEED_G5
-	return 0x80000000;
-#else
-	return 0x40000000;
-#endif
-}
-
-EXPORT_SYMBOL(ast_get_dram_base);
-
 
 static struct regmap *ast_scu_map;
 
