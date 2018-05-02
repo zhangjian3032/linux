@@ -275,7 +275,7 @@
 		};
 
 		jtag: jtag@1e6e4000 {
-			compatible = "aspeed,ast-jtag";
+			compatible = "aspeed,aspeed-jtag";
 			reg= <0x1e6e4000 0x20>;
 			interrupts = <43>;
 			clocks = <&clk_apb>;
@@ -290,7 +290,7 @@
 		};
 
 		xdma: xdma@1e6e7000 {
-			compatible = "aspeed,ast-xdma";
+			compatible = "aspeed,aspeed-xdma";
 			reg = <0x1e6e7000 0x80>;
 			interrupts = <6>;
 			resets = <&sys_reset SCU_RESET_XDMA>;
@@ -298,7 +298,7 @@
 		};
 
 		mctp: mctp@1e6e8000 {
-			compatible = "aspeed,ast-mctp";
+			compatible = "aspeed,ast2400-mctp";
 			reg = <0x1e6e8000 0x30 0x80000000 0x300>;
 			interrupts = <42>;
 			resets = <&sys_reset SCU_RESET_MCTP>;
@@ -306,12 +306,11 @@
 		};
 
 		adc: adc@1e6e9000 {
-			compatible = "aspeed,ast-g4-adc";
+			compatible = "aspeed,ast2400-adc";
 			reg = <0x1e6e9000 0xb0>;
 			interrupts = <31>;
 			clocks = <&clk_apb>;
 			resets = <&sys_reset SCU_RESET_ADC>;
-			reset-names = "adc";            
 		};
 
 		video: video@1e700000 {
