@@ -2801,7 +2801,6 @@ static int ast_video_probe(struct platform_device *pdev)
 	if (!(ast_video = devm_kzalloc(&pdev->dev, sizeof(struct ast_video_data), GFP_KERNEL))) {
 		return -ENOMEM;
 	}
-	printk("******************************************************************\n");
 
 	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res0) {
@@ -2814,7 +2813,6 @@ static int ast_video_probe(struct platform_device *pdev)
 		ret = -EIO;
 		goto out_region0;
 	}
-	printk("******************************************************************\n");
 
 	//Phy assign
 	ast_video->video_mem_size = CONFIG_AST_VIDEO_MEM_SIZE;
@@ -2838,7 +2836,6 @@ static int ast_video_probe(struct platform_device *pdev)
 		ret = -EIO;
 		goto out_region0;
 	}
-	printk("******************************************************************\n");
 
 	ast_video->buff0_virt = (u32)ast_video->stream_virt + 0x400000; //4M : size 10MB
 	ast_video->buff1_virt = (u32)ast_video->stream_virt + 0xe00000; //14M : size 10MB
@@ -2858,7 +2855,6 @@ static int ast_video_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto out_region0;
 	}
-	printk("******************************************************************\n");
 
 	ast_video->reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(ast_video->reset)) {
@@ -2871,7 +2867,7 @@ static int ast_video_probe(struct platform_device *pdev)
 	} else {
 		ast_video->ast_g5 = 0;
 	}
-printk("******************************************************************\n");
+
 	ast_video->eclk = devm_clk_get(&pdev->dev, "eclk");
 	if (IS_ERR(ast_video->eclk)) {
 		dev_err(&pdev->dev, "no eclk clock defined\n");
