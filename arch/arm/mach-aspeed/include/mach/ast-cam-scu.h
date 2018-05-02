@@ -52,7 +52,6 @@ extern u8 ast_scu_get_vga_display(void);
 extern u32 ast_scu_get_vga_memsize(void);
 
 //Ctrl Initial
-extern void ast_scu_init_uart(u8);
 extern void ast_scu_init_jpeg(u8 dynamic_en);
 extern void ast_scu_reset_jpeg(void);
 extern void ast_scu_init_lpc(void);
