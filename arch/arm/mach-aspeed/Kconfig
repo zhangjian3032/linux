@@ -31,11 +31,4 @@ config MACH_ASPEED_G5
 	 Say yes if you intend to run on an Aspeed ast2500 or similar
 	 fifth generation Aspeed BMCs.
 
-config BMC
-	bool "BMC"
-
-
-config CAM
-	bool "CAM"
-
 endif
