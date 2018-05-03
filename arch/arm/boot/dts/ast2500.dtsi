@@ -196,7 +196,7 @@
 			compatible = "aspeed,ast2500-crypto";
 			reg = <0x1e6e3000 0x200>;
 			interrupts = <4>;
-			clocks = <&syscon ASPEED_CLK_GATE_YCLK>;
+			clocks = <&syscon ASPEED_CLK_GATE_YCLK>, <&syscon ASPEED_CLK_GATE_RSACLK>;
 			reset-names = "crypto";
 		};
 
