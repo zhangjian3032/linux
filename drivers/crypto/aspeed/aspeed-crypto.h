@@ -190,26 +190,52 @@ struct aspeed_cipher_context {
 	u8				done;
 };
 
+struct aspeed_sham_ctx {
+	struct aspeed_crypto_dev	*crypto_dev;
+
+	unsigned long		flags;	//hmac flag
+
+	/* fallback stuff */
+	struct crypto_shash	*fallback;
+	struct crypto_shash 	*base_hash;		//for hmac
+};
+
+struct aspeed_sham_reqctx {
+	struct aspeed_crypto_dev	*crypto_dev;
+	unsigned long	flags;	//final update flag should no use
+	u8			op; 	  	////0: init, 1 : upate , 2: final update
+
+	u32			cmd;
+
+	u8	digest[SHA256_DIGEST_SIZE] __aligned(sizeof(u32));
+
+	size_t			digcnt;
+
+	size_t			bufcnt;
+
+	/* walk state */
+	struct scatterlist	*sg;
+	unsigned int		offset;	/* offset in current sg */
+	unsigned int		total;	/* total request */
+
+	size_t 		block_size;
+
+	u8	buffer[0] __aligned(sizeof(u32));
+};
+
 struct aspeed_crypto_drv {
 	struct list_head	dev_list;
 	spinlock_t		lock;
 };
 
-struct aspeed_crypto_drv aspeed_drv = {
-	.dev_list = LIST_HEAD_INIT(aspeed_drv.dev_list),
-	.lock = __SPIN_LOCK_UNLOCKED(aspeed_drv.lock),
-};
+extern struct aspeed_crypto_drv aspeed_drv;
 
+extern int aspeed_hash_trigger(struct aspeed_crypto_dev *aspeed_crypto);
+extern int aspeed_hash_handle_queue(struct aspeed_crypto_dev *aspeed_crypto, struct ahash_request *req);
 
-extern struct rk_crypto_tmp rk_ecb_aes_alg;
-extern struct rk_crypto_tmp rk_cbc_aes_alg;
-extern struct rk_crypto_tmp rk_ecb_des_alg;
-extern struct rk_crypto_tmp rk_cbc_des_alg;
-extern struct rk_crypto_tmp rk_ecb_des3_ede_alg;
-extern struct rk_crypto_tmp rk_cbc_des3_ede_alg;
+extern int aspeed_register_crypto_algs(struct aspeed_crypto_dev *crypto_dev);
+extern int aspeed_register_ahash_algs(struct aspeed_crypto_dev *crypto_dev);
 
-extern struct rk_crypto_tmp rk_ahash_sha1;
-extern struct rk_crypto_tmp rk_ahash_sha256;
-extern struct rk_crypto_tmp rk_ahash_md5;
+extern int aspeed_crypto_handle_queue(struct aspeed_crypto_dev *aspeed_crypto, struct ablkcipher_request *req);
 
 #endif
