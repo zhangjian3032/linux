@@ -197,7 +197,7 @@
 			reg = <0x1e6e3000 0x200>;
 			interrupts = <4>;
 			clocks = <&syscon ASPEED_CLK_GATE_YCLK>, <&syscon ASPEED_CLK_GATE_RSACLK>;
-			reset-names = "crypto";
+			clock-names = "yclk", "rsacllk";
 		};
 
 		jtag: jtag@1e6e4000 {
