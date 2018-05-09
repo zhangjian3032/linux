@@ -111,7 +111,6 @@ static int aspeed_rc4_setkey(struct crypto_ablkcipher *tfm, const u8 *in_key,
 	}
 
 	ctx->key_len = 256;
-	ctx->done = 0;
 
 
 	return 0;
@@ -176,7 +175,7 @@ static int aspeed_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 
 	memcpy(ctx->key, key, keylen);
 	ctx->key_len = keylen;
-	ctx->done = 0;
+
 
 	return 0;
 }
@@ -362,7 +361,7 @@ static int aspeed_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 	crypto_aes_expand_key(&ctx->crypto_dev->aes_ctx, key, keylen);
 //	AESKeyExpan(keylen * 8, (u32 *) key, (u32 *)ctx->key);
 	ctx->key_len = keylen;
-	ctx->done = 0;
+
 	return 0;
 }
 
@@ -803,6 +802,5 @@ int aspeed_register_crypto_algs(struct aspeed_crypto_dev *crypto_dev)
 		err = crypto_register_alg(&aspeed_crypto_algs[i]);
 		if (err)
 			printk("aspeed_crypto_algs ~~~ ERROR ~~~\n");
-			return err;
 	}
 }

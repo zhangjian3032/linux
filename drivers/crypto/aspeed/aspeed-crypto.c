@@ -210,15 +210,12 @@ static int aspeed_crypto_trigger(struct aspeed_crypto_dev *aspeed_crypto)
 
 	if (aspeed_crypto->cmd & HACE_CMD_RC4) {
 		//RC4
-		if (!aspeed_crypto->rc4_ctx->done) {
-			*(u32 *)(aspeed_crypto->ctx_buf + 8) = 0x0001;
-			memcpy(aspeed_crypto->ctx_buf + 16, aspeed_crypto->rc4_ctx->rc4_key, 256);
-			aspeed_crypto->rc4_ctx->done = 1;
-		}
+		*(u32 *)(aspeed_crypto->ctx_buf + 8) = 0x0001;
+		memcpy(aspeed_crypto->ctx_buf + 16, aspeed_crypto->rc4_ctx->rc4_key, 256);
+
 	} else {
 		if (aspeed_crypto->cmd & HACE_CMD_DES_SELECT) {
 			//DES
-			if (!aspeed_crypto->des_ctx->done) {
 				if (aspeed_crypto->des_ctx->iv) {
 					memcpy(aspeed_crypto->ctx_buf + 8, aspeed_crypto->des_ctx->iv, 8);
 #if 0
@@ -234,12 +231,9 @@ static int aspeed_crypto_trigger(struct aspeed_crypto_dev *aspeed_crypto)
 #else
 				memcpy(aspeed_crypto->ctx_buf + 16, aspeed_crypto->des_ctx->key, 24);
 #endif
-				aspeed_crypto->des_ctx->done = 1;
-			}
+
 		} else {
 			//AES
-			if (!aspeed_crypto->aes_ctx->done) {
-
 				if (aspeed_crypto->aes_ctx->iv) {
 #if 1
 					memcpy(aspeed_crypto->ctx_buf, aspeed_crypto->aes_ctx->iv, 16);
@@ -262,8 +256,7 @@ static int aspeed_crypto_trigger(struct aspeed_crypto_dev *aspeed_crypto)
 				}
 				printk("\n");
 #endif
-				aspeed_crypto->aes_ctx->done = 1;
-			}
+
 		}
 	}
 

@@ -159,7 +159,6 @@ struct aspeed_aes_ctx {
 	u8				key[0xff];
 	u8				key_len;
 	u16				block_size;
-	u8				done;
 };
 
 struct aspeed_des_ctx {
@@ -167,14 +166,12 @@ struct aspeed_des_ctx {
 	u8				*iv;
 	u8				key[0x24];
 	u8				key_len;
-	u8				done;
 };
 
 struct aspeed_rc4_ctx {
 	struct aspeed_crypto_dev		*crypto_dev;
 	u8				rc4_key[256];
 	int				key_len;
-	u8				done;
 };
 
 struct aspeed_cipher_context {
@@ -187,7 +184,6 @@ struct aspeed_cipher_context {
 		u8		aspeed_des3[3 * DES_KEY_SIZE];
 		u8		aspeed_arc4[258]; /* S-box, X, Y */
 	} key;
-	u8				done;
 };
 
 struct aspeed_sham_ctx {
