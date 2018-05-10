@@ -108,8 +108,8 @@ struct runtest_idle {
 struct sir_xfer {
 	xfer_mode	mode;	//0 :HW mode, 1: SW mode
 	unsigned short	length;	//bits
-	unsigned int	tdi;
-	unsigned int	tdo;
+	unsigned int	*tdi;
+	unsigned int	*tdo;
 	unsigned char	endir;	//0: idle, 1:pause
 };
 
@@ -121,6 +121,17 @@ struct sdr_xfer {
 	unsigned char	enddr;	//0: idle, 1:pause
 };
 
+struct io_xfer {
+	xfer_mode	mode;		//0 :HW mode, 1: SW mode
+	unsigned long	Address;
+	unsigned long	Data;
+};
+
+struct trst_reset {
+	unsigned long	operation; // 0 ; read , 1 : write
+	unsigned long	Data;	 // 0 means low, 1 means high - TRST pin
+};
+
 #define JTAGIOC_BASE	'T'
 
 #define AST_JTAG_IOCRUNTEST	_IOW(JTAGIOC_BASE, 0, struct runtest_idle)
@@ -128,6 +139,11 @@ struct sdr_xfer {
 #define AST_JTAG_IOCSDR		_IOWR(JTAGIOC_BASE, 2, struct sdr_xfer)
 #define AST_JTAG_SIOCFREQ	_IOW(JTAGIOC_BASE, 3, unsigned int)
 #define AST_JTAG_GIOCFREQ	_IOR(JTAGIOC_BASE, 4, unsigned int)
+#define AST_JTAG_IOWRITE	_IOW(JTAGIOC_BASE, 5, struct io_xfer)
+#define AST_JTAG_IOREAD		_IOR(JTAGIOC_BASE, 6, struct io_xfer)
+#define AST_JTAG_RESET		_IOW(JTAGIOC_BASE, 7, struct io_xfer)
+#define AST_JTAG_TRST_RESET	_IOW(JTAGIOC_BASE, 8, struct trst_reset)
+#define AST_JTAG_RUNTCK		_IOW(JTAGIOC_BASE, 12, struct io_xfer)
 /******************************************************************************/
 //#define AST_JTAG_DEBUG
 
@@ -228,50 +244,7 @@ static u8 TCK_Cycle(struct ast_jtag_info *ast_jtag, u8 TMS, u8 TDI)
 
 	return tdo;
 }
-#if 0
-unsigned int IRScan(struct JTAG_XFER *jtag_cmd)
-{
 
-	unsigned int temp;
-
-	printf("Length: %d, Terminate: %d, Last: %d\n", jtag_cmd->length, jtag_cmd->terminate, jtag_cmd->last);
-
-	if (jtag_cmd->length > 32) {
-		printf("Length should be less than or equal to 32");
-		return 0;
-	} else if (jtag_cmd->length == 0) {
-		printf("Length should not be 0");
-		return 0;
-	}
-
-	*((unsigned int *)(jtag_cmd->taddr + 0x4)) = jtag_cmd->data;
-
-	temp = *((unsigned int *)(jtag_cmd->taddr + 0x08));
-	temp &= 0xe0000000;
-	temp |= (jtag_cmd->length & 0x3f) << 20;
-	temp |= (jtag_cmd->terminate & 0x1) << 18;
-	temp |= (jtag_cmd->last & 0x1) << 17;
-	temp |= 0x10000;
-
-	printf("IRScan : %x\n", temp);
-
-	*((unsigned int *)(jtag_cmd->taddr + 0x8)) = temp;
-
-	do {
-		temp = *((unsigned int *)(jtag_cmd->taddr + 0xC));
-		if (jtag_cmd->last | jtag_cmd->terminate)
-			temp &= 0x00040000;
-		else
-			temp &= 0x00080000;
-	} while (temp == 0);
-
-	temp = *((unsigned int *)(jtag_cmd->taddr + 0x4));
-
-	temp = temp >> (32 - jtag_cmd->length);
-
-	jtag_cmd->data = temp;
-}
-#endif
 /******************************************************************************/
 void ast_jtag_wait_instruction_pause_complete(struct ast_jtag_info *ast_jtag)
 {
@@ -388,7 +361,11 @@ void ast_jtag_run_test_idle(struct ast_jtag_info *ast_jtag, struct runtest_idle 
 
 int ast_jtag_sir_xfer(struct ast_jtag_info *ast_jtag, struct sir_xfer *sir)
 {
-	int i = 0;
+	unsigned int index = 0;
+	u32 shift_bits = 0;
+	u32 tdi = 0;
+	u32 remain_xfer = sir->length;
+
 	JTAG_DBUG("%s mode, ENDIR : %d, len : %d \n", sir->mode ? "SW" : "HW", sir->endir, sir->length);
 
 	if (sir->mode) {
@@ -400,17 +377,23 @@ int ast_jtag_sir_xfer(struct ast_jtag_info *ast_jtag, struct sir_xfer *sir)
 
 		TCK_Cycle(ast_jtag, 1, 0);		// go to DRSCan
 		TCK_Cycle(ast_jtag, 1, 0);		// go to IRSCan
-		TCK_Cycle(ast_jtag, 0, 0);		// go to CapIR
-		TCK_Cycle(ast_jtag, 0, 0);		// go to ShiftIR
+		TCK_Cycle(ast_jtag, 0, 0);		// go to IRCap
+		TCK_Cycle(ast_jtag, 0, 0);		// go to IRShift
 
-		sir->tdo = 0;
-		for (i = 0; i < sir->length; i++) {
-			if (i == (sir->length - 1)) {
-				sir->tdo |= TCK_Cycle(ast_jtag, 1, sir->tdi & 0x1);	// go to IRExit1
+		sir->tdo[index] = 0;
+		while (remain_xfer) {
+			tdi = (sir->tdi[index]) >> (shift_bits % 32) & (0x1);
+			if (remain_xfer == 1) {
+				sir->tdo[index] |= TCK_Cycle(ast_jtag, 1, tdi);
 			} else {
-				sir->tdo |= TCK_Cycle(ast_jtag, 0, sir->tdi & 0x1);	// go to ShiftIR
-				sir->tdi >>= 1;
-				sir->tdo <<= 1;
+				sir->tdo[index] |= TCK_Cycle(ast_jtag, 0, tdi);
+				sir->tdo[index] <<= 1;
+			}
+			shift_bits++;
+			remain_xfer--;
+			if ((shift_bits % 32) == 0) {
+				index++;
+				sir->tdo[index] = 0;
 			}
 		}
 
@@ -427,16 +410,50 @@ int ast_jtag_sir_xfer(struct ast_jtag_info *ast_jtag, struct sir_xfer *sir)
 		//HW MODE
 
 		ast_jtag_write(ast_jtag, 0, AST_JTAG_SW);  //dis sw mode
-		ast_jtag_write(ast_jtag, sir->tdi, AST_JTAG_INST);
 
-		if (sir->endir) {
-			ast_jtag_write(ast_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN | JTAG_SET_INST_LEN(sir->length), AST_JTAG_CTRL);
-			ast_jtag_write(ast_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN | JTAG_SET_INST_LEN(sir->length) | JTAG_INST_EN, AST_JTAG_CTRL);
-			ast_jtag_wait_instruction_pause_complete(ast_jtag);
-		} else {
-			ast_jtag_write(ast_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN | JTAG_LAST_INST | JTAG_SET_INST_LEN(sir->length), AST_JTAG_CTRL);
-			ast_jtag_write(ast_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN | JTAG_LAST_INST | JTAG_SET_INST_LEN(sir->length) | JTAG_INST_EN, AST_JTAG_CTRL);
-			ast_jtag_wait_instruction_complete(ast_jtag);
+		while (remain_xfer) {
+			ast_jtag_write(ast_jtag, sir->tdi[index], AST_JTAG_INST);
+			if (remain_xfer > 32) {
+				shift_bits = 32;
+				ast_jtag_write(ast_jtag,
+					       JTAG_ENG_EN | JTAG_ENG_OUT_EN |
+					       JTAG_SET_INST_LEN(shift_bits),
+					       AST_JTAG_CTRL);
+				ast_jtag_write(ast_jtag,
+					       JTAG_ENG_EN | JTAG_ENG_OUT_EN |
+					       JTAG_SET_INST_LEN(shift_bits) |
+					       JTAG_INST_EN, AST_JTAG_CTRL);
+				ast_jtag_wait_instruction_pause_complete(ast_jtag);
+			} else {
+				shift_bits = remain_xfer;
+				if (sir->endir) {
+					ast_jtag_write(ast_jtag,
+						       JTAG_ENG_EN | JTAG_ENG_OUT_EN |
+						       JTAG_SET_INST_LEN(shift_bits),
+						       AST_JTAG_CTRL);
+					ast_jtag_write(ast_jtag,
+						       JTAG_ENG_EN | JTAG_ENG_OUT_EN |
+						       JTAG_SET_INST_LEN(shift_bits) |
+						       JTAG_INST_EN, AST_JTAG_CTRL);
+					ast_jtag_wait_instruction_pause_complete(ast_jtag);
+				} else {
+					ast_jtag_write(ast_jtag,
+						       JTAG_ENG_EN | JTAG_ENG_OUT_EN |
+						       JTAG_LAST_INST | JTAG_SET_INST_LEN(shift_bits),
+						       AST_JTAG_CTRL);
+					ast_jtag_write(ast_jtag,
+						       JTAG_ENG_EN | JTAG_ENG_OUT_EN |
+						       JTAG_LAST_INST | JTAG_SET_INST_LEN(shift_bits) |
+						       JTAG_INST_EN, AST_JTAG_CTRL);
+					ast_jtag_wait_instruction_complete(ast_jtag);
+				}
+			}
+			if (shift_bits < 32)
+				sir->tdo[index] = ast_jtag_read(ast_jtag, AST_JTAG_INST) >> (32 - shift_bits);
+			else
+				sir->tdo[index] = ast_jtag_read(ast_jtag, AST_JTAG_INST);
+			remain_xfer = remain_xfer - shift_bits;
+			index++;
 		}
 
 		sir->tdo = ast_jtag_read(ast_jtag, AST_JTAG_INST);
@@ -547,10 +564,10 @@ int ast_jtag_sdr_xfer(struct ast_jtag_info *ast_jtag, struct sdr_xfer *sdr)
 				if (sdr->enddr) {
 					JTAG_DBUG("DR Keep Pause \n");
 					ast_jtag_write(ast_jtag,
-						       JTAG_ENG_EN | JTAG_ENG_OUT_EN | JTAG_DR_UPDATE |
+						       JTAG_ENG_EN | JTAG_ENG_OUT_EN |
 						       JTAG_DATA_LEN(shift_bits), AST_JTAG_CTRL);
 					ast_jtag_write(ast_jtag,
-						       JTAG_ENG_EN | JTAG_ENG_OUT_EN | JTAG_DR_UPDATE |
+						       JTAG_ENG_EN | JTAG_ENG_OUT_EN |
 						       JTAG_DATA_LEN(shift_bits) | JTAG_DATA_EN, AST_JTAG_CTRL);
 					ast_jtag_wait_data_pause_complete(ast_jtag);
 				} else {
@@ -632,6 +649,19 @@ static irqreturn_t ast_jtag_interrupt(int this_irq, void *dev_id)
 
 }
 
+void JTAG_reset(struct ast_jtag_info *ast_jtag)
+{
+	ast_jtag_write(ast_jtag, 0, AST_JTAG_SW);
+	ast_jtag_write(ast_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN, AST_JTAG_CTRL);
+	ast_jtag_write(ast_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN | JTAG_FORCE_TMS, AST_JTAG_CTRL);
+	mdelay(5);
+	while (1) {
+		if (ast_jtag_read(ast_jtag, AST_JTAG_CTRL) & JTAG_FORCE_TMS)
+			break;
+	}
+	ast_jtag_write(ast_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO, AST_JTAG_SW);
+}
+
 /*************************************************************************************/
 struct ast_jtag_info *ast_jtag;
 
@@ -643,8 +673,9 @@ static long jtag_ioctl(struct file *file, unsigned int cmd,
 	void __user *argp = (void __user *)arg;
 	struct sir_xfer sir;
 	struct sdr_xfer sdr;
+	struct io_xfer io;
+	struct trst_reset trst_pin;
 	struct runtest_idle run_idle;
-//	unsigned int freq;
 
 	switch (cmd) {
 	case AST_JTAG_GIOCFREQ:
@@ -665,21 +696,126 @@ static long jtag_ioctl(struct file *file, unsigned int cmd,
 			ast_jtag_run_test_idle(ast_jtag, &run_idle);
 		break;
 	case AST_JTAG_IOCSIR:
-		if (copy_from_user(&sir, argp, sizeof(struct sir_xfer)))
+		if (copy_from_user(&sir, argp, sizeof(struct sir_xfer))) {
 			ret = -EFAULT;
-		else
-			ast_jtag_sir_xfer(ast_jtag, &sir);
+		} else {
+			unsigned int *kerneltdo = 0;
+			unsigned int *kerneltdi = 0;
+			unsigned int usertdi = (unsigned int)sir.tdi;
+			unsigned int usertdo = (unsigned int)sir.tdo;
 
-		if (copy_to_user(argp, &sir, sizeof(struct sdr_xfer)))
-			ret = -EFAULT;
+			kerneltdi = vmalloc((((sir.length + 7) >> 3) + 4));
+			// if (kerneltdi == NULL) {
+			// 	printk("AST_JTAG : Can't allocate memory\n");
+			// 	return -ENOMEM;
+			// }
+			kerneltdo = vmalloc((((sir.length + 7) >> 3) + 4));
+			// if (kerneltdo == NULL) {
+			// 	printk("AST_JTAG : Can't allocate memory\n");
+			// 	vfree(kerneltdi);
+			// 	return -ENOMEM;
+			// }
+
+			memset(kerneltdi, 0, (((sir.length + 7) >> 3) + 4));
+			memset(kerneltdo, 0, (((sir.length + 7) >> 3) + 4));
+
+			if (copy_from_user(kerneltdi, sir.tdi, ((sir.length + 7) >> 3))) {
+				ret = -EFAULT;
+			} else {
+				sir.tdi = kerneltdi;
+				sir.tdo = kerneltdo;
+				ast_jtag_sir_xfer(ast_jtag, &sir);
+				sir.tdo = (unsigned int *)usertdo;
+				sir.tdi = (unsigned int *)usertdi;
+				if (copy_to_user(sir.tdo, kerneltdo, ((sir.length + 7) >> 3)))
+					ret = -EFAULT;
+				if (copy_to_user(argp, &sir, sizeof(struct sir_xfer)))
+					ret = -EFAULT;
+			}
+			vfree(kerneltdi);
+			vfree(kerneltdo);
+		}
 		break;
 	case AST_JTAG_IOCSDR:
-		if (copy_from_user(&sdr, argp, sizeof(struct sdr_xfer)))
+		if (copy_from_user(&sdr, argp, sizeof(struct sdr_xfer))) {
 			ret = -EFAULT;
-		else
-			ast_jtag_sdr_xfer(ast_jtag, &sdr);
+		} else {
+			unsigned int useraddress = (unsigned int)sdr.tdio;
+			unsigned int *kernelAddess = vmalloc((((sdr.length + 7) >> 3) + 4));
 
-		if (copy_to_user(argp, &sdr, sizeof(struct sdr_xfer)))
+			if (kernelAddess == NULL) {
+				printk("AST_JTAG : Can't allocate memory\n");
+				return -ENOMEM;
+			}
+			memset(kernelAddess, 0, (((sdr.length + 7) >> 3) + 4));
+			if (copy_from_user(kernelAddess, sdr.tdio, ((sdr.length + 7) >> 3))) {
+				ret = -EFAULT;
+			} else {
+				sdr.tdio = (unsigned int *)kernelAddess;
+				ast_jtag_sdr_xfer(ast_jtag, &sdr);
+				sdr.tdio = (unsigned int *)useraddress;
+				if (copy_to_user(sdr.tdio, kernelAddess, ((sdr.length + 7) >> 3)))
+					ret = -EFAULT;
+				if (copy_to_user(argp, &sdr, sizeof(struct sdr_xfer)))
+					ret = -EFAULT;
+			}
+			vfree(kernelAddess);
+		}
+		break;
+	case AST_JTAG_IOWRITE:
+		if (copy_from_user(&io, argp, sizeof(struct io_xfer))) {
+			ret = -EFAULT;
+		} else {
+			void __iomem	*reg_add;
+
+			reg_add = ioremap(io.Address, 4);
+			writel(io.Data, reg_add);
+			iounmap(reg_add);
+		}
+
+		break;
+	case AST_JTAG_IOREAD:
+		if (copy_from_user(&io, argp, sizeof(struct io_xfer))) {
+			ret = -EFAULT;
+		} else {
+			void __iomem	*reg_add;
+
+			reg_add = ioremap(io.Address, 4);
+			io.Data = readl(reg_add);
+			iounmap(reg_add);
+		}
+		if (copy_to_user(argp, &io, sizeof(struct io_xfer)))
+			ret = -EFAULT;
+		break;
+	case AST_JTAG_RESET:
+		JTAG_reset(ast_jtag);
+		break;
+	case AST_JTAG_RUNTCK:
+		if (copy_from_user(&io, argp, sizeof(struct io_xfer))) {
+			ret = -EFAULT;
+		} else {
+			int i;
+
+			for (i = 0; i < io.Address; i++)
+				TCK_Cycle(ast_jtag, io.mode, io.Data);
+		}
+		break;
+	case AST_JTAG_TRST_RESET:
+		if (copy_from_user(&trst_pin, argp, sizeof(struct trst_reset))) {
+			ret = -EFAULT;
+		} else {
+			unsigned int regs = ast_jtag_read(ast_jtag, AST_JTAG_IDLE);
+
+			if (trst_pin.operation == 1) {
+				if (trst_pin.Data == 1)
+					ast_jtag_write(ast_jtag, regs | (1 << 31), AST_JTAG_IDLE);
+				else
+					ast_jtag_write(ast_jtag, regs & (~(1 << 31)), AST_JTAG_IDLE);
+			} else
+				trst_pin.Data = (regs >> 31);
+
+		}
+		if (copy_to_user(argp, &trst_pin, sizeof(struct trst_reset)))
 			ret = -EFAULT;
 		break;
 	default:
@@ -845,12 +981,12 @@ static int ast_jtag_probe(struct platform_device *pdev)
 
 	JTAG_DBUG("ast_jtag_probe\n");
 
-	ast_jtag = devm_kzalloc(&pdev->dev, sizeof(struct ast_jtag_info), GFP_KERNEL)
+	ast_jtag = devm_kzalloc(&pdev->dev, sizeof(struct ast_jtag_info), GFP_KERNEL);
 	if (!ast_jtag)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (NULL == res) {
+	if (res == NULL) {
 		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
 		ret = -ENOENT;
 		goto out;
