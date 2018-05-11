@@ -53,7 +53,6 @@
 #include <linux/timer.h>
 #include "aspeed-crypto.h"
 
-#define ASPEED_AES_QUEUE_LENGTH	1
 #define ASPEED_HASH_BUFF_SIZE 	8192
 
 
@@ -62,8 +61,6 @@
 #else
 #define AHASH_DBG(fmt, args...)
 #endif
-
-
 
 static int aspeed_sham_init(struct ahash_request *req)
 {

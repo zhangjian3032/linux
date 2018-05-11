@@ -11,8 +11,6 @@
 #include <crypto/md5.h>
 #include <crypto/sha.h>
 
-#define _SBF(v, f)			((v) << (f))
-
 /* Crypto control registers*/
 #define ASPEED_HACE_SRC			0x00
 #define ASPEED_HACE_DEST		0x04
@@ -84,43 +82,71 @@
  * This structure defines a request that is either queued for processing or
  * being processed.
  */
+	/* Block cipher context. */
 
-struct aspeed_crypto_reqctx {
-	unsigned long mode;
-};
+
+#if 0
+	struct aspeed_aes_ctx {
+		struct aspeed_crypto_dev		*crypto_dev;
+		u8				*iv;
+		u8				key[0xff];
+		u8				key_len;
+		u16 			block_size;
+	};
+	
+	struct aspeed_des_ctx {
+		struct aspeed_crypto_dev		*crypto_dev;
+		u8				*iv;
+		u8				key[0x24];
+		u8				key_len;
+	};
+	
+	struct aspeed_rc4_ctx {
+		struct aspeed_crypto_dev		*crypto_dev;
+		u8				rc4_key[256];
+		int 			key_len;
+	};
+	
+#else
+	struct aspeed_cipher_ctx {
+		struct aspeed_crypto_dev *crypto_dev;
+		int 		key_len;
+		int 		enc_cmd;
+		union {
+			u8		aes[AES_MAX_KEY_SIZE];
+			u8		des[DES_KEY_SIZE];
+			u8		des3[3 * DES_KEY_SIZE];
+			u8		arc4[256]; /* S-box, X, Y */
+		} key;
+	};
+#endif
+
 
 struct aspeed_crypto_dev {
 	void __iomem			*regs;
-	struct list_head		list;
 
-	struct completion		cmd_complete;
-	u32 					isr;
+	int 					irq;
 	struct clk 			*yclk;
 
 	spinlock_t			lock;
-
-	//crypto
-	struct aspeed_aes_ctx	*aes_ctx;
-	struct aspeed_des_ctx	*des_ctx;
-	struct aspeed_rc4_ctx		*rc4_ctx;
 
 	//hash
 	struct aspeed_sham_reqctx *sham_reqctx;
 
 	struct crypto_queue	queue;
 
-	struct tasklet_struct	queue_task;
+	struct tasklet_struct	crypto_tasklet;
 
 	unsigned long			flags;
 
-	struct ablkcipher_request	*ablkcipher_req;
-	struct ahash_request		*ahash_req;
-
 	size_t	total;
 
+	struct ablkcipher_request	*ablk_req;
+	struct ahash_request		*ahash_req;
 
-	struct crypto_alg		*crypto_algs;
-	struct ahash_alg		*ahash_algs;
+
+//	struct crypto_alg		*crypto_algs;
+//	struct ahash_alg		*ahash_algs;
 //	struct akcipher_alg 	*akcipher_alg;	//for rsa 
 
 	struct device			*dev;
@@ -145,46 +171,23 @@ struct aspeed_crypto_dev {
 	void	*hash_digst;
 	dma_addr_t	hash_digst_dma;
 
-	u32 		cmd;
+
 };
+
+struct aspeed_crypto_alg {
+	struct aspeed_crypto_dev	*crypto_dev;
+	union {
+		struct crypto_alg	crypto;
+		struct ahash_alg	hash;
+	} alg;
+};
+
 /*************************************************************************************/
 
 /* Algorithm type mask. */
 #define SPACC_CRYPTO_ALG_MASK		0x7
 
-/* Block cipher context. */
-struct aspeed_aes_ctx {
-	struct aspeed_crypto_dev		*crypto_dev;
-	u8				*iv;
-	u8				key[0xff];
-	u8				key_len;
-	u16				block_size;
-};
 
-struct aspeed_des_ctx {
-	struct aspeed_crypto_dev		*crypto_dev;
-	u8				*iv;
-	u8				key[0x24];
-	u8				key_len;
-};
-
-struct aspeed_rc4_ctx {
-	struct aspeed_crypto_dev		*crypto_dev;
-	u8				rc4_key[256];
-	int				key_len;
-};
-
-struct aspeed_cipher_context {
-	struct aspeed_crypto_dev		*crypto_dev;
-	int			key_len;
-	int			enc_type;
-	union {
-		u8		aspeed_aes[AES_MAX_KEY_SIZE];
-		u8		aspeed_des[DES_KEY_SIZE];
-		u8		aspeed_des3[3 * DES_KEY_SIZE];
-		u8		aspeed_arc4[258]; /* S-box, X, Y */
-	} key;
-};
 
 struct aspeed_sham_ctx {
 	struct aspeed_crypto_dev	*crypto_dev;
@@ -219,12 +222,6 @@ struct aspeed_sham_reqctx {
 	u8	buffer[0] __aligned(sizeof(u32));
 };
 
-struct aspeed_crypto_drv {
-	struct list_head	dev_list;
-	spinlock_t		lock;
-};
-
-extern struct aspeed_crypto_drv aspeed_drv;
 
 extern int aspeed_hash_trigger(struct aspeed_crypto_dev *aspeed_crypto);
 extern int aspeed_hash_handle_queue(struct aspeed_crypto_dev *aspeed_crypto, struct ahash_request *req);
@@ -232,6 +229,6 @@ extern int aspeed_hash_handle_queue(struct aspeed_crypto_dev *aspeed_crypto, str
 extern int aspeed_register_crypto_algs(struct aspeed_crypto_dev *crypto_dev);
 extern int aspeed_register_ahash_algs(struct aspeed_crypto_dev *crypto_dev);
 
-extern int aspeed_crypto_handle_queue(struct aspeed_crypto_dev *aspeed_crypto, struct ablkcipher_request *req);
+extern int aspeed_crypto_enqueue(struct aspeed_crypto_dev *aspeed_crypto, struct ablkcipher_request *req);
 
 #endif

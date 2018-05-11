@@ -137,57 +137,41 @@ void AESKeyExpan(unsigned int bits, u32 *aeskeyin, u32 *aeskeydram)
 
 static int aspeed_rc4_crypt(struct ablkcipher_request *req, u32 cmd)
 {
-	struct aspeed_rc4_ctx *ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
-//	struct aspeed_crypto_reqctx *rctx = ablkcipher_request_ctx(req);
-	struct aspeed_crypto_dev *aspeed_crypto = NULL, *tmp;
+	struct aspeed_cipher_ctx *ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
+	struct aspeed_crypto_dev *aspeed_crypto = ctx->crypto_dev;
 
 	CIPHER_DBG("\n");
 
-	spin_lock_bh(&aspeed_drv.lock);
-	if (!ctx->crypto_dev) {
-		list_for_each_entry(tmp, &aspeed_drv.dev_list, list) {
-			aspeed_crypto = tmp;
-			break;
-		}
-		ctx->crypto_dev = aspeed_crypto;
-	} else {
-		aspeed_crypto = ctx->crypto_dev;
-	}
+	cmd |= HACE_CMD_RI_WO_DATA_ENABLE | 
+			HACE_CMD_CONTEXT_LOAD_ENABLE | HACE_CMD_CONTEXT_SAVE_ENABLE;
 
-	spin_unlock_bh(&aspeed_drv.lock);
-
-
-	cmd |= HACE_CMD_RI_WO_DATA_ENABLE |
-	       HACE_CMD_CONTEXT_LOAD_ENABLE | HACE_CMD_CONTEXT_SAVE_ENABLE;
-
-	aspeed_crypto->cmd = cmd;
-	aspeed_crypto->rc4_ctx = ctx;
-
-	return aspeed_crypto_handle_queue(aspeed_crypto, req);
+	ctx->enc_cmd = cmd;
+	printk("ctx->enc_cmd %x \n", ctx->enc_cmd);
+	return aspeed_crypto_enqueue(aspeed_crypto, req);
 }
 
-static int aspeed_rc4_setkey(struct crypto_ablkcipher *tfm, const u8 *in_key,
+static int aspeed_rc4_setkey(struct crypto_ablkcipher *cipher, const u8 *in_key,
 			     unsigned int key_len)
-
 {
 	int i, j = 0, k = 0;
-	struct aspeed_rc4_ctx *ctx = crypto_ablkcipher_ctx(tfm);
-	CIPHER_DBG("keylen : %d \n", key_len);
+
+	struct aspeed_cipher_ctx *ctx = crypto_ablkcipher_ctx(cipher);
+;
+	CIPHER_DBG("keylen : %d : %s  \n", key_len, in_key);
 
 	for (i = 0; i < 256; i++)
-		ctx->rc4_key[i] = i;
+		ctx->key.arc4[i] = i;
 
 	for (i = 0; i < 256; i++) {
-		u32 a = ctx->rc4_key[i];
+		u32 a = ctx->key.arc4[i];
 		j = (j + in_key[k] + a) & 0xff;
-		ctx->rc4_key[i] = ctx->rc4_key[j];
-		ctx->rc4_key[j] = a;
+		ctx->key.arc4[i] = ctx->key.arc4[j];
+		ctx->key.arc4[j] = a;
 		if (++k >= key_len)
 			k = 0;
 	}
 
 	ctx->key_len = 256;
-
 
 	return 0;
 }
@@ -204,6 +188,7 @@ static int aspeed_rc4_encrypt(struct ablkcipher_request *req)
 	return aspeed_rc4_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_RC4);
 }
 
+#if 0
 static int aspeed_des_crypt(struct ablkcipher_request *req, u32 cmd)
 {
 	struct aspeed_des_ctx *ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
@@ -211,19 +196,6 @@ static int aspeed_des_crypt(struct ablkcipher_request *req, u32 cmd)
 	struct aspeed_crypto_dev *aspeed_crypto = NULL, *tmp;
 
 	CIPHER_DBG("\n");
-
-	spin_lock_bh(&aspeed_drv.lock);
-	if (!ctx->crypto_dev) {
-		list_for_each_entry(tmp, &aspeed_drv.dev_list, list) {
-			aspeed_crypto = tmp;
-			break;
-		}
-		ctx->crypto_dev = aspeed_crypto;
-	} else {
-		aspeed_crypto = ctx->crypto_dev;
-	}
-
-	spin_unlock_bh(&aspeed_drv.lock);
 
 	ctx->iv = req->info;
 
@@ -233,7 +205,7 @@ static int aspeed_des_crypt(struct ablkcipher_request *req, u32 cmd)
 	aspeed_crypto->cmd = cmd;
 	aspeed_crypto->des_ctx = ctx;
 
-	return aspeed_crypto_handle_queue(aspeed_crypto, req);
+	return aspeed_crypto_enqueue(aspeed_crypto, req);
 }
 
 static int aspeed_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
@@ -384,19 +356,6 @@ static int aspeed_aes_crypt(struct ablkcipher_request *areq, u32 cmd)
 
 	CIPHER_DBG("\n");
 
-	spin_lock_bh(&aspeed_drv.lock);
-	if (!ctx->crypto_dev) {
-		list_for_each_entry(tmp, &aspeed_drv.dev_list, list) {
-			aspeed_crypto = tmp;
-			break;
-		}
-		ctx->crypto_dev = aspeed_crypto;
-	} else {
-		aspeed_crypto = ctx->crypto_dev;
-	}
-
-	spin_unlock_bh(&aspeed_drv.lock);
-
 	ctx->iv = areq->info;
 
 	cmd |= HACE_CMD_AES_SELECT | HACE_CMD_RI_WO_DATA_ENABLE |
@@ -418,7 +377,7 @@ static int aspeed_aes_crypt(struct ablkcipher_request *areq, u32 cmd)
 
 	aspeed_crypto->aes_ctx = ctx;
 
-	return aspeed_crypto_handle_queue(aspeed_crypto, areq);
+	return aspeed_crypto_enqueue(aspeed_crypto, areq);
 
 }
 
@@ -500,22 +459,27 @@ static int aspeed_aes_cbc_encrypt(struct ablkcipher_request *req)
 	CIPHER_DBG("\n");
 	return aspeed_aes_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_CBC);
 }
+#endif
 
 static int aspeed_crypto_cra_init(struct crypto_tfm *tfm)
 {
-	CIPHER_DBG("\n");
+	struct aspeed_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct crypto_alg *alg = tfm->__crt_alg;
+	struct aspeed_crypto_alg *crypto_alg;
+	crypto_alg = container_of(alg, struct aspeed_crypto_alg, alg.crypto);
 
-	tfm->crt_ablkcipher.reqsize = sizeof(struct aspeed_crypto_reqctx);
+	ctx->crypto_dev = crypto_alg->crypto_dev;
+
 	return 0;
 }
 
 static void aspeed_crypto_cra_exit(struct crypto_tfm *tfm)
 {
-	CIPHER_DBG("\n");
-
+	//disable clk ??
 }
 
-struct crypto_alg aspeed_crypto_algs[] = {
+struct aspeed_crypto_alg aspeed_crypto_algs[] = {
+#if 0
 	{
 		.cra_name 		= "ecb(aes)",
 		.cra_driver_name 	= "aspeed-ecb-aes",
@@ -846,25 +810,28 @@ struct crypto_alg aspeed_crypto_algs[] = {
 			.decrypt	= aspeed_tdes_ctr_decrypt,
 		},
 	},
+#endif	
 	{
-		.cra_name		= "ecb(arc4)",
-		.cra_driver_name	= "aspeed-ecb-arc4",
-		.cra_priority		= 300,
-		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
-		CRYPTO_ALG_ASYNC,
-		.cra_blocksize		= 1,
-		.cra_ctxsize		= sizeof(struct aspeed_rc4_ctx),
-		.cra_alignmask	= 0xf,
-		.cra_type		= &crypto_ablkcipher_type,
-		.cra_module 		= THIS_MODULE,
-		.cra_init		= aspeed_crypto_cra_init,
-		.cra_exit		= aspeed_crypto_cra_exit,
-		.cra_u.ablkcipher = {
-			.min_keysize	= 1,
-			.max_keysize	= 256,
-			.setkey 	= aspeed_rc4_setkey,
-			.encrypt	= aspeed_rc4_encrypt,
-			.decrypt	= aspeed_rc4_decrypt,
+		.alg.crypto = {	
+			.cra_name		= "arc4",
+			.cra_driver_name	= "aspeed-arc4",
+			.cra_priority		= 300,
+			.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
+									CRYPTO_ALG_ASYNC,
+			.cra_blocksize		= 1,
+			.cra_ctxsize		= sizeof(struct aspeed_cipher_ctx),
+			.cra_alignmask	= 0xf,
+			.cra_type		= &crypto_ablkcipher_type,
+			.cra_module 		= THIS_MODULE,
+			.cra_init		= aspeed_crypto_cra_init,
+			.cra_exit		= aspeed_crypto_cra_exit,
+			.cra_u.ablkcipher = {
+				.min_keysize	= 1,
+				.max_keysize	= 256,
+				.setkey 	= aspeed_rc4_setkey,
+				.encrypt	= aspeed_rc4_encrypt,
+				.decrypt	= aspeed_rc4_decrypt,
+			},
 		},
 	},
 };
@@ -873,10 +840,11 @@ int aspeed_register_crypto_algs(struct aspeed_crypto_dev *crypto_dev)
 {
 	int i;
 	int err = 0;
-	crypto_dev->crypto_algs		= (struct crypto_alg *)&aspeed_crypto_algs;
 	for (i = 0; i < ARRAY_SIZE(aspeed_crypto_algs); i++) {
-		err = crypto_register_alg(&aspeed_crypto_algs[i]);
+		aspeed_crypto_algs[i].crypto_dev = crypto_dev;
+		err = crypto_register_alg(&aspeed_crypto_algs[i].alg.crypto);
 		if (err)
-			printk("aspeed_crypto_algs ~~~ ERROR ~~~\n");
+			return err;
 	}
+	return 0;
 }
