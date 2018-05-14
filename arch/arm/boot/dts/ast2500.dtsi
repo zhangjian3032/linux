@@ -123,6 +123,7 @@
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb2ah_default>;
+			status = "disabled";
 		};
 
 		ehci1: ehci@0x1e6a3000 {
@@ -148,7 +149,7 @@
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb2ad_default>;
-			status = "disabled";
+			list_mode = <0>;
 		};
 
 		vic: interrupt-controller@1e6c0080 {
