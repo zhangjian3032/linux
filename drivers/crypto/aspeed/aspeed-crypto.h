@@ -110,6 +110,7 @@
 #else
 	struct aspeed_cipher_ctx {
 		struct aspeed_crypto_dev *crypto_dev;
+		u8			*iv;
 		int 		key_len;
 		int 		enc_cmd;
 		union {
@@ -222,7 +223,26 @@ struct aspeed_sham_reqctx {
 	u8	buffer[0] __aligned(sizeof(u32));
 };
 
+static inline void
+aspeed_crypto_write(struct aspeed_crypto_dev *crypto, u32 val, u32 reg)
+{
+//	printk("uart dma write : val: %x , reg : %x \n",val,reg);
+	writel(val, crypto->regs + reg);
+}
 
+static inline u32
+aspeed_crypto_read(struct aspeed_crypto_dev *crypto, u32 reg)
+{
+#if 0
+	u32 val = readl(crypto->regs + reg);
+	printk("R : reg %x , val: %x \n", reg, val);
+	return val;
+#else
+	return readl(crypto->regs + reg);
+#endif
+}
+
+extern int aspeed_crypto_ablkcipher_trigger(struct aspeed_crypto_dev *aspeed_crypto);
 extern int aspeed_hash_trigger(struct aspeed_crypto_dev *aspeed_crypto);
 extern int aspeed_hash_handle_queue(struct aspeed_crypto_dev *aspeed_crypto, struct ahash_request *req);
 
