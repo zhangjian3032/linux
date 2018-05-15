@@ -90,6 +90,7 @@ int aspeed_crypto_ablkcipher_trigger(struct aspeed_crypto_dev *aspeed_crypto)
 
 	nbytes = sg_copy_to_buffer(in_sg, sg_nents(req->src), aspeed_crypto->buf_in, req->nbytes);
 	printk("copy nbytes %d, req->nbytes %d , nb_in_sg %d, nb_out_sg %d \n", nbytes, req->nbytes, sg_nents(req->src), sg_nents(req->dst));
+	printk("dma addr src %x, dest %x \n", in_sg->dma_address, out_sg->dma_address);
 	
 	if (!nbytes) {
 		printk("nbytes error \n");
@@ -531,7 +532,7 @@ static void aspeed_crypto_cra_exit(struct crypto_tfm *tfm)
 
 struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name 		= "ecb(aes)",
 			.cra_driver_name 	= "aspeed-ecb-aes",
 			.cra_priority 		= 300,
@@ -555,7 +556,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 		},
 	},
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name 		= "cbc(aes)",
 			.cra_driver_name 	= "aspeed-cbc-aes",
 			.cra_priority 		= 300,
@@ -579,7 +580,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 		},
 	},
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name		= "cfb(aes)",
 			.cra_driver_name	= "aspeed-cfb-aes",
 			.cra_priority		= 300,
@@ -603,7 +604,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 		},
 	},
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name		= "ofb(aes)",
 			.cra_driver_name	= "aspeed-ofb-aes",
 			.cra_priority		= 300,
@@ -627,7 +628,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 		},
 	},
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name		= "ctr(aes)",
 			.cra_driver_name	= "aspeed-ctr-aes",
 			.cra_priority		= 300,
@@ -651,7 +652,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 		},
 	},
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name		= "ecb(des)",
 			.cra_driver_name	= "aspeed-ecb-des",
 			.cra_priority		= 300,
@@ -675,7 +676,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 		},
 	},
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name		= "cbc(des)",
 			.cra_driver_name	= "aspeed-cbc-des",
 			.cra_priority		= 300,
@@ -699,7 +700,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 		},
 	},
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name		= "cfb(des)",
 			.cra_driver_name	= "aspeed-cfb-des",
 			.cra_priority		= 300,
@@ -723,7 +724,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 		},
 	},
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name		= "ofb(des)",
 			.cra_driver_name	= "aspeed-ofb-des",
 			.cra_priority		= 300,
@@ -743,11 +744,11 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 				.setkey 	= aspeed_des_setkey,
 				.encrypt	= aspeed_des_ofb_encrypt,
 				.decrypt	= aspeed_des_ofb_decrypt,
-			},				
+			},
 		},
 	},
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name		= "ctr(des)",
 			.cra_driver_name	= "aspeed-ctr-des",
 			.cra_priority		= 300,
@@ -771,7 +772,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 		},
 	},
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name		= "ecb(des3_ede)",
 			.cra_driver_name	= "aspeed-ecb-tdes",
 			.cra_priority		= 300,
@@ -795,7 +796,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 		},
 	},
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name		= "cbc(des3_ede)",
 			.cra_driver_name	= "aspeed-cbc-tdes",
 			.cra_priority		= 300,
@@ -819,7 +820,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 		},
 	},
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name		= "cfb(des3_ede)",
 			.cra_driver_name	= "aspeed-cfb-tdes",
 			.cra_priority		= 300,
@@ -843,7 +844,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 		},
 	},
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name		= "ofb(des3_ede)",
 			.cra_driver_name	= "aspeed-ofb-tdes",
 			.cra_priority		= 300,
@@ -867,7 +868,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 		},
 	},
 	{
-		.alg.crypto = {		
+		.alg.crypto = {
 			.cra_name		= "ctr(des3_ede)",
 			.cra_driver_name	= "aspeed-ctr-tdes",
 			.cra_priority		= 300,
@@ -891,7 +892,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 		},
 	},
 	{
-		.alg.crypto = {	
+		.alg.crypto = {
 			.cra_name		= "arc4",
 			.cra_driver_name	= "aspeed-arc4",
 			.cra_priority		= 300,
