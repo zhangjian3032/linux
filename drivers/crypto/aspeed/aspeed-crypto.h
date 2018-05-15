@@ -82,46 +82,19 @@
  * This structure defines a request that is either queued for processing or
  * being processed.
  */
-	/* Block cipher context. */
 
-
-#if 0
-	struct aspeed_aes_ctx {
-		struct aspeed_crypto_dev		*crypto_dev;
-		u8				*iv;
-		u8				key[0xff];
-		u8				key_len;
-		u16 			block_size;
-	};
-	
-	struct aspeed_des_ctx {
-		struct aspeed_crypto_dev		*crypto_dev;
-		u8				*iv;
-		u8				key[0x24];
-		u8				key_len;
-	};
-	
-	struct aspeed_rc4_ctx {
-		struct aspeed_crypto_dev		*crypto_dev;
-		u8				rc4_key[256];
-		int 			key_len;
-	};
-	
-#else
-	struct aspeed_cipher_ctx {
-		struct aspeed_crypto_dev *crypto_dev;
-		u8			*iv;
-		int 		key_len;
-		int 		enc_cmd;
-		union {
-			u8		aes[AES_MAX_KEY_SIZE];
-			u8		des[DES_KEY_SIZE];
-			u8		des3[3 * DES_KEY_SIZE];
-			u8		arc4[256]; /* S-box, X, Y */
-		} key;
-	};
-#endif
-
+struct aspeed_cipher_ctx {
+	struct aspeed_crypto_dev *crypto_dev;
+	u8			*iv;
+	int 		key_len;
+	int 		enc_cmd;
+	union {
+		u8		aes[AES_MAX_KEY_SIZE];
+		u8		des[DES_KEY_SIZE];
+		u8		des3[3 * DES_KEY_SIZE];
+		u8		arc4[256]; /* S-box, X, Y */
+	} key;
+};
 
 struct aspeed_crypto_dev {
 	void __iomem			*regs;
@@ -184,12 +157,6 @@ struct aspeed_crypto_alg {
 };
 
 /*************************************************************************************/
-
-/* Algorithm type mask. */
-#define SPACC_CRYPTO_ALG_MASK		0x7
-
-
-
 struct aspeed_sham_ctx {
 	struct aspeed_crypto_dev	*crypto_dev;
 
