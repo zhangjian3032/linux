@@ -223,7 +223,7 @@ struct ast_udc_request {
 	int zero;
 	unsigned mapped:1;	
 };
-//#define DMA_LIST_MODE 1
+#define DMA_LIST_MODE 1
 struct ast_udc_ep {
 	struct usb_ep			ep;
 	struct list_head		queue;
