@@ -71,8 +71,11 @@
 
 //#define CDBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
 
+#define ASPEED_CRYPTO_DEBUG
+
 #ifdef ASPEED_CRYPTO_DEBUG
-#define CRYPTO_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
+//#define CRYPTO_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
+#define CRYPTO_DBUG(fmt, args...) printk("%s() " fmt, __FUNCTION__, ## args)
 #else
 #define CRYPTO_DBUG(fmt, args...)
 #endif
@@ -281,6 +284,8 @@ static void aspeed_crypto_tasklet(unsigned long data)
 	unsigned long flags;
 	int err = 0;
 
+	CRYPTO_DBUG("\n");
+
 	spin_lock_irqsave(&crypto_dev->lock, flags);
 	backlog   = crypto_get_backlog(&crypto_dev->queue);
 	async_req = crypto_dequeue_request(&crypto_dev->queue);
@@ -295,6 +300,7 @@ static void aspeed_crypto_tasklet(unsigned long data)
 	}
 
 	if (crypto_tfm_alg_type(async_req->tfm) == CRYPTO_ALG_TYPE_ABLKCIPHER) {
+		CRYPTO_DBUG("ablkcipher_request_cast \n");
 		crypto_dev->ablk_req = ablkcipher_request_cast(async_req);
 #if 1		
 		err = aspeed_crypto_ablkcipher_trigger(crypto_dev);
@@ -305,96 +311,11 @@ static void aspeed_crypto_tasklet(unsigned long data)
 #endif		
 	} else {
 		crypto_dev->ahash_req = ahash_request_cast(async_req);
-//		if(aspeed_crypto_trigger(crypto_dev))
-//			crypto_dev->ahash_req->base.complete(&crypto_dev->ahash_req->base, 0);
+		CRYPTO_DBUG("ahash_request_cast \n");
+		err = aspeed_crypto_ahash_trigger(crypto_dev);
+		crypto_dev->ahash_req->base.complete(&crypto_dev->ahash_req->base, err);
 	}
 
-}
-
-int aspeed_hash_trigger(struct aspeed_crypto_dev *aspeed_crypto)
-{
-	struct ahash_request *req = aspeed_crypto->ahash_req;
-	struct aspeed_sham_reqctx *ctx = ahash_request_ctx(req);
-
-	CRYPTO_DBUG("ctx->bufcnt %d\n", ctx->bufcnt);
-
-#ifdef ASPEED_CRYPTO_IRQ
-	aspeed_crypto->cmd |= HASH_CMD_INT_ENABLE;
-	aspeed_crypto->isr = 0;
-//	CDBUG("hash cmd %x\n", aspeed_crypto->cmd);
-#endif
-
-	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->hash_src_dma, ASPEED_HACE_HASH_SRC);
-	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->hash_digst_dma, ASPEED_HACE_HASH_DIGEST_BUFF);
-	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->hash_key_dma, ASPEED_HACE_HASH_KEY_BUFF);
-	aspeed_crypto_write(aspeed_crypto, ctx->bufcnt, ASPEED_HACE_HASH_DATA_LEN);
-
-	aspeed_crypto_write(aspeed_crypto, ctx->cmd, ASPEED_HACE_HASH_CMD);
-
-
-#if 0
-	if (!(aspeed_crypto->isr & HACE_HASH_ISR)) {
-		printk("INTR ERROR aspeed_crypto->isr %x \n", aspeed_crypto->isr);
-	}
-	CDBUG("irq %x\n", aspeed_crypto->isr);
-#endif
-	while (aspeed_crypto_read(aspeed_crypto, ASPEED_HACE_STS) & HACE_HASH_BUSY);
-
-#if 0
-	printk("digst dma : %x \n", aspeed_crypto->hash_digst_dma);
-	for (i = 0; i < ctx->digcnt; i++)
-		printk("%02x ", digst[i]);
-
-	printk("\n");
-#endif
-
-	memcpy(aspeed_crypto->ahash_req->result, aspeed_crypto->hash_digst, ctx->digcnt);
-
-//	printk("copy to sg done \n");
-	return 0;
-}
-
-/*************************************************************************************/
-
-int aspeed_hash_handle_queue(struct aspeed_crypto_dev *aspeed_crypto,
-				    struct ahash_request *req)
-{
-	struct crypto_async_request *async_req, *backlog;
-	struct aspeed_sham_reqctx *ctx;
-	unsigned long flags;
-	int ret = 0;
-
-	CRYPTO_DBUG("nbytes : %d \n", req->nbytes);
-
-	spin_lock_irqsave(&aspeed_crypto->lock, flags);
-	if (req)
-		ret = ahash_enqueue_request(&aspeed_crypto->queue, req);
-
-	if (aspeed_crypto_read(aspeed_crypto, ASPEED_HACE_STS) & HACE_HASH_BUSY) {
-		printk("hash Engine Busy \n");
-		spin_unlock_irqrestore(&aspeed_crypto->lock, flags);
-		return -1;
-	}
-
-	backlog = crypto_get_backlog(&aspeed_crypto->queue);
-	async_req = crypto_dequeue_request(&aspeed_crypto->queue);
-	spin_unlock_irqrestore(&aspeed_crypto->lock, flags);
-
-	if (!async_req)
-		return -1;
-
-	if (backlog)
-		backlog->complete(backlog, -EINPROGRESS);
-
-	req = ahash_request_cast(async_req);
-	aspeed_crypto->ahash_req = req;
-	ctx = ahash_request_ctx(req);
-
-	aspeed_hash_trigger(aspeed_crypto);
-
-	req->base.complete(&req->base, 0);
-
-	return ret;
 }
 
 static irqreturn_t aspeed_crypto_irq(int irq, void *dev)
@@ -412,7 +333,7 @@ static int aspeed_crypto_register(struct aspeed_crypto_dev *crypto_dev)
 {
 	//todo ~~
 	aspeed_register_crypto_algs(crypto_dev);
-//	aspeed_register_ahash_algs(crypto_dev);
+	aspeed_register_ahash_algs(crypto_dev);
 	return 0;
 }
 

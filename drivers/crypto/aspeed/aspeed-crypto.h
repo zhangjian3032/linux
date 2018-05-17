@@ -152,8 +152,27 @@ struct aspeed_crypto_alg {
 	struct aspeed_crypto_dev	*crypto_dev;
 	union {
 		struct crypto_alg	crypto;
-		struct ahash_alg	hash;
+		struct ahash_alg	ahash;
 	} alg;
+};
+
+/* the private variable of hash */
+struct aspeed_ahash_ctx {
+	struct aspeed_crypto_dev	*crypto_dev;
+	u32 		ahash_cmd;
+	size_t		digcnt;
+	unsigned int	total;	/* total request */	
+	struct scatterlist	*sg;	
+	unsigned long	flags;	
+	size_t	bufcnt;	
+	/* for fallback */
+	struct crypto_ahash		*fallback_tfm;
+//	struct crypto_shash 	*base_hash;		//for hmac
+};
+
+/* the privete variable of hash for fallback */
+struct aspeed_ahash_rctx {
+	struct ahash_request		fallback_req;
 };
 
 /*************************************************************************************/
@@ -208,6 +227,8 @@ aspeed_crypto_read(struct aspeed_crypto_dev *crypto, u32 reg)
 	return readl(crypto->regs + reg);
 #endif
 }
+
+extern int aspeed_crypto_ahash_trigger(struct aspeed_crypto_dev *aspeed_crypto);
 
 extern int aspeed_crypto_ablkcipher_trigger(struct aspeed_crypto_dev *aspeed_crypto);
 extern int aspeed_hash_trigger(struct aspeed_crypto_dev *aspeed_crypto);
