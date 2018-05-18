@@ -231,9 +231,7 @@ static int ehci_platform_probe(struct platform_device *dev)
 					goto err_put_clks;
 				priv->clks[clk] = NULL;
 				break;
-			} 
-			clk_prepare_enable(priv->clks[clk]);
-			mdelay(10);
+			}
 		}
 	}
 
@@ -247,10 +245,10 @@ static int ehci_platform_probe(struct platform_device *dev)
 			priv->rsts[rst] = NULL;
 			break;
 		}
-		//fix for reset drive : need to modify
-		reset_control_deassert(priv->rsts[rst]);
-//		if (err)
-//			goto err_reset;
+
+		err = reset_control_deassert(priv->rsts[rst]);
+		if (err)
+			goto err_reset;
 	}
 
 	if (pdata->big_endian_desc)

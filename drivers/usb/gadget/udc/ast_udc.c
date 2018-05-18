@@ -24,7 +24,6 @@
 #include <linux/clk.h>
 #include <linux/usb/ch9.h>
 #include <linux/delay.h>
-#include <linux/reset.h>
 
 #include <linux/usb/gadget.h>
 #include <linux/of.h>
@@ -234,7 +233,6 @@ struct ast_udc_ep {
  */
 struct ast_udc {
 	void __iomem			*reg;
-	struct reset_control 	*reset;
 	struct clk 				*clk;	
 	struct usb_gadget			gadget;
 	//struct ast_udc_ep			ep[AST_NUM_ENDPOINTS];
@@ -1197,22 +1195,13 @@ static int ast_udc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	udc->reset = devm_reset_control_get_exclusive(&pdev->dev, "udc");
-	if (IS_ERR(udc->reset)) {
-		dev_err(&pdev->dev, "can't get udc reset\n");
-		return PTR_ERR(udc->reset);
-	}
-
 	udc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(udc->clk)) {
 		dev_err(&pdev->dev, "no clock defined \n");
 		return -ENODEV;
 	}
 
-	reset_control_assert(udc->reset);
 	clk_prepare_enable(udc->clk);
-	mdelay(10);
-	reset_control_deassert(udc->reset);
 
 	udc_dev_id = of_match_node(ast_udc_of_dt_ids, pdev->dev.of_node);
 	if (!udc_dev_id)

@@ -4,7 +4,6 @@
 
 / {
 	model = "AST2500 EVB";
-	compatible = "aspeed,ast2500-evb", "aspeed,ast2500";
 
 	aliases {
 		serial0 = &uart0;

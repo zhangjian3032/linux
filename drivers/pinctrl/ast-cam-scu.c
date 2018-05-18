@@ -120,36 +120,6 @@ ast_scu_init_jpeg(u8 dynamic_en)
 }
 EXPORT_SYMBOL(ast_scu_init_jpeg);
 
-#ifdef SCU_UART1CLK_STOP_EN
-extern void
-ast_scu_init_uart(u8 uart)
-{
-	u32 clk_stop_en = 0;	
-
-	//uart 1
-	if(uart & 0x2) {
-		clk_stop_en |= SCU_UART1CLK_STOP_EN;
-	}
-
-	if(uart & 0x4) {
-		clk_stop_en |= SCU_UART2CLK_STOP_EN;
-	}
-
-	if(uart & 0x8) {
-		clk_stop_en |= SCU_UART3CLK_STOP_EN;
-	}
-
-	if(uart & 0x10) {
-		clk_stop_en |= SCU_UART4CLK_STOP_EN;
-	}
-	
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~(clk_stop_en), AST_SCU_CLK_STOP);
-	
-}
-EXPORT_SYMBOL(ast_scu_init_uart);
-#endif
-
-
 extern void
 ast_scu_init_usb_port1(void)
 {
