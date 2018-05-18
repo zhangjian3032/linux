@@ -63,34 +63,33 @@
 #define CIPHER_DBG(fmt, args...)
 #endif
 
-int aspeed_crypto_ablkcipher_trigger(struct aspeed_crypto_dev *aspeed_crypto)
+int aspeed_crypto_ablkcipher_trigger(struct aspeed_crypto_dev *crypto_dev)
 {
-	struct crypto_ablkcipher *cipher = crypto_ablkcipher_reqtfm(aspeed_crypto->ablk_req);
+	struct crypto_ablkcipher *cipher = crypto_ablkcipher_reqtfm(crypto_dev->ablk_req);
 	struct aspeed_cipher_ctx *ctx = crypto_ablkcipher_ctx(cipher);
-	struct ablkcipher_request	*req = aspeed_crypto->ablk_req;
+	struct ablkcipher_request	*req = crypto_dev->ablk_req;
 	struct scatterlist	*in_sg = req->src, *out_sg = req->dst;
 	int nbytes = 0;
 
 	if (ctx->enc_cmd & HACE_CMD_RC4) {
-		*(u32 *)(aspeed_crypto->ctx_buf + 8) = 0x0001;
-		memcpy(aspeed_crypto->ctx_buf + 16, ctx->key.arc4, 256);
+		*(u32 *)(crypto_dev->ctx_buf + 8) = 0x0001;
+		memcpy(crypto_dev->ctx_buf + 16, ctx->key.arc4, 256);
 	} else {
 		if(ctx->enc_cmd & HACE_CMD_DES_SELECT) {
 			if (ctx->iv) {
-				memcpy(aspeed_crypto->ctx_buf + 8, ctx->iv, 8);
+				memcpy(crypto_dev->ctx_buf + 8, ctx->iv, 8);
 			}
-			memcpy(aspeed_crypto->ctx_buf + 16, ctx->key.des, 24);
+			memcpy(crypto_dev->ctx_buf + 16, ctx->key.des, 24);
 		} else {
 			if (ctx->iv) {
-				memcpy(aspeed_crypto->ctx_buf, ctx->iv, 16);
+				memcpy(crypto_dev->ctx_buf, ctx->iv, 16);
 			}
-			memcpy(aspeed_crypto->ctx_buf + 16, ctx->key.aes, 0xff);
+			memcpy(crypto_dev->ctx_buf + 16, ctx->key.aes, 0xff);
 		}
 	}
 
-	nbytes = sg_copy_to_buffer(in_sg, sg_nents(req->src), aspeed_crypto->buf_in, req->nbytes);
-	printk("copy nbytes %d, req->nbytes %d , nb_in_sg %d, nb_out_sg %d \n", nbytes, req->nbytes, sg_nents(req->src), sg_nents(req->dst));
-	printk("dma addr src %x, dest %x \n", in_sg->dma_address, out_sg->dma_address);
+	nbytes = sg_copy_to_buffer(in_sg, sg_nents(req->src), crypto_dev->buf_in, req->nbytes);
+	CIPHER_DBG("copy nbytes %d, req->nbytes %d , nb_in_sg %d, nb_out_sg %d \n", nbytes, req->nbytes, sg_nents(req->src), sg_nents(req->dst));
 	
 	if (!nbytes) {
 		printk("nbytes error \n");
@@ -102,22 +101,21 @@ int aspeed_crypto_ablkcipher_trigger(struct aspeed_crypto_dev *aspeed_crypto)
 	}
 
 #ifdef ASPEED_CRYPTO_IRQ
-	aspeed_crypto->cmd |= HACE_CMD_ISR_EN;
-	aspeed_crypto->irq = 0;
-//	CDBUG("crypto cmd %x\n", aspeed_crypto->cmd);
+	crypto_dev->cmd |= HACE_CMD_ISR_EN;
+	crypto_dev->irq = 0;
+//	CDBUG("crypto cmd %x\n", crypto_dev->cmd);
 #endif
 
-	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->dma_addr_in, ASPEED_HACE_SRC);
-	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->dma_addr_out, ASPEED_HACE_DEST);
-	aspeed_crypto_write(aspeed_crypto, req->nbytes, ASPEED_HACE_DATA_LEN);
+	aspeed_crypto_write(crypto_dev, crypto_dev->dma_addr_in, ASPEED_HACE_SRC);
+	aspeed_crypto_write(crypto_dev, crypto_dev->dma_addr_out, ASPEED_HACE_DEST);
+	aspeed_crypto_write(crypto_dev, req->nbytes, ASPEED_HACE_DATA_LEN);
+	aspeed_crypto_write(crypto_dev, ctx->enc_cmd, ASPEED_HACE_CMD);
 
-	aspeed_crypto_write(aspeed_crypto, ctx->enc_cmd, ASPEED_HACE_CMD);
+	while (aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS) & HACE_CRYPTO_BUSY);
 
-	while (aspeed_crypto_read(aspeed_crypto, ASPEED_HACE_STS) & HACE_CRYPTO_BUSY);
+	nbytes = sg_copy_from_buffer(out_sg, sg_nents(req->dst), crypto_dev->buf_out, req->nbytes);
 
-	nbytes = sg_copy_from_buffer(out_sg, sg_nents(req->dst), aspeed_crypto->buf_out, req->nbytes);
-
-	printk("sg_copy_from_buffer nbytes %d req->nbytes %d, cmd %x\n",nbytes, req->nbytes, ctx->enc_cmd);
+	CIPHER_DBG("sg_copy_from_buffer nbytes %d req->nbytes %d, cmd %x\n",nbytes, req->nbytes, ctx->enc_cmd);
 
 	if (!nbytes) {
 		printk("nbytes %d req->nbytes %d\n", nbytes, req->nbytes);
@@ -202,7 +200,7 @@ void AESKeyExpan(unsigned int bits, u32 *aeskeyin, u32 *aeskeydram)
 static int aspeed_rc4_crypt(struct ablkcipher_request *req, u32 cmd)
 {
 	struct aspeed_cipher_ctx *ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
-	struct aspeed_crypto_dev *aspeed_crypto = ctx->crypto_dev;
+	struct aspeed_crypto_dev *crypto_dev = ctx->crypto_dev;
 
 	CIPHER_DBG("\n");
 
@@ -211,7 +209,7 @@ static int aspeed_rc4_crypt(struct ablkcipher_request *req, u32 cmd)
 
 	ctx->enc_cmd = cmd;
 
-	return aspeed_crypto_enqueue(aspeed_crypto, req);
+	return aspeed_crypto_enqueue(crypto_dev, req);
 }
 
 static int aspeed_rc4_setkey(struct crypto_ablkcipher *cipher, const u8 *in_key,
@@ -256,7 +254,7 @@ static int aspeed_rc4_encrypt(struct ablkcipher_request *req)
 static int aspeed_des_crypt(struct ablkcipher_request *req, u32 cmd)
 {
 	struct aspeed_cipher_ctx *ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
-	struct aspeed_crypto_dev *aspeed_crypto = ctx->crypto_dev;
+	struct aspeed_crypto_dev *crypto_dev = ctx->crypto_dev;
 
 	CIPHER_DBG("\n");
 
@@ -266,17 +264,24 @@ static int aspeed_des_crypt(struct ablkcipher_request *req, u32 cmd)
 	ctx->iv = req->info;
 	ctx->enc_cmd = cmd;
 
-	return aspeed_crypto_enqueue(aspeed_crypto, req);
+#if 0
+	crypto_dev->ablk_req = req;
+	aspeed_crypto_ablkcipher_trigger(crypto_dev);
+	return 0;
+#else	
+	return aspeed_crypto_enqueue(crypto_dev, req);
+#endif
 }
 
 static int aspeed_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 			     unsigned int keylen)
 {
 	struct aspeed_cipher_ctx *ctx = crypto_ablkcipher_ctx(cipher);
-	CIPHER_DBG("bits : %d : %s  \n", keylen * 8, key);
+	CIPHER_DBG("bits : %d : \n", keylen);
 
 	if ((keylen != DES_KEY_SIZE) && (keylen != 2 * DES_KEY_SIZE) && (keylen != 3 * DES_KEY_SIZE)) {
 		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		printk("keylen fail %d bits \n", keylen);
 		return -EINVAL;
 	}
 
@@ -409,7 +414,7 @@ static int aspeed_des_ecb_encrypt(struct ablkcipher_request *req)
 static int aspeed_aes_crypt(struct ablkcipher_request *req, u32 cmd)
 {
 	struct aspeed_cipher_ctx *ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
-	struct aspeed_crypto_dev *aspeed_crypto = ctx->crypto_dev;
+	struct aspeed_crypto_dev *crypto_dev = ctx->crypto_dev;
 
 	ctx->iv = req->info;
 
@@ -430,7 +435,7 @@ static int aspeed_aes_crypt(struct ablkcipher_request *req, u32 cmd)
 
 	ctx->enc_cmd = cmd;
 
-	return aspeed_crypto_enqueue(aspeed_crypto, req);
+	return aspeed_crypto_enqueue(crypto_dev, req);
 }
 
 static int aspeed_aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
@@ -651,6 +656,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 			},
 		},
 	},
+#if 0
 	{
 		.alg.crypto = {
 			.cra_name		= "ecb(des)",
@@ -675,6 +681,7 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 			},
 		},
 	},
+#endif	
 	{
 		.alg.crypto = {
 			.cra_name		= "cbc(des)",
@@ -893,8 +900,8 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 	},
 	{
 		.alg.crypto = {
-			.cra_name		= "arc4",
-			.cra_driver_name	= "aspeed-arc4",
+			.cra_name		= "ecb(arc4)",
+			.cra_driver_name	= "aspeed-ecb-arc4",
 			.cra_priority		= 300,
 			.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 									CRYPTO_ALG_ASYNC,

@@ -139,6 +139,9 @@ struct aspeed_crypto_dev {
 	void	*hash_key;
 	dma_addr_t	hash_key_dma;
 
+	void	*hmac_key;
+	dma_addr_t	hmac_key_dma;
+
 	void	*hash_src;
 	dma_addr_t	hash_src_dma;
 
@@ -212,7 +215,7 @@ struct aspeed_sham_reqctx {
 static inline void
 aspeed_crypto_write(struct aspeed_crypto_dev *crypto, u32 val, u32 reg)
 {
-//	printk("uart dma write : val: %x , reg : %x \n",val,reg);
+//	printk("write : val: %x , reg : %x \n",val,reg);
 	writel(val, crypto->regs + reg);
 }
 
@@ -227,6 +230,8 @@ aspeed_crypto_read(struct aspeed_crypto_dev *crypto, u32 reg)
 	return readl(crypto->regs + reg);
 #endif
 }
+
+#define ASPEED_HASH_BUFF_SIZE 	8192
 
 extern int aspeed_crypto_ahash_trigger(struct aspeed_crypto_dev *aspeed_crypto);
 

@@ -64,14 +64,6 @@
 #include "aspeed-crypto.h"
 
 //#define ASPEED_CRYPTO_DEBUG
-//#define ASPEED_HASH_DEBUG
-
-#define ASPEED_AES_QUEUE_LENGTH	1
-#define ASPEED_HASH_BUFF_SIZE 	8192
-
-//#define CDBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
-
-#define ASPEED_CRYPTO_DEBUG
 
 #ifdef ASPEED_CRYPTO_DEBUG
 //#define CRYPTO_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
@@ -80,199 +72,17 @@
 #define CRYPTO_DBUG(fmt, args...)
 #endif
 
-#ifdef ASPEED_HASH_DEBUG
-#define HASH_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
-#else
-#define HASH_DBUG(fmt, args...)
-#endif
-
-
-
 /*************************************************************************************/
-#if 0
-static int aspeed_crypto_trigger(struct aspeed_crypto_dev *aspeed_crypto)
-{
-	u32 nbytes = 0;
-	unsigned int	nb_in_sg = 0, nb_out_sg = 0;
-	struct aspeed_cipher_ctx *ctx = crypto_ablkcipher_ctx(cipher);
-//	struct ablkcipher_request	*req = aspeed_crypto->ablkcipher_req;
-//	struct scatterlist	*org_in_sg = req->src, *org_out_sg = req->dst;
-//	struct scatterlist	*in_sg = req->src, *out_sg = req->dst;
-
-	if (aspeed_crypto->cmd & HACE_CMD_RC4) {
-		//RC4
-		*(u32 *)(aspeed_crypto->ctx_buf + 8) = 0x0001;
-		memcpy(aspeed_crypto->ctx_buf + 16, aspeed_crypto->cipher_ctx->key.rc4, 256);
-
-	} else {
-		if (aspeed_crypto->cmd & HACE_CMD_DES_SELECT) {
-			//DES
-				if (aspeed_crypto->des_ctx->iv) {
-					memcpy(aspeed_crypto->ctx_buf + 8, aspeed_crypto->des_ctx->iv, 8);
-#if 0
-					for (i = 0; i < 8; i++) {
-						ctxbuf[i + 8] = aspeed_crypto->des_ctx->iv[i];
-					}
-#endif
-				}
-#if 0
-				for (i = 0; i < 24; i++) {
-					ctxbuf[0x10 + i] = aspeed_crypto->des_ctx->key[i];
-				}
-#else
-				memcpy(aspeed_crypto->ctx_buf + 16, aspeed_crypto->des_ctx->key, 24);
-#endif
-
-		} else {
-			//AES
-				if (aspeed_crypto->aes_ctx->iv) {
-#if 1
-					memcpy(aspeed_crypto->ctx_buf, aspeed_crypto->aes_ctx->iv, 16);
-#else
-					printk("Set iv: \n");
-					for (i = 0; i < 0x10; i++) {
-						ctxbuf[i] = aspeed_crypto->aes_ctx->iv[i];
-						printk("%02x ", ctxbuf[i]);
-					}
-					printk("\n");
-#endif
-				}
-#if 1
-				memcpy(aspeed_crypto->ctx_buf + 16, aspeed_crypto->aes_ctx->key, 0xff);
-#else
-				printk("Set key: \n");
-				for (i = 0; i < 0xff; i++) {
-					ctxbuf[0x10 + i] = aspeed_crypto->aes_ctx->key[i];
-					printk("%02x ", ctxbuf[0x10 + i]);
-				}
-				printk("\n");
-#endif
-
-		}
-	}
-
-	nb_in_sg = aspeed_crypto_sg_length(req, in_sg);
-	if (!nb_in_sg)
-		return -EINVAL;
-
-	nb_out_sg = aspeed_crypto_sg_length(req, out_sg);
-	if (!nb_out_sg)
-		return -EINVAL;
-
-	if (nb_in_sg != nb_out_sg) {
-		printk("ERROR !!!~~~~ \n");
-	}
-#if 0
-	err = dma_map_sg(aspeed_crypto->dev, org_in_sg, nb_in_sg,
-			 DMA_TO_DEVICE);
-	if (!err) {
-		dev_err(aspeed_crypto->dev, "dma_map_sg() error\n");
-		return -EINVAL;
-	}
-
-	err = dma_map_sg(aspeed_crypto->dev, org_out_sg, nb_out_sg,
-			 DMA_FROM_DEVICE);
-
-	if (!err) {
-		dev_err(aspeed_crypto->dev, "dma_map_sg() error\n");
-		return -EINVAL;
-	}
-
-//	printk("req->nbytes %d , nb_in_sg %d, nb_out_sg %d \n", req->nbytes, nb_in_sg, nb_out_sg);
-
-	for (i = 0; i < nb_in_sg; i++)  {
-//		printk("sg phy %x ", sg_phys(in_sg));
-
-#ifdef ASPEED_CRYPTO_IRQ
-		aspeed_crypto->cmd |= HACE_CMD_ISR_EN;
-		printk("aspeed_crypto->cmd %x \n", aspeed_crypto->cmd);
-		aspeed_crypto->isr = 0;
-		init_completion(&aspeed_crypto->cmd_complete);
-
-#endif
-
-		aspeed_crypto_write(aspeed_crypto, sg_phys(in_sg), ASPEED_HACE_SRC);
-		aspeed_crypto_write(aspeed_crypto, sg_phys(out_sg), ASPEED_HACE_DEST);
-		aspeed_crypto_write(aspeed_crypto, in_sg->length, ASPEED_HACE_DATA_LEN);
-		printk("src : %x , dst : %x , len %d , out len %d \n", sg_phys(in_sg), sg_phys(out_sg), in_sg->length, out_sg->length);
-
-		aspeed_crypto_write(aspeed_crypto, aspeed_crypto->cmd, ASPEED_HACE_CMD);
-
-
-#ifdef ASPEED_CRYPTO_IRQ
-		wait_for_completion_interruptible(&aspeed_crypto->cmd_complete);
-		printk("done \n");
-
-#if 0
-		if (!(aspeed_crypto->isr & HACE_CRYPTO_ISR)) {
-			printk("INTR ERROR aspeed_crypto->isr %x \n", aspeed_crypto->isr);
-		}
-#endif
-#else
-		while (aspeed_crypto_read(aspeed_crypto, ASPEED_HACE_STS) & HACE_CRYPTO_BUSY);
-#endif
-
-		nbytes +=  in_sg->length;
-		in_sg = sg_next(in_sg);
-		out_sg = sg_next(out_sg);
-	}
-
-	if (nbytes != req->nbytes) {
-		printk("~~~ EOOERR  nbytes %d , req->nbytes %d \n", nbytes, req->nbytes);
-	}
-	dma_unmap_sg(aspeed_crypto->dev, org_in_sg, nb_in_sg, DMA_TO_DEVICE);
-	dma_unmap_sg(aspeed_crypto->dev, org_out_sg, nb_out_sg, DMA_FROM_DEVICE);
-#else
-	nbytes = sg_copy_to_buffer(in_sg, nb_in_sg, 	aspeed_crypto->buf_in, req->nbytes);
-//	printk("copy nbytes %d, req->nbytes %d , nb_in_sg %d, nb_out_sg %d \n", nbytes, req->nbytes, nb_in_sg, nb_out_sg);
-
-	if (!nbytes)
-		return -EINVAL;
-
-	if (nbytes != req->nbytes) {
-		printk("~~~ EOOERR  nbytes %d , req->nbytes %d \n", nbytes, req->nbytes);
-	}
-
-#ifdef ASPEED_CRYPTO_IRQ
-	aspeed_crypto->cmd |= HACE_CMD_ISR_EN;
-	aspeed_crypto->isr = 0;
-//	CDBUG("crypto cmd %x\n", aspeed_crypto->cmd);
-#endif
-
-	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->dma_addr_in, ASPEED_HACE_SRC);
-	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->dma_addr_out, ASPEED_HACE_DEST);
-	aspeed_crypto_write(aspeed_crypto, req->nbytes, ASPEED_HACE_DATA_LEN);
-
-	aspeed_crypto_write(aspeed_crypto, aspeed_crypto->cmd, ASPEED_HACE_CMD);
-
-	while (aspeed_crypto_read(aspeed_crypto, ASPEED_HACE_STS) & HACE_CRYPTO_BUSY);
-
-	nbytes = sg_copy_from_buffer(out_sg, nb_out_sg, aspeed_crypto->buf_out, req->nbytes);
-
-//	printk("sg_copy_from_buffer nbytes %d req->nbytes %d\n",nbytes, req->nbytes);
-
-	if (!nbytes) {
-		printk("nbytes %d req->nbytes %d\n", nbytes, req->nbytes);
-		return -EINVAL;
-	}
-
-#endif
-	return 0;
-}
-#else
-
-#endif
-
-int aspeed_crypto_enqueue(struct aspeed_crypto_dev *aspeed_crypto,
+int aspeed_crypto_enqueue(struct aspeed_crypto_dev *crypto_dev,
 				      struct ablkcipher_request *req)
 {
 	unsigned long flags;
 	int err;
 
-	spin_lock_irqsave(&aspeed_crypto->lock, flags);
-	err = ablkcipher_enqueue_request(&aspeed_crypto->queue, req);
-	spin_unlock_irqrestore(&aspeed_crypto->lock, flags);
-	tasklet_schedule(&aspeed_crypto->crypto_tasklet);
+	spin_lock_irqsave(&crypto_dev->lock, flags);
+	err = ablkcipher_enqueue_request(&crypto_dev->queue, req);
+	spin_unlock_irqrestore(&crypto_dev->lock, flags);
+	tasklet_schedule(&crypto_dev->crypto_tasklet);
 
 	return err;
 }
@@ -320,18 +130,17 @@ static void aspeed_crypto_tasklet(unsigned long data)
 
 static irqreturn_t aspeed_crypto_irq(int irq, void *dev)
 {
-	struct aspeed_crypto_dev *aspeed_crypto = (struct aspeed_crypto_dev *)dev;
-	u32 sts = aspeed_crypto_read(aspeed_crypto, ASPEED_HACE_STS);
+	struct aspeed_crypto_dev *crypto_dev = (struct aspeed_crypto_dev *)dev;
+	u32 sts = aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS);
 
-	printk("aspeed_crypto_irq sts %x xxxxxxxxxx\n", sts);
+	CRYPTO_DBUG("aspeed_crypto_irq sts %x xxxxxxxxxx\n", sts);
 
-	aspeed_crypto_write(aspeed_crypto, sts, ASPEED_HACE_STS);
+	aspeed_crypto_write(crypto_dev, sts, ASPEED_HACE_STS);
 	return IRQ_HANDLED;
 }
 
 static int aspeed_crypto_register(struct aspeed_crypto_dev *crypto_dev)
 {
-	//todo ~~
 	aspeed_register_crypto_algs(crypto_dev);
 	aspeed_register_ahash_algs(crypto_dev);
 	return 0;
@@ -405,7 +214,7 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 
 	// 8-byte aligned
 	crypto_dev->ctx_buf = dma_alloc_coherent(&pdev->dev,
-			      0x8000,
+			      0xa000,
 			      &crypto_dev->ctx_dma_addr, GFP_KERNEL);
 
 	if (! crypto_dev->ctx_buf) {
@@ -422,15 +231,18 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 	crypto_dev->hash_key = crypto_dev->buf_out + 0x1000;
 	crypto_dev->hash_key_dma = crypto_dev->dma_addr_out + 0x1000;
 
-	crypto_dev->hash_src = crypto_dev->hash_key + 0x1000;
-	crypto_dev->hash_src_dma = crypto_dev->hash_key_dma + 0x1000;
+	crypto_dev->hmac_key = crypto_dev->hash_key + 0x1000;
+	crypto_dev->hmac_key_dma = crypto_dev->hash_key_dma + 0x1000;
+
+	crypto_dev->hash_src = crypto_dev->hmac_key + 0x1000;
+	crypto_dev->hash_src_dma = crypto_dev->hmac_key_dma + 0x1000;
 
 	crypto_dev->hash_digst = crypto_dev->hash_src + ASPEED_HASH_BUFF_SIZE;
 	crypto_dev->hash_digst_dma = crypto_dev->hash_src_dma + ASPEED_HASH_BUFF_SIZE;
 
-	printk("Crypto ctx %x , in : %x, out: %x\n", crypto_dev->ctx_dma_addr, crypto_dev->dma_addr_in, crypto_dev->dma_addr_out);
+	CRYPTO_DBUG("Crypto ctx %x , in : %x, out: %x\n", crypto_dev->ctx_dma_addr, crypto_dev->dma_addr_in, crypto_dev->dma_addr_out);
 
-	printk("Hash key %x , src : %x, digst: %x\n", crypto_dev->hash_key_dma, crypto_dev->hash_src_dma, crypto_dev->hash_digst_dma);
+	CRYPTO_DBUG("Hash key %x , src : %x, digst: %x\n", crypto_dev->hash_key_dma, crypto_dev->hash_src_dma, crypto_dev->hash_digst_dma);
 
 	aspeed_crypto_write(crypto_dev, crypto_dev->ctx_dma_addr, ASPEED_HACE_CONTEXT);
 
