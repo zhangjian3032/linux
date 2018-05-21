@@ -34,7 +34,7 @@ extern int hub_usb_gadget_get_string (struct usb_gadget_strings *table, int id, 
 extern int usb_hub_gadget_register_driver (struct usb_gadget_driver *driver);
 extern int usb_hub_gadget_unregister_driver (struct usb_gadget_driver *driver);
 extern void usb_ep_autoconfig_reset (struct usb_gadget *gadget);
-#define EXTRA_DEBUG 1
+//#define EXTRA_DEBUG 1
 #define HUB_SUSPEND_RESUME
 #ifdef HUB_SUSPEND_RESUME
 //PORT_RESUME is defined only if HUB_SUSPEND_RESUME is defined
@@ -503,9 +503,11 @@ void ast_hub_status_ep_complete(struct usb_ep *ep, struct usb_request *req)
 			timeout = msecs_to_jiffies(250);//250 ms
 	} else {
 		timeout = msecs_to_jiffies(100);//100 ms
+#ifdef EXTRA_DEBUG
 		printk("Hub status change failed req->status %d time %lu\n", req->status, jiffies);
 		printk("device_clear_status_pending %x device_status_pending %x resetdone %d connect pending %d\n",
                         cdev->device_clear_status_pending, cdev->device_status_pending, cdev->resetdone, cdev->connect_pending);
+#endif
 	}
 	if(locked)
 		spin_unlock_irqrestore(&cdev->lock, flags);
@@ -517,10 +519,13 @@ void ast_hub_status_ep_complete(struct usb_ep *ep, struct usb_request *req)
 static void ast_hub_setup_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	PHUB_DBG("Entered %s\n", __FUNCTION__);
-        if (req->status || req->actual != req->length)
+        if (req->status || req->actual != req->length){
+#ifdef EXTRA_DEBUG
                 printk(
                                 "setup complete --> %d, %d/%d\n",
                                 req->status, req->actual, req->length);
+#endif
+	}
 		req->status = 0;
 }
 #ifdef LINUX_3_4_41
@@ -555,7 +560,9 @@ static struct usb_ep * get_hub_ep(struct usb_gadget *gadget, struct usb_endpoint
 {
 	struct usb_ep	*ep;
 	list_for_each_entry (ep, &gadget->ep_list, ep_list) {
+#ifdef EXTRA_DEBUG
 			printk("HUB:ep->name %s\n", ep->name);
+#endif
 		if (!strcmp(ep->name, "ep1"))
 			goto found_ep;
 	}
@@ -618,7 +625,7 @@ int ast_hub_bind(struct usb_gadget *gadget, struct usb_gadget_driver *driver)
 	cdev->status_ep = get_hub_ep(cdev->gadget, &hub_ep_desc);
 #endif
 	if(cdev->status_ep == NULL) {
-		printk("Pilot Hub interrupt end point not found!\n");
+		printk("Aspeed Hub interrupt end point not found!\n");
 		return 0;
 	}
 #ifdef EXTRA_DEBUG
@@ -867,8 +874,10 @@ int ast_virt_hub_control(
 			if((1 << wIndex) == cdev->device_clear_status_pending) {
 				int ret = -1;
 				ret = usb_ep_dequeue(cdev->status_ep, cdev->status_req);
+#ifdef EXTRA_DEBUG
 				printk("clear conn Dequed existing request ret %d port_status[%d] %x\n",
 					ret, wIndex, cdev->port_status[wIndex]); 
+#endif
 			}
 			break;
 		case USB_PORT_FEAT_C_ENABLE:
@@ -886,8 +895,10 @@ int ast_virt_hub_control(
 			if((1 << wIndex) == cdev->device_clear_status_pending) {
 				int ret = -1;
 				ret = usb_ep_dequeue(cdev->status_ep, cdev->status_req);
+#ifdef EXTRA_DEBUG
 				printk("clear reset Dequed existing request ret %d port_status[%d] %x\n",
 					ret, wIndex, cdev->port_status[wIndex]); 
+#endif
 			}
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
@@ -1102,7 +1113,9 @@ ast_hub_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	wValue   = le16_to_cpu (cmd->wValue);
 	wIndex   = le16_to_cpu (cmd->wIndex);
 	wLength  = le16_to_cpu (cmd->wLength);
+#ifdef EXTRA_DEBUG
 	printk("ast_hub_setup typeReq %x\n", typeReq);
+#endif
 	switch (typeReq) {
 
 	/* DEVICE REQUESTS */
@@ -1448,7 +1461,9 @@ statusSend:
 	 if(devnum != 0) {
 //	 	cdev->connect_or_reset_in_progress = 1;
 		hub_status_changed = 1 << (devnum + 0);
+#ifdef EXTRA_DEBUG
 		printk("hub_status_changed %x devnum %d\n", hub_status_changed, devnum);
+#endif
 		memcpy(cdev->status_req->buf, &hub_status_changed, 1);
 		cdev->status_req->length = 1;
 		if(0 && cdev->status_req->status && cdev->status_req->status != -ECONNRESET) {
@@ -1481,10 +1496,10 @@ statusSend:
 					time_in_jiffies = msecs_to_jiffies(20);
 				cdev->device_status_pending |= (1 << (devnum - 1));
 			} else {
+#ifdef EXTRA_DEBUG
 	                        if(cdev->device_clear_status_pending)
 	                                printk("cdev->device_clear_status_pending already set %x devnum %d cdev->device_status_pending %x\n",
 	                                        cdev->device_clear_status_pending, devnum, cdev->device_status_pending);
-#ifdef EXTRA_DEBUG
 				printk("portstatus:ep_q cdev->resetdone %0x devnum %d port_status %x\n",
 					cdev->resetdone, (devnum - 1), cdev->port_status[(devnum - 1)]);
 #endif
@@ -1493,10 +1508,12 @@ statusSend:
 	                        cdev->device_clear_status_pending = (1 << (devnum - 1));
 			}
 		 } else {
+#ifdef EXTRA_DEBUG
 			printk("portstatus not changed?:%d %x devnum %d device_status_pending %x resetdone 0x%x device_clear_status_pending %x\n",
 						__LINE__, cdev->port_status[(devnum - 1)], (devnum - 1), 
 						cdev->device_status_pending, cdev->resetdone, cdev->device_clear_status_pending);
 			printk("last/current status %d jiffies %lu\n", status , jiffies);
+#endif
 			cdev->device_status_pending &= ~(1 << (devnum - 1));
 		 }
 	 }
@@ -1570,7 +1587,7 @@ static struct usb_gadget_driver ast_hub_driver = {
         .suspend        = ast_hub_suspend,
         .resume         = ast_hub_resume,
         .driver = {
-	  .name		= (char *) "Pilot4 Usb Hub",
+	  .name		= (char *) "Aspeed Usb Hub",
 	  .owner          = THIS_MODULE,
         },
 };
@@ -1660,8 +1677,10 @@ void set_address_rcvd(int devnum, struct usb_gadget *gadget)
 	struct usb_hub_dev        *cdev = get_gadget_data(gadget);
 	unsigned long flags;
 	devnum -= 1;
+#ifdef EXTRA_DEBUG
 	printk("Hub:set_address_rcvd for dev %d connect_pending %x reset_in_progress %x\n", 
 		devnum, cdev->connect_pending, cdev->reset_in_progress);
+#endif
 	spin_lock_irqsave(&cdev->lock, flags);
 	cdev->reset_in_progress &= ~(1 << devnum);
 	spin_unlock_irqrestore(&cdev->lock, flags);
@@ -1672,7 +1691,9 @@ static void ast_check_set_address(struct usb_gadget *gadget)
 {
 	struct usb_hub_dev        *cdev = get_gadget_data(gadget);
 	extern int get_far(int );
+#ifdef EXTRA_DEBUG
 	printk("ast_check_set_address cdev->reset_in_progress %x\n", cdev->reset_in_progress);
+#endif
 	if(cdev->reset_in_progress) {
 		int reset_devnum = ffs(cdev->reset_in_progress);
 		int far = get_far(reset_devnum);
