@@ -101,7 +101,7 @@ config AST_JPEG
 	help
 	  Driver for JPEG Controller
 
-config AST_JTAG
+config ASPEED_JTAG
 	tristate "ASPEED JTAG Controller"
 	default n
 	help
