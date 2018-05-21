@@ -477,7 +477,7 @@ static int ast_udc_ep_enable(struct usb_ep *_ep,
 		printk("bogus device state\n");
 		//return -ESHUTDOWN;
 	}
-	printk("Enable:ep_pool_num %d dev %d ep_to_udc[%d] %p udc %p ep_reg %p ep %p %p %p\n",
+	UDC_DBG("Enable:ep_pool_num %d dev %d ep_to_udc[%d] %p udc %p ep_reg %p ep %p %p %p\n",
 		ep->ep_pool_num, udc->dev_num, num, ep_to_udc[num], udc, ep->ep_reg, ep, &udc->ep[ep->ep_pool_num], &udc->ep[ep->ep_pool_num + 1]);
 	spin_lock_irqsave(&udc->lock, flags);
 	ep_to_udc[num] = udc;
@@ -575,7 +575,7 @@ ast_udc_ep_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 		return NULL;
 	}
 	INIT_LIST_HEAD(&req->queue);
-	printk("%s %d\n", __FUNCTION__, __LINE__);
+	UDC_DBG("%s %d\n", __FUNCTION__, __LINE__);
 	return &req->req;
 }
 
@@ -618,7 +618,7 @@ static void ast_udc_ep_dma(struct ast_udc_ep *ep, struct ast_udc_request *req)
 #endif
 
 #if 1
-	if(tx_len > 1024) printk("*************************************************8\n");
+	if(tx_len > 1024) UDC_DBG("*************************************************8\n");
 	EP_DBG("dma: %s : len : %d dir %x ep_reg %p\n", ep->ep.name, tx_len, ep->ep_dir, ep->ep_reg);
 #ifdef DMA_LIST_MODE
 	if(1 || req->req.length > 512)
@@ -769,8 +769,8 @@ static void ast_udc_dev_ep0_queue(struct ast_udc_ep *ep, struct ast_udc_request 
 #endif
 		req->req.actual += tx_len;		
 		if(req->req.zero && req->req.length == 0) {
-                        printk("IN::req->req.zero is set and req->req.length is 0? dev %d\n", udc->dev_num);
-			printk("type : %x, req : %x, val : %x, idx: %x, len : %d  \n", 
+                        UDC_DBG("IN::req->req.zero is set and req->req.length is 0? dev %d\n", udc->dev_num);
+			UDC_DBG("type : %x, req : %x, val : %x, idx: %x, len : %d  \n", 
 				udc->root_setup->bRequestType, 
 				udc->root_setup->bRequest, 
 				udc->root_setup->wValue,
@@ -822,7 +822,7 @@ static int ast_udc_dev_ep_queue(struct usb_ep *_ep,
 #ifndef AUTO_REMOTE_WAKEUP
                 u32 temp;
 #endif
-		printk("Dev Initiate Remote wakeup dev_num %d\n", udc->dev_num);
+		UDC_DBG("Dev Initiate Remote wakeup dev_num %d\n", udc->dev_num);
 #ifndef AUTO_REMOTE_WAKEUP
                 temp = ast_udc_read(udc, AST_VHUB_CTRL);
                 temp |= (1 << 4);
@@ -832,7 +832,7 @@ static int ast_udc_dev_ep_queue(struct usb_ep *_ep,
 	}
 
 	if(ep->stopped) {
-		printk("%s : is stop \n", _ep->name);
+		UDC_DBG("%s : is stop \n", _ep->name);
 		return 1;
 	}
 	EP_DBG("%s : len : %d ep->ep_dir %d\n", _ep->name, _req->length, ep->ep_dir);
@@ -899,7 +899,7 @@ static int ast_udc_ep_queue(struct usb_ep *_ep,
 #ifndef AUTO_REMOTE_WAKEUP
 		u32 temp;
 #endif
-		printk("Hub Initiating Remote wakeup\n");
+		UDC_DBG("Hub Initiating Remote wakeup\n");
 #ifndef AUTO_REMOTE_WAKEUP
 		temp = ast_udc_read(udc, AST_VHUB_CTRL);
 		temp |= (1 << 4);
@@ -940,7 +940,7 @@ static int ast_udc_ep_queue(struct usb_ep *_ep,
 			//ast_udc_ep_dma(ep, req);
 			//ast_ep_write(ep, _req->length << 16, AST_EP_DMA_STS);
 			ast_udc_write(udc, *(u8*)_req->buf, AST_VHUB_EP1_STS_CHG);
-			printk("wrote status change AST_VHUB_EP1_STS_CHG %x\n",ast_udc_read(udc, AST_VHUB_EP1_STS_CHG)); 
+			UDC_DBG("wrote status change AST_VHUB_EP1_STS_CHG %x\n",ast_udc_read(udc, AST_VHUB_EP1_STS_CHG)); 
 		} else {
 //			printk("%s just add req %x buf %x \n", ep->ep.name, req, req->req.buf);
 		}
@@ -998,7 +998,7 @@ static int ast_udc_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
         ast_udc_write(udc, ep->ep_pool_num, AST_VHUB_EP_DATA);
         ast_udc_write(udc, ep->ep_pool_num | (data_toggle << 8), AST_VHUB_EP_DATA);
         ep_conf = ast_ep_read(ep, AST_EP_CONFIG);
-        printk("DQ:ep_conf %x AST_EP_DMA_CTRL %x AST_EP_DMA_STS %x AST_VHUB_EP1_CTRL %x AST_VHUB_EP1_STS_CHG %x data_toggle %x epnum %d\n",
+        UDC_DBG("DQ:ep_conf %x AST_EP_DMA_CTRL %x AST_EP_DMA_STS %x AST_VHUB_EP1_CTRL %x AST_VHUB_EP1_STS_CHG %x data_toggle %x epnum %d\n",
                 ep_conf, ast_ep_read(ep, AST_EP_DMA_CTRL), ast_ep_read(ep, AST_EP_DMA_STS),ast_udc_read(udc, AST_VHUB_EP1_CTRL), ast_udc_read(udc,AST_VHUB_EP1_STS_CHG),
                 data_toggle, ep->ep_pool_num);
         ast_udc_done(ep, req, -ESHUTDOWN);
@@ -1051,7 +1051,7 @@ static int ast_udc_ep_set_halt(struct usb_ep *_ep, int value)
 		printk("ast_udc_ep_set_halt _ep NULL?\n");
 		return -EINVAL;
 	}
-	printk("%s : %d\n", _ep->name, value);
+	UDC_DBG("%s : %d\n", _ep->name, value);
 
 	spin_lock_irqsave(&udc->lock, flags);
 	if(!list_empty(&ep->queue)) {
@@ -1070,7 +1070,7 @@ static int ast_udc_ep_set_halt(struct usb_ep *_ep, int value)
 			ast_ep_write(ep, ast_ep_read(ep, AST_EP_CONFIG) | EP_SET_EP_STALL, AST_EP_CONFIG);
 		} else {
 			ast_ep_write(ep, ast_ep_read(ep, AST_EP_CONFIG) & ~EP_SET_EP_STALL, AST_EP_CONFIG);
-			printk("Clear Stall for eppool %d ep %p %p\n", ep->ep_pool_num, &udc->ep[ep->ep_pool_num + 1],ep);
+			UDC_DBG("Clear Stall for eppool %d ep %p %p\n", ep->ep_pool_num, &udc->ep[ep->ep_pool_num + 1],ep);
 			ast_udc_write(udc, (ep->ep_pool_num - 1), AST_VHUB_EP_DATA);
  		}
 	}
@@ -1227,7 +1227,7 @@ void ast_dev_udc_ep0_out(struct ast_udc *udc)
 	
 	if((rx_len < ep->ep.maxpacket) || (req->req.actual == req->req.length)) {
 		if(req->zero && (req->req.actual % ep->ep.maxpacket) == 0) {
-			printk("SENDING ZLP ep->status_phase %d\n", ep->status_phase);
+			UDC_DBG("SENDING ZLP ep->status_phase %d\n", ep->status_phase);
 			ast_dev_udc_ep0_rx(udc);
 			req->zero = 0;
 			return;
@@ -1243,7 +1243,7 @@ void ast_dev_udc_ep0_out(struct ast_udc *udc)
 			int i =0;
 			//printk("%x \n", ast_udc_read(udc, AST_VHUB_EP0_CTRL));
 			for(i = 0; i < 0; i++) {
-				printk("%x ", buf[i]);
+				UDC_DBG("%x ", buf[i]);
 			}
 			//printk("\n");
 
@@ -1318,7 +1318,7 @@ void ast_dev_udc_ep0_in(struct ast_udc *udc)
 #endif
 	if(ep->status_phase || req->req.length == req->req.actual) {
 		if(req->zero && (req->req.actual % ep->ep.maxpacket) == 0) {
-			printk("Sending ZLP ep->status_phase %d\n", ep->status_phase);
+			UDC_DBG("Sending ZLP ep->status_phase %d\n", ep->status_phase);
 			ast_dev_udc_ep0_tx(udc);
 			req->zero = 0;
 			return;
@@ -1532,7 +1532,7 @@ void ast_udc_setup_handle(struct ast_udc *udc)
 	ctrl = udc->root_setup;
 	switch(udc->root_setup->bRequest) {
 		case USB_REQ_SET_ADDRESS:
-			printk("udc->driver->setaddr %d\n", udc->dev_num);
+			UDC_DBG("udc->driver->setaddr %d\n", udc->dev_num);
 				if (ast_udc_read(udc, AST_VHUB_USB_STS) & (0x1 << 27))
 					udc->gadget.speed = USB_SPEED_HIGH;
 				else
@@ -1550,14 +1550,14 @@ void ast_udc_setup_handle(struct ast_udc *udc)
 					dev00 |= (udc->root_setup->wValue << 8);
 					ast_dev_udc_write(udc, dev00, 0); 
 					ast_dev_udc_write(udc, EP0_TX_BUFF_RDY, 0x8);//DEV08
-					printk("Dev set adress done\n");
+					UDC_DBG("Dev set adress done\n");
 					driver_delegate = 0;
 				}
 				break;
 		case USB_REQ_CLEAR_FEATURE:
 			if(udc->root_setup->bRequestType == (USB_TYPE_STANDARD|USB_RECIP_DEVICE) && udc->root_setup->wValue == USB_DEVICE_REMOTE_WAKEUP) {
                                 u32 temp;
-				printk("USB_DEVICE_REMOTE_WAKEUP clear\n");
+				UDC_DBG("USB_DEVICE_REMOTE_WAKEUP clear\n");
                                 temp = ast_udc_read(udc, AST_VHUB_CTRL);
                                 temp &= ~(1 << 3);
                                 ast_udc_write(udc, temp, AST_VHUB_CTRL);
@@ -1568,19 +1568,19 @@ void ast_udc_setup_handle(struct ast_udc *udc)
 				goto delegate;
 			if (udc->root_setup->wValue != USB_ENDPOINT_HALT
 					|| udc->root_setup->wLength != 0){
-				printk("Invalid clear feature req wValue %d ctrl->wIndex 0x%x\n",
+				UDC_DBG("Invalid clear feature req wValue %d ctrl->wIndex 0x%x\n",
 						udc->root_setup->wValue, udc->root_setup->wIndex);
 				goto do_stall;
 			}
-			printk("ClearFeatureHalt:type : %x, req : %x, val : %x, idx: %x, len : %d dev08 %x \n", 
+			UDC_DBG("ClearFeatureHalt:type : %x, req : %x, val : %x, idx: %x, len : %d dev08 %x \n", 
 				udc->root_setup->bRequestType, 
 				udc->root_setup->bRequest, 
 				udc->root_setup->wValue,
 				udc->root_setup->wIndex,
 				udc->root_setup->wLength, ast_dev_udc_read(udc, 0x8));
 			ep_num = udc->root_setup->wIndex & 0xf;
-			printk("Clear Stall for eppool %d ep %p %p\n", udc->ep[ep_num].ep_pool_num, &udc->ep[ep_num], &udc->ep[udc->ep[ep_num].ep_pool_num + 1]);
-			printk("ep_dir %x bEndpointAddress %x name %s AST_EP_CONFIG %x\n",udc->ep[ep_num].ep_dir, udc->ep[ep_num].desc->bEndpointAddress, udc->ep[ep_num].ep.name,
+			UDC_DBG("Clear Stall for eppool %d ep %p %p\n", udc->ep[ep_num].ep_pool_num, &udc->ep[ep_num], &udc->ep[udc->ep[ep_num].ep_pool_num + 1]);
+			UDC_DBG("ep_dir %x bEndpointAddress %x name %s AST_EP_CONFIG %x\n",udc->ep[ep_num].ep_dir, udc->ep[ep_num].desc->bEndpointAddress, udc->ep[ep_num].ep.name,
 				ast_ep_read(&udc->ep[ep_num], AST_EP_CONFIG));
 			ast_udc_write(udc, (ep_num - 1), AST_VHUB_EP_DATA);
 			ast_ep_write(&udc->ep[ep_num], ast_ep_read(&udc->ep[ep_num], AST_EP_CONFIG) & ~EP_SET_EP_STALL, AST_EP_CONFIG);
@@ -1592,9 +1592,9 @@ finish_status:
 			driver_delegate = 0;
 			break;
 			case USB_REQ_SET_FEATURE:
-				printk("USB_REQ_SET_FEATURE ep-%d\n", udc->root_setup->wIndex & USB_ENDPOINT_NUMBER_MASK);
+				UDC_DBG("USB_REQ_SET_FEATURE ep-%d\n", udc->root_setup->wIndex & USB_ENDPOINT_NUMBER_MASK);
 				if(udc->root_setup->bRequestType == (USB_TYPE_STANDARD|USB_RECIP_DEVICE) && udc->root_setup->wValue == USB_DEVICE_REMOTE_WAKEUP) {
-					printk("USB_DEVICE_REMOTE_WAKEUP set\n");
+					UDC_DBG("USB_DEVICE_REMOTE_WAKEUP set\n");
 					hub_remote_wakeup_set = 1;
 					if(IS_HUB(udc))
 						ast_udc_write(udc, EP0_TX_BUFF_RDY, AST_VHUB_EP0_CTRL);
@@ -1606,11 +1606,11 @@ finish_status:
 					goto delegate;
 				if (ctrl->wValue != USB_ENDPOINT_HALT
 						|| ctrl->wLength != 0){
-					printk("Invalid set feature req wValue %d ctrl->wIndex 0x%x\n",
+					UDC_DBG("Invalid set feature req wValue %d ctrl->wIndex 0x%x\n",
 							ctrl->wValue, ctrl->wIndex);
 					goto do_stall;
 				}
-			printk("SetFeature Halt:type : %x, req : %x, val : %x, idx: %x, len : %d dev08 %x \n", 
+			UDC_DBG("SetFeature Halt:type : %x, req : %x, val : %x, idx: %x, len : %d dev08 %x \n", 
 				udc->root_setup->bRequestType, 
 				udc->root_setup->bRequest, 
 				udc->root_setup->wValue,
@@ -1623,7 +1623,7 @@ finish_status:
 			if (ctrl->bRequestType != (USB_DIR_IN|USB_RECIP_ENDPOINT))
 				goto delegate;
 
-			printk("USB_REQ_GET_STATUS req wValue %d ctrl->wIndex 0x%x\n",
+			UDC_DBG("USB_REQ_GET_STATUS req wValue %d ctrl->wIndex 0x%x\n",
 				ctrl->wValue, ctrl->wIndex);
 			/* ep0 never stalls */
 			if (!(ctrl->wIndex & 0xf)) {
@@ -1651,7 +1651,7 @@ do_stall:
 		udc->root_setup->wValue,
 		udc->root_setup->wIndex,
 		udc->root_setup->wLength);
-		printk("ast_dev_udc_read(dev_udc, 0) %x dev_reg %p AST_VHUB_CTRL %x\n", ast_dev_udc_read(udc, 0),udc->dev_reg, ast_udc_read(root_udc, AST_VHUB_CTRL));
+		UDC_DBG("ast_dev_udc_read(dev_udc, 0) %x dev_reg %p AST_VHUB_CTRL %x\n", ast_dev_udc_read(udc, 0),udc->dev_reg, ast_udc_read(root_udc, AST_VHUB_CTRL));
 	}
 	spin_lock(&udc->lock);
 	
@@ -1678,7 +1678,7 @@ static int device_irq(struct ast_udc *udc)
 				ast_dev_udc_ep0_out(udc);
 				break;
 			}
-			printk("ast_dev_udc_read(udc, 0x8) %x\n", ast_dev_udc_read(udc, 0x8));
+			UDC_DBG("ast_dev_udc_read(udc, 0x8) %x\n", ast_dev_udc_read(udc, 0x8));
 			mdelay(100);
 		}
 	}
@@ -1775,17 +1775,17 @@ static irqreturn_t ast_udc_irq (int irq, void *data)
 	}
 
 	if(isr & ISR_DEVICE3) {
-		printk("ISR_DEVICE3 \n");
+		ISR_DBG("ISR_DEVICE3 \n");
 		device_irq(udc + 3);
 	}
 
 	if(isr & ISR_DEVICE4) {
-		printk("ISR_DEVICE4 \n");
+		ISR_DBG("ISR_DEVICE4 \n");
 		device_irq(udc + 4);
 	}
 
 	if(isr & ISR_DEVICE5) {
-		printk("ISR_DEVICE5 \n");
+		ISR_DBG("ISR_DEVICE5 \n");
 		device_irq(udc + 5);
 	}
 	spin_lock(&udc->lock);
@@ -1814,7 +1814,7 @@ static irqreturn_t ast_udc_irq (int irq, void *data)
 #endif
 		//Suspend, we don't handle this in sample
 		BUS_DBG("ISR_BUS_SUSPEND \n");
-		printk("Suspend hub_remote_wakeup_set %d\n", hub_remote_wakeup_set);
+		BUS_DBG("Suspend hub_remote_wakeup_set %d\n", hub_remote_wakeup_set);
 		ast_udc_write(udc, ISR_BUS_SUSPEND, AST_VHUB_ISR);
 #ifdef AUTO_REMOTE_WAKEUP
 		if(hub_remote_wakeup_set) {
@@ -1862,7 +1862,7 @@ static int ast_dev_udc_pullup(struct usb_gadget *gadget, int is_on)
 	struct ast_udc	*udc = container_of(gadget, struct ast_udc, gadget);
 
 	UDC_DBG("dev %d on %d\n", udc->dev_num, is_on);
-	printk("pullup dev %d on %d\n", udc->dev_num, is_on);
+	UDC_DBG("pullup dev %d on %d\n", udc->dev_num, is_on);
 	if(is_on) {
 		hub_device_connect_disconnect(udc->dev_num, &root_udc->gadget, 1);
 	} else {
@@ -1896,7 +1896,7 @@ int is_ep_free(struct usb_gadget *gadget, struct usb_ep *_ep)
 	struct ast_udc_ep	*ep = container_of(_ep, struct ast_udc_ep, ep);
 	if (isdigit (_ep->name [2]))
 		num = simple_strtoul (&_ep->name [2], NULL, 10);
-	printk("is_ep_free %s num %d ep_pool_num %d free %p ep %p\n", _ep->name, num, ep->ep_pool_num, ep_to_udc[num], ep);
+	UDC_DBG("is_ep_free %s num %d ep_pool_num %d free %p ep %p\n", _ep->name, num, ep->ep_pool_num, ep_to_udc[num], ep);
 	if(!ep_to_udc[num]) {
 		return 1;
 	}
@@ -1912,7 +1912,7 @@ void mark_ep(struct usb_gadget *gadget, struct usb_ep *_ep, int used)
 	if (isdigit (_ep->name [2]))
 		num = simple_strtoul (&_ep->name [2], NULL, 10);
 
-	printk("Marking ep pool %d as used num %d oldudc %p udc %p ep %p\n",
+	UDC_DBG("Marking ep pool %d as used num %d oldudc %p udc %p ep %p\n",
 		ep->ep_pool_num, num, ep_to_udc[ep->ep_pool_num], udc, ep);
 	ep_to_udc[num] = udc;
 	
@@ -1931,7 +1931,7 @@ static void device_init_hw(struct ast_udc	*udc)
 	u32 temp;
 	ast_dev_udc_write(udc, 0xff, 4);
 	ast_dev_udc_write(udc, (1<<2) | (1 << 3) | (1 << 5) | 0, 0);//DEV00
-	printk("DEV00 %x\n", ast_dev_udc_read(udc, 0));
+	UDC_DBG("DEV00 %x\n", ast_dev_udc_read(udc, 0));
 	temp = ast_udc_read(udc, AST_VHUB_IER);
 	temp = temp | (1 << (9 + udc->dev_num));
 	ast_udc_write(udc, temp, AST_VHUB_IER);
@@ -1942,7 +1942,7 @@ static void device_deinit_hw(struct ast_udc	*udc)
 	u32 temp;
 	ast_dev_udc_write(udc, 0, 0);//DEV00 Disable device
 	ast_dev_udc_write(udc, 0xff, 4);
-	printk("DEV00 %x\n", ast_dev_udc_read(udc, 0));
+	UDC_DBG("DEV00 %x\n", ast_dev_udc_read(udc, 0));
 	temp = ast_udc_read(udc, AST_VHUB_IER);
 	temp = temp & ~(1 << (9 + udc->dev_num));
 	ast_udc_write(udc, temp, AST_VHUB_IER);
@@ -1968,7 +1968,7 @@ static int ast_dev_udc_start(struct usb_gadget *gadget,
 		return -EINVAL;
 	}
 	spin_lock_irqsave(&udc->lock, flags);
-	printk("dev udcstart %d dev_reg %p udc %p\n", udc->dev_num, udc->dev_reg, udc);
+	UDC_DBG("dev udcstart %d dev_reg %p udc %p\n", udc->dev_num, udc->dev_reg, udc);
 	/* hook up the driver */
 	driver->driver.bus = NULL;
 	udc->driver = driver;
@@ -2003,17 +2003,17 @@ static int ast_dev_udc_stop(struct usb_gadget *gadget)
 	struct ast_udc *udc = container_of(gadget, struct ast_udc, gadget);
 	unsigned long	flags;
 	int i = 0;
-	printk("ast_dev_udc_stop udc->dev_num %d\n", udc->dev_num);
+	UDC_DBG("ast_dev_udc_stop udc->dev_num %d\n", udc->dev_num);
 	udc->stopping = 1;
 	spin_lock_irqsave(&udc->lock, flags);
 	udc->stopping = 1;
-	printk("ast_dev_udc_stop1 udc->dev_num %d\n", udc->dev_num);
+	UDC_DBG("ast_dev_udc_stop1 udc->dev_num %d\n", udc->dev_num);
 	device_deinit_hw(udc);
 	ast_udc_write(udc, (1 << (udc->dev_num + 1)), AST_VHUB_DEV_RESET);
 	ast_udc_write(udc, 0, AST_VHUB_DEV_RESET);
-	printk("%s %d\n", __FUNCTION__, __LINE__);
+	UDC_DBG("%s %d\n", __FUNCTION__, __LINE__);
 	ast_dev_udc_stop_activity(udc, 0);
-	printk("%s %d\n", __FUNCTION__, __LINE__);
+	UDC_DBG("%s %d\n", __FUNCTION__, __LINE__);
 	udc->driver = NULL;
 	for(i = 0 ;i < AST_NUM_ENDPOINTS;i++) {
 		if(ep_to_udc[i] == udc) {
@@ -2023,7 +2023,7 @@ static int ast_dev_udc_stop(struct usb_gadget *gadget)
 			ep_to_udc[i] = NULL;
 		}
 	}
-	printk("ast_dev_udc_stopdone  udc->dev_num %d\n", udc->dev_num);
+	UDC_DBG("ast_dev_udc_stopdone  udc->dev_num %d\n", udc->dev_num);
 	udc->stopping = 0;
 	spin_unlock_irqrestore(&udc->lock, flags);
 	return 0;
@@ -2114,21 +2114,21 @@ int handle_host_resume(int devnum, struct usb_gadget *gadget)
 	struct ast_udc *dev_udc;
         u32 val;
 
-#ifdef PILOT_USB_DEV_SPEED
+#ifdef ASPEED_USB_DEV_SPEED
 #define HIGH_SPEED 0x80
 #define FULL_SPEED 0x0
 #endif
-#ifdef PILOT_USB_DEV_SPEED
+#ifdef ASPEED_USB_DEV_SPEED
 	val = (hub_speed == USB_SPEED_HIGH)?HIGH_SPEED:0;
 	val |= HOST_RESUME;
         //speed detection bit is Bit7 this is readonly for devices
-	printk("handle_host_resume dev %d val %d\n", devnum, val);
+	UDC_DBG("handle_host_resume dev %d val %d\n", devnum, val);
 #else
 	val = HOST_RESUME;
         //speed detection bit is Bit7 this is readonly for devices
-	printk("handle_host_resume dev %d val %d\n", devnum, val);
+	UDC_DBG("handle_host_resume dev %d val %d\n", devnum, val);
 	dev_udc = root_udc;
-	printk("%s devnum %d\n", __FUNCTION__, devnum);
+	UDC_DBG("%s devnum %d\n", __FUNCTION__, devnum);
 	dev_udc = dev_udc  + 1 + devnum;
 	dev_udc->soft_irq_status |= HOST_RESUME;
 	tasklet_schedule(&dev_udc->udc_tasklet);
@@ -2141,7 +2141,7 @@ int handle_port_reset(int devnum, struct usb_gadget *gadget)
 	struct ast_udc *dev_udc;
 	u32 temp;
 	dev_udc = root_udc;
-	printk("%s devnum %d\n", __FUNCTION__, devnum);
+	UDC_DBG("%s devnum %d\n", __FUNCTION__, devnum);
 	dev_udc = dev_udc  + 1 + devnum;
 	dev_udc->soft_irq_status |= DEV_PORT_RESET;
 	temp = ast_dev_udc_read(dev_udc, 0);
@@ -2156,11 +2156,11 @@ int handle_port_suspend(int devnum, struct usb_gadget *gadget)
 {
 	struct ast_udc *dev_udc;
 	dev_udc = root_udc;
-	printk("%s devnum %d\n", __FUNCTION__, devnum);
+	UDC_DBG("%s devnum %d\n", __FUNCTION__, devnum);
 	dev_udc = dev_udc  + 1 + devnum;
 	dev_udc->soft_irq_status |= DEV_PORT_SUSPEND;
 	tasklet_schedule(&dev_udc->udc_tasklet);
-	printk("handle_port_suspend dev %d\n", devnum);
+	UDC_DBG("handle_port_suspend dev %d\n", devnum);
 	return 0;
 }
 
@@ -2176,7 +2176,7 @@ int get_far(int devnum)
 	}
 	temp = ast_dev_udc_read(dev_udc, 0);
 	temp = temp >> 8;
-	printk("%s!devnum %d far %x\n", __FUNCTION__, devnum, (temp & 0x7f));
+	UDC_DBG("%s!devnum %d far %x\n", __FUNCTION__, devnum, (temp & 0x7f));
 	//mdelay(10000);
 	return (temp & 0x7f);
 }
@@ -2192,7 +2192,7 @@ void port_enable(int devnum, struct usb_gadget *gadget)
 		panic("%s devnum %d > NUM_PORTS\n", __FUNCTION__, devnum);
 	}
 	for(i = 0; i < NUM_PORTS;i++) {
-		printk("port_enable dev_udc %p devnum %d dev_udc->dev_num %d\n", dev_udc, devnum, dev_udc->dev_num);
+		UDC_DBG("port_enable dev_udc %p devnum %d dev_udc->dev_num %d\n", dev_udc, devnum, dev_udc->dev_num);
 		if(dev_udc->dev_num == devnum)
 			break;
 		dev_udc++;
@@ -2203,7 +2203,7 @@ void port_enable(int devnum, struct usb_gadget *gadget)
 	ast_dev_udc_write(dev_udc, temp, 0);//DEV00
 	temp = temp | ( 1 << 1) | 1;//High speed and device enable
 	ast_dev_udc_write(dev_udc, temp, 0);//DEV00
-	printk("ast_dev_udc_read(dev_udc, 0) %x dev_reg %p AST_VHUB_CTRL %x\n", ast_dev_udc_read(dev_udc, 0),dev_udc->dev_reg, ast_udc_read(root_udc, AST_VHUB_CTRL));
+	UDC_DBG("ast_dev_udc_read(dev_udc, 0) %x dev_reg %p AST_VHUB_CTRL %x\n", ast_dev_udc_read(dev_udc, 0),dev_udc->dev_reg, ast_udc_read(root_udc, AST_VHUB_CTRL));
 }
 
 void port_disable(int devnum, struct usb_gadget *gadget)
@@ -2214,7 +2214,7 @@ void port_disable(int devnum, struct usb_gadget *gadget)
 	dev_udc = root_udc;
 	dev_udc++;
 	for(i = 0; i < NUM_PORTS;i++) {
-		printk("port_disable dev_udc %p devnum %d dev_udc->dev_num %d\n", dev_udc, devnum, dev_udc->dev_num);
+		//printk("port_disable dev_udc %p devnum %d dev_udc->dev_num %d\n", dev_udc, devnum, dev_udc->dev_num);
 		if(dev_udc->dev_num == devnum)
 			break;
 		dev_udc++;
@@ -2264,7 +2264,7 @@ static void dev_soft_irq(unsigned long data)
 	if(udc->soft_irq_status & HOST_RESUME) {
 		udc->soft_irq_status &= ~(HOST_RESUME);
 		spin_unlock_irqrestore(&udc->lock, flags);
-		printk("dev %d resume\n", udc->dev_num);
+		UDC_DBG("dev %d resume\n", udc->dev_num);
 		if (udc->driver && udc->driver->resume) {
 			udc->driver->resume(&udc->gadget);
 		}
@@ -2274,7 +2274,7 @@ static void dev_soft_irq(unsigned long data)
 	if(udc->soft_irq_status & DEV_PORT_SUSPEND) {
 		udc->soft_irq_status &= ~(DEV_PORT_SUSPEND);
 		spin_unlock_irqrestore(&udc->lock, flags);
-		printk("dev %d suspends\n", udc->dev_num);
+		UDC_DBG("dev %d suspends\n", udc->dev_num);
 		if (udc->driver && udc->driver->suspend) {
 			udc->driver->suspend(&udc->gadget);
 		}
@@ -2304,7 +2304,7 @@ static int ast_udc_probe(struct platform_device *pdev)
 #endif
 
 	UDC_DBG(" \n");
-	printk("\nast_udc_probe!!\n");
+	UDC_DBG("\nast_udc_probe!!\n");
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		pr_err("platform_get_resource error.\n");
@@ -2358,7 +2358,7 @@ static int ast_udc_probe(struct platform_device *pdev)
         if(ip) {
                 use_list_mode = be32_to_cpu(*ip);
         }
-        printk("USB HUB use_list_mode %d len %d\n", use_list_mode, len);
+        UDC_DBG("USB HUB use_list_mode %d len %d\n", use_list_mode, len);
 #endif
 
 	//1024 * 16
@@ -2370,11 +2370,11 @@ static int ast_udc_probe(struct platform_device *pdev)
 					SZ_4K, &dma_desc_dma, GFP_KERNEL);
 	}
 #endif
-	printk("Hub udc->gadget %p\n", &udc->gadget);	
+	UDC_DBG("Hub udc->gadget %p\n", &udc->gadget);	
 	tasklet_init(&udc->udc_tasklet, dev_soft_irq, (unsigned long)udc);
 	for(i = 0;i < NUM_PORTS;i++) {
 		dev_udc->dev_num = i;
-		printk("dev_udc->gadget %p\n", &dev_udc->gadget);
+		UDC_DBG("dev_udc->gadget %p\n", &dev_udc->gadget);
 		dev_udc->irq = udc->irq;
 		dev_udc->reg = udc->reg;
 		dev_udc->dev_reg = udc->reg + 0x100 + ( i *16);
@@ -2414,7 +2414,7 @@ static int ast_udc_probe(struct platform_device *pdev)
 			ep->ep_reg = 0;
 			usb_ep_set_maxpacket_limit(&ep->ep, 64);		
 		}
-		printk("%s : maxpacket  %d, dma: %x \n ", ep->ep.name, ep->ep.maxpacket, ep->ep_dma);
+		UDC_DBG("%s : maxpacket  %d, dma: %x \n ", ep->ep.name, ep->ep.maxpacket, ep->ep_dma);
 		
 		if(i) 
 			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
@@ -2465,7 +2465,7 @@ static int ast_udc_probe(struct platform_device *pdev)
 				ep->ep.caps.type_control = true;
 				usb_ep_set_maxpacket_limit(&ep->ep, 64);
 			}
-			printk("%s : maxpacket  %d, dma: %x ep %p\n ", ep->ep.name, ep->ep.maxpacket, ep->ep_dma, &ep->ep);
+			UDC_DBG("%s : maxpacket  %d, dma: %x ep %p\n ", ep->ep.name, ep->ep.maxpacket, ep->ep_dma, &ep->ep);
 			
 			if(i) 
 				list_add_tail(&ep->ep.ep_list, &dev_udc->gadget.ep_list);
@@ -2494,7 +2494,7 @@ static int ast_udc_probe(struct platform_device *pdev)
 	dev_udc = udc;
 	dev_udc++;
 	for(j = 0;j < NUM_PORTS;j++) {
-		printk("add dev %d udc dev %d dev_udc %p kobj name %s\n", j, dev_udc->dev_num,dev_udc, kobject_name(&virt_dev[j].kobj));
+		UDC_DBG("add dev %d udc dev %d dev_udc %p kobj name %s\n", j, dev_udc->dev_num,dev_udc, kobject_name(&virt_dev[j].kobj));
 		ret = usb_add_gadget_udc(&virt_dev[j], &dev_udc->gadget);
 		if (ret) {
 			printk("Add udc for dev %dfailed ret %d\n", j + 1, ret);
