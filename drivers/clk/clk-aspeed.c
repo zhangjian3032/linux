@@ -14,7 +14,7 @@
 
 #include <dt-bindings/clock/aspeed-clock.h>
 
-#define ASPEED_NUM_CLKS		36
+#define ASPEED_NUM_CLKS		37
 
 #define ASPEED_RESET2_OFFSET	32
 
@@ -644,6 +644,12 @@ else
 		return PTR_ERR(hw);
 	aspeed_clk_data->hws[ASPEED_CLK_BCLK] = hw;
 
+	/* Fixed 24MHz clock */
+	hw = clk_hw_register_fixed_rate(NULL, "fixed-24m", "clkin", 0, 24000000);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	aspeed_clk_data->hws[ASPEED_CLK_24M] = hw;
+
 	/*
 	 * TODO: There are a number of clocks that not included in this driver
 	 * as more information is required:
@@ -655,6 +661,7 @@ else
 	 *   UART[1..5] clock source mux
 	 *   Video Engine (ECLK) mux and clock divider
 	 */
+
 	for (i = 0; i < ARRAY_SIZE(aspeed_gates); i++) {
 		const struct aspeed_gate_data *gd = &aspeed_gates[i];
 		u32 gate_flags;
@@ -807,7 +814,6 @@ static void __init aspeed_cc_init(struct device_node *np)
 	if (!aspeed_clk_data)
 		return;
 
-	
 	/*
 	 * This way all clocks fetched before the platform device probes,
 	 * except those we assign here for early use, will be deferred.
