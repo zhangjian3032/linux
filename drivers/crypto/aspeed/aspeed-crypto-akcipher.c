@@ -54,7 +54,18 @@
 #include <linux/timer.h>
 #include "aspeed-crypto.h"
 
-//#define ASPEED_RSA_DEBUG 
+#include <linux/module.h>
+#include <crypto/internal/rsa.h>
+#include <crypto/internal/akcipher.h>
+#include <crypto/akcipher.h>
+#include <crypto/kpp.h>
+#include <crypto/internal/kpp.h>
+#include <crypto/dh.h>
+#include <linux/dma-mapping.h>
+#include <linux/fips.h>
+#include <crypto/scatterwalk.h>
+
+#define ASPEED_RSA_DEBUG 
 
 #ifdef ASPEED_RSA_DEBUG
 //#define RSA_DBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
@@ -253,9 +264,12 @@ int aspeed_register_akcipher_algs(struct aspeed_crypto_dev *crypto_dev)
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_akcipher_algs); i++) {
 		aspeed_akcipher_algs[i].crypto_dev = crypto_dev;
-		err = crypto_register_ahash(&aspeed_akcipher_algs[i].alg.akcipher);
-		if (err)
+		err = crypto_register_akcipher(&aspeed_akcipher_algs[i].alg.akcipher);
+		if (err) {
+			RSA_DBG("--------------------- err \n");
 			return err;
+		}
 	}
+	RSA_DBG("---------------------\n");
 	return 0;
 }
