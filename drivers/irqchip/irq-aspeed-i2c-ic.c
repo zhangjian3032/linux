@@ -28,7 +28,7 @@
 #define ASPEED_I2CG_CTRL	0x0C
 
 /* 0x0C : I2CG SRAM Buffer Enable  */
-#define ASPEED_I2CG_SRAM_BUFFER_ENABLE		BIT(1)
+#define ASPEED_I2CG_SRAM_BUFFER_ENABLE		BIT(0)
 
 struct aspeed_i2c_ic {
 	void __iomem		*base;
@@ -134,7 +134,7 @@ static int aspeed_i2c_ic_probe(struct platform_device *pdev)
 			"missing or invalid reset controller device tree entry");
 		return PTR_ERR(i2c_ic->rst);
 	}
-	
+
 	//SCU I2C Reset 
 	reset_control_assert(i2c_ic->rst);
 	udelay(3);
