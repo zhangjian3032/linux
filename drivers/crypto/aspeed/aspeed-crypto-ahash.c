@@ -359,8 +359,7 @@ static int aspeed_sha_import(struct ahash_request *req, const void *in)
 }
 
 struct aspeed_crypto_alg aspeed_ahash_algs[] = {
-#if 0
-	{
+ 	{
 		.alg.ahash = {
 			.init		= aspeed_ahash_init,
 			.update 	= aspeed_sha_update,
@@ -480,10 +479,7 @@ struct aspeed_crypto_alg aspeed_ahash_algs[] = {
 			}
 		},
 	},
-		
-#else
-#if 0
-	{
+ 	{
 		.alg.ahash = {	
 			.init		= aspeed_ahash_init,
 			.update		= aspeed_sha_update,
@@ -545,8 +541,7 @@ struct aspeed_crypto_alg aspeed_ahash_algs[] = {
 			}
 		},
 	},
-#endif
-	{
+ 	{
 		.alg.ahash = {	
 			.init		= aspeed_ahash_init,
 			.update 	= aspeed_sha_update,
@@ -577,7 +572,6 @@ struct aspeed_crypto_alg aspeed_ahash_algs[] = {
 			}
 		},
 	},
-#if 0	
 	{
 		.alg.ahash = {	
 			.init			= aspeed_ahash_init,
@@ -609,8 +603,6 @@ struct aspeed_crypto_alg aspeed_ahash_algs[] = {
 			}
 		},
 	},
-#endif	
-#endif	
 };
 
 int aspeed_register_ahash_algs(struct aspeed_crypto_dev *crypto_dev)
