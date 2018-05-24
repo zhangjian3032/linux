@@ -8,7 +8,7 @@ menuconfig MEMORY
 if MEMORY
 
 config ASPEED_SDMC
-	depends on MACH_ASPEED_G5
+	depends on ARCH_ASPEED
 	bool "ASPEED DRAM Controller driver"
 	
 config ARM_PL172_MPMC
