@@ -4,7 +4,6 @@
 
 / {
         model = "AST2400 EVB";
-	compatible = "aspeed,ast2400-evb", "aspeed,ast2400";
 
 	aliases {
 		serial0 = &uart0;
@@ -22,14 +21,18 @@
 		i2c8 = &i2c8;
 	};
 
-        chosen {
-                bootargs = "console=ttyS0,115200 root=/dev/ram rw init=/linuxrc";
-        };
+	chosen {
+		bootargs = "console=ttyS0,115200n8 root=/dev/ram rw init=/linuxrc";
+	};
 
 };
 
 #if 0
 &ehci0 {
+	status = "disable";
+};
+
+&ehci1 {
 	status = "disable";
 };
 
@@ -42,9 +45,8 @@
 };
 #endif
 
-#if 1
 &mac0 {
-        status = "okay";
+	status = "okay";
 };
 
 &mac1 {
@@ -58,7 +60,6 @@
 &gmac1 {
 	status = "disable";
 };
-#endif
 
 &fmc_spi {
 	status = "okay";
