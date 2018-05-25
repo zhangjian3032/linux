@@ -758,6 +758,11 @@
 		groups = "DDCDAT";
 	};
 
+	pinctrl_fwspics1_default: fwspics1_default {
+		function = "FWSPICS1";
+		groups = "FWSPICS1";
+	};
+
 	pinctrl_extrst_default: extrst_default {
 		function = "EXTRST";
 		groups = "EXTRST";
