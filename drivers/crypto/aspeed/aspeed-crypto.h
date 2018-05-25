@@ -100,6 +100,7 @@ struct aspeed_cipher_ctx {
 
 struct aspeed_crypto_dev {
 	void __iomem			*regs;
+	void __iomem			*rsa_buff;
 
 	int 					irq;
 	struct clk 			*yclk;

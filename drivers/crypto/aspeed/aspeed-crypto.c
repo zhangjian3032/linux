@@ -61,6 +61,10 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/of.h>
+
 #include "aspeed-crypto.h"
 
 //#define ASPEED_CRYPTO_DEBUG
@@ -184,16 +188,18 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 				aspeed_crypto_tasklet, (unsigned long)crypto_dev);
 	crypto_init_queue(&crypto_dev->queue, 50);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "no MEM resource info\n");
-		err = -ENODEV;
-	}
-	crypto_dev->regs = devm_ioremap_resource(&pdev->dev, res);
+	crypto_dev->regs = of_iomap(pdev->dev.of_node, 0);
 	if (!(crypto_dev->regs)) {
 		dev_err(dev, "can't ioremap\n");
 		return -ENOMEM;
 	}
+
+	crypto_dev->rsa_buff = of_iomap(pdev->dev.of_node, 1);
+	if (!(crypto_dev->rsa_buff)) {
+		dev_err(dev, "can't rsa ioremap\n");
+		return -ENOMEM;
+	}
+	
 	crypto_dev->irq = platform_get_irq(pdev, 0);
 	if (!crypto_dev->irq) {
 		dev_err(&pdev->dev, "no memory/irq resource for crypto_dev\n");
