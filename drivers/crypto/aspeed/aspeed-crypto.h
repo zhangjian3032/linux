@@ -4,6 +4,8 @@
 #include <crypto/aes.h>
 #include <crypto/des.h>
 #include <crypto/algapi.h>
+#include <crypto/akcipher.h>
+
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <crypto/internal/hash.h>
@@ -100,6 +102,7 @@ struct aspeed_cipher_ctx {
 
 struct aspeed_crypto_dev {
 	void __iomem			*regs;
+	void __iomem			*rsa_buff;
 
 	int 					irq;
 	struct clk 			*yclk;
@@ -159,6 +162,7 @@ struct aspeed_crypto_alg {
 		struct crypto_alg	crypto;
 		struct ahash_alg	ahash;
 		struct kpp_alg 		kpp;
+		struct akcipher_alg akcipher;
 	} alg;
 };
 
@@ -224,6 +228,29 @@ struct aspeed_ecdh_ctx {
 	bool do_fallback;
 };
 
+/**
+ * caam_rsa_key - CAAM RSA key structure. Keys are allocated in DMA zone.
+ * @n           : RSA modulus raw byte stream
+ * @e           : RSA public exponent raw byte stream
+ * @d           : RSA private exponent raw byte stream
+ * @n_sz        : length in bytes of RSA modulus n
+ * @e_sz        : length in bytes of RSA public exponent
+ * @d_sz        : length in bytes of RSA private exponent
+ */
+struct aspeed_rsa_key {
+	u8 *n;
+	u8 *e;
+	u8 *d;
+	size_t n_sz;
+	size_t e_sz;
+	size_t d_sz;
+};
+
+struct aspeed_rsa_ctx {
+	struct aspeed_crypto_dev	*crypto_dev;
+	struct aspeed_rsa_key key;
+};
+
 static inline void
 aspeed_crypto_write(struct aspeed_crypto_dev *crypto, u32 val, u32 reg)
 {
@@ -253,6 +280,7 @@ extern int aspeed_hash_handle_queue(struct aspeed_crypto_dev *aspeed_crypto, str
 
 extern int aspeed_register_crypto_algs(struct aspeed_crypto_dev *crypto_dev);
 extern int aspeed_register_ahash_algs(struct aspeed_crypto_dev *crypto_dev);
+extern int aspeed_register_akcipher_algs(struct aspeed_crypto_dev *crypto_dev);
 
 extern int aspeed_crypto_enqueue(struct aspeed_crypto_dev *aspeed_crypto, struct ablkcipher_request *req);
 
