@@ -7,7 +7,9 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <crypto/internal/hash.h>
-
+#include <crypto/internal/kpp.h>
+#include <crypto/kpp.h>
+#include <crypto/dh.h>
 #include <crypto/md5.h>
 #include <crypto/sha.h>
 
@@ -156,6 +158,7 @@ struct aspeed_crypto_alg {
 	union {
 		struct crypto_alg	crypto;
 		struct ahash_alg	ahash;
+		struct kpp_alg 		kpp;
 	} alg;
 };
 
@@ -210,6 +213,15 @@ struct aspeed_sham_reqctx {
 	size_t 		block_size;
 
 	u8	buffer[0] __aligned(sizeof(u32));
+};
+
+struct aspeed_ecdh_ctx {
+	struct aspeed_crypto_dev	*crypto_dev;
+	struct crypto_kpp	*fallback;
+	const u8 *public_key;
+	unsigned int curve_id;
+	size_t	n_sz;
+	bool do_fallback;
 };
 
 static inline void
