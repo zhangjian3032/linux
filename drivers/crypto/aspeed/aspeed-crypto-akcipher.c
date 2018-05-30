@@ -684,10 +684,8 @@ int aspeed_register_akcipher_algs(struct aspeed_crypto_dev *crypto_dev)
 		aspeed_akcipher_algs[i].crypto_dev = crypto_dev;
 		err = crypto_register_akcipher(&aspeed_akcipher_algs[i].alg.akcipher);
 		if (err) {
-			RSA_DBG("--------------------- err \n");
 			return err;
 		}
 	}
-	RSA_DBG("---------------------\n");
 	return 0;
 }

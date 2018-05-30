@@ -97,6 +97,7 @@ struct aspeed_cipher_ctx {
 	u8			*iv;
 	int 		key_len;
 	int 		enc_cmd;
+	int			rc4_installed;
 	union {
 		u8		aes[AES_MAX_KEY_SIZE];
 		u8		des[DES_KEY_SIZE];
