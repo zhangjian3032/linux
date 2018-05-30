@@ -1,19 +1,24 @@
 #ifndef __ASPEED_CRYPTO_H__
 #define __ASPEED_CRYPTO_H__
 
+#include <linux/interrupt.h>
+#include <linux/delay.h>
+#include <linux/fips.h>
+#include <crypto/scatterwalk.h>
+#include <crypto/internal/hash.h>
+#include <crypto/internal/kpp.h>
+#include <crypto/internal/rsa.h>
+#include <crypto/internal/akcipher.h>
+#include <crypto/kpp.h>
+#include <crypto/dh.h>
 #include <crypto/aes.h>
 #include <crypto/des.h>
 #include <crypto/algapi.h>
 #include <crypto/akcipher.h>
-
-#include <linux/interrupt.h>
-#include <linux/delay.h>
-#include <crypto/internal/hash.h>
-#include <crypto/internal/kpp.h>
-#include <crypto/kpp.h>
-#include <crypto/dh.h>
 #include <crypto/md5.h>
 #include <crypto/sha.h>
+#include <crypto/ecdh.h>
+
 
 /* Crypto control registers*/
 #define ASPEED_HACE_SRC			0x00
@@ -221,11 +226,10 @@ struct aspeed_sham_reqctx {
 
 struct aspeed_ecdh_ctx {
 	struct aspeed_crypto_dev	*crypto_dev;
-	struct crypto_kpp	*fallback;
 	const u8 *public_key;
 	unsigned int curve_id;
 	size_t	n_sz;
-	bool do_fallback;
+	u8	private_key[256];
 };
 
 /**
@@ -281,7 +285,7 @@ extern int aspeed_hash_handle_queue(struct aspeed_crypto_dev *aspeed_crypto, str
 extern int aspeed_register_crypto_algs(struct aspeed_crypto_dev *crypto_dev);
 extern int aspeed_register_ahash_algs(struct aspeed_crypto_dev *crypto_dev);
 extern int aspeed_register_akcipher_algs(struct aspeed_crypto_dev *crypto_dev);
-
+extern int aspeed_register_kpp_algs(struct aspeed_crypto_dev *crypto_dev);
 extern int aspeed_crypto_enqueue(struct aspeed_crypto_dev *aspeed_crypto, struct ablkcipher_request *req);
 
 #endif

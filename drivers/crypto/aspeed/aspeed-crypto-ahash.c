@@ -14,43 +14,7 @@
  * GNU General Public License for more details.
  *
  */
-#include <crypto/aes.h>
-#include <crypto/algapi.h>
-#include <crypto/authenc.h>
-#include <crypto/des.h>
-#include <crypto/md5.h>
-#include <crypto/sha.h>
-#include <crypto/scatterwalk.h>
-#include <crypto/algapi.h>
-#include <crypto/aes.h>
-#include <crypto/hash.h>
-#include <crypto/md5.h>
-#include <crypto/internal/hash.h>
-#include <crypto/internal/skcipher.h>
 
-#include <linux/completion.h>
-#include <linux/clk.h>
-#include <linux/crypto.h>
-#include <linux/cryptohash.h>
-#include <linux/delay.h>
-#include <linux/scatterlist.h>
-
-#include <linux/dma-mapping.h>
-#include <linux/dmapool.h>
-#include <linux/err.h>
-#include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/io.h>
-#include <linux/list.h>
-#include <linux/module.h>
-#include <linux/of.h>
-#include <linux/platform_device.h>
-#include <linux/pm.h>
-#include <linux/rtnetlink.h>
-#include <linux/scatterlist.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/timer.h>
 #include "aspeed-crypto.h"
 
 //#define ASPEED_AHASH_DEBUG 

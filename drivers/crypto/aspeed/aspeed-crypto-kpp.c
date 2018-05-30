@@ -14,46 +14,6 @@
  * GNU General Public License for more details.
  *
  */
-#include <crypto/aes.h>
-#include <crypto/algapi.h>
-#include <crypto/authenc.h>
-#include <crypto/des.h>
-#include <crypto/md5.h>
-#include <crypto/sha.h>
-#include <crypto/scatterwalk.h>
-#include <crypto/algapi.h>
-#include <crypto/aes.h>
-#include <crypto/hash.h>
-#include <crypto/md5.h>
-#include <crypto/internal/hash.h>
-#include <crypto/internal/skcipher.h>
-
-#include <linux/completion.h>
-#include <linux/clk.h>
-#include <linux/crypto.h>
-#include <linux/cryptohash.h>
-#include <linux/delay.h>
-#include <linux/scatterlist.h>
-
-#include <linux/dma-mapping.h>
-#include <linux/dmapool.h>
-#include <linux/err.h>
-#include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/io.h>
-#include <linux/list.h>
-#include <linux/module.h>
-#include <linux/of.h>
-#include <linux/platform_device.h>
-#include <linux/pm.h>
-#include <linux/rtnetlink.h>
-#include <linux/scatterlist.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/timer.h>
-#include <crypto/kpp.h>
-#include <crypto/dh.h>
-
 #include "aspeed-crypto.h"
 
 #define ASPEED_ECDH_DEBUG
@@ -72,6 +32,41 @@ int aspeed_ecdh_trigger(struct aspeed_crypto_dev *crypto_dev)
 	return 0;
 }
 
+/*
+* @generate_public_key: Function generate the public key to be sent to the
+*		   counterpart. In case of error, where output is not big
+*		   enough req->dst_len will be updated to the size
+*		   required
+
+*/
+
+static int aspeed_ecdh_generate_public_key(struct kpp_request *req)
+{
+	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
+	struct aspeed_ecdh_ctx *ctx = kpp_tfm_ctx(tfm);
+	size_t copied;
+	int ret = 0;
+
+	ECDH_DBG("req->src %x , req->dst %x \n", req->src, req->dst);
+
+#if 0
+	/* public key was saved at private key generation */
+	copied = sg_copy_from_buffer(req->dst, 1, ctx->public_key,
+				     ATMEL_ECC_PUBKEY_SIZE);
+	if (copied != ATMEL_ECC_PUBKEY_SIZE)
+		ret = -EINVAL;
+#endif
+	return ret;
+}
+
+
+/*
+* @compute_shared_secret: Function compute the shared secret as defined by
+*		   the algorithm. The result is given back to the user.
+*		   In case of error, where output is not big enough,
+*		   req->dst_len will be updated to the size required
+
+*/
 
 static int aspeed_ecdh_compute_value(struct kpp_request *req)
 {
@@ -83,42 +78,58 @@ static int aspeed_ecdh_compute_value(struct kpp_request *req)
 	
 }
 
+static unsigned int aspeed_ecdh_supported_curve(unsigned int curve_id)
+{
+	switch (curve_id) {
+		case ECC_CURVE_NIST_P192: return 3;
+		case ECC_CURVE_NIST_P256: return 4;
+		default: return 0;
+	}
+}
+
+/*
+* @set_secret:	   Function invokes the protocol specific function to
+*		   store the secret private key along with parameters.
+*		   The implementation knows how to decode thie buffer
+
+*/
 static int aspeed_ecdh_set_secret(struct crypto_kpp *tfm, void *buf,
 			     unsigned int len)
 {
 	struct aspeed_ecdh_ctx *ctx = kpp_tfm_ctx(tfm);
-	struct dh params;
+	struct ecdh params;
+	unsigned int ndigits;
 	int ret;
 
-	if (crypto_dh_decode_key(buf, len, &params) < 0)
+	ECDH_DBG("len %d \n", len);
+
+	if (crypto_ecdh_decode_key(buf, len, &params) < 0) {
+		dev_err(&ctx->crypto_dev->dev, "crypto_ecdh_decode_key failed\n");
 		return -EINVAL;
-	ECDH_DBG("\n");
-
-#if 0
-//	ret = qat_dh_set_params(ctx, &params);
-//	if (ret < 0)
-//		return ret;
-
-	ctx->xa = dma_zalloc_coherent(dev, ctx->p_size, &ctx->dma_xa,
-				      GFP_KERNEL);
-	if (!ctx->xa) {
-		qat_dh_clear_ctx(dev, ctx);
-		return -ENOMEM;
 	}
-	memcpy(ctx->xa + (ctx->p_size - params.key_size), params.key,
-	       params.key_size);
-#endif
+	ECDH_DBG("curive_id %d, key size %d \n", params.curve_id, params.key_size);
+
+	ndigits = aspeed_ecdh_supported_curve(params.curve_id);
+	if (!ndigits)
+		return -EINVAL;
+
+	ctx->curve_id = params.curve_id;
+ 	memcpy(ctx->private_key, params.key, params.key_size);
+
 	return 0;
 }
 
-
+ /*
+ * @max_size:		Function returns the size of the output buffer
+ 
+ */
 static int aspeed_ecdh_max_size(struct crypto_kpp *tfm)
 {
 	struct aspeed_ecdh_ctx *ctx = kpp_tfm_ctx(tfm);
 	ECDH_DBG("\n");
 
 	//return ctx->p ? ctx->p_size : -EINVAL;
-	return 32;
+	return 64;
 }
 
 static int aspeed_ecdh_init_tfm(struct crypto_kpp *tfm)
@@ -144,7 +155,7 @@ struct aspeed_crypto_alg aspeed_kpp_algs[] = {
 	{
 		.alg.kpp = {
 			.set_secret = aspeed_ecdh_set_secret,
-			.generate_public_key = aspeed_ecdh_compute_value,
+			.generate_public_key = aspeed_ecdh_generate_public_key,
 			.compute_shared_secret = aspeed_ecdh_compute_value,
 			.max_size = aspeed_ecdh_max_size,
 			.init = aspeed_ecdh_init_tfm,
