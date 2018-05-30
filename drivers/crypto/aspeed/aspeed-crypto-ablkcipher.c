@@ -14,43 +14,6 @@
  * GNU General Public License for more details.
  *
  */
-#include <crypto/aes.h>
-#include <crypto/algapi.h>
-#include <crypto/authenc.h>
-#include <crypto/des.h>
-#include <crypto/md5.h>
-#include <crypto/sha.h>
-#include <crypto/scatterwalk.h>
-#include <crypto/algapi.h>
-#include <crypto/aes.h>
-#include <crypto/hash.h>
-#include <crypto/md5.h>
-#include <crypto/internal/hash.h>
-#include <crypto/internal/skcipher.h>
-
-#include <linux/completion.h>
-#include <linux/clk.h>
-#include <linux/crypto.h>
-#include <linux/cryptohash.h>
-#include <linux/delay.h>
-#include <linux/scatterlist.h>
-
-#include <linux/dma-mapping.h>
-#include <linux/dmapool.h>
-#include <linux/err.h>
-#include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/io.h>
-#include <linux/list.h>
-#include <linux/module.h>
-#include <linux/of.h>
-#include <linux/platform_device.h>
-#include <linux/pm.h>
-#include <linux/rtnetlink.h>
-#include <linux/scatterlist.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/timer.h>
 #include "aspeed-crypto.h"
 
 //#define ASPEED_CIPHER_DEBUG
@@ -70,10 +33,15 @@ int aspeed_crypto_ablkcipher_trigger(struct aspeed_crypto_dev *crypto_dev)
 	struct ablkcipher_request	*req = crypto_dev->ablk_req;
 	struct scatterlist	*in_sg = req->src, *out_sg = req->dst;
 	int nbytes = 0;
+	struct scatterlist *sg;
+	int i = 0;
 
 	if (ctx->enc_cmd & HACE_CMD_RC4) {
-		*(u32 *)(crypto_dev->ctx_buf + 8) = 0x0001;
-		memcpy(crypto_dev->ctx_buf + 16, ctx->key.arc4, 256);
+		if(!ctx->rc4_installed) {
+			*(u32 *)(crypto_dev->ctx_buf + 8) = 0x0001;
+			memcpy(crypto_dev->ctx_buf + 16, ctx->key.arc4, 256);
+			ctx->rc4_installed = 1;
+		};
 	} else {
 		if(ctx->enc_cmd & HACE_CMD_DES_SELECT) {
 			if (ctx->iv) {
@@ -88,28 +56,55 @@ int aspeed_crypto_ablkcipher_trigger(struct aspeed_crypto_dev *crypto_dev)
 		}
 	}
 
-	nbytes = sg_copy_to_buffer(in_sg, sg_nents(req->src), crypto_dev->buf_in, req->nbytes);
-	CIPHER_DBG("copy nbytes %d, req->nbytes %d , nb_in_sg %d, nb_out_sg %d \n", nbytes, req->nbytes, sg_nents(req->src), sg_nents(req->dst));
+#if 0
+	for_each_sg(in_sg, sg, sg_nents(req->src), i) {
+		printk("req->src %x [%d] : %x, len %d \n ",req->src, i, sg->dma_address, sg->length);
+	}
 	
-	if (!nbytes) {
-		printk("nbytes error \n");
-		return -EINVAL;
+	for_each_sg(out_sg, sg, sg_nents(req->dst), i) {
+		printk("req->dst %x [%d] : %x, len %d \n ", req->dst, i, sg->dma_address, sg->length);
 	}
-
-	if (nbytes != req->nbytes) {
-		printk("~~~ EOOERR	nbytes %d , req->nbytes %d \n", nbytes, req->nbytes);
-	}
+#endif
 
 #ifdef ASPEED_CRYPTO_IRQ
 	crypto_dev->cmd |= HACE_CMD_ISR_EN;
-	crypto_dev->irq = 0;
-//	CDBUG("crypto cmd %x\n", crypto_dev->cmd);
 #endif
 
-	aspeed_crypto_write(crypto_dev, crypto_dev->dma_addr_in, ASPEED_HACE_SRC);
-	aspeed_crypto_write(crypto_dev, crypto_dev->dma_addr_out, ASPEED_HACE_DEST);
-	aspeed_crypto_write(crypto_dev, req->nbytes, ASPEED_HACE_DATA_LEN);
-	aspeed_crypto_write(crypto_dev, ctx->enc_cmd, ASPEED_HACE_CMD);
+	if((sg_nents(req->src) == 1) && (sg_nents(req->dst) == 1)) {
+		//src dma map
+		if (!dma_map_sg(crypto_dev->dev, req->src, 1, DMA_TO_DEVICE)) {
+			dev_err(crypto_dev->dev, "[%s:%d] dma_map_sg(src)	error\n",
+				__func__, __LINE__);
+			return -EINVAL;
+		}
+
+		aspeed_crypto_write(crypto_dev, sg_dma_address(req->src), ASPEED_HACE_SRC);
+		//dst
+		if (!dma_map_sg(crypto_dev->dev, req->dst, 1, DMA_FROM_DEVICE)) {
+			dev_err(crypto_dev->dev, "[%s:%d] dma_map_sg(dst)	error\n",
+				__func__, __LINE__);
+			return -EINVAL;
+		}
+
+		aspeed_crypto_write(crypto_dev, sg_dma_address(req->dst), ASPEED_HACE_DEST);
+
+		aspeed_crypto_write(crypto_dev, req->nbytes, ASPEED_HACE_DATA_LEN);
+		aspeed_crypto_write(crypto_dev, ctx->enc_cmd, ASPEED_HACE_CMD);
+	
+		
+	} else {
+		nbytes = sg_copy_to_buffer(in_sg, sg_nents(req->src), crypto_dev->buf_in, req->nbytes);
+		CIPHER_DBG("copy nbytes %d, req->nbytes %d , nb_in_sg %d, nb_out_sg %d \n", nbytes, req->nbytes, sg_nents(req->src), sg_nents(req->dst));
+		if (!nbytes) {
+			printk("nbytes error \n");
+			return -EINVAL;
+		}
+
+		aspeed_crypto_write(crypto_dev, crypto_dev->dma_addr_in, ASPEED_HACE_SRC);
+		aspeed_crypto_write(crypto_dev, crypto_dev->dma_addr_out, ASPEED_HACE_DEST);
+		aspeed_crypto_write(crypto_dev, req->nbytes, ASPEED_HACE_DATA_LEN);
+		aspeed_crypto_write(crypto_dev, ctx->enc_cmd, ASPEED_HACE_CMD);
+	}
 
 	while (aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS) & HACE_CRYPTO_BUSY);
 
@@ -234,6 +229,7 @@ static int aspeed_rc4_setkey(struct crypto_ablkcipher *cipher, const u8 *in_key,
 	}
 
 	ctx->key_len = 256;
+	ctx->rc4_installed = 0;
 
 	return 0;
 }
@@ -533,6 +529,7 @@ static int aspeed_crypto_cra_init(struct crypto_tfm *tfm)
 static void aspeed_crypto_cra_exit(struct crypto_tfm *tfm)
 {
 	//disable clk ??
+	return;
 }
 
 struct aspeed_crypto_alg aspeed_crypto_algs[] = {
