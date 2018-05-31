@@ -116,6 +116,7 @@ int aspeed_crypto_ablkcipher_trigger(struct aspeed_crypto_dev *crypto_dev)
 		}
 		
 	}
+	printk("aspeed_crypto_ablkcipher_trigger done \n");
 
 	return 0;
 }
@@ -194,13 +195,24 @@ static int aspeed_des_crypt(struct ablkcipher_request *req, u32 cmd)
 static int aspeed_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 			     unsigned int keylen)
 {
+	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
 	struct aspeed_cipher_ctx *ctx = crypto_ablkcipher_ctx(cipher);
+	u32 tmp[DES_EXPKEY_WORDS];	
+
 	CIPHER_DBG("bits : %d : \n", keylen);
 
 	if ((keylen != DES_KEY_SIZE) && (keylen != 2 * DES_KEY_SIZE) && (keylen != 3 * DES_KEY_SIZE)) {
 		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		printk("keylen fail %d bits \n", keylen);
 		return -EINVAL;
+	}
+
+	if (keylen == DES_KEY_SIZE) {
+		if (!des_ekey(tmp, key) &&
+		    (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+			tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
+			return -EINVAL;
+		}
 	}
 
 	memcpy(ctx->key.des, key, keylen);
@@ -578,7 +590,6 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 			},
 		},
 	},
-#if 0
 	{
 		.alg.crypto = {
 			.cra_name		= "ecb(des)",
@@ -603,7 +614,6 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 			},
 		},
 	},
-#endif	
 	{
 		.alg.crypto = {
 			.cra_name		= "cbc(des)",
