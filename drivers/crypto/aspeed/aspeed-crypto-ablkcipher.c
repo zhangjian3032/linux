@@ -116,7 +116,6 @@ int aspeed_crypto_ablkcipher_trigger(struct aspeed_crypto_dev *crypto_dev)
 		}
 		
 	}
-	printk("aspeed_crypto_ablkcipher_trigger done \n");
 
 	return 0;
 }
