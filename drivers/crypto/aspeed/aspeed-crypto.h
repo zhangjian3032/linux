@@ -43,13 +43,13 @@
 #define  HACE_CMD_DECRYPT				(0)
 #define  HACE_CMD_ENCRYPT				BIT(7)
 #define  HACE_CMD_ECB					(0)
-#define  HACE_CMD_CBC					(0x1 << 4)
-#define  HACE_CMD_CFB					(0x1 << 5)
-#define  HACE_CMD_OFB					(0x3 << 4)
-#define  HACE_CMD_CTR					(0x1 << 6)
+#define  HACE_CMD_CBC					BIT(4)
+#define  HACE_CMD_CFB					BIT(5)
+#define  HACE_CMD_OFB					BIT(4)
+#define  HACE_CMD_CTR					BIT(6)
 #define  HACE_CMD_AES128				(0)
-#define  HACE_CMD_AES192				(0x1 << 2)
-#define  HACE_CMD_AES256				(0x1 << 3)
+#define  HACE_CMD_AES192				BIT(2)
+#define  HACE_CMD_AES256				BIT(3)
 #define  HACE_CMD_OP_CASCADE			(0x3)
 #define  HACE_CMD_OP_INDEPENDENT		(0x1)
 #define ASPEED_HACE_TAG			0x18
@@ -97,22 +97,23 @@ struct aspeed_cipher_ctx {
 	u8			*iv;
 	int 		key_len;
 	int 		enc_cmd;
-	int			rc4_installed;
 	union {
 		u8		aes[AES_MAX_KEYLENGTH];
 		u8		des[DES_KEY_SIZE];
 		u8		des3[3 * DES_KEY_SIZE];
 		u8		arc4[256]; /* S-box, X, Y */
 	} key;
+	void		*cipher_addr;
+	void		*cipher_key;
+	dma_addr_t	cipher_key_dma;
 };
 
 struct aspeed_crypto_dev {
 	void __iomem			*regs;
 	void __iomem			*rsa_buff;
-
+	struct device			*dev;
 	int 					irq;
-	struct clk 			*yclk;
-
+	struct clk 				*yclk;
 	spinlock_t			lock;
 
 	//hash
@@ -129,12 +130,9 @@ struct aspeed_crypto_dev {
 	struct ablkcipher_request	*ablk_req;
 	struct ahash_request		*ahash_req;
 
-
-//	struct crypto_alg		*crypto_algs;
-//	struct ahash_alg		*ahash_algs;
-//	struct akcipher_alg 	*akcipher_alg;	//for rsa 
-
-	struct device			*dev;
+	struct completion ablk_complete;
+	struct completion ahash_complete;
+	
 
 	u32 		buf_size;
 	void	*ctx_buf;

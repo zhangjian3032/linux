@@ -73,13 +73,8 @@ static void aspeed_crypto_tasklet(unsigned long data)
 	if (crypto_tfm_alg_type(async_req->tfm) == CRYPTO_ALG_TYPE_ABLKCIPHER) {
 		CRYPTO_DBUG("ablkcipher_request_cast \n");
 		crypto_dev->ablk_req = ablkcipher_request_cast(async_req);
-#if 1		
 		err = aspeed_crypto_ablkcipher_trigger(crypto_dev);
 		crypto_dev->ablk_req->base.complete(&crypto_dev->ablk_req->base, err);
-#else
-		if(aspeed_crypto_ablkcipher_trigger(crypto_dev))
-			crypto_dev->ablk_req->base.complete(&crypto_dev->ablk_req->base, 0);
-#endif		
 	} else {
 		crypto_dev->ahash_req = ahash_request_cast(async_req);
 		CRYPTO_DBUG("ahash_request_cast \n");
@@ -103,9 +98,9 @@ static irqreturn_t aspeed_crypto_irq(int irq, void *dev)
 static int aspeed_crypto_register(struct aspeed_crypto_dev *crypto_dev)
 {
 	aspeed_register_crypto_algs(crypto_dev);
-	aspeed_register_ahash_algs(crypto_dev);
-	aspeed_register_akcipher_algs(crypto_dev);
-	aspeed_register_kpp_algs(crypto_dev);
+//	aspeed_register_ahash_algs(crypto_dev);
+//	aspeed_register_akcipher_algs(crypto_dev);
+//	aspeed_register_kpp_algs(crypto_dev);
 
 	return 0;
 }
@@ -144,7 +139,11 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 
 	tasklet_init(&crypto_dev->crypto_tasklet, 
 				aspeed_crypto_tasklet, (unsigned long)crypto_dev);
+
 	crypto_init_queue(&crypto_dev->queue, 50);
+
+	init_completion(&crypto_dev->ablk_complete);
+	init_completion(&crypto_dev->ahash_complete);
 
 	crypto_dev->regs = of_iomap(pdev->dev.of_node, 0);
 	if (!(crypto_dev->regs)) {
@@ -208,8 +207,6 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 	CRYPTO_DBUG("Crypto ctx %x , in : %x, out: %x\n", crypto_dev->ctx_dma_addr, crypto_dev->dma_addr_in, crypto_dev->dma_addr_out);
 
 	CRYPTO_DBUG("Hash key %x , src : %x, digst: %x\n", crypto_dev->hash_key_dma, crypto_dev->hash_src_dma, crypto_dev->hash_digst_dma);
-
-	aspeed_crypto_write(crypto_dev, crypto_dev->ctx_dma_addr, ASPEED_HACE_CONTEXT);
 
 	err = aspeed_crypto_register(crypto_dev);
 	if (err) {
