@@ -97,15 +97,8 @@ struct aspeed_cipher_ctx {
 	u8			*iv;
 	int 		key_len;
 	int 		enc_cmd;
-	union {
-		u8		aes[AES_MAX_KEYLENGTH];
-		u8		des[DES_KEY_SIZE];
-		u8		des3[3 * DES_KEY_SIZE];
-		u8		arc4[256]; /* S-box, X, Y */
-	} key;
-	void		*cipher_addr;
 	void		*cipher_key;
-	dma_addr_t	cipher_key_dma;
+	dma_addr_t	cipher_key_dma;	
 };
 
 struct aspeed_crypto_dev {
@@ -130,19 +123,9 @@ struct aspeed_crypto_dev {
 	struct ablkcipher_request	*ablk_req;
 	struct ahash_request		*ahash_req;
 
-	struct completion ablk_complete;
-	struct completion ahash_complete;
-	
-
-	u32 		buf_size;
-	void	*ctx_buf;
-	dma_addr_t	ctx_dma_addr;
-
-	void	*buf_in;
-	dma_addr_t	dma_addr_in;
-
-	void	*buf_out;
-	dma_addr_t	dma_addr_out;
+	//ablkcipher 
+	void		*cipher_addr;	
+	dma_addr_t	cipher_dma_addr;
 
 	/* hash */
 	void	*hash_key;

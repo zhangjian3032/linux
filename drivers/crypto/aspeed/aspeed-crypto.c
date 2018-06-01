@@ -89,7 +89,10 @@ static irqreturn_t aspeed_crypto_irq(int irq, void *dev)
 	struct aspeed_crypto_dev *crypto_dev = (struct aspeed_crypto_dev *)dev;
 	u32 sts = aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS);
 
-	CRYPTO_DBUG("aspeed_crypto_irq sts %x xxxxxxxxxx\n", sts);
+	printk("aspeed_crypto_irq sts %x \n", sts);
+
+	if(sts & HACE_CRYPTO_ISR) {
+	}
 
 	aspeed_crypto_write(crypto_dev, sts, ASPEED_HACE_STS);
 	return IRQ_HANDLED;
@@ -98,9 +101,9 @@ static irqreturn_t aspeed_crypto_irq(int irq, void *dev)
 static int aspeed_crypto_register(struct aspeed_crypto_dev *crypto_dev)
 {
 	aspeed_register_crypto_algs(crypto_dev);
-//	aspeed_register_ahash_algs(crypto_dev);
-//	aspeed_register_akcipher_algs(crypto_dev);
-//	aspeed_register_kpp_algs(crypto_dev);
+	aspeed_register_ahash_algs(crypto_dev);
+	aspeed_register_akcipher_algs(crypto_dev);
+	aspeed_register_kpp_algs(crypto_dev);
 
 	return 0;
 }
@@ -142,9 +145,6 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 
 	crypto_init_queue(&crypto_dev->queue, 50);
 
-	init_completion(&crypto_dev->ablk_complete);
-	init_completion(&crypto_dev->ahash_complete);
-
 	crypto_dev->regs = of_iomap(pdev->dev.of_node, 0);
 	if (!(crypto_dev->regs)) {
 		dev_err(dev, "can't ioremap\n");
@@ -177,23 +177,17 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 	}
 
 	// 8-byte aligned
-	crypto_dev->ctx_buf = dma_alloc_coherent(&pdev->dev,
+	crypto_dev->cipher_addr = dma_alloc_coherent(&pdev->dev,
 			      0xa000,
-			      &crypto_dev->ctx_dma_addr, GFP_KERNEL);
+			      &crypto_dev->cipher_dma_addr, GFP_KERNEL);
 
-	if (! crypto_dev->ctx_buf) {
+	if (! crypto_dev->cipher_addr) {
 		printk("error buff allocation\n");
 		return -ENOMEM;
 	}
-	crypto_dev->buf_size = 0x1000;
-	crypto_dev->buf_in = crypto_dev->ctx_buf + 0x1000;
-	crypto_dev->dma_addr_in = crypto_dev->ctx_dma_addr + 0x1000;
 
-	crypto_dev->buf_out = crypto_dev->buf_in + 0x1000;
-	crypto_dev->dma_addr_out = crypto_dev->dma_addr_in + 0x1000;
-
-	crypto_dev->hash_key = crypto_dev->buf_out + 0x1000;
-	crypto_dev->hash_key_dma = crypto_dev->dma_addr_out + 0x1000;
+	crypto_dev->hash_key = crypto_dev->cipher_addr + 0x1000;
+	crypto_dev->hash_key_dma = crypto_dev->cipher_dma_addr + 0x1000;
 
 	crypto_dev->hmac_key = crypto_dev->hash_key + 0x1000;
 	crypto_dev->hmac_key_dma = crypto_dev->hash_key_dma + 0x1000;
