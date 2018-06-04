@@ -26,38 +26,37 @@
 #define ASPEED_HACE_CONTEXT		0x08	/* 8 byte aligned*/
 #define ASPEED_HACE_DATA_LEN		0x0C
 #define ASPEED_HACE_CMD			0x10
-#define  HACE_CMD_SINGLE_DES	0
-#define  HACE_CMD_TRIPLE_DES	BIT(17)
-#define  HACE_CMD_AES_SELECT	0
-#define  HACE_CMD_DES_SELECT	BIT(16)
+#define  HACE_CMD_SINGLE_DES		0
+#define  HACE_CMD_TRIPLE_DES		BIT(17)
+#define  HACE_CMD_AES_SELECT		0
+#define  HACE_CMD_DES_SELECT		BIT(16)
 #define  HACE_CMD_ISR_EN		BIT(12)
-#define  HACE_CMD_RI_WO_DATA_ENABLE		(0)
+#define  HACE_CMD_RI_WO_DATA_ENABLE	(0)
 #define  HACE_CMD_RI_WO_DATA_DISABLE	BIT(11)
 #define  HACE_CMD_CONTEXT_LOAD_ENABLE	(0)
 #define  HACE_CMD_CONTEXT_LOAD_DISABLE	BIT(10)
 #define  HACE_CMD_CONTEXT_SAVE_ENABLE	(0)
 #define  HACE_CMD_CONTEXT_SAVE_DISABLE	BIT(9)
-#define  HACE_CMD_AES					(0)
-#define  HACE_CMD_DES					(0)
-#define  HACE_CMD_RC4					BIT(8)
-#define  HACE_CMD_DECRYPT				(0)
-#define  HACE_CMD_ENCRYPT				BIT(7)
-#define  HACE_CMD_ECB					(0)
-#define  HACE_CMD_CBC					BIT(4)
-#define  HACE_CMD_CFB					BIT(5)
-#define  HACE_CMD_OFB					BIT(4)
-#define  HACE_CMD_CTR					BIT(6)
-#define  HACE_CMD_AES128				(0)
-#define  HACE_CMD_AES192				BIT(2)
-#define  HACE_CMD_AES256				BIT(3)
-#define  HACE_CMD_OP_CASCADE			(0x3)
-#define  HACE_CMD_OP_INDEPENDENT		(0x1)
+#define  HACE_CMD_AES			(0)
+#define  HACE_CMD_DES			(0)
+#define  HACE_CMD_RC4			BIT(8)
+#define  HACE_CMD_DECRYPT		(0)
+#define  HACE_CMD_ENCRYPT		BIT(7)
+#define  HACE_CMD_ECB			(0)
+#define  HACE_CMD_CBC			BIT(4)
+#define  HACE_CMD_CFB			BIT(5)
+#define  HACE_CMD_OFB			(0x3 << 4)
+#define  HACE_CMD_CTR			BIT(6)
+#define  HACE_CMD_AES128		(0)
+#define  HACE_CMD_AES192		BIT(2)
+#define  HACE_CMD_AES256		BIT(3)
+#define  HACE_CMD_OP_CASCADE		(0x3)
+#define  HACE_CMD_OP_INDEPENDENT	(0x1)
 #define ASPEED_HACE_TAG			0x18
 #define ASPEED_HACE_STS			0x1C
 #define  HACE_RSA_ISR			BIT(13)
 #define  HACE_CRYPTO_ISR		BIT(12)
 #define  HACE_HASH_ISR			BIT(9)
-
 #define  HACE_RSA_BUSY			BIT(2)
 #define  HACE_CRYPTO_BUSY		BIT(1)
 #define  HACE_HASH_BUSY			BIT(0)
@@ -68,22 +67,43 @@
 #define ASPEED_HACE_HASH_CMD		0x30
 #define  HASH_CMD_INT_ENABLE		BIT(9)
 #define  HASH_CMD_INT_DISABLE		(0)
-#define  HASH_CMD_HMAC				BIT(7)
-#define  HASH_CMD_MD5				(0)
-#define  HASH_CMD_SHA1				(0x2 << 4)
-#define  HASH_CMD_SHA224			(0x4 << 4)
-#define  HASH_CMD_SHA256			(0x5 << 4)
-#define  HASH_CMD_MD5_SWAP				(0x1 << 2)
-#define  HASH_CMD_SHA_SWAP				(0x1 << 3)
+#define  HASH_CMD_HMAC			BIT(7)
+#define  HASH_CMD_MD5			(0)
+#define  HASH_CMD_SHA1			(0x2 << 4)
+#define  HASH_CMD_SHA224		(0x4 << 4)
+#define  HASH_CMD_SHA256		(0x5 << 4)
+#define  HASH_CMD_MD5_SWAP		(0x1 << 2)
+#define  HASH_CMD_SHA_SWAP		(0x1 << 3)
 #define  HASH_CMD_CASCADED_CRYPTO_FIRST	(2)
 #define  HASH_CMD_CASCADED_HASH_FIRST	(3)
 #define ASPEED_HACE_RSA_MD_EXP_BIT	0x40
 #define ASPEED_HACE_RSA_CMD		0x4C
+#define  RSA_CMD_INT_ENABLE		BIT(13)
+#define  RSA_CMD_SRAM_ENGINE_ACCESSABLE BIT(12)
+#define  RSA_CMD_FIRE			BIT(11)
 #define ASPEED_HACE_CMD_QUEUE		0x50
 #define ASPEED_HACE_CMD_QUEUE_EP	0x54
 #define ASPEED_HACE_CMD_QUEUE_WP	0x58
 #define ASPEED_HACE_CMD_QUEUE_RP	0x5C
 #define ASPEED_HACE_ENG_FEATURE		0x60
+
+#define ASPEED_CRYPTO_G6		BIT(0)
+
+#define ASPEED_EUCLID_CTX_LEN		13312
+#define ASPEED_EUCLID_LEN		1024
+#define ASPEED_EUCLID_A			0
+#define ASPEED_EUCLID_B			ASPEED_EUCLID_LEN * 1
+#define ASPEED_EUCLID_Q			ASPEED_EUCLID_LEN * 2
+#define ASPEED_EUCLID_R			ASPEED_EUCLID_LEN * 3
+#define ASPEED_EUCLID_X			ASPEED_EUCLID_LEN * 4
+#define ASPEED_EUCLID_Y			ASPEED_EUCLID_LEN * 5
+#define ASPEED_EUCLID_LX		ASPEED_EUCLID_LEN * 6
+#define ASPEED_EUCLID_LY		ASPEED_EUCLID_LEN * 7
+#define ASPEED_EUCLID_T			ASPEED_EUCLID_LEN * 8
+#define ASPEED_EUCLID_D1		ASPEED_EUCLID_LEN * 9
+#define ASPEED_EUCLID_S			ASPEED_EUCLID_LEN * 10
+#define ASPEED_EUCLID_N			ASPEED_EUCLID_LEN * 11
+#define ASPEED_EUCLID_NP		ASPEED_EUCLID_LEN * 12
 
 /*
  * Asynchronous crypto request structure.
@@ -105,8 +125,9 @@ struct aspeed_crypto_dev {
 	void __iomem			*regs;
 	void __iomem			*rsa_buff;
 	struct device			*dev;
-	int 					irq;
-	struct clk 				*yclk;
+	int 				irq;
+	struct clk 			*yclk;
+	struct clk			*rsaclk;
 	spinlock_t			lock;
 
 	//hash
@@ -116,14 +137,17 @@ struct aspeed_crypto_dev {
 
 	struct tasklet_struct	crypto_tasklet;
 
-	unsigned long			flags;
+	unsigned long	flags;
+
+	unsigned long	compatible;
 
 	size_t	total;
 
 	struct ablkcipher_request	*ablk_req;
 	struct ahash_request		*ahash_req;
+	struct akcipher_request		*akcipher_req;
 
-	//ablkcipher 
+	/* ablkcipher */ 
 	void		*cipher_addr;	
 	dma_addr_t	cipher_dma_addr;
 
@@ -190,10 +214,11 @@ struct aspeed_ecdh_ctx {
 
 /*************************************************************************************/
 /**
- * caam_rsa_key - CAAM RSA key structure. Keys are allocated in DMA zone.
+ * aspeed_rsa_key - ASPEED RSA key structure. Keys are allocated in DMA zone.
  * @n           : RSA modulus raw byte stream
  * @e           : RSA public exponent raw byte stream
  * @d           : RSA private exponent raw byte stream
+ * @np          : raw byte stream for Montgomery's method, length equal to n_sz
  * @n_sz        : length in bytes of RSA modulus n
  * @e_sz        : length in bytes of RSA public exponent
  * @d_sz        : length in bytes of RSA private exponent
@@ -205,11 +230,19 @@ struct aspeed_rsa_key {
 	size_t n_sz;
 	size_t e_sz;
 	size_t d_sz;
+	int nm;
+	int ne;
+	int nd;
+	int dwm;
+	int mdwm;
+	u8 *np;
 };
 
 struct aspeed_rsa_ctx {
-	struct aspeed_crypto_dev	*crypto_dev;
+	struct aspeed_crypto_dev *crypto_dev;
 	struct aspeed_rsa_key key;
+	u8 *euclid_ctx;
+	int enc;
 };
 
 static inline void
@@ -232,6 +265,7 @@ aspeed_crypto_read(struct aspeed_crypto_dev *crypto, u32 reg)
 }
 
 extern int aspeed_crypto_ahash_trigger(struct aspeed_crypto_dev *aspeed_crypto);
+extern int aspeed_crypto_rsa_trigger(struct aspeed_crypto_dev *aspeed_crypto);
 
 extern int aspeed_crypto_ablkcipher_trigger(struct aspeed_crypto_dev *aspeed_crypto);
 extern int aspeed_hash_trigger(struct aspeed_crypto_dev *aspeed_crypto);

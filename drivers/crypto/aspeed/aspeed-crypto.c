@@ -35,7 +35,7 @@
 
 /*************************************************************************************/
 int aspeed_crypto_enqueue(struct aspeed_crypto_dev *crypto_dev,
-				      struct ablkcipher_request *req)
+			  struct ablkcipher_request *req)
 {
 	unsigned long flags;
 	int err;
@@ -75,6 +75,11 @@ static void aspeed_crypto_tasklet(unsigned long data)
 		crypto_dev->ablk_req = ablkcipher_request_cast(async_req);
 		err = aspeed_crypto_ablkcipher_trigger(crypto_dev);
 		crypto_dev->ablk_req->base.complete(&crypto_dev->ablk_req->base, err);
+	} else if (crypto_tfm_alg_type(async_req->tfm) == CRYPTO_ALG_TYPE_AKCIPHER) {
+		CRYPTO_DBUG("akcipher_request_cast \n");
+		crypto_dev->akcipher_req = container_of(async_req, struct akcipher_request, base);
+		err = aspeed_crypto_rsa_trigger(crypto_dev);
+		crypto_dev->akcipher_req->base.complete(&crypto_dev->akcipher_req->base, err);
 	} else {
 		crypto_dev->ahash_req = ahash_request_cast(async_req);
 		CRYPTO_DBUG("ahash_request_cast \n");
@@ -91,7 +96,7 @@ static irqreturn_t aspeed_crypto_irq(int irq, void *dev)
 
 	printk("aspeed_crypto_irq sts %x \n", sts);
 
-	if(sts & HACE_CRYPTO_ISR) {
+	if (sts & HACE_CRYPTO_ISR) {
 	}
 
 	aspeed_crypto_write(crypto_dev, sts, ASPEED_HACE_STS);
@@ -119,7 +124,7 @@ static void aspeed_crypto_unregister(void)
 		else
 			crypto_unregister_ahash(&aspeed_cipher_algs[i]->alg.hash);
 	}
-#endif	
+#endif
 }
 
 static int aspeed_crypto_probe(struct platform_device *pdev)
@@ -140,9 +145,8 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 
 	spin_lock_init(&crypto_dev->lock);
 
-	tasklet_init(&crypto_dev->crypto_tasklet, 
-				aspeed_crypto_tasklet, (unsigned long)crypto_dev);
-
+	tasklet_init(&crypto_dev->crypto_tasklet,
+		     aspeed_crypto_tasklet, (unsigned long)crypto_dev);
 	crypto_init_queue(&crypto_dev->queue, 50);
 
 	crypto_dev->regs = of_iomap(pdev->dev.of_node, 0);
@@ -156,7 +160,7 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 		dev_err(dev, "can't rsa ioremap\n");
 		return -ENOMEM;
 	}
-	
+
 	crypto_dev->irq = platform_get_irq(pdev, 0);
 	if (!crypto_dev->irq) {
 		dev_err(&pdev->dev, "no memory/irq resource for crypto_dev\n");
@@ -171,15 +175,29 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 
 	clk_prepare_enable(crypto_dev->yclk);
 
+	crypto_dev->rsaclk = devm_clk_get(&pdev->dev, "rsaclk");
+	if (IS_ERR(crypto_dev->rsaclk)) {
+		dev_err(&pdev->dev, "no rsaclk clock defined\n");
+		return -ENODEV;
+	}
+
+	clk_prepare_enable(crypto_dev->rsaclk);
+
 	if (devm_request_irq(&pdev->dev, crypto_dev->irq, aspeed_crypto_irq, 0, dev_name(&pdev->dev), crypto_dev)) {
 		dev_err(dev, "unable to request aes irq.\n");
 		return -EBUSY;
 	}
 
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "aspeed,ast2600-crypto"))
+		crypto_dev->compatible = ASPEED_CRYPTO_G6;
+	else
+		crypto_dev->compatible = 0;
+
 	// 8-byte aligned
 	crypto_dev->cipher_addr = dma_alloc_coherent(&pdev->dev,
-			      0x2000,
-			      &crypto_dev->cipher_dma_addr, GFP_KERNEL);
+				  0xa000,
+				  &crypto_dev->cipher_dma_addr, GFP_KERNEL);
 
 	if (! crypto_dev->cipher_addr) {
 		printk("error buff allocation\n");
@@ -240,6 +258,7 @@ static int aspeed_crypto_resume(struct device *dev)
 
 
 static const struct of_device_id aspeed_crypto_of_matches[] = {
+	{ .compatible = "aspeed,ast2600-crypto", },
 	{ .compatible = "aspeed,ast2500-crypto", },
 	{ .compatible = "aspeed,ast2400-crypto", },
 	{},

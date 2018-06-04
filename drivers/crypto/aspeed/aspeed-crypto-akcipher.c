@@ -17,433 +17,538 @@
 
 #include "aspeed-crypto.h"
 
-#define ASPEED_RSA_DEBUG 
+// #define ASPEED_RSA_DEBUG
 
 #ifdef ASPEED_RSA_DEBUG
-//#define RSA_DBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
+// #define RSA_DBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
 #define RSA_DBG(fmt, args...) printk("%s() " fmt, __FUNCTION__, ## args)
 #else
 #define RSA_DBG(fmt, args...)
 #endif
 
+#define ASPEED_RSA_E_BUFF	0x0
+#define ASPEED_RSA_XA_BUFF	0x200
+#define ASPEED_RSA_NP_BUFF	0x400
+#define ASPEED_RSA_N_BUFF	0x800
+
+#define ASPEED_RSA_KEY_LEN	0x200
+
+
 #define MAX_TABLE_DW 128
 
-int div_cnt=0;
-int shl_cnt=0;
-
-void init_m1(unsigned long *Dm1)
+void printA(u32 *X)
 {
+	int i;
+
+	for (i = 127; i >= 0 ; i--)
+		printk(KERN_CONT "%#8.8x ", X[i]);
+	printk("\n");
+}
+
+int get_bit_number(u32 *X)
+{
+	int i, j;
+	int nmsb;
+
+	nmsb = MAX_TABLE_DW * 32;
+	for (j = MAX_TABLE_DW - 1; j >= 0; j--) {
+		if (X[j] == 0) {
+			nmsb -= 32;
+		} else {
+			for (i = 32 - 1; i >= 0; i--)
+				if ((X[j] >> i) & 1) {
+					i = 0;
+					j = 0;
+					break;
+				} else {
+					nmsb--;
+				}
+		}
+	}
+	return (nmsb);
+}
+
+void Mul2(u32 *T, int mdwm)
+{
+	u32 msb, temp;
 	int j;
-	for (j=0; j<256; j++)
-		Dm1[j] = 0xffffffff;		
+
+	temp = 0;
+	for (j = 0; j < mdwm; j++) {
+		msb = (T[j] >> 31) & 1;
+		T[j] = (T[j] << 1) | temp;
+		temp = msb;
+	}
 }
 
-
-void init_0(unsigned long *D0)
+void Sub2by32(u32 *Borrow, u32 *Sub, u32 C, u32 S, u32 M)
 {
-	int j;
-	for (j=0; j<256; j++)
-		D0[j] = 0;	
-}
+	u64 Sub2;
 
+	Sub2  = (u64)S - (u64)M;
+	if (C)
+		Sub2 -= (u64)1;
 
-void init_1(unsigned long *D1)
-{
-	int j;
-	for (j=0; j<256; j++)
-		if (j==0) D1[j] = 1;
-		else      D1[j] = 0;	
-}
-
-void Mul2(unsigned long *T, int mdwm)
-{
-unsigned long msb, temp;
-int j;
-
-    temp = 0;
-    for (j=0; j<mdwm; j++) {
-        msb = (T[j]>>31)&1;
-        T[j] = (T[j]<<1)|temp;
-        temp = msb;
-    }
-}
-
-void Sub2by32(unsigned long *Borrow, unsigned long *Sub, unsigned long C, unsigned long S, unsigned long M)
-{
-	unsigned long long Sub2;
-
-	Sub2  = (unsigned long long)S - (unsigned long long)M;
-	if (C) Sub2 -= (unsigned long long)1; 
-
-	if ((Sub2 >>32)>0) 
+	if ((Sub2 >> 32) > 0)
 		*Borrow = 1;
-	else               
+	else
 		*Borrow = 0;
-	*Sub = (unsigned long)(Sub2 & 0xffffffff);
+	*Sub = (u32)(Sub2 & 0xffffffff);
 }
 
-void MCompSub(unsigned long *S, unsigned long *M, int mdwm)
-{ 
-int flag;
-int j;
-unsigned long Borrow, Sub;
-   
-    flag = 0;    //0: S>=M, 1: S<M
-    for (j=mdwm-1; j>=0; j--) {
-        if      (S[j]>M[j])           break;
-        else if (S[j]<M[j]) {flag =1; break;};
-    }
+void MCompSub(u32 *S, u32 *M, int mdwm)
+{
+	int flag;
+	int j;
+	u32 Borrow, Sub;
 
-    if (flag==0) {
-    	Borrow = 0;
-        for (j=0; j<mdwm; j++) {
-            Sub2by32(&Borrow, &Sub, Borrow, S[j], M[j]);
-            S[j] = Sub;
-        }
-    }
-    
+	flag = 0;    //0: S>=M, 1: S<M
+	for (j = mdwm - 1; j >= 0; j--) {
+		if (S[j] > M[j])
+			break;
+		else if (S[j] < M[j]) {
+			flag = 1;
+			break;
+		};
+	}
+
+	if (flag == 0) {
+		Borrow = 0;
+		for (j = 0; j < mdwm; j++) {
+			Sub2by32(&Borrow, &Sub, Borrow, S[j], M[j]);
+			S[j] = Sub;
+		}
+	}
+
 }
 
-void MulRmodM(unsigned long *X, unsigned long *M, int nm, int mdwm)
+void MulRmodM(u32 *X, u32 *M, int nm, int mdwm)
 {
 	int k;
+
 	RSA_DBG("\n");
-    for (k=0; k<nm; k++) {
-    	Mul2(X, mdwm);
-    	MCompSub(X, M, mdwm);
-    }
+	for (k = 0; k < nm; k++) {
+		Mul2(X, mdwm);
+		MCompSub(X, M, mdwm);
+	}
 }
 
-void Copy(unsigned long *D, unsigned long *S)
+void Copy(u32 *D, u32 *S)
 {
-int j;
-    for (j=0; j<256; j++)
-        D[j] = S[j];
+	int j;
+
+	for (j = 0; j < 256; j++)
+		D[j] = S[j];
 }
 
-int Compare(unsigned long *X, unsigned long *Y)
+void BNCopyToLN(u8 *dst, const u8 *src, int length)
 {
-int j;
-int result;
-    
-    result = 0;
-    for (j=256-1; j>=0; j--)
-        if      (X[j]>Y[j]) {result =  1; break;}
-        else if (X[j]<Y[j]) {result = -1; break;}
-    return(result);
+	int i, j;
+
+	i = length - 1;
+	for (j = 0; j < length; j++, i--)
+		dst[j] = src[i];
 }
 
-void Add(unsigned long *X, unsigned long *Y)
+int Compare(u32 *X, u32 *Y)
 {
-int j;
-unsigned long long t1;
-unsigned long long t2;
-unsigned long long sum;
-unsigned long long carry;
+	int j;
+	int result;
 
-     carry =0;
-     for (j=0; j<255; j++) {
-         t1 = X[j];
-         t2 = Y[j];
-         sum = t1 + t2 + carry;
-         X[j]  = sum & 0xffffffff;
-         carry = (sum >>32) & 0xffffffff;
-     }
-     //if (carry>0) printf("!!!overflow!!!\n");
-     X[255] = carry;
+	result = 0;
+	for (j = 256 - 1; j >= 0; j--)
+		if (X[j] > Y[j]) {
+			result =  1;
+			break;
+		} else if (X[j] < Y[j]) {
+			result = -1;
+			break;
+		}
+	return (result);
 }
 
-int nmsb(unsigned long *X)
+void Add(u32 *X, u32 *Y)
 {
-int i, j;
-int nmsb;
-    nmsb = 256*32;
-    for (j=256-1; j>=0; j--){ 
-        if (X[j]==0) nmsb-=32;
-        else {
-            for (i=32-1; i>=0; i--)
-                 if ((X[j]>>i)&1) {i=0; j=0; break;}
-                 else  nmsb --;
-        }
-    }
-    return(nmsb);
+	int j;
+	u64 t1;
+	u64 t2;
+	u64 sum;
+	u64 carry;
 
+	carry = 0;
+	for (j = 0; j < 255; j++) {
+		t1 = X[j];
+		t2 = Y[j];
+		sum = t1 + t2 + carry;
+		X[j]  = sum & 0xffffffff;
+		carry = (sum >> 32) & 0xffffffff;
+	}
+	X[255] = carry;
 }
 
-void ShiftLeftFast(unsigned long *R, unsigned long *X, int nx, int ny)
+int nmsb(u32 *X)
 {
-int j;
-unsigned long cntb;
-unsigned long shldw, shrbit;
-unsigned long shloffset;
-unsigned long bitbuf;
+	int i, j;
+	int nmsb;
 
-     cntb = nx/32;
-     if ((nx%32)>0) cntb++;
-    
-     shldw  = cntb - ((nx-ny)/32);
+	nmsb = 256 * 32;
+	for (j = 256 - 1; j >= 0; j--) {
+		if (X[j] == 0)
+			nmsb -= 32;
+		else {
+			for (i = 32 - 1; i >= 0; i--)
+				if ((X[j] >> i) & 1) {
+					i = 0;
+					j = 0;
+					break;
+				} else {
+					nmsb--;
+				}
+		}
+	}
+	return (nmsb);
 
-     shrbit = (nx-ny) % 32;
-     shloffset = (nx-ny) /32;
-     bitbuf =0;
-     //printf("nx=%d, ny=%d, cntb=%d, shldw=%d, shrbit=%d, shloffset=%d\n", nx, ny, cntb, shldw, shrbit, shloffset);
-     for (j=shldw-1; j>=0; j--) {
-          if (shrbit==0){
-              R[j] = (X[shloffset+j]>>shrbit);
-              bitbuf = X[shloffset+j]; 
-          }
-          else {
-              R[j] = (X[shloffset+j]>>shrbit)|bitbuf;
-              bitbuf = X[shloffset+j] <<(32-shrbit);
-          }
-          //printf("%x, ", bitbuf);
-     }
-     //printf("\n");    
 }
 
-unsigned char Getbit(unsigned long *X, int k)
+void ShiftLeftFast(u32 *R, u32 *X, int nx, int ny)
 {
-	unsigned char bit = ((X[k/32]>>(k%32))&1) & 0xff;
-     return bit;
+	int j;
+	u32 cntb;
+	u32 shldw, shrbit;
+	u32 shloffset;
+	u32 bitbuf;
+
+	cntb = nx / 32;
+	if ((nx % 32) > 0)
+		cntb++;
+
+	shldw  = cntb - ((nx - ny) / 32);
+
+	shrbit = (nx - ny) % 32;
+	shloffset = (nx - ny) / 32;
+	bitbuf = 0;
+	for (j = shldw - 1; j >= 0; j--) {
+		if (shrbit == 0) {
+			R[j] = (X[shloffset + j] >> shrbit);
+			bitbuf = X[shloffset + j];
+		} else {
+			R[j] = (X[shloffset + j] >> shrbit) | bitbuf;
+			bitbuf = X[shloffset + j] << (32 - shrbit);
+		}
+	}
 }
 
-void Substrate(unsigned long *X, unsigned long *Y)
+unsigned char Getbit(u32 *X, int k)
 {
-int j;
-unsigned long long t1;
-unsigned long long t2;
-unsigned long long sum;
-unsigned long carry;
-
-     carry =0;
-     for (j=0; j<255; j++) {
-         t1 = X[j];
-         t2 = Y[j];
-         if (carry) sum = t1 - t2 -1;
-         else       sum = t1 - t2;
-         X[j]  = sum & 0xffffffff;
-         carry = (sum >>32) & 0xffffffff;
-     }
-     //X[255] = 0xffffffff;
-     if (carry>0) X[255] = 0xffffffff;
-     else         X[255] = 0x0;
+	unsigned char bit = ((X[k / 32] >> (k % 32)) & 1) & 0xff;
+	return bit;
 }
 
-void ShiftLeft(unsigned long *X, int i)
+void Substrate(u32 *X, u32 *Y)
 {
-int j;
-int msb;
-int temp;
+	int j;
+	u64 t1;
+	u64 t2;
+	u64 sum;
+	u32 carry;
 
-     msb = i;
-     for (j=0; j<256; j++) {
-          temp = X[j]>>31;
-          X[j] = (X[j]<<1)|msb;
-          msb = temp;
-     }     
+	carry = 0;
+	for (j = 0; j < 255; j++) {
+		t1 = X[j];
+		t2 = Y[j];
+		if (carry)
+			sum = t1 - t2 - 1;
+		else
+			sum = t1 - t2;
+		X[j]  = sum & 0xffffffff;
+		carry = (sum >> 32) & 0xffffffff;
+	}
+	//X[255] = 0xffffffff;
+	if (carry > 0)
+		X[255] = 0xffffffff;
+	else
+		X[255] = 0x0;
 }
 
-void ShiftRight(unsigned long *X)
+void ShiftLeft(u32 *X, int i)
 {
-int j;
-int lsb;
-int temp;
+	int j;
+	int msb;
+	int temp;
 
-     lsb = 0;
-     for (j=255; j>=0; j--) {
-          temp = (X[j]&1);
-          X[j] = (X[j]>>1)|(lsb<<31);
-          lsb = temp;
-     }     
+	msb = i;
+	for (j = 0; j < 256; j++) {
+		temp = X[j] >> 31;
+		X[j] = (X[j] << 1) | msb;
+		msb = temp;
+	}
 }
 
-void Divide(unsigned long *Q, unsigned long *R, unsigned long *X, unsigned long *Y)
+void Divide(u32 *Q, u32 *R, u32 *X, u32 *Y)
 {
-int j;
-int nx, ny;
+	int j;
+	int nx, ny;
 
-unsigned long T [256];
-    
-    nx = nmsb(X);
-    ny = nmsb(Y);
-    init_0(Q);
-    init_0(R);
-    //printf("Div X = "); printX(X);
-    //printf("Div Y = "); printX(Y);
+	nx = nmsb(X);
+	ny = nmsb(Y);
+	memset(Q, 0, ASPEED_EUCLID_LEN);
+	memset(R, 0, ASPEED_EUCLID_LEN);
 
-    //for (j=nx-1; j>=0; j--) {
-    //    ShiftLeft(R, Getbit(X, j));
-    //    if ((nx-j)>=ny) {
-    //        if(Compare(R, Y)>=0) {
-    //            Substrate(R, Y);
-    //            ShiftLeft(Q, 1);
-    //        } else {
-    //            ShiftLeft(Q, 0);
-    //        }
-    //    }
-    //}
-    ShiftLeftFast(R, X, nx, ny);
-    //printf("Nor R = "); printX(R);
-    for (j=nx-ny; j>=0; j--) {
-         shl_cnt++;
-         if(Compare(R, Y)>=0) {
-             //printf("Div R = "); printA(R);
-             //printf("Div Y = "); printA(Y);
-             //printf("R>=Y\n");
-             Substrate(R, Y); 
-             ShiftLeft(Q, 1); 
-         } else {             
-             //printf("Div R = "); printA(R);
-             //printf("Div Y = "); printA(Y);
-             //printf("R<Y\n");
-             ShiftLeft(Q, 0); 
-         }
-         if (j>0)
-             ShiftLeft(R, Getbit(X, j-1));
-    }
-
-    //printf("Rst Q = "); printX(Q);
-    //printf("Rst R = "); printX(R);                   
+	ShiftLeftFast(R, X, nx, ny);
+	for (j = nx - ny; j >= 0; j--) {
+		if (Compare(R, Y) >= 0) {
+			Substrate(R, Y);
+			ShiftLeft(Q, 1);
+		} else {
+			ShiftLeft(Q, 0);
+		}
+		if (j > 0)
+			ShiftLeft(R, Getbit(X, j - 1));
+	}
 }
 
-void Positive(unsigned long *X)
+void Positive(u32 *X)
 {
-unsigned long D0[256];
+	u32 D0[256];
 
-     init_0(D0);
-     Substrate(D0, X);
-     Copy(X, D0);
+	memset(D0, 0, ASPEED_EUCLID_LEN);
+	Substrate(D0, X);
+	memcpy(X, D0, ASPEED_EUCLID_LEN);
 }
 
-void MultiplyLSB(unsigned long *X, unsigned long *Y)
+void MultiplyLSB(u32 *X, u32 *Y)
 {
-int i, j;
-unsigned long T [256];
-unsigned long long t1;
-unsigned long long t2;
-unsigned long long product;
-unsigned long carry;
-unsigned long temp;
+	int i, j;
+	u32 T[256];
+	u64 t1;
+	u64 t2;
+	u64 product;
+	u32 carry;
+	u32 temp;
 
-    init_0(T);
-    for (i=0; i<128; i++) {
-    	carry =0;
-        for (j=0; j<130; j++) {
-            if (i+j<130) {
-            	t1=X[i];
-            	t2=Y[j];
-            	product = t1*t2 + carry + T[i+j];
-            	temp = (product >>32)& 0xffffffff;
-            	T[i+j] = product & 0xffffffff;
-            	carry = temp;
-            }
-        }
-    }
-    Copy(X, T);       
-	
+	memset(T, 0, ASPEED_EUCLID_LEN);
+	for (i = 0; i < 128; i++) {
+		carry = 0;
+		for (j = 0; j < 130; j++) {
+			if (i + j < 130) {
+				t1 = X[i];
+				t2 = Y[j];
+				product = t1 * t2 + carry + T[i + j];
+				temp = (product >> 32) & 0xffffffff;
+				T[i + j] = product & 0xffffffff;
+				carry = temp;
+			}
+		}
+	}
+	memcpy(X, T, ASPEED_EUCLID_LEN);
 }
-
 
 //x = lastx - q * t;
-void CalEucPar(unsigned long *x, unsigned long *lastx, unsigned long *q, unsigned long *t)
+void CalEucPar(u32 *x, u32 *lastx, u32 *q, u32 *t)
 {
-int j;
-unsigned long temp [256];
-    
-    //printf("Start CalEucPar\n");
-    Copy(temp, t);
-    Copy(x, lastx);
-    if (Getbit(temp, 4095)) {
-        Positive(temp);
-        //printf("t is negtive\n");
-        //printf("q="); printX(q);
-        //printf("t="); printX(temp);
-        MultiplyLSB(temp, q);
-        //printf("q*t="); printX(temp);
-        Add(x, temp);
-        //printf("lastx-q*t="); printX(x);
-    } else {
-        //printf("q="); printX(q);
-        //printf("t="); printX(temp);
-        MultiplyLSB(temp, q);
-        //printf("q*t="); printX(temp);
-        Substrate(x, temp);
-        //printf("lastx-q*t="); printX(x);
-    }
+	u32 temp[256];
+
+	memcpy(temp, t, ASPEED_EUCLID_LEN);
+	memcpy(x, lastx, ASPEED_EUCLID_LEN);
+	if (Getbit(temp, 4095)) {
+		Positive(temp);
+		MultiplyLSB(temp, q);
+		Add(x, temp);
+	} else {
+		MultiplyLSB(temp, q);
+		Substrate(x, temp);
+	}
 }
 
-void Euclid(unsigned long *Mp, unsigned long *M, unsigned long *S, int nm)
+void Euclid(struct aspeed_rsa_ctx *ctx, u32 *Mp, u32 *M, u32 *S, int nm)
 {
-int j;
-int check;
-unsigned long a[256];
-unsigned long b[256];
+	int j;
+	u32 *a = (u32 *)(ctx->euclid_ctx + ASPEED_EUCLID_A);
+	u32 *b = (u32 *)(ctx->euclid_ctx + ASPEED_EUCLID_B);
+	u32 *q = (u32 *)(ctx->euclid_ctx + ASPEED_EUCLID_Q);
+	u32 *r = (u32 *)(ctx->euclid_ctx + ASPEED_EUCLID_R);
+	u32 *x = (u32 *)(ctx->euclid_ctx + ASPEED_EUCLID_X);
+	u32 *y = (u32 *)(ctx->euclid_ctx + ASPEED_EUCLID_Y);
+	u32 *lastx = (u32 *)(ctx->euclid_ctx + ASPEED_EUCLID_LX);
+	u32 *lasty = (u32 *)(ctx->euclid_ctx + ASPEED_EUCLID_LY);
+	u32 *t = (u32 *)(ctx->euclid_ctx + ASPEED_EUCLID_T);
+	u32 *D1 = (u32 *)(ctx->euclid_ctx + ASPEED_EUCLID_D1);
 
-unsigned long q [256];
-unsigned long r [256];
-unsigned long x [256];
-unsigned long y [256];
-unsigned long lastx [256];
-unsigned long lasty [256];
-unsigned long t  [256];
-unsigned long D1 [256];
 	RSA_DBG("\n");
 
-    Copy(a, M);
-    Copy(b, S);
+	memcpy(a, M, ASPEED_EUCLID_LEN);
+	memcpy(b, S, ASPEED_EUCLID_LEN);
 
-    init_1(D1);
-    init_1(x);
-    init_0(lastx);
+	memset(D1, 0, ASPEED_EUCLID_LEN);
+	D1[0] = 1;
+	memset(x, 0, ASPEED_EUCLID_LEN);
+	x[0] = 1;
+	memset(lastx, 0, ASPEED_EUCLID_LEN);
+	memset(y, 0xff, ASPEED_EUCLID_LEN);
+	memset(lasty, 0, ASPEED_EUCLID_LEN);
+	lasty[0] = 1;
 
-    init_m1(y);
-    init_1(lasty);
-    div_cnt = 0;
-    shl_cnt = 0;
-    //step 2
-    while (Compare(b, D1)>0) {
-        //q = a div b, r = a mod b
-        //printf("a="); printX(a);
-        //printf("b="); printX(b);
-        Divide(q, r, a, b);
-        div_cnt++;
-        //printf("q="); printX(q);
-        //printf("r="); printX(r);
-        //a = b;
-        Copy(a, b);
-        //b = r;
-        Copy(b, r);
-        
-        Copy(t, x);
-        //x = lastx - q * x;
-        CalEucPar(x, lastx, q, t);
-        Copy(lastx, t);
+	// step 2
+	while (Compare(b, D1) > 0) {
+		//q = a div b, r = a mod b
+		Divide(q, r, a, b);
+		//a = b;
+		memcpy(a, b, ASPEED_EUCLID_LEN);
+		//b = r;
+		memcpy(b, r, ASPEED_EUCLID_LEN);
+		memcpy(t, x, ASPEED_EUCLID_LEN);
+		//x = lastx - q * x;
+		CalEucPar(x, lastx, q, t);
+		memcpy(lastx, t, ASPEED_EUCLID_LEN);
+		memcpy(t, y, ASPEED_EUCLID_LEN);
+		//y = lasty - q * y;
+		CalEucPar(y, lasty, q, t);
+		memcpy(lasty, t, ASPEED_EUCLID_LEN);
+	}
+	memset(r, 0, ASPEED_EUCLID_LEN);
+	r[0] = 1;
+	for (j = 0; j < nm; j++)
+		ShiftLeft(r, 0);
+	if (Getbit(x, 4095)) {
+		Add(x, M);
+		Substrate(y, r);
+	}
+	Positive(y);
+	memcpy(Mp, y, ASPEED_EUCLID_LEN);
+#if 0
+	printk("Euclid Mp\n");
+	printA(Mp);
+	MultiplyLSB(x, r);
+	// printk("Final R*Rp=\n");
+	// printA(x);
+	MultiplyLSB(y, M);
+	// printk("Final M*Mp=\n");
+	// printA(y);
+	Substrate(x, y);
+	// printk("Final R*Rp-M*Mp=\n");
+	// printA(x);
+	check = Compare(x, D1);
+	if (check == 0)
+		printk("***PASS for Eculde check\n");
+	else
+		printk("***FAIL for Eculde check\n");
+#endif
 
-        Copy(t, y);
-        //y = lasty - q * y;
-        CalEucPar(y, lasty, q, t);
-        Copy(lasty, t);
+}
 
-        //printf("lastx="); printX(lastx);
-        //printf("lasty="); printX(lasty);
-        //printf("x="); printX(x);
-        //printf("y="); printX(y);
-    }
+void RSAgetNp(struct aspeed_rsa_ctx *ctx, struct aspeed_rsa_key *rsa_key)
+{
+	u32 *S = (u32 *)(ctx->euclid_ctx + ASPEED_EUCLID_S);
+	u32 *N = (u32 *)(ctx->euclid_ctx + ASPEED_EUCLID_N);
+	u32 *Np = (u32 *)(ctx->euclid_ctx + ASPEED_EUCLID_NP);
 
-    init_1(r);
-    for (j=0; j<nm; j++) ShiftLeft(r, 0);
-    if (Getbit(x, 4095)) {
-    	Add(x, M);
-    	Substrate(y, r);
-    }
-    Positive(y);
-    Copy(Mp, y);
+	RSA_DBG("\n");
+	memset(N, 0, ASPEED_EUCLID_LEN);
+	memset(Np, 0, ASPEED_EUCLID_LEN);
+	memset(S, 0, ASPEED_EUCLID_LEN);
+	memcpy(N, rsa_key->n, rsa_key->n_sz);
+	rsa_key->nm = get_bit_number((u32 *)rsa_key->n);
+	if ((rsa_key->nm % 32) > 0)
+		rsa_key->dwm = (rsa_key->nm / 32) + 1;
+	else
+		rsa_key->dwm = (rsa_key->nm / 32);
 
+	rsa_key->mdwm = rsa_key->dwm;
+	if ((rsa_key->nm % 32) == 0)
+		rsa_key->mdwm++;
+
+	// printk("modulus nm bits %d \n", rsa_key->nm);
+	// printk("modulus dwm 4bytes %d \n", rsa_key->dwm);
+	// printk("modulus mdwm 4bytes %d \n", rsa_key->mdwm);
+
+	S[0] = 1;
+	MulRmodM(S, N, rsa_key->nm, rsa_key->mdwm);
+
+	// calculate Mp, R*1/R - Mp*M = 1
+	// Because R div M = 1 rem (R-M), S=R-M, so skip first divide.
+	Euclid(ctx, Np, N, S, rsa_key->nm);
+	memcpy(rsa_key->np, Np, ASPEED_RSA_KEY_LEN);
+	return;
 }
 
 int aspeed_crypto_rsa_trigger(struct aspeed_crypto_dev *crypto_dev)
 {
+	struct crypto_akcipher *cipher = crypto_akcipher_reqtfm(crypto_dev->akcipher_req);
+	struct aspeed_rsa_ctx *ctx = crypto_tfm_ctx(&cipher->base);
+	struct akcipher_request *req = crypto_dev->akcipher_req;
+	struct scatterlist *in_sg = req->src, *out_sg = req->dst;
+	struct aspeed_rsa_key *rsa_key = &ctx->key;
+	int nbytes = 0;
+	int result_bit, result_length;
+	static u8 X[512] = {0};
+	u8 *xa_buff = crypto_dev->rsa_buff + ASPEED_RSA_XA_BUFF;
+	u8 *e_buff = crypto_dev->rsa_buff + ASPEED_RSA_E_BUFF;
 
+	RSA_DBG("\n");
+#if 0
+	printk("rsa_buff: \t%x\n", crypto_dev->rsa_buff);
+	printk("xa_buff: \t%x\n", xa_buff);
+	printk("e_buff: \t%x\n", e_buff);
+#endif
+	nbytes = sg_copy_to_buffer(in_sg, sg_nents(req->src), X, req->src_len);
+	if (!nbytes || (nbytes != req->src_len)) {
+		printk("sg_copy_to_buffer nbytes error \n");
+		return -EINVAL;
+	}
+	memset(xa_buff, 0, ASPEED_RSA_KEY_LEN);
+	BNCopyToLN(xa_buff, X, nbytes);
+#if 0
+	printk("copy nbytes %d, req->src_len %d , nb_in_sg %d, nb_out_sg %d \n", nbytes, req->src_len, sg_nents(req->src), sg_nents(req->dst));
+	printk("input message:\n");
+	printA(xa_buff);
+	printk("input M:\n");
+	printA((u8 *)(crypto_dev->rsa_buff + ASPEED_RSA_N_BUFF));
+	printk("input Mp:\n");
+	printA((u8 *)(crypto_dev->rsa_buff + ASPEED_RSA_NP_BUFF));
+	printk("ne = %d nm = %d\n", rsa_key->ne, rsa_key->nm);
+	printk("ready rsa\n");
+#endif
+	if (ctx->enc) {
+		memcpy(e_buff, rsa_key->e, 512);
+		// printk("rsa_key->e: %d\n", rsa_key->ne);
+		// printk("input E:\n");
+		// printA(e_buff);
+		aspeed_crypto_write(crypto_dev, rsa_key->ne + (rsa_key->nm << 16),
+				    ASPEED_HACE_RSA_MD_EXP_BIT);
+	} else {
+		memcpy(e_buff, rsa_key->d, 512);
+		// printk("rsa_key->d: %d\n", rsa_key->nd);
+		// printk("input E:\n");
+		// printA(e_buff);
+		aspeed_crypto_write(crypto_dev, rsa_key->nd + (rsa_key->nm << 16),
+				    ASPEED_HACE_RSA_MD_EXP_BIT);
+	}
+	aspeed_crypto_write(crypto_dev,
+			    RSA_CMD_SRAM_ENGINE_ACCESSABLE | RSA_CMD_FIRE,
+			    ASPEED_HACE_RSA_CMD);
+	while (aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS) & HACE_RSA_BUSY);
+	aspeed_crypto_write(crypto_dev, 0, ASPEED_HACE_RSA_CMD);
+	result_bit = get_bit_number((u32 *)xa_buff);
+	if ((result_bit % 8) > 0)
+		result_length = (result_bit / 8) + 1;
+	else
+		result_length = (result_bit / 8);
+#if 0
+	printk("after np\n");
+	printA(rsa_key->np);
+	printk("after decrypt\n");
+	printA(xa_buff);
+	printk("result length: %d\n", result_length);
+#endif
+
+	req->dst_len = result_length;
+	BNCopyToLN(X, xa_buff, req->dst_len);
+	nbytes = sg_copy_from_buffer(out_sg, sg_nents(req->dst), X,
+				     req->dst_len);
+	if (!nbytes) {
+		printk("sg_copy_from_buffer nbytes error \n");
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -451,177 +556,141 @@ static int aspeed_rsa_enc(struct akcipher_request *req)
 {
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 	struct aspeed_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_crypto_dev *crypto_dev = ctx->crypto_dev;
+	unsigned long flags;
+	int err;
+	ctx->enc = 1;
 	RSA_DBG("\n");
+	spin_lock_irqsave(&crypto_dev->lock, flags);
+	err = crypto_enqueue_request(&crypto_dev->queue, &req->base);
+	spin_unlock_irqrestore(&crypto_dev->lock, flags);
+	tasklet_schedule(&crypto_dev->crypto_tasklet);
 
-	return 0;
+	return err;
+
 }
 
 static int aspeed_rsa_dec(struct akcipher_request *req)
 {
-//	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
-//	struct aspeed_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
+	struct aspeed_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_crypto_dev *crypto_dev = ctx->crypto_dev;
+	unsigned long flags;
+	int err;
+	ctx->enc = 0;
+	RSA_DBG("\n");
+	spin_lock_irqsave(&crypto_dev->lock, flags);
+	err = crypto_enqueue_request(&crypto_dev->queue, &req->base);
+	spin_unlock_irqrestore(&crypto_dev->lock, flags);
+	tasklet_schedule(&crypto_dev->crypto_tasklet);
 
-	RSA_DBG("---------\n");
-
+	return err;
 }
 
-static int aspeed_rsa_setpubkey(struct crypto_akcipher *tfm, const void *key,
-				unsigned int keylen)
+
+
+static void aspeed_rsa_free_key(struct aspeed_rsa_key *key)
 {
-//	struct aspeed_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
-//	struct rsa_key raw_key = {0};
-//	struct aspeed_rsa_key *rsa_key = &ctx->key;
-//	int ret;
-	RSA_DBG("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n");
-#if 0
-	/* Free the old RSA key if any */
-	caam_rsa_free_key(rsa_key);
+	RSA_DBG("\n");
+	kzfree(key->d);
+	kzfree(key->e);
 
-	ret = rsa_parse_pub_key(&raw_key, key, keylen);
-	if (ret)
-		return ret;
+	key->d_sz = 0;
+	key->e_sz = 0;
+	key->n_sz = 0;
 
-	/* Copy key in DMA zone */
-	rsa_key->e = kzalloc(raw_key.e_sz, GFP_DMA | GFP_KERNEL);
-	if (!rsa_key->e)
-		goto err;
-
-	/*
-	 * Skip leading zeros and copy the positive integer to a buffer
-	 * allocated in the GFP_DMA | GFP_KERNEL zone. The decryption descriptor
-	 * expects a positive integer for the RSA modulus and uses its length as
-	 * decryption output length.
-	 */
-	rsa_key->n = caam_read_raw_data(raw_key.n, &raw_key.n_sz);
-	if (!rsa_key->n)
-		goto err;
-
-	if (caam_rsa_check_key_length(raw_key.n_sz << 3)) {
-		caam_rsa_free_key(rsa_key);
-		return -EINVAL;
-	}
-
-	rsa_key->e_sz = raw_key.e_sz;
-	rsa_key->n_sz = raw_key.n_sz;
-
-	memcpy(rsa_key->e, raw_key.e, raw_key.e_sz);
-
-	return 0;
-err:
-	caam_rsa_free_key(rsa_key);
-	return -ENOMEM;
-#endif	
+	key->d = NULL;
+	key->e = NULL;
+	key->n = NULL;
+	key->np = NULL;
+	return;
 }
 
-static int aspeed_rsa_setprivkey(struct crypto_akcipher *tfm, const void *key,
-				 unsigned int keylen)
+static int aspeed_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
+			     unsigned int keylen, int priv)
 {
 	struct aspeed_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct rsa_key raw_key;
-	struct aspeed_crypto_dev	*crypto_dev = ctx->crypto_dev;
+	struct aspeed_crypto_dev *crypto_dev = ctx->crypto_dev;
 	struct aspeed_rsa_key *rsa_key = &ctx->key;
 	int ret;
-	u8 *key_buff = key;
-	int i;
-	int nm, dwm, mdwm;
-	unsigned long S [256];	
-	
-	RSA_DBG("keylen %d \n", keylen);
 
 	/* Free the old RSA key if any */
-//	caam_rsa_free_key(rsa_key);
-#if 1
+	aspeed_rsa_free_key(rsa_key);
 
-	printk("key \n");
-
-	for(i = 0; i < keylen; i++)
-		printk("%x ", key_buff[i]);
-
-	printk(" \n");
-#endif
-
-	ret = rsa_parse_priv_key(&raw_key, key, keylen);
+	if (priv)
+		ret = rsa_parse_priv_key(&raw_key, key, keylen);
+	else
+		ret = rsa_parse_pub_key(&raw_key, key, keylen);
 	if (ret)
 		return ret;
+	RSA_DBG("\n");
+	// printk("raw_key.n_sz %d, raw_key.e_sz %d, raw_key.d_sz %d, raw_key.p_sz %d, raw_key.q_sz %d, raw_key.dp_sz %d, raw_key.dq_sz %d, raw_key.qinv_sz %d\n",
+	// 	raw_key.n_sz, raw_key.e_sz, raw_key.d_sz,
+	// 	raw_key.p_sz, raw_key.q_sz, raw_key.dp_sz,
+	// 	raw_key.dq_sz, raw_key.qinv_sz);
 
-	printk("raw_key.n_sz %d, raw_key.e_sz %d, raw_key.d_sz %d, raw_key.p_sz %d, raw_key.q_sz %d, raw_key.dp_sz %d, raw_key.dq_sz %d, raw_key.qinv_sz %d \n", 
-			raw_key.n_sz, raw_key.e_sz, raw_key.d_sz, 
-			raw_key.p_sz, raw_key.q_sz, raw_key.dp_sz, 
-			raw_key.dq_sz, raw_key.qinv_sz);
-
-	printk("raw_key.n %x, raw_key.e %x, raw_key.d %x, raw_key.p %x, raw_key.q %x, raw_key.dp %x, raw_key.dq %x, raw_key.qinv %x \n", 
-			raw_key.n, raw_key.e, raw_key.d, 
-			raw_key.p, raw_key.q, raw_key.dp, 
-			raw_key.dq, raw_key.qinv);
-	
-	/* Copy key in DMA zone */
-	rsa_key->d = kzalloc(raw_key.d_sz, GFP_DMA | GFP_KERNEL);
-	
-	if (!rsa_key->d) {
-		printk("!rsa_key->d ");
-		goto err;
-	}
-	
-	rsa_key->e = kzalloc(raw_key.e_sz, GFP_DMA | GFP_KERNEL);
-	if (!rsa_key->e) {
-		printk("!rsa_key->e ");
-		goto err;
+	if (priv) {
+		rsa_key->d = kzalloc(512, GFP_KERNEL);
+		if (!rsa_key->d)
+			goto err;
+		BNCopyToLN(rsa_key->d, raw_key.d, raw_key.d_sz);
+		rsa_key->nd = get_bit_number((u32 *)rsa_key->d);
+		// printk("D=\n");
+		// printA(rsa_key->d);
 	}
 
-
-	rsa_key->n = crypto_dev->rsa_buff + 0x800;
-	if (!rsa_key->n) {
-		printk("!rsa_key->n ");
+	rsa_key->e = kzalloc(512, GFP_KERNEL);
+	if (!rsa_key->e)
 		goto err;
-	}
+	BNCopyToLN(rsa_key->e, raw_key.e, raw_key.e_sz);
+	rsa_key->ne = get_bit_number((u32 *)rsa_key->e);
+	// printk("E=\n");
+	// printA((u32 *)rsa_key->e);
 
-	rsa_key->d_sz = raw_key.d_sz;
-	rsa_key->e_sz = raw_key.e_sz;
+	rsa_key->n = crypto_dev->rsa_buff + ASPEED_RSA_N_BUFF;
+	rsa_key->np = crypto_dev->rsa_buff + ASPEED_RSA_NP_BUFF;
 	rsa_key->n_sz = raw_key.n_sz;
+	memset(rsa_key->n, 0, ASPEED_RSA_KEY_LEN);
+	memset(rsa_key->np, 0, ASPEED_RSA_KEY_LEN);
 
-	
-	memcpy(rsa_key->d, raw_key.d, raw_key.d_sz);
-	memcpy(rsa_key->e, raw_key.e, raw_key.e_sz);
-	/*
-	* @n		   : RSA modulus raw byte stream
-	* @e		   : RSA public exponent raw byte stream
-	* @d		   : RSA private exponent raw byte stream
-	*/
-	memcpy(rsa_key->n, raw_key.n, raw_key.n_sz);
-//	nm = get_bit_number(rsa_key->n);
-//	printk("modulus nm bits %d \n", nm);
-#if 0
-	nm = rsa_key->n_sz * 8;
-	if ((nm%32) > 0)
-		dwm = (nm/32) + 1;
-	else
-		dwm = (nm/32);
+	if (rsa_key->n_sz > 512) {
+		aspeed_rsa_free_key(rsa_key);
+		return -EINVAL;
+	}
+	BNCopyToLN(rsa_key->n, raw_key.n, raw_key.n_sz);
 
-	mdwm = dwm;
-	if ((nm%32)==0) mdwm++;
+	if (!(ctx->crypto_dev->compatible & ASPEED_CRYPTO_G6))
+		RSAgetNp(ctx, rsa_key);
 
-	
-
-    init_1(S);
-    MulRmodM(S, rsa_key->n, nm, mdwm);
-	
-    // calculate Mp, R*1/R - Mp*M = 1
-    // Because R div M = 1 rem (R-M), S=R-M, so skip first divide.
-    Euclid(crypto_dev->rsa_buff + 0x400, rsa_key->n, S, nm);
-#endif
 	return 0;
-
 err:
+	aspeed_rsa_free_key(rsa_key);
 	return -ENOMEM;
-
 }
 
+static int aspeed_rsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
+				  unsigned int keylen)
+{
+	RSA_DBG("\n");
+
+	return aspeed_rsa_setkey(tfm, key, keylen, 0);
+}
+
+static int aspeed_rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,
+				   unsigned int keylen)
+{
+	RSA_DBG("\n");
+
+	return aspeed_rsa_setkey(tfm, key, keylen, 1);
+}
 
 static int aspeed_rsa_max_size(struct crypto_akcipher *tfm)
 {
 	struct aspeed_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct aspeed_rsa_key *key = &ctx->key;
-	RSA_DBG("key->n_sz %d %x \n", key->n_sz, key->n);
+
+	RSA_DBG("key->n_sz %d %x\n", key->n_sz, key->n);
 	return (key->n) ? key->n_sz : -EINVAL;
 }
 
@@ -630,22 +699,29 @@ static int aspeed_rsa_init_tfm(struct crypto_akcipher *tfm)
 	struct aspeed_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct akcipher_alg *alg = __crypto_akcipher_alg(tfm->base.__crt_alg);
 	struct aspeed_crypto_alg *algt;
+
 	RSA_DBG("\n");
 
 	algt = container_of(alg, struct aspeed_crypto_alg, alg.akcipher);
 
 	ctx->crypto_dev = algt->crypto_dev;
 
+	if (!(ctx->crypto_dev->compatible & ASPEED_CRYPTO_G6))
+		ctx->euclid_ctx = kzalloc(ASPEED_EUCLID_CTX_LEN, GFP_KERNEL);
 	return 0;
 }
 
 static void aspeed_rsa_exit_tfm(struct crypto_akcipher *tfm)
 {
+	struct aspeed_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_crypto_dev *crypto_dev = ctx->crypto_dev;
+	struct aspeed_rsa_key *key = &ctx->key;
+
 	RSA_DBG("\n");
 
-//	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
-//	struct caam_rsa_key *key = &ctx->key;
-
+	aspeed_rsa_free_key(key);
+	if (!(crypto_dev->compatible & ASPEED_CRYPTO_G6))
+		kfree(ctx->euclid_ctx);
 }
 
 struct aspeed_crypto_alg aspeed_akcipher_algs[] = {
@@ -655,8 +731,8 @@ struct aspeed_crypto_alg aspeed_akcipher_algs[] = {
 			.decrypt = aspeed_rsa_dec,
 			.sign = aspeed_rsa_dec,
 			.verify = aspeed_rsa_enc,
-			.set_pub_key = aspeed_rsa_setpubkey,
-			.set_priv_key = aspeed_rsa_setprivkey,
+			.set_pub_key = aspeed_rsa_set_pub_key,
+			.set_priv_key = aspeed_rsa_set_priv_key,
 			.max_size = aspeed_rsa_max_size,
 			.init = aspeed_rsa_init_tfm,
 			.exit = aspeed_rsa_exit_tfm,
@@ -664,10 +740,10 @@ struct aspeed_crypto_alg aspeed_akcipher_algs[] = {
 				.cra_name = "rsa",
 				.cra_driver_name = "aspeed-rsa",
 				.cra_priority = 300,
-					.cra_flags		= CRYPTO_ALG_TYPE_AKCIPHER |
-					CRYPTO_ALG_ASYNC |
-					CRYPTO_ALG_KERN_DRIVER_ONLY,
-				
+				.cra_flags = CRYPTO_ALG_TYPE_AKCIPHER |
+				CRYPTO_ALG_ASYNC |
+				CRYPTO_ALG_KERN_DRIVER_ONLY,
+
 				.cra_module = THIS_MODULE,
 				.cra_ctxsize = sizeof(struct aspeed_rsa_ctx),
 			},
@@ -683,9 +759,8 @@ int aspeed_register_akcipher_algs(struct aspeed_crypto_dev *crypto_dev)
 	for (i = 0; i < ARRAY_SIZE(aspeed_akcipher_algs); i++) {
 		aspeed_akcipher_algs[i].crypto_dev = crypto_dev;
 		err = crypto_register_akcipher(&aspeed_akcipher_algs[i].alg.akcipher);
-		if (err) {
+		if (err)
 			return err;
-		}
 	}
 	return 0;
 }
