@@ -178,7 +178,7 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 
 	// 8-byte aligned
 	crypto_dev->cipher_addr = dma_alloc_coherent(&pdev->dev,
-			      0xa000,
+			      0x2000,
 			      &crypto_dev->cipher_dma_addr, GFP_KERNEL);
 
 	if (! crypto_dev->cipher_addr) {
@@ -186,21 +186,10 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	crypto_dev->hash_key = crypto_dev->cipher_addr + 0x1000;
-	crypto_dev->hash_key_dma = crypto_dev->cipher_dma_addr + 0x1000;
-
-	crypto_dev->hmac_key = crypto_dev->hash_key + 0x1000;
-	crypto_dev->hmac_key_dma = crypto_dev->hash_key_dma + 0x1000;
-
-	crypto_dev->hash_src = crypto_dev->hmac_key + 0x1000;
-	crypto_dev->hash_src_dma = crypto_dev->hmac_key_dma + 0x1000;
-
-	crypto_dev->hash_digst = crypto_dev->hash_src + ASPEED_HASH_BUFF_SIZE;
-	crypto_dev->hash_digst_dma = crypto_dev->hash_src_dma + ASPEED_HASH_BUFF_SIZE;
+	crypto_dev->hash_src = crypto_dev->cipher_addr + 0x1000;
+	crypto_dev->hash_src_dma = crypto_dev->cipher_dma_addr + 0x1000;
 
 	CRYPTO_DBUG("Crypto ctx %x , in : %x, out: %x\n", crypto_dev->ctx_dma_addr, crypto_dev->dma_addr_in, crypto_dev->dma_addr_out);
-
-	CRYPTO_DBUG("Hash key %x , src : %x, digst: %x\n", crypto_dev->hash_key_dma, crypto_dev->hash_src_dma, crypto_dev->hash_digst_dma);
 
 	err = aspeed_crypto_register(crypto_dev);
 	if (err) {
