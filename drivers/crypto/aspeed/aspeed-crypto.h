@@ -153,58 +153,37 @@ struct aspeed_crypto_alg {
 	} alg;
 };
 
-/* the private variable of hash */
-struct aspeed_ahash_ctx {
-	struct aspeed_crypto_dev	*crypto_dev;
-	u32 		ahash_cmd;
-	size_t		digcnt;
-	unsigned int	total;	/* total request */	
-	struct scatterlist	*sg;	
-	unsigned long	flags;	
-	size_t	bufcnt;	
-	/* for fallback */
-	struct crypto_ahash		*fallback_tfm;
-//	struct crypto_shash 	*base_hash;		//for hmac
-};
-
-/* the privete variable of hash for fallback */
-struct aspeed_ahash_rctx {
-	struct ahash_request		fallback_req;
-};
-
 /*************************************************************************************/
+/* the privete variable of hash for fallback */
+struct aspeed_sham_hmac_ctx {
+	struct crypto_shash	*shash;
+	u8			ipad[SHA512_BLOCK_SIZE] __attribute__((aligned(sizeof(u32))));
+	u8			opad[SHA512_BLOCK_SIZE] __attribute__((aligned(sizeof(u32))));
+};
+
 struct aspeed_sham_ctx {
 	struct aspeed_crypto_dev	*crypto_dev;
-
 	unsigned long		flags;	//hmac flag
-
+	
 	/* fallback stuff */
 	struct crypto_shash	*fallback;
-	struct crypto_shash 	*base_hash;		//for hmac
+	struct aspeed_sham_hmac_ctx base[0];		//for hmac
 };
 
+
 struct aspeed_sham_reqctx {
-	struct aspeed_crypto_dev	*crypto_dev;
 	unsigned long	flags;	//final update flag should no use
-	u8			op; 	  	////0: init, 1 : upate , 2: final update
-
-	u32			cmd;
-
-	u8	digest[SHA256_DIGEST_SIZE] __aligned(sizeof(u32));
-
+	u32				cmd;	//trigger cmd
 	size_t			digcnt;
-
 	size_t			bufcnt;
-
+	size_t			buflen;
 	/* walk state */
 	struct scatterlist	*sg;
 	unsigned int		offset;	/* offset in current sg */
-	unsigned int		total;	/* total request */
-
+	size_t		total;	/* total request */
 	size_t 		block_size;
-
-	u8	buffer[0] __aligned(sizeof(u32));
 };
+/*************************************************************************************/
 
 struct aspeed_ecdh_ctx {
 	struct aspeed_crypto_dev	*crypto_dev;
@@ -214,6 +193,7 @@ struct aspeed_ecdh_ctx {
 	u8	private_key[256];
 };
 
+/*************************************************************************************/
 /**
  * caam_rsa_key - CAAM RSA key structure. Keys are allocated in DMA zone.
  * @n           : RSA modulus raw byte stream
