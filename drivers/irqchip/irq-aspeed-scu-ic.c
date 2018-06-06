@@ -19,19 +19,19 @@
 #include <linux/io.h>
 /*******************************************************************/
 /*  AST_SCU_INTR_CTRL : 0x18 - Interrupt control and status register   */
-#define INTR_LPC_H_L_RESET				(0x1 << 21)
-#define INTR_LPC_L_H_RESET				(0x1 << 20)
-#define INTR_PCIE_H_L_RESET				(0x1 << 19)
-#define INTR_PCIE_L_H_RESET				(0x1 << 18)
-#define INTR_VGA_SCRATCH_CHANGE			(0x1 << 17)
-#define INTR_VGA_CURSOR_CHANGE			(0x1 << 16)
-#define INTR_ISSUE_MSI					(0x1 << 6)
-#define INTR_LPC_H_L_RESET_EN			(0x1 << 5)
-#define INTR_LPC_L_H_RESET_EN			(0x1 << 4)
-#define INTR_PCIE_H_L_RESET_EN			(0x1 << 3)
-#define INTR_PCIE_L_H_RESET_EN			(0x1 << 2)
-#define INTR_VGA_SCRATCH_CHANGE_EN		(0x1 << 1)
-#define INTR_VGA_CURSOR_CHANGE_EN		(0x1 << 0)
+#define INTR_LPC_H_L_RESET				BIT(21)
+#define INTR_LPC_L_H_RESET				BIT(20)
+#define INTR_PCIE_H_L_RESET				BIT(19)
+#define INTR_PCIE_L_H_RESET				BIT(18)
+#define INTR_VGA_SCRATCH_CHANGE			BIT(17)
+#define INTR_VGA_CURSOR_CHANGE			BIT(16)
+#define INTR_ISSUE_MSI					BIT(6)
+#define INTR_LPC_H_L_RESET_EN			BIT(5)
+#define INTR_LPC_L_H_RESET_EN			BIT(4)
+#define INTR_PCIE_H_L_RESET_EN			BIT(3)
+#define INTR_PCIE_L_H_RESET_EN			BIT(2)
+#define INTR_VGA_SCRATCH_CHANGE_EN		BIT(1)
+#define INTR_VGA_CURSOR_CHANGE_EN		BIT(0)
 /*******************************************************************/
 //#define AST_SCU_IRQ_DEBUG
 
@@ -101,7 +101,6 @@ static int __init ast_scu_irq_of_init(struct device_node *node,
 					struct device_node *parent)
 {
 	struct ast_scu_irq *scu_irq;
-	u8 *buf_pool;
 
 	scu_irq = kzalloc(sizeof(*scu_irq), GFP_KERNEL);
 	if (!scu_irq)
