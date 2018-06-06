@@ -17,7 +17,7 @@
 
 #include "aspeed-crypto.h"
 
-// #define ASPEED_RSA_DEBUG
+#define ASPEED_RSA_DEBUG
 
 #ifdef ASPEED_RSA_DEBUG
 // #define RSA_DBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
@@ -629,6 +629,11 @@ static int aspeed_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 	// 	raw_key.n_sz, raw_key.e_sz, raw_key.d_sz,
 	// 	raw_key.p_sz, raw_key.q_sz, raw_key.dp_sz,
 	// 	raw_key.dq_sz, raw_key.qinv_sz);
+	/**/
+	if (raw_key.n_sz > crypto_dev->rsa_buf_len) {
+		aspeed_rsa_free_key(rsa_key);
+		return -EINVAL;
+	}
 
 	if (priv) {
 		rsa_key->d = kzalloc(512, GFP_KERNEL);
@@ -654,13 +659,9 @@ static int aspeed_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 	memset(rsa_key->n, 0, ASPEED_RSA_KEY_LEN);
 	memset(rsa_key->np, 0, ASPEED_RSA_KEY_LEN);
 
-	if (rsa_key->n_sz > 512) {
-		aspeed_rsa_free_key(rsa_key);
-		return -EINVAL;
-	}
 	BNCopyToLN(rsa_key->n, raw_key.n, raw_key.n_sz);
 
-	if (!(ctx->crypto_dev->compatible & ASPEED_CRYPTO_G6))
+	if (!(ctx->crypto_dev->version & ASPEED_CRYPTO_G6))
 		RSAgetNp(ctx, rsa_key);
 
 	return 0;
@@ -706,7 +707,7 @@ static int aspeed_rsa_init_tfm(struct crypto_akcipher *tfm)
 
 	ctx->crypto_dev = algt->crypto_dev;
 
-	if (!(ctx->crypto_dev->compatible & ASPEED_CRYPTO_G6))
+	if (!(ctx->crypto_dev->version & ASPEED_CRYPTO_G6))
 		ctx->euclid_ctx = kzalloc(ASPEED_EUCLID_CTX_LEN, GFP_KERNEL);
 	return 0;
 }
@@ -720,7 +721,7 @@ static void aspeed_rsa_exit_tfm(struct crypto_akcipher *tfm)
 	RSA_DBG("\n");
 
 	aspeed_rsa_free_key(key);
-	if (!(crypto_dev->compatible & ASPEED_CRYPTO_G6))
+	if (!(crypto_dev->version & ASPEED_CRYPTO_G6))
 		kfree(ctx->euclid_ctx);
 }
 

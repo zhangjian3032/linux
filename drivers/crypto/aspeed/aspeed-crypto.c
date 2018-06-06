@@ -189,10 +189,13 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 	}
 
 	if (of_device_is_compatible(pdev->dev.of_node,
-				    "aspeed,ast2600-crypto"))
-		crypto_dev->compatible = ASPEED_CRYPTO_G6;
-	else
-		crypto_dev->compatible = 0;
+				    "aspeed,ast2600-crypto")) {
+		crypto_dev->version = ASPEED_CRYPTO_G6;
+		crypto_dev->rsa_buf_len = ASPEED_CRYPTO_G6_RSA_BUFF_SIZE;
+	} else {
+		crypto_dev->version = 0;
+		crypto_dev->rsa_buf_len = ASPEED_CRYPTO_RSA_BUFF_SIZE;
+	}
 
 	// 8-byte aligned
 	crypto_dev->cipher_addr = dma_alloc_coherent(&pdev->dev,

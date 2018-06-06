@@ -88,6 +88,8 @@
 #define ASPEED_HACE_ENG_FEATURE		0x60
 
 #define ASPEED_CRYPTO_G6		BIT(0)
+#define ASPEED_CRYPTO_G6_RSA_BUFF_SIZE	512
+#define ASPEED_CRYPTO_RSA_BUFF_SIZE	512
 
 #define ASPEED_EUCLID_CTX_LEN		13312
 #define ASPEED_EUCLID_LEN		1024
@@ -139,7 +141,8 @@ struct aspeed_crypto_dev {
 
 	unsigned long	flags;
 
-	unsigned long	compatible;
+	unsigned long	version;
+	unsigned long	rsa_buf_len;
 
 	size_t	total;
 
