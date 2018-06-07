@@ -142,7 +142,7 @@ struct aspeed_crypto_dev {
 	unsigned long	flags;
 
 	unsigned long	version;
-	unsigned long	rsa_buf_len;
+	unsigned long	rsa_max_buf_len;
 
 	size_t	total;
 

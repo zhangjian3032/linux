@@ -17,7 +17,7 @@
 
 #include "aspeed-crypto.h"
 
-#define ASPEED_RSA_DEBUG
+// #define ASPEED_RSA_DEBUG
 
 #ifdef ASPEED_RSA_DEBUG
 // #define RSA_DBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
@@ -630,7 +630,7 @@ static int aspeed_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 	// 	raw_key.p_sz, raw_key.q_sz, raw_key.dp_sz,
 	// 	raw_key.dq_sz, raw_key.qinv_sz);
 	/**/
-	if (raw_key.n_sz > crypto_dev->rsa_buf_len) {
+	if (raw_key.n_sz > crypto_dev->rsa_max_buf_len) {
 		aspeed_rsa_free_key(rsa_key);
 		return -EINVAL;
 	}
