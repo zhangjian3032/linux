@@ -185,14 +185,6 @@
 			};
 		};
 
-		scu_irq: interrupt-controller@1e6e2018 {
-			compatible = "aspeed,ast-scu-irq";
-			interrupt-controller;
-			#interrupt-cells = <1>;
-			reg = <0x1e6e2018 0x4>;
-			interrupts = <21>;
-		};
-
 		hace: hace@1e6e3000 {
 			compatible = "aspeed,ast2500-crypto";
 			reg = <0x1e6e3000 0x200 0x1e728000 0x1000>;
@@ -227,6 +219,7 @@
 			compatible = "aspeed,ast2500-mctp";
 			reg = <0x1e6e8000 0x30 0x80000000 0x300>;
 			interrupts = <42>;
+ 			interrupts-extended = <&vic 42 &scu_ic 2>;
 			resets = <&syscon ASPEED_RESET_MCTP>;
 		};
 
@@ -592,6 +585,7 @@
 
 };
 
+
 &sdhci {
 
 	sdhci_ic: interrupt-controller@0 {
@@ -626,6 +620,17 @@
 		clocks = <&syscon ASPEED_CLK_SDIO>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_sd2_default>;
+	};
+
+};
+
+&syscon {
+	scu_ic: interrupt-controller@0 {
+		#interrupt-cells = <1>;
+		compatible = "aspeed,ast2500-scu-ic";
+		reg = <0x00 0x04>;
+		interrupts = <21>;
+		interrupt-controller;
 	};
 
 };
