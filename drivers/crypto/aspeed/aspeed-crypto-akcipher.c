@@ -144,10 +144,23 @@ void Copy(u32 *D, u32 *S)
 void BNCopyToLN(u8 *dst, const u8 *src, int length)
 {
 	int i, j;
+	u8 *end;
+	u8 tmp;
 
-	i = length - 1;
-	for (j = 0; j < length; j++, i--)
-		dst[j] = src[i];
+	if (dst == src) {
+		end = dst + length;
+		for (i = 0; i < length / 2; i++) {
+			end--;
+			tmp = *dst;
+			*dst = *end;
+			*end = tmp;
+			dst++;
+		}
+	} else {
+		i = length - 1;
+		for (j = 0; j < length; j++, i--)
+			dst[j] = src[i];
+	}
 }
 
 int Compare(u32 *X, u32 *Y)
@@ -480,7 +493,6 @@ int aspeed_crypto_rsa_trigger(struct aspeed_crypto_dev *crypto_dev)
 	struct aspeed_rsa_key *rsa_key = &ctx->key;
 	int nbytes = 0;
 	int result_bit, result_length;
-	static u8 X[512] = {0};
 	u8 *xa_buff = crypto_dev->rsa_buff + ASPEED_RSA_XA_BUFF;
 	u8 *e_buff = crypto_dev->rsa_buff + ASPEED_RSA_E_BUFF;
 
@@ -490,13 +502,13 @@ int aspeed_crypto_rsa_trigger(struct aspeed_crypto_dev *crypto_dev)
 	printk("xa_buff: \t%x\n", xa_buff);
 	printk("e_buff: \t%x\n", e_buff);
 #endif
-	nbytes = sg_copy_to_buffer(in_sg, sg_nents(req->src), X, req->src_len);
+	memset(xa_buff, 0, ASPEED_RSA_KEY_LEN);
+	nbytes = sg_copy_to_buffer(in_sg, sg_nents(req->src), xa_buff, req->src_len);
 	if (!nbytes || (nbytes != req->src_len)) {
 		printk("sg_copy_to_buffer nbytes error \n");
 		return -EINVAL;
 	}
-	memset(xa_buff, 0, ASPEED_RSA_KEY_LEN);
-	BNCopyToLN(xa_buff, X, nbytes);
+	BNCopyToLN(xa_buff, xa_buff, nbytes);
 #if 0
 	printk("copy nbytes %d, req->src_len %d , nb_in_sg %d, nb_out_sg %d \n", nbytes, req->src_len, sg_nents(req->src), sg_nents(req->dst));
 	printk("input message:\n");
@@ -538,9 +550,8 @@ int aspeed_crypto_rsa_trigger(struct aspeed_crypto_dev *crypto_dev)
 	printA(xa_buff);
 	printk("result length: %d\n", result_length);
 #endif
-	memset(X, 0, 512);
-	BNCopyToLN(X, xa_buff, result_length);
-	nbytes = sg_copy_from_buffer(out_sg, sg_nents(req->dst), X,
+	BNCopyToLN(xa_buff, xa_buff, result_length);
+	nbytes = sg_copy_from_buffer(out_sg, sg_nents(req->dst), xa_buff,
 				     req->dst_len);
 	if (!nbytes) {
 		printk("sg_copy_from_buffer nbytes error \n");
@@ -651,15 +662,16 @@ static int aspeed_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 	// printA((u32 *)rsa_key->e);
 
 	rsa_key->n = crypto_dev->rsa_buff + ASPEED_RSA_N_BUFF;
-	rsa_key->np = crypto_dev->rsa_buff + ASPEED_RSA_NP_BUFF;
 	rsa_key->n_sz = raw_key.n_sz;
 	memset(rsa_key->n, 0, ASPEED_RSA_KEY_LEN);
-	memset(rsa_key->np, 0, ASPEED_RSA_KEY_LEN);
 
 	BNCopyToLN(rsa_key->n, raw_key.n, raw_key.n_sz);
 
-	if (!(ctx->crypto_dev->version & ASPEED_CRYPTO_G6))
+	if (!(ctx->crypto_dev->version & ASPEED_CRYPTO_G6)) {
+		rsa_key->np = crypto_dev->rsa_buff + ASPEED_RSA_NP_BUFF;
+		memset(rsa_key->np, 0, ASPEED_RSA_KEY_LEN);
 		RSAgetNp(ctx, rsa_key);
+	}
 
 	return 0;
 err:
