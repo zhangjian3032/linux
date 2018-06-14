@@ -45,7 +45,7 @@ void printA(u32 *X)
 	printk("\n");
 }
 
-int get_bit_number(u32 *X)
+int get_bit_numbers(u32 *X)
 {
 	int i, j;
 	int nmsb;
@@ -460,7 +460,7 @@ void RSAgetNp(struct aspeed_rsa_ctx *ctx, struct aspeed_rsa_key *rsa_key)
 	memset(Np, 0, ASPEED_EUCLID_LEN);
 	memset(S, 0, ASPEED_EUCLID_LEN);
 	memcpy(N, rsa_key->n, rsa_key->n_sz);
-	rsa_key->nm = get_bit_number((u32 *)rsa_key->n);
+	rsa_key->nm = get_bit_numbers((u32 *)rsa_key->n);
 	if ((rsa_key->nm % 32) > 0)
 		rsa_key->dwm = (rsa_key->nm / 32) + 1;
 	else
@@ -492,9 +492,11 @@ int aspeed_crypto_rsa_trigger(struct aspeed_crypto_dev *crypto_dev)
 	struct scatterlist *in_sg = req->src, *out_sg = req->dst;
 	struct aspeed_rsa_key *rsa_key = &ctx->key;
 	int nbytes = 0;
-	int result_bit, result_length;
+	int result_length;
 	u8 *xa_buff = crypto_dev->rsa_buff + ASPEED_RSA_XA_BUFF;
 	u8 *e_buff = crypto_dev->rsa_buff + ASPEED_RSA_E_BUFF;
+	u8 *n_buff = crypto_dev->rsa_buff + ASPEED_RSA_N_BUFF;
+	u8 *np_buff = crypto_dev->rsa_buff + ASPEED_RSA_NP_BUFF;
 
 	RSA_DBG("\n");
 #if 0
@@ -502,6 +504,8 @@ int aspeed_crypto_rsa_trigger(struct aspeed_crypto_dev *crypto_dev)
 	printk("xa_buff: \t%x\n", xa_buff);
 	printk("e_buff: \t%x\n", e_buff);
 #endif
+	memcpy(n_buff, rsa_key->n, 512);
+	memcpy(np_buff, rsa_key->np, 512);
 	memset(xa_buff, 0, ASPEED_RSA_KEY_LEN);
 	nbytes = sg_copy_to_buffer(in_sg, sg_nents(req->src), xa_buff, req->src_len);
 	if (!nbytes || (nbytes != req->src_len)) {
@@ -541,8 +545,7 @@ int aspeed_crypto_rsa_trigger(struct aspeed_crypto_dev *crypto_dev)
 	while (aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS) & HACE_RSA_BUSY);
 	aspeed_crypto_write(crypto_dev, 0, ASPEED_HACE_RSA_CMD);
 	udelay(2);
-	result_bit = get_bit_number((u32 *)xa_buff);
-	result_length = (result_bit + 7) / 8;
+	result_length = (get_bit_numbers((u32 *)xa_buff) + 7) / 8;
 #if 0
 	printk("after np\n");
 	printA(rsa_key->np);
@@ -602,6 +605,8 @@ static void aspeed_rsa_free_key(struct aspeed_rsa_key *key)
 	RSA_DBG("\n");
 	kzfree(key->d);
 	kzfree(key->e);
+	kzfree(key->n);
+	kzfree(key->np);
 
 	key->d_sz = 0;
 	key->e_sz = 0;
@@ -637,39 +642,40 @@ static int aspeed_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 	// 	raw_key.n_sz, raw_key.e_sz, raw_key.d_sz,
 	// 	raw_key.p_sz, raw_key.q_sz, raw_key.dp_sz,
 	// 	raw_key.dq_sz, raw_key.qinv_sz);
-	/**/
 	if (raw_key.n_sz > crypto_dev->rsa_max_buf_len) {
 		aspeed_rsa_free_key(rsa_key);
 		return -EINVAL;
 	}
 
 	if (priv) {
-		rsa_key->d = kzalloc(512, GFP_KERNEL);
+		rsa_key->d = kzalloc(ASPEED_RSA_KEY_LEN, GFP_KERNEL);
 		if (!rsa_key->d)
 			goto err;
 		BNCopyToLN(rsa_key->d, raw_key.d, raw_key.d_sz);
-		rsa_key->nd = get_bit_number((u32 *)rsa_key->d);
+		rsa_key->nd = get_bit_numbers((u32 *)rsa_key->d);
 		// printk("D=\n");
 		// printA(rsa_key->d);
 	}
 
-	rsa_key->e = kzalloc(512, GFP_KERNEL);
+	rsa_key->e = kzalloc(ASPEED_RSA_KEY_LEN, GFP_KERNEL);
 	if (!rsa_key->e)
 		goto err;
 	BNCopyToLN(rsa_key->e, raw_key.e, raw_key.e_sz);
-	rsa_key->ne = get_bit_number((u32 *)rsa_key->e);
+	rsa_key->ne = get_bit_numbers((u32 *)rsa_key->e);
 	// printk("E=\n");
 	// printA((u32 *)rsa_key->e);
+	rsa_key->n = kzalloc(ASPEED_RSA_KEY_LEN, GFP_KERNEL);
+	if (!rsa_key->n)
+		goto err;
 
-	rsa_key->n = crypto_dev->rsa_buff + ASPEED_RSA_N_BUFF;
 	rsa_key->n_sz = raw_key.n_sz;
-	memset(rsa_key->n, 0, ASPEED_RSA_KEY_LEN);
 
 	BNCopyToLN(rsa_key->n, raw_key.n, raw_key.n_sz);
 
 	if (!(ctx->crypto_dev->version & ASPEED_CRYPTO_G6)) {
-		rsa_key->np = crypto_dev->rsa_buff + ASPEED_RSA_NP_BUFF;
-		memset(rsa_key->np, 0, ASPEED_RSA_KEY_LEN);
+		rsa_key->np = kzalloc(ASPEED_RSA_KEY_LEN, GFP_KERNEL);
+		if (!rsa_key->n)
+			goto err;
 		RSAgetNp(ctx, rsa_key);
 	}
 
