@@ -819,8 +819,8 @@ struct aspeed_crypto_alg aspeed_crypto_algs[] = {
 	},
 	{
 		.alg.crypto = {
-			.cra_name		= "ecb(arc4)",
-			.cra_driver_name	= "aspeed-ecb-arc4",
+			.cra_name		= "arc4",
+			.cra_driver_name	= "aspeed-arc4",
 			.cra_priority		= 300,
 			.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 									CRYPTO_ALG_ASYNC,

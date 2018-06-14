@@ -528,11 +528,9 @@ int aspeed_crypto_rsa_trigger(struct aspeed_crypto_dev *crypto_dev)
 			    ASPEED_HACE_RSA_CMD);
 	while (aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS) & HACE_RSA_BUSY);
 	aspeed_crypto_write(crypto_dev, 0, ASPEED_HACE_RSA_CMD);
+	udelay(2);
 	result_bit = get_bit_number((u32 *)xa_buff);
-	if ((result_bit % 8) > 0)
-		result_length = (result_bit / 8) + 1;
-	else
-		result_length = (result_bit / 8);
+	result_length = (result_bit + 7) / 8;
 #if 0
 	printk("after np\n");
 	printA(rsa_key->np);
@@ -540,9 +538,8 @@ int aspeed_crypto_rsa_trigger(struct aspeed_crypto_dev *crypto_dev)
 	printA(xa_buff);
 	printk("result length: %d\n", result_length);
 #endif
-
-	req->dst_len = result_length;
-	BNCopyToLN(X, xa_buff, req->dst_len);
+	memset(X, 0, 512);
+	BNCopyToLN(X, xa_buff, result_length);
 	nbytes = sg_copy_from_buffer(out_sg, sg_nents(req->dst), X,
 				     req->dst_len);
 	if (!nbytes) {
