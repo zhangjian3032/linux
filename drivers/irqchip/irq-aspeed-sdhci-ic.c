@@ -31,24 +31,23 @@
 #include <linux/of.h>
 #include <linux/io.h>
 #include <linux/mmc/sdhci-aspeed-data.h>
-/*******************************************************************/
-#define ASPEED_SDHCI_INFO				0x00
-#define ASPEED_SDHCI_BLOCK				0x04
-#define ASPEED_SDHCI_CTRL				0xF0
-#define ASPEED_SDHCI_ISR				0xFC
 
-/* #define ASPEED_SDHCI_INFO			0x00*/
-#define ASPEED_SDHCI_S1MMC8			(1 << 25)
-#define ASPEED_SDHCI_S0MMC8			(1 << 24)
+#define ASPEED_SDHCI_INFO			0x00
+#define  ASPEED_SDHCI_S1MMC8			BIT(25)
+#define  ASPEED_SDHCI_S0MMC8			BIT(24)
+
+#define ASPEED_SDHCI_BLOCK			0x04
+#define ASPEED_SDHCI_CTRL			0xF0
+#define ASPEED_SDHCI_ISR			0xFC
 
 #define ASPEED_SDHCI_SLOT_NUM			2
 
 void aspeed_sdhci_set_8bit_mode(struct aspeed_sdhci_irq *sdhci_irq, u8 mode)
 {
 	if (mode)
-		writel((1 << 24) | readl(sdhci_irq->regs), sdhci_irq->regs);
+		writel(ASPEED_SDHCI_S0MMC8 | readl(sdhci_irq->regs), sdhci_irq->regs);
 	else
-		writel(~(1 << 24) & readl(sdhci_irq->regs), sdhci_irq->regs);
+		writel(~ASPEED_SDHCI_S0MMC8 & readl(sdhci_irq->regs), sdhci_irq->regs);
 }
 
 EXPORT_SYMBOL(aspeed_sdhci_set_8bit_mode);
@@ -79,7 +78,7 @@ static unsigned int noop_ret(struct irq_data *data)
 }
 
 struct irq_chip sdhci_irq_chip = {
-	.name		= "sdhci-irq",
+	.name		= "sdhci-ic",
 	.irq_startup	= noop_ret,
 	.irq_shutdown	= noop,
 	.irq_enable	= noop,
