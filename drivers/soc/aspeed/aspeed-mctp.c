@@ -500,7 +500,8 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 					aspeed_mctp_write(aspeed_mctp, aspeed_mctp->rx_idx, ASPEED_MCTP_RXBUFF_SIZE);
 				}
 				if(aspeed_mctp->rx_full) {
-					//TODO : re-trigger rx 
+					printk("TODO check \n");
+					aspeed_mctp->rx_hw_idx++;
 				}
 			} else {
 				struct aspeed_mctp_cmd_desc *rx_cmd_desc = aspeed_mctp->rx_cmd_desc;
@@ -521,7 +522,8 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 						rx_cmd_desc[aspeed_mctp->rx_idx].desc0 = 0;
 					}
 					if(aspeed_mctp->rx_full) {
-						//re-trigger rx 
+						printk("TODO check \n");
+						aspeed_mctp->rx_hw_idx++;
 					}
 				} else 
 					return -EFAULT;
