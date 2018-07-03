@@ -420,6 +420,7 @@ static irqreturn_t aspeed_mctp_isr(int this_irq, void *dev_id)
 
 static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 {
+	int i = 0;
 	MCTP_DBUG("dram base %x \n", aspeed_mctp->dram_base);
 	aspeed_mctp_write(aspeed_mctp, aspeed_mctp->dram_base, ASPEED_MCTP_EID);
 
@@ -429,6 +430,26 @@ static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 	aspeed_mctp->rx_idx = 0;
 	aspeed_mctp->rx_idx = 0;
 	aspeed_mctp->rx_hw_idx = 0;
+
+	//rx fifo data
+	if(aspeed_mctp->mctp_version == 6) {
+		//ast2600 : each 16 bytes align and configurable 64/128/256/512 bytes can recevice
+		u32 *rx_cmd_desc = aspeed_mctp->rx_cmd_desc;
+		for (i = 0; i < aspeed_mctp->rx_fifo_num; i++) {
+			rx_cmd_desc[i] = (u32)aspeed_mctp->rx_pool_dma + (aspeed_mctp->rx_fifo_size * i);
+			MCTP_DBUG("Rx [%d]: desc: %x , \n", i, rx_cmd_desc[i]);
+		}
+	} else {
+		//ast2400/ast2500 : each 128 bytes align, and only 64 bytes can recevice
+		struct aspeed_mctp_cmd_desc *rx_cmd_desc = aspeed_mctp->rx_cmd_desc;
+		for (i = 0; i < aspeed_mctp->rx_fifo_num; i++) {
+			rx_cmd_desc[i].desc0 = 0;
+			rx_cmd_desc[i].desc1 = RX_DATA_ADDR(aspeed_mctp->rx_pool_dma + (aspeed_mctp->rx_fifo_size * i));
+			if (i == (aspeed_mctp->rx_fifo_num - 1) )
+				rx_cmd_desc[i].desc1 |= LAST_CMD;
+			MCTP_DBUG("Rx [%d]: desc0: %x , desc1: %x \n", i, rx_cmd_desc[i].desc0, rx_cmd_desc[i].desc1);
+		}
+	}
 	
 	aspeed_mctp_write(aspeed_mctp, aspeed_mctp->rx_cmd_desc_dma, ASPEED_MCTP_RX_CMD);
 
@@ -573,7 +594,6 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	struct aspeed_mctp_info *aspeed_mctp;
 	const struct of_device_id *mctp_dev_id;	
 	int ret = 0;
-	int i = 0;
 
 	MCTP_DBUG("\n");
 
@@ -700,26 +720,6 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	aspeed_mctp->rx_pool = dma_alloc_coherent(NULL,
 						MCTP_RX_BUFF_POOL_SIZE,
 						&aspeed_mctp->rx_pool_dma, GFP_KERNEL);
-
-	//rx fifo data
-	if(aspeed_mctp->mctp_version == 6) {
-		//ast2600 : each 16 bytes align and configurable 64/128/256/512 bytes can recevice
-		u32 *rx_cmd_desc = aspeed_mctp->rx_cmd_desc;
-		for (i = 0; i < aspeed_mctp->rx_fifo_num; i++) {
-			rx_cmd_desc[i] = (u32)aspeed_mctp->rx_pool_dma + (aspeed_mctp->rx_fifo_size * i);
-			MCTP_DBUG("Rx [%d]: desc: %x , \n", i, rx_cmd_desc[i]);
-		}
-	} else {
-		//ast2400/ast2500 : each 128 bytes align, and only 64 bytes can recevice
-		struct aspeed_mctp_cmd_desc *rx_cmd_desc = aspeed_mctp->rx_cmd_desc;
-		for (i = 0; i < aspeed_mctp->rx_fifo_num; i++) {
-			rx_cmd_desc[i].desc0 = 0;
-			rx_cmd_desc[i].desc1 = RX_DATA_ADDR(aspeed_mctp->rx_pool_dma + (aspeed_mctp->rx_fifo_size * i));
-			if (i == (aspeed_mctp->rx_fifo_num - 1) )
-				rx_cmd_desc[i].desc1 |= LAST_CMD;
-			MCTP_DBUG("Rx [%d]: desc0: %x , desc1: %x \n", i, rx_cmd_desc[i].desc0, rx_cmd_desc[i].desc1);
-		}
-	}
 
 	aspeed_mctp_ctrl_init(aspeed_mctp);
 
