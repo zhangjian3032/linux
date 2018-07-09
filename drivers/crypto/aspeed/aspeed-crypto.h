@@ -47,6 +47,8 @@
 #define  HACE_CMD_CFB			BIT(5)
 #define  HACE_CMD_OFB			(0x3 << 4)
 #define  HACE_CMD_CTR			BIT(6)
+#define  HACE_CMD_IV_REQUIRE		(HACE_CMD_CBC | HACE_CMD_CFB | \
+					 HACE_CMD_OFB | HACE_CMD_CTR)
 #define  HACE_CMD_AES128		(0)
 #define  HACE_CMD_AES192		BIT(2)
 #define  HACE_CMD_AES256		BIT(3)
@@ -107,6 +109,9 @@
 #define ASPEED_EUCLID_N			ASPEED_EUCLID_LEN * 11
 #define ASPEED_EUCLID_NP		ASPEED_EUCLID_LEN * 12
 
+#define CRYPTO_FLAGS_BUSY 		BIT(3)
+// #define CRYPTO_ABLK_INT_EN
+
 /*
  * Asynchronous crypto request structure.
  *
@@ -115,34 +120,40 @@
  */
 
 struct aspeed_cipher_ctx {
-	struct aspeed_crypto_dev *crypto_dev;
-	u8			*iv;
-	int 		key_len;
-	int 		enc_cmd;
-	void		*cipher_key;
-	dma_addr_t	cipher_key_dma;	
+	struct aspeed_crypto_dev	*crypto_dev;
+	u8				*iv;
+	bool				con;
+	int 				key_len;
+	int 				enc_cmd;
+	void				*cipher_key;
+	dma_addr_t			cipher_key_dma;
 };
+
+typedef int (*aspeed_crypto_fn_t)(struct aspeed_crypto_dev *);
 
 struct aspeed_crypto_dev {
 	void __iomem			*regs;
 	void __iomem			*rsa_buff;
 	struct device			*dev;
 	int 				irq;
-	struct clk 			*yclk;
+	struct clk			*yclk;
 	struct clk			*rsaclk;
 	spinlock_t			lock;
 
+	bool				is_async;
+	aspeed_crypto_fn_t		resume;
 	//hash
-	struct aspeed_sham_reqctx *sham_reqctx;
+	struct aspeed_sham_reqctx	*sham_reqctx;
 
-	struct crypto_queue	queue;
+	struct crypto_queue		queue;
 
-	struct tasklet_struct	crypto_tasklet;
+	struct tasklet_struct		crypto_tasklet;
+	struct tasklet_struct		done_task;
+	struct tasklet_struct		queue_task;
 
-	unsigned long	flags;
-
-	unsigned long	version;
-	unsigned long	rsa_max_buf_len;
+	unsigned long			flags;
+	unsigned long			version;
+	unsigned long			rsa_max_buf_len;
 
 	size_t	total;
 
@@ -150,11 +161,11 @@ struct aspeed_crypto_dev {
 	struct ahash_request		*ahash_req;
 	struct akcipher_request		*akcipher_req;
 
-	/* ablkcipher */ 
-	void		*cipher_addr;	
+	/* ablkcipher */
+	void		*cipher_addr;
 	dma_addr_t	cipher_dma_addr;
 
-	void	*hash_src;
+	void		*hash_src;
 	dma_addr_t	hash_src_dma;
 
 };
@@ -186,7 +197,7 @@ struct aspeed_sham_ctx {
 
 	void	*hmac_key;			//64byte align
 	dma_addr_t	hmac_key_dma;
-	
+
 	/* fallback stuff */
 	struct crypto_shash	*fallback;
 	struct aspeed_sham_hmac_ctx base[0];		//for hmac
@@ -279,5 +290,6 @@ extern int aspeed_register_ahash_algs(struct aspeed_crypto_dev *crypto_dev);
 extern int aspeed_register_akcipher_algs(struct aspeed_crypto_dev *crypto_dev);
 extern int aspeed_register_kpp_algs(struct aspeed_crypto_dev *crypto_dev);
 extern int aspeed_crypto_enqueue(struct aspeed_crypto_dev *aspeed_crypto, struct ablkcipher_request *req);
-
+extern int aspeed_crypto_handle_queue(struct aspeed_crypto_dev *crypto_dev,
+				      struct crypto_async_request *new_areq);
 #endif
