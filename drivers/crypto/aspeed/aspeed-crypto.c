@@ -70,7 +70,6 @@ int aspeed_crypto_handle_queue(struct aspeed_crypto_dev *crypto_dev,
 		CRYPTO_DBUG("akcipher_request_cast \n");
 		crypto_dev->akcipher_req = container_of(areq, struct akcipher_request, base);
 		err = aspeed_crypto_rsa_trigger(crypto_dev);
-		crypto_dev->akcipher_req->base.complete(&crypto_dev->akcipher_req->base, err);
 	} else {
 		CRYPTO_DBUG("ahash_request_cast \n");
 		crypto_dev->ahash_req = ahash_request_cast(areq);
@@ -86,8 +85,9 @@ static irqreturn_t aspeed_crypto_irq(int irq, void *dev)
 {
 	struct aspeed_crypto_dev *crypto_dev = (struct aspeed_crypto_dev *)dev;
 	u32 sts = aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS);
+	int handle = IRQ_NONE;
 
-	printk("aspeed_crypto_irq sts %x \n", sts);
+	CRYPTO_DBUG("aspeed_crypto_irq sts %x \n", sts);
 	aspeed_crypto_write(crypto_dev, sts, ASPEED_HACE_STS);
 
 	if (sts & HACE_CRYPTO_ISR) {
@@ -95,9 +95,17 @@ static irqreturn_t aspeed_crypto_irq(int irq, void *dev)
 			tasklet_schedule(&crypto_dev->done_task);
 		else
 			dev_warn(crypto_dev->dev, "CRYPTO interrupt when no active requests.\n");
-		return IRQ_HANDLED;
+		handle = IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	if (sts & HACE_RSA_ISR) {
+		aspeed_crypto_write(crypto_dev, 0, ASPEED_HACE_RSA_CMD);
+		if (crypto_dev->flags & CRYPTO_FLAGS_BUSY)
+			tasklet_schedule(&crypto_dev->done_task);
+		else
+			dev_warn(crypto_dev->dev, "CRYPTO interrupt when no active requests.\n");
+		handle = IRQ_HANDLED;
+	}
+	return handle;
 }
 
 static void aspeed_crypto_done_task(unsigned long data)

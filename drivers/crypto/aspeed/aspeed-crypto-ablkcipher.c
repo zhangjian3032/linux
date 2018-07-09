@@ -59,10 +59,8 @@ static int aspeed_ablk_complete(struct aspeed_crypto_dev *crypto_dev, int err)
 			memcpy(req->info, ctx->cipher_key, 16);
 	}
 	crypto_dev->flags &= ~CRYPTO_FLAGS_BUSY;
-	if (crypto_dev->is_async) {
-		printk("is_async !!!!!!!!!!!!\n");
+	if (crypto_dev->is_async)
 		req->base.complete(&req->base, err);
-	}
 
 	tasklet_schedule(&crypto_dev->queue_task);
 
@@ -77,7 +75,6 @@ static int aspeed_ablk_transfer_complete(struct aspeed_crypto_dev *crypto_dev)
 
 static int aspeed_ablk_cpu_transfer(struct aspeed_crypto_dev *crypto_dev)
 {
-	struct crypto_ablkcipher *cipher = crypto_ablkcipher_reqtfm(crypto_dev->ablk_req);
 	struct ablkcipher_request *req = crypto_dev->ablk_req;
 	struct scatterlist *out_sg = req->dst;
 	int nbytes = 0;

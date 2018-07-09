@@ -109,8 +109,9 @@
 #define ASPEED_EUCLID_N			ASPEED_EUCLID_LEN * 11
 #define ASPEED_EUCLID_NP		ASPEED_EUCLID_LEN * 12
 
-#define CRYPTO_FLAGS_BUSY 		BIT(3)
-// #define CRYPTO_ABLK_INT_EN
+#define CRYPTO_FLAGS_BUSY 		BIT(1)
+#define CRYPTO_ABLK_INT_EN
+#define CRYPTO_AKCIPHER_INT_EN
 
 /*
  * Asynchronous crypto request structure.

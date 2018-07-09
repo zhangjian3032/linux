@@ -484,15 +484,78 @@ void RSAgetNp(struct aspeed_rsa_ctx *ctx, struct aspeed_rsa_key *rsa_key)
 	return;
 }
 
+static int aspeed_akcipher_complete(struct aspeed_crypto_dev *crypto_dev, int err)
+{
+	struct akcipher_request *req = crypto_dev->akcipher_req;
+
+	RSA_DBG("\n");
+	crypto_dev->flags &= ~CRYPTO_FLAGS_BUSY;
+	if (crypto_dev->is_async)
+		req->base.complete(&req->base, err);
+
+	tasklet_schedule(&crypto_dev->queue_task);
+
+	return err;
+}
+
+static int aspeed_akcipher_transfer(struct aspeed_crypto_dev *crypto_dev)
+{
+	struct akcipher_request *req = crypto_dev->akcipher_req;
+	struct scatterlist *out_sg = req->dst;
+	u8 *xa_buff = crypto_dev->rsa_buff + ASPEED_RSA_XA_BUFF;
+	int nbytes = 0;
+	int err = 0;
+	int result_length;
+
+	RSA_DBG("\n");
+	result_length = (get_bit_numbers((u32 *)xa_buff) + 7) / 8;
+#if 0
+	printk("after np\n");
+	printA(rsa_key->np);
+	printk("after decrypt\n");
+	printA(xa_buff);
+	printk("result length: %d\n", result_length);
+#endif
+	BNCopyToLN(xa_buff, xa_buff, result_length);
+	nbytes = sg_copy_from_buffer(out_sg, sg_nents(req->dst), xa_buff,
+				     req->dst_len);
+	if (!nbytes) {
+		printk("sg_copy_from_buffer nbytes error \n");
+		return -EINVAL;
+	}
+	return aspeed_akcipher_complete(crypto_dev, err);
+}
+
+static inline int aspeed_akcipher_wait_for_data_ready(struct aspeed_crypto_dev *crypto_dev,
+		aspeed_crypto_fn_t resume)
+{
+#ifdef CRYPTO_AKCIPHER_INT_EN
+	u32 isr = aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS);
+
+	RSA_DBG("\n");
+	if (unlikely(isr & HACE_RSA_ISR))
+		return resume(crypto_dev);
+
+	crypto_dev->resume = resume;
+	return -EINPROGRESS;
+#else
+	RSA_DBG("\n");
+	while (aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS) & HACE_RSA_BUSY);
+	aspeed_crypto_write(crypto_dev, 0, ASPEED_HACE_RSA_CMD);
+	udelay(2);
+
+	return resume(crypto_dev);
+#endif
+}
+
 int aspeed_crypto_rsa_trigger(struct aspeed_crypto_dev *crypto_dev)
 {
 	struct crypto_akcipher *cipher = crypto_akcipher_reqtfm(crypto_dev->akcipher_req);
 	struct aspeed_rsa_ctx *ctx = crypto_tfm_ctx(&cipher->base);
 	struct akcipher_request *req = crypto_dev->akcipher_req;
-	struct scatterlist *in_sg = req->src, *out_sg = req->dst;
+	struct scatterlist *in_sg = req->src;
 	struct aspeed_rsa_key *rsa_key = &ctx->key;
 	int nbytes = 0;
-	int result_length;
 	u8 *xa_buff = crypto_dev->rsa_buff + ASPEED_RSA_XA_BUFF;
 	u8 *e_buff = crypto_dev->rsa_buff + ASPEED_RSA_E_BUFF;
 	u8 *n_buff = crypto_dev->rsa_buff + ASPEED_RSA_N_BUFF;
@@ -539,28 +602,19 @@ int aspeed_crypto_rsa_trigger(struct aspeed_crypto_dev *crypto_dev)
 		aspeed_crypto_write(crypto_dev, rsa_key->nd + (rsa_key->nm << 16),
 				    ASPEED_HACE_RSA_MD_EXP_BIT);
 	}
+#ifdef CRYPTO_AKCIPHER_INT_EN
+	aspeed_crypto_write(crypto_dev,
+			    RSA_CMD_SRAM_ENGINE_ACCESSABLE | RSA_CMD_FIRE | RSA_CMD_INT_ENABLE,
+			    ASPEED_HACE_RSA_CMD);
+	crypto_dev->resume = aspeed_akcipher_transfer;
+	return aspeed_akcipher_wait_for_data_ready(crypto_dev, aspeed_akcipher_transfer);
+#else
 	aspeed_crypto_write(crypto_dev,
 			    RSA_CMD_SRAM_ENGINE_ACCESSABLE | RSA_CMD_FIRE,
 			    ASPEED_HACE_RSA_CMD);
-	while (aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS) & HACE_RSA_BUSY);
-	aspeed_crypto_write(crypto_dev, 0, ASPEED_HACE_RSA_CMD);
-	udelay(2);
-	result_length = (get_bit_numbers((u32 *)xa_buff) + 7) / 8;
-#if 0
-	printk("after np\n");
-	printA(rsa_key->np);
-	printk("after decrypt\n");
-	printA(xa_buff);
-	printk("result length: %d\n", result_length);
+	return aspeed_akcipher_wait_for_data_ready(crypto_dev, aspeed_akcipher_transfer);
 #endif
-	BNCopyToLN(xa_buff, xa_buff, result_length);
-	nbytes = sg_copy_from_buffer(out_sg, sg_nents(req->dst), xa_buff,
-				     req->dst_len);
-	if (!nbytes) {
-		printk("sg_copy_from_buffer nbytes error \n");
-		return -EINVAL;
-	}
-	return 0;
+
 }
 
 static int aspeed_rsa_enc(struct akcipher_request *req)
@@ -568,16 +622,11 @@ static int aspeed_rsa_enc(struct akcipher_request *req)
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 	struct aspeed_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct aspeed_crypto_dev *crypto_dev = ctx->crypto_dev;
-	unsigned long flags;
-	int err;
+
 	ctx->enc = 1;
 	RSA_DBG("\n");
-	spin_lock_irqsave(&crypto_dev->lock, flags);
-	err = crypto_enqueue_request(&crypto_dev->queue, &req->base);
-	spin_unlock_irqrestore(&crypto_dev->lock, flags);
-	tasklet_schedule(&crypto_dev->crypto_tasklet);
 
-	return err;
+	return aspeed_crypto_handle_queue(crypto_dev, &req->base);
 
 }
 
@@ -586,16 +635,11 @@ static int aspeed_rsa_dec(struct akcipher_request *req)
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 	struct aspeed_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct aspeed_crypto_dev *crypto_dev = ctx->crypto_dev;
-	unsigned long flags;
-	int err;
+
 	ctx->enc = 0;
 	RSA_DBG("\n");
-	spin_lock_irqsave(&crypto_dev->lock, flags);
-	err = crypto_enqueue_request(&crypto_dev->queue, &req->base);
-	spin_unlock_irqrestore(&crypto_dev->lock, flags);
-	tasklet_schedule(&crypto_dev->crypto_tasklet);
 
-	return err;
+	return aspeed_crypto_handle_queue(crypto_dev, &req->base);
 }
 
 
