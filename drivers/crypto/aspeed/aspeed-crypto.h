@@ -163,11 +163,11 @@ struct aspeed_crypto_dev {
 	struct akcipher_request		*akcipher_req;
 
 	/* ablkcipher */
-	void		*cipher_addr;
-	dma_addr_t	cipher_dma_addr;
+	void				*cipher_addr;
+	dma_addr_t			cipher_dma_addr;
 
-	void		*hash_src;
-	dma_addr_t	hash_src_dma;
+	void				*hash_src;
+	dma_addr_t			hash_src_dma;
 
 };
 
@@ -177,54 +177,54 @@ struct aspeed_crypto_alg {
 		struct crypto_alg	crypto;
 		struct ahash_alg	ahash;
 		struct kpp_alg 		kpp;
-		struct akcipher_alg akcipher;
+		struct akcipher_alg 	akcipher;
 	} alg;
 };
 
 /*************************************************************************************/
 /* the privete variable of hash for fallback */
 struct aspeed_sham_hmac_ctx {
-	struct crypto_shash	*shash;
-	u8			ipad[SHA512_BLOCK_SIZE] __attribute__((aligned(sizeof(u32))));
-	u8			opad[SHA512_BLOCK_SIZE] __attribute__((aligned(sizeof(u32))));
+	struct crypto_shash *shash;
+	u8 ipad[SHA512_BLOCK_SIZE] __attribute__((aligned(sizeof(u32))));
+	u8 opad[SHA512_BLOCK_SIZE] __attribute__((aligned(sizeof(u32))));
 };
 
 struct aspeed_sham_ctx {
 	struct aspeed_crypto_dev	*crypto_dev;
-	unsigned long		flags;	//hmac flag
+	unsigned long			flags; //hmac flag
 
-	void	*hash_digst;		//8byte align
-	dma_addr_t	hash_digst_dma;
+	void				*hash_digst; //8byte align
+	dma_addr_t			hash_digst_dma;
 
-	void	*hmac_key;			//64byte align
-	dma_addr_t	hmac_key_dma;
+	void				*hmac_key; //64byte align
+	dma_addr_t			hmac_key_dma;
 
 	/* fallback stuff */
-	struct crypto_shash	*fallback;
-	struct aspeed_sham_hmac_ctx base[0];		//for hmac
+	struct crypto_shash		*fallback;
+	struct aspeed_sham_hmac_ctx	base[0];		//for hmac
 };
 
 
 struct aspeed_sham_reqctx {
-	unsigned long	flags;	//final update flag should no use
-	u32				cmd;	//trigger cmd
+	unsigned long		flags;	//final update flag should no use
+	u32			cmd;	//trigger cmd
 	size_t			digcnt;
 	size_t			bufcnt;
 	size_t			buflen;
 	/* walk state */
 	struct scatterlist	*sg;
 	unsigned int		offset;	/* offset in current sg */
-	size_t		total;	/* total request */
-	size_t 		block_size;
+	size_t			total;	/* total request */
+	size_t 			block_size;
 };
 /*************************************************************************************/
 
 struct aspeed_ecdh_ctx {
 	struct aspeed_crypto_dev	*crypto_dev;
-	const u8 *public_key;
-	unsigned int curve_id;
-	size_t	n_sz;
-	u8	private_key[256];
+	const u8 			*public_key;
+	unsigned int 			curve_id;
+	size_t				n_sz;
+	u8				private_key[256];
 };
 
 /*************************************************************************************/

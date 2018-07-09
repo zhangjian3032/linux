@@ -803,7 +803,6 @@ struct aspeed_crypto_alg aspeed_akcipher_algs[] = {
 				.cra_flags = CRYPTO_ALG_TYPE_AKCIPHER |
 				CRYPTO_ALG_ASYNC |
 				CRYPTO_ALG_KERN_DRIVER_ONLY,
-
 				.cra_module = THIS_MODULE,
 				.cra_ctxsize = sizeof(struct aspeed_rsa_ctx),
 			},
