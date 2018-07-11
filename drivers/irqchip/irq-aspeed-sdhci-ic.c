@@ -1,27 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SDHCI IRQCHIP driver for the Aspeed SoC
  *
  * Copyright (C) ASPEED Technology Inc.
  * Ryan Chen <ryan_chen@aspeedtech.com>
  *
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * the Free Software Foundation; either version 2 of the License, or (at
+ * your option) any later version.
  *
  */
+
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/reset.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
@@ -30,27 +24,10 @@
 #include <linux/of_irq.h>
 #include <linux/of.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 #include <linux/mmc/sdhci-aspeed-data.h>
 
-#define ASPEED_SDHCI_INFO			0x00
-#define  ASPEED_SDHCI_S1MMC8			BIT(25)
-#define  ASPEED_SDHCI_S0MMC8			BIT(24)
-
-#define ASPEED_SDHCI_BLOCK			0x04
-#define ASPEED_SDHCI_CTRL			0xF0
-#define ASPEED_SDHCI_ISR			0xFC
-
 #define ASPEED_SDHCI_SLOT_NUM			2
-
-void aspeed_sdhci_set_8bit_mode(struct aspeed_sdhci_irq *sdhci_irq, u8 mode)
-{
-	if (mode)
-		writel(ASPEED_SDHCI_S0MMC8 | readl(sdhci_irq->regs), sdhci_irq->regs);
-	else
-		writel(~ASPEED_SDHCI_S0MMC8 & readl(sdhci_irq->regs), sdhci_irq->regs);
-}
-
-EXPORT_SYMBOL(aspeed_sdhci_set_8bit_mode);
 
 static void aspeed_sdhci_irq_handler(struct irq_desc *desc)
 {
@@ -60,8 +37,7 @@ static void aspeed_sdhci_irq_handler(struct irq_desc *desc)
 	unsigned int slot_irq;
 
 	chained_irq_enter(chip, desc);
-	status = readl(sdhci_irq->regs + ASPEED_SDHCI_ISR) & 0x3;
-//	printk("sdhci irq status %x \n", status);
+	status = readl(sdhci_irq->regs + ASPEED_SDHCI_ISR);
 	for_each_set_bit(bit, &status, ASPEED_SDHCI_SLOT_NUM) {
 		slot_irq = irq_find_mapping(sdhci_irq->irq_domain, bit);
 //		printk("slot_irq %x \n", slot_irq);
@@ -86,7 +62,6 @@ struct irq_chip sdhci_irq_chip = {
 	.irq_ack	= noop,
 	.irq_mask	= noop,
 	.irq_unmask	= noop,
-//	.irq_set_type	= noop_ret,
 	.flags		= IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -107,7 +82,7 @@ static const struct irq_domain_ops aspeed_sdhci_irq_domain_ops = {
 static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 {
 	struct aspeed_sdhci_irq *sdhci_irq;
-	struct clk 	*sdclk, *sd_extclk;
+	struct clk *sdclk;
 	u32 slot0_clk_delay, slot1_clk_delay;
 
 	sdhci_irq = kzalloc(sizeof(*sdhci_irq), GFP_KERNEL);
@@ -122,7 +97,7 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 	if (IS_ERR(sdhci_irq->regs))
 		return PTR_ERR(sdhci_irq->regs);
 
-	sdclk = devm_clk_get(&pdev->dev, "sdclk");
+	sdclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(sdclk)) {
 		dev_err(&pdev->dev, "no sdclk clock defined\n");
 		return PTR_ERR(sdclk);
@@ -144,7 +119,6 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 
 	irq_set_chained_handler_and_data(sdhci_irq->parent_irq,
 					 aspeed_sdhci_irq_handler, sdhci_irq);
-
 
 	//1e7600f0[17:16] = 0x3 //slot0 clock delay mode
 	//1e7600f0[24:20] = 0x8 //slot0 delay

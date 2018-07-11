@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ASPEED Secure Digital Host Controller Interface.
- *
  * Copyright (C) ASPEED Technology Inc.
  * Ryan Chen <ryan_chen@aspeedtech.com>
  *
@@ -36,7 +36,7 @@ static void sdhci_aspeed_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (clock == 0)
 		goto out;
 
-	for (div = 1;div < 256;div *= 2) {
+	for (div = 1; div < 256; div *= 2) {
 		if ((host->max_clk / div) <= clock)
 			break;
 	}
@@ -51,10 +51,10 @@ static void sdhci_aspeed_set_clock(struct sdhci_host *host, unsigned int clock)
 	/* Wait max 20 ms */
 	timeout = 20;
 	while (!((clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL))
-		& SDHCI_CLOCK_INT_STABLE)) {
+		 & SDHCI_CLOCK_INT_STABLE)) {
 		if (timeout == 0) {
-			printk(KERN_ERR "%s: Internal clock never "
-				"stabilised.\n", mmc_hostname(host->mmc));
+			pr_err("%s: Internal clock never stabilised.\n",
+			       mmc_hostname(host->mmc));
 //			sdhci_dumpregs(host);
 			return;
 		}
@@ -76,12 +76,11 @@ static void sdhci_aspeed_set_bus_width(struct sdhci_host *host, int width)
 
 	u8 ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
 
-	if(sdhci_irq->regs) {
-		if (width == MMC_BUS_WIDTH_8) {
+	if (sdhci_irq->regs) {
+		if (width == MMC_BUS_WIDTH_8)
 			aspeed_sdhci_set_8bit_mode(sdhci_irq, 1);
-		} else {
+		else
 			aspeed_sdhci_set_8bit_mode(sdhci_irq, 0);
-		}
 	}
 	if (width == MMC_BUS_WIDTH_4)
 		ctrl |= SDHCI_CTRL_4BITBUS;
@@ -90,20 +89,6 @@ static void sdhci_aspeed_set_bus_width(struct sdhci_host *host, int width)
 
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 
-}
-
-static unsigned int sdhci_aspeed_get_max_clk(struct sdhci_host *host)
-{
-	struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
-
-	return clk_get_rate(pltfm_priv->clk);
-}
-
-static unsigned int sdhci_aspeed_get_timeout_clk(struct sdhci_host *host)
-{
-	struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
-
-	return (clk_get_rate(pltfm_priv->clk)/1000000);
 }
 
 /*
@@ -116,15 +101,17 @@ static struct sdhci_ops  sdhci_aspeed_ops= {
 #else
 	.set_clock = sdhci_aspeed_set_clock,
 #endif	
-	.get_max_clock = sdhci_aspeed_get_max_clk,
+	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.set_bus_width = sdhci_aspeed_set_bus_width,
-	.get_timeout_clock = sdhci_aspeed_get_timeout_clk,
+	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
 	.reset = sdhci_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
 static struct sdhci_pltfm_data sdhci_aspeed_pdata = {
 	.ops = &sdhci_aspeed_ops,
+	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
 };
 
 static int sdhci_aspeed_probe(struct platform_device *pdev)
@@ -134,7 +121,6 @@ static int sdhci_aspeed_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct aspeed_sdhci_irq *sdhci_irq;
-	struct reset_control *reset;	
 
 	int ret;
 
@@ -145,14 +131,12 @@ static int sdhci_aspeed_probe(struct platform_device *pdev)
 	pltfm_host = sdhci_priv(host);
 	sdhci_irq = sdhci_pltfm_priv(pltfm_host);
 
-	host->quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN;
-	host->quirks2 = SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN;
 	sdhci_get_of_property(pdev);
 
 	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
 
 	pnode = of_parse_phandle(np, "interrupt-parent", 0);
-	if(pnode)
+	if (pnode)
 		memcpy(sdhci_irq, pnode->data, sizeof(struct aspeed_sdhci_irq));
 
 	ret = mmc_of_parse(host->mmc);
@@ -166,27 +150,36 @@ static int sdhci_aspeed_probe(struct platform_device *pdev)
 	return 0;
 
 err_sdhci_add:
-	clk_disable_unprepare(pltfm_host->clk);
 	sdhci_pltfm_free(pdev);
 	return ret;
 }
 
+static int sdhci_aspeed_remove(struct platform_device *pdev)
+{
+	struct sdhci_host	*host = platform_get_drvdata(pdev);
+	int dead = (readl(host->ioaddr + SDHCI_INT_STATUS) == 0xffffffff);
 
-static const struct of_device_id sdhci_aspeed_of_match_table[] = {
-        { .compatible = "aspeed,sdhci-ast", .data = &sdhci_aspeed_pdata },
-        {}
+	sdhci_remove_host(host, dead);
+	sdhci_pltfm_free(pdev);
+	return 0;
+}
+
+static const struct of_device_id sdhci_aspeed_of_match[] = {
+	{ .compatible = "aspeed,sdhci-ast2400", .data = &sdhci_aspeed_pdata },
+	{ .compatible = "aspeed,sdhci-ast2500", .data = &sdhci_aspeed_pdata },
+	{}
 };
 
-MODULE_DEVICE_TABLE(of, sdhci_aspeed_of_match_table);
+MODULE_DEVICE_TABLE(of, sdhci_aspeed_of_match);
 
 static struct platform_driver sdhci_aspeed_driver = {
 	.driver		= {
-		.name	= "sdhci-ast",
+		.name	= "sdhci-aspeed",
 		.pm	= &sdhci_pltfm_pmops,
-		.of_match_table = sdhci_aspeed_of_match_table,
+		.of_match_table = sdhci_aspeed_of_match,
 	},
 	.probe		= sdhci_aspeed_probe,
-	.remove		= sdhci_pltfm_unregister,
+	.remove		= sdhci_aspeed_remove,
 };
 
 module_platform_driver(sdhci_aspeed_driver);

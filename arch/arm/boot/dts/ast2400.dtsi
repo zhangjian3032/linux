@@ -416,16 +416,14 @@
 		reg = <0x0 0x100>;
 		interrupts = <26>;
 		interrupt-controller;
-		clocks = <&syscon ASPEED_CLK_GATE_SDCLKCLK>, <&syscon ASPEED_CLK_GATE_SDEXTCLK>;
-		clock-names = "sdclk", "sd_extclk";
+		clocks = <&syscon ASPEED_CLK_GATE_SDCLKCLK>;
 	};
 
 	sdhci_slot0: sdhci_slot0@100 {
-		compatible = "aspeed,sdhci-ast";
+		compatible = "aspeed,sdhci-ast2400";
 		reg = <0x100 0x100>;
 		interrupts = <0>;
 		interrupt-parent = <&sdhci_ic>;
-		slot = <0>;
 		sdhci,auto-cmd12;
 		clocks = <&syscon ASPEED_CLK_SDIO>;
 		pinctrl-names = "default";
@@ -433,11 +431,10 @@
 	};
 
 	sdhci_slot1: sdhci_slot1@200 {
-		compatible = "aspeed,sdhci-ast";
+		compatible = "aspeed,sdhci-ast2400";
 		reg = <0x200 0x100>;
 		interrupts = <1>;
 		interrupt-parent = <&sdhci_ic>;
-		slot = <1>;
 		sdhci,auto-cmd12;
 		clocks = <&syscon ASPEED_CLK_SDIO>;
 		pinctrl-names = "default";
