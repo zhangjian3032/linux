@@ -367,7 +367,7 @@ static int aspeed_clk_enable(struct clk_hw *hw)
 	regmap_update_bits(gate->map, ASPEED_CLK_STOP_CTRL, clk, enval);
 
 	/* sd ext clk */
-	if (gate->reset_idx == 16) {
+	if (gate->reset_idx == aspeed_resets[ASPEED_RESET_SDHCI]) {
 		regmap_update_bits(gate->map, ASPEED_CLK_SELECTION, ASPEED_SDIO_CLK_EN, ASPEED_SDIO_CLK_EN);
 	}
 
