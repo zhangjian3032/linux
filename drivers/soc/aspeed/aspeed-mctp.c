@@ -12,11 +12,11 @@
  */
 #include <linux/dma-mapping.h>
 #include <linux/miscdevice.h>
+#include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
-
 
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -171,16 +171,14 @@ struct aspeed_mctp_cmd_desc {
 #define ASPEED_MCTP_XFER_SIZE 4096
 
 struct aspeed_mctp_xfer {
-	unsigned char	*xfer_buff;
+	unsigned char *xfer_buff;
 	unsigned int xfer_len;
-	int wait_for_tx_complete;	//wait for interrupt
 };
 
 #define MCTPIOC_BASE       'M'
 
-
-#define ASPEED_MCTP_IOCTX			_IO(MCTPIOC_BASE, 0x00)
-#define ASPEED_MCTP_IOCRX			_IO(MCTPIOC_BASE, 0x01)
+#define ASPEED_MCTP_IOCTX			_IOW(MCTPIOC_BASE, 0, struct aspeed_mctp_xfer*)
+#define ASPEED_MCTP_IOCRX			_IOR(MCTPIOC_BASE, 1, struct aspeed_mctp_xfer*)
 
 /*************************************************************************************/
 struct pcie_vdm_header {
@@ -232,9 +230,8 @@ struct aspeed_mctp_info {
 	u32 dram_base;
 	void *pci_bdf_regs;
 
-	wait_queue_head_t mctp_wq;
-
 ///////////////////////
+	struct completion	tx_complete;
 
 	int tx_fifo_num;	
 	int tx_idx;
@@ -264,7 +261,6 @@ struct aspeed_mctp_info {
 	u32 rx_hw_idx;
 	u32 rx_full;
 
-	u32 flag;
 	bool is_open;
 	u32 state;
 	//rx
@@ -275,9 +271,6 @@ struct aspeed_mctp_info {
 };
 
 /******************************************************************************/
-static DEFINE_SPINLOCK(mctp_state_lock);
-
-/******************************************************************************/
 
 static inline u32
 aspeed_mctp_read(struct aspeed_mctp_info *aspeed_mctp, u32 reg)
@@ -285,62 +278,82 @@ aspeed_mctp_read(struct aspeed_mctp_info *aspeed_mctp, u32 reg)
 	u32 val;
 
 	val = readl(aspeed_mctp->reg_base + reg);
-	MCTP_DBUG("reg = 0x%08x, val = 0x%08x\n", reg, val);
+//	MCTP_DBUG("reg = 0x%08x, val = 0x%08x\n", reg, val);
 	return val;
 }
 
 static inline void
 aspeed_mctp_write(struct aspeed_mctp_info *aspeed_mctp, u32 val, u32 reg)
 {
-	MCTP_DBUG("reg = 0x%08x, val = 0x%08x\n", reg, val);
-
+//	MCTP_DBUG("reg = 0x%08x, val = 0x%08x\n", reg, val);
 	writel(val, aspeed_mctp->reg_base + reg);
 }
 
 /*************************************************************************************/
-static void aspeed_mctp_wait_tx_complete(struct aspeed_mctp_info *aspeed_mctp)
-{
-	wait_event_interruptible(aspeed_mctp->mctp_wq, (aspeed_mctp->flag == MCTP_TX_LAST));
-	MCTP_DBUG("\n");
-	aspeed_mctp->flag = 0;
-}
-
 static void aspeed_mctp_tx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct aspeed_mctp_xfer *mctp_xfer)
 {
-	void *cur_tx_buff = aspeed_mctp->tx_pool + (4096 * aspeed_mctp->tx_idx);
-	dma_addr_t cur_tx_buff_dma = aspeed_mctp->tx_pool_dma + (4096 * aspeed_mctp->tx_idx);
-	u32 packet_size = (mctp_xfer->xfer_len / 4);
+	void *cur_tx_buff = aspeed_mctp->tx_pool + (MCTP_TX_BUFF_SIZE * aspeed_mctp->tx_idx);
+	dma_addr_t cur_tx_buff_dma = aspeed_mctp->tx_pool_dma + (MCTP_TX_BUFF_SIZE * aspeed_mctp->tx_idx);
 	struct pcie_vdm_header *vdm_header = (struct pcie_vdm_header *) mctp_xfer->xfer_buff;
+	u8 routing_type = vdm_header->type_routing;
 
 	copy_from_user(cur_tx_buff, mctp_xfer->xfer_buff, mctp_xfer->xfer_len);
 
-	MCTP_DBUG("xfer dma : %x, xfer_len = %d, padding len = %d , 4byte align packet size %d\n", cur_tx_buff_dma, mctp_xfer->xfer_len, vdm_header->pad_len, packet_size);
+	MCTP_DBUG("xfer dma : %x, xfer_len = %d, padding len = %d\n", cur_tx_buff_dma, mctp_xfer->xfer_len, vdm_header->pad_len);
+	init_completion(&aspeed_mctp->tx_complete);
+	if ((aspeed_mctp->mctp_version == 0) && (aspeed_mctp->mctp_version == 5)) {
+		//if use ast2400/ast2500 need to check vdm header support
+		if(vdm_header->som != vdm_header->eom) {
+			printk("can't support som eom different som %d , eom %d \n", vdm_header->som, vdm_header->eom);
+			return;
+		}
+		if(routing_type) {
+			switch(routing_type & 0x7) {
+				case 0:	//route to rc 
+					routing_type = 0;
+					break;
+				case 2:	//route to ID
+					routing_type = 1;
+					break;
+				default:
+					printk("not supported rounting type %x ", routing_type);
+					break;
+			}
+		}
+			
+	}
 
+	//check length
+	if (vdm_header->length != ((mctp_xfer->xfer_len - 16) / 4)) {
+		printk("vdm_header->length %d , mctp_xfer_len %d not match \n", vdm_header->length, (mctp_xfer->xfer_len - 16) /4);
+		return;
+	}
+	//check padding
+	if (vdm_header->pad_len != (4 - ((mctp_xfer->xfer_len - 16) % 4))) {
+		printk("vdm_header->pad_len %d , mctp_xfer_len %d not match \n", vdm_header->length, (mctp_xfer->xfer_len - 16) % 4);
+		return;
+	}
+	
 	switch(aspeed_mctp->mctp_version) {
 		case 0:
 			//routing type bit 14
 			//bit 15 : interrupt enable
 			//set default tag owner = 1;
-			mctp_xfer->wait_for_tx_complete = 1;
-			aspeed_mctp->tx_cmd_desc->desc0 = 0x0000a000 | ROUTING_TYPE(vdm_header->type_routing) | PKG_SIZE(packet_size) | (vdm_header->pcie_target_id <<16) | PADDING_LEN(vdm_header->pad_len);
+			aspeed_mctp->tx_cmd_desc->desc0 = 0x0000a000 | ROUTING_TYPE(vdm_header->type_routing) | PKG_SIZE(vdm_header->length) | (vdm_header->pcie_target_id <<16) | PADDING_LEN(vdm_header->pad_len);
 			aspeed_mctp->tx_cmd_desc->desc1 = LAST_CMD | DEST_EP_ID(vdm_header->dest_epid) | TX_DATA_ADDR(cur_tx_buff_dma);
 			break;
 		case 5:
 			//routing type [desc0 bit 12, desc0 bit 14]
 			//bit 15 : interrupt enable
 			//set default tag owner = 1;
-			mctp_xfer->wait_for_tx_complete = 1;
-			if(mctp_xfer->xfer_len == 4096) packet_size = 0;
-			aspeed_mctp->tx_cmd_desc->desc0 = 0x0000a000 | G5_ROUTING_TYPE_H(vdm_header->type_routing) | G5_ROUTING_TYPE_L(vdm_header->type_routing) | PKG_SIZE(packet_size) | (vdm_header->pcie_target_id <<16) | PADDING_LEN(vdm_header->pad_len);
+			aspeed_mctp->tx_cmd_desc->desc0 = 0x0000a000 | G5_ROUTING_TYPE_H(vdm_header->type_routing) | G5_ROUTING_TYPE_L(vdm_header->type_routing) | PKG_SIZE(vdm_header->length) | (vdm_header->pcie_target_id <<16) | PADDING_LEN(vdm_header->pad_len);
 			aspeed_mctp->tx_cmd_desc->desc1 = LAST_CMD | DEST_EP_ID(vdm_header->dest_epid) | G5_TX_DATA_ADDR(cur_tx_buff_dma);
 			break;
 		case 6:
  			//bit 15 : interrupt enable
 			//set default tag owner = 1;
-			if(mctp_xfer->wait_for_tx_complete) 
-				aspeed_mctp->tx_cmd_desc[aspeed_mctp->tx_idx].desc0 = 0x00018000 | PKG_SIZE(packet_size);
-			else
-				aspeed_mctp->tx_cmd_desc[aspeed_mctp->tx_idx].desc0 = 0x00000000 | PKG_SIZE(packet_size);
+			aspeed_mctp->tx_cmd_desc[aspeed_mctp->tx_idx].desc0 = 0x00018000 | PKG_SIZE(vdm_header->length);
+			//aspeed_mctp->tx_cmd_desc[aspeed_mctp->tx_idx].desc0 = 0x00000000 | PKG_SIZE(packet_size);
 			aspeed_mctp->tx_cmd_desc[aspeed_mctp->tx_idx].desc1 = 0x00000001 | G6_TX_DATA_ADDR(cur_tx_buff_dma);
 			//trigger write pt;
 			aspeed_mctp->tx_idx++;
@@ -353,8 +366,7 @@ static void aspeed_mctp_tx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct asp
 	aspeed_mctp_write(aspeed_mctp, aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_CTRL) | MCTP_TX_TRIGGER, ASPEED_MCTP_CTRL);
 
 	//wait intr
-	if(mctp_xfer->wait_for_tx_complete)
-		aspeed_mctp_wait_tx_complete(aspeed_mctp);
+	wait_for_completion(&aspeed_mctp->tx_complete);
 	
 }
 
@@ -418,13 +430,13 @@ static irqreturn_t aspeed_mctp_isr(int this_irq, void *dev_id)
 	MCTP_DBUG("%x \n", status);
 
 	if (status & MCTP_TX_LAST) {
-		aspeed_mctp_write(aspeed_mctp, MCTP_TX_LAST | (status), ASPEED_MCTP_ISR);
-		aspeed_mctp->flag = MCTP_TX_LAST;
+		aspeed_mctp_write(aspeed_mctp, MCTP_TX_LAST, ASPEED_MCTP_ISR);
+		complete(&aspeed_mctp->tx_complete);
 	}
 
 	if (status & MCTP_TX_COMPLETE) {
-		aspeed_mctp_write(aspeed_mctp, MCTP_TX_COMPLETE | (status), ASPEED_MCTP_ISR);
-//		aspeed_mctp->flag = MCTP_TX_COMPLETE;
+		aspeed_mctp_write(aspeed_mctp, MCTP_TX_COMPLETE, ASPEED_MCTP_ISR);
+		printk("don't care don't use \n");
 	}
 
 	if (status & MCTP_RX_COMPLETE) {
@@ -444,24 +456,16 @@ static irqreturn_t aspeed_mctp_isr(int this_irq, void *dev_id)
 			}
 			aspeed_mctp->rx_hw_idx %= aspeed_mctp->rx_fifo_num;
 		}
-		aspeed_mctp_write(aspeed_mctp, MCTP_RX_COMPLETE | (status), ASPEED_MCTP_ISR);
+		aspeed_mctp_write(aspeed_mctp, MCTP_RX_COMPLETE, ASPEED_MCTP_ISR);
 		return IRQ_HANDLED;
 	}
 
 	if (status & MCTP_RX_NO_CMD) {
-		aspeed_mctp_write(aspeed_mctp, MCTP_RX_NO_CMD | (status), ASPEED_MCTP_ISR);
-		aspeed_mctp->flag = MCTP_RX_NO_CMD;
+		aspeed_mctp_write(aspeed_mctp, MCTP_RX_NO_CMD, ASPEED_MCTP_ISR);
 		printk("MCTP_RX_NO_CMD \n");
 	}
 
-	if (aspeed_mctp->flag) {
-		wake_up_interruptible(&aspeed_mctp->mctp_wq);
-		return IRQ_HANDLED;
-	} else {
-		printk("TODO Check MCTP's interrupt %x\n", status);
-		return IRQ_NONE;
-	}
-
+	return IRQ_HANDLED;
 }
 
 static long mctp_ioctl(struct file *file, unsigned int cmd,
@@ -544,17 +548,11 @@ static int mctp_open(struct inode *inode, struct file *file)
 	struct aspeed_mctp_info *aspeed_mctp = dev_get_drvdata(c->this_device);
 
 	MCTP_DBUG("\n");
-	spin_lock(&mctp_state_lock);
-
 	if (aspeed_mctp->is_open) {
-		spin_unlock(&mctp_state_lock);
 		return -EBUSY;
 	}
 
 	aspeed_mctp->is_open = true;
-
-	spin_unlock(&mctp_state_lock);
-
 	return 0;
 }
 
@@ -564,12 +562,7 @@ static int mctp_release(struct inode *inode, struct file *file)
 	struct aspeed_mctp_info *aspeed_mctp = dev_get_drvdata(c->this_device);
 
 	MCTP_DBUG("\n");
-	spin_lock(&mctp_state_lock);
-
 	aspeed_mctp->is_open = false;
-
-	spin_unlock(&mctp_state_lock);
-
 	return 0;
 }
 
@@ -685,9 +678,6 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	//scu init
 	reset_control_assert(aspeed_mctp->reset);
 	reset_control_deassert(aspeed_mctp->reset);
-
-	aspeed_mctp->flag = 0;
-	init_waitqueue_head(&aspeed_mctp->mctp_wq);
 
 	ret = misc_register(&aspeed_mctp_misc);
 	if (ret) {
