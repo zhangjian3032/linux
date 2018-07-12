@@ -312,6 +312,41 @@ static const struct aspeed_clk_soc_data ast2400_data = {
 	.calc_pll = aspeed_ast2400_calc_pll,
 };
 
+static const u8 aspeed_resets[] = {
+	/* SCU04 resets */
+	[ASPEED_RESET_ESPI]	= 5,
+	[ASPEED_RESET_XDMA]	= 25,
+	[ASPEED_RESET_MCTP]	= 24,
+	[ASPEED_RESET_P2X]	= 24,	
+	[ASPEED_RESET_ADC]	= 23,
+	[ASPEED_RESET_JTAG_MASTER] = 22,
+	[ASPEED_RESET_PCIE_DIR]	= 21,
+	[ASPEED_RESET_PCIE]		= 20,
+	[ASPEED_RESET_MIC]	= 18,
+	[ASPEED_RESET_SDHCI]	= 16,
+	[ASPEED_RESET_UHCI]	= 15,
+	[ASPEED_RESET_EHCI_P1]	= 14,
+	[ASPEED_RESET_CRT]		= 13,
+	[ASPEED_RESET_MAC2]	= 12,
+	[ASPEED_RESET_MAC1]	= 11,
+	[ASPEED_RESET_PECI]	= 10,
+	[ASPEED_RESET_PWM]	=  9,
+	[ASPEED_RESET_2D]	= 7,
+	[ASPEED_RESET_VIDEO]	= 6,
+	[ASPEED_RESET_LPC]		= 5,
+	[ASPEED_RESET_HACE]	= 4,
+	[ASPEED_RESET_EHCI_P2]	= 3,
+	[ASPEED_RESET_I2C]	=  2,
+	[ASPEED_RESET_AHB]	=  1,
+	[ASPEED_RESET_SRAM_CTRL]	=  0,
+
+	/*
+	 * SCUD4 resets start at an offset to separate them from
+	 * the SCU04 resets.
+	 */
+	[ASPEED_RESET_CRT1]	= ASPEED_RESET2_OFFSET + 5,
+};
+
 static int aspeed_clk_is_enabled(struct clk_hw *hw)
 {
 	struct aspeed_clk_gate *gate = to_aspeed_clk_gate(hw);
@@ -416,41 +451,6 @@ struct aspeed_reset {
 };
 
 #define to_aspeed_reset(p) container_of((p), struct aspeed_reset, rcdev)
-
-static const u8 aspeed_resets[] = {
-	/* SCU04 resets */
-	[ASPEED_RESET_ESPI]	= 5,
-	[ASPEED_RESET_XDMA]	= 25,
-	[ASPEED_RESET_MCTP]	= 24,
-	[ASPEED_RESET_P2X]	= 24,	
-	[ASPEED_RESET_ADC]	= 23,
-	[ASPEED_RESET_JTAG_MASTER] = 22,
-	[ASPEED_RESET_PCIE_DIR]	= 21,
-	[ASPEED_RESET_PCIE]		= 20,
-	[ASPEED_RESET_MIC]	= 18,
-	[ASPEED_RESET_SDHCI]	= 16,
-	[ASPEED_RESET_UHCI]	= 15,
-	[ASPEED_RESET_EHCI_P1]	= 14,
-	[ASPEED_RESET_CRT]		= 13,
-	[ASPEED_RESET_MAC2]	= 12,
-	[ASPEED_RESET_MAC1]	= 11,
-	[ASPEED_RESET_PECI]	= 10,
-	[ASPEED_RESET_PWM]	=  9,
-	[ASPEED_RESET_2D]	= 7,
-	[ASPEED_RESET_VIDEO]	= 6,
-	[ASPEED_RESET_LPC]		= 5,
-	[ASPEED_RESET_HACE]	= 4,
-	[ASPEED_RESET_EHCI_P2]	= 3,
-	[ASPEED_RESET_I2C]	=  2,
-	[ASPEED_RESET_AHB]	=  1,
-	[ASPEED_RESET_SRAM_CTRL]	=  0,
-
-	/*
-	 * SCUD4 resets start at an offset to separate them from
-	 * the SCU04 resets.
-	 */
-	[ASPEED_RESET_CRT1]	= ASPEED_RESET2_OFFSET + 5,
-};
 
 static int aspeed_reset_deassert(struct reset_controller_dev *rcdev,
 				 unsigned long id)
