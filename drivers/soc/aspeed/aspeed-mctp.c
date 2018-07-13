@@ -124,6 +124,7 @@
 #define GET_SRC_EPID(x)		(((x) >> 16) & 0xff)
 #define GET_ROUTING_TYPE(x)	((x >> 14) & 0x7)
 #define GET_SEQ_NO(x)			(((x) >> 11) & 0x3)
+#define GET_MSG_TAG(x)			(((x) >> 8) & 0x3)
 #define MCTP_SOM				BIT(7)
 #define GET_MCTP_SOM(x)			(((x) >> 7) & 0x1)
 #define MCTP_EOM				BIT(6)
@@ -223,14 +224,15 @@ struct pcie_vdm_header {
 
 struct aspeed_mctp_info {
 	void __iomem	*reg_base;
-	int 	irq;	
-	int 	pcie_irq;
+	int irq;
+	bool is_open;	
+	int pcie_irq;
 	struct reset_control *reset;
 	int	mctp_version;
 	u32 dram_base;
 	void *pci_bdf_regs;
 
-///////////////////////
+	/* mctp tx info */
 	struct completion	tx_complete;
 
 	int tx_fifo_num;	
@@ -241,18 +243,14 @@ struct aspeed_mctp_info {
 
 	struct aspeed_mctp_cmd_desc *tx_cmd_desc;
 	dma_addr_t tx_cmd_desc_dma;
-
-///////////////////////
-
+	
+	/* mctp rx info */
 	void *rx_pool;	
 	dma_addr_t rx_pool_dma;
-///
 
 	int rx_dma_pool_size;
 	int rx_fifo_size;
 	int rx_fifo_num;
-
-
 
 	void *rx_cmd_desc;
 	dma_addr_t rx_cmd_desc_dma;
@@ -260,14 +258,6 @@ struct aspeed_mctp_info {
 	u32 rx_idx;
 	u32 rx_hw_idx;
 	u32 rx_full;
-
-	bool is_open;
-	u32 state;
-	//rx
-	u32 rx_len;
-	u8 ep_id;
-	u8 rt;
-	u8 seq_no;
 };
 
 /******************************************************************************/
@@ -380,7 +370,6 @@ static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 	aspeed_mctp_write(aspeed_mctp, aspeed_mctp->tx_cmd_desc_dma, ASPEED_MCTP_TX_CMD);
 
 	aspeed_mctp->rx_idx = 0;
-	aspeed_mctp->rx_idx = 0;
 	aspeed_mctp->rx_hw_idx = 0;
 
 	//rx fifo data
@@ -441,23 +430,23 @@ static irqreturn_t aspeed_mctp_isr(int this_irq, void *dev_id)
 
 	if (status & MCTP_RX_COMPLETE) {
 		if(aspeed_mctp->mctp_version == 6) {
-			if((aspeed_mctp->rx_hw_idx + 1) == aspeed_mctp->rx_idx)
+			if(((aspeed_mctp->rx_hw_idx + 1) % aspeed_mctp->rx_fifo_num) == aspeed_mctp->rx_idx)
 				aspeed_mctp->rx_full = 1;
 			else
 				aspeed_mctp->rx_hw_idx++;
 			aspeed_mctp->rx_hw_idx %= aspeed_mctp->rx_fifo_num;
 		} else {
 			struct aspeed_mctp_cmd_desc *rx_cmd_desc = aspeed_mctp->rx_cmd_desc;
-			if(rx_cmd_desc[aspeed_mctp->rx_hw_idx].desc0 & 0x1) {
-				if((aspeed_mctp->rx_hw_idx + 1) == aspeed_mctp->rx_idx)
+			while(rx_cmd_desc[aspeed_mctp->rx_hw_idx].desc0 & 0x1) {
+				if(((aspeed_mctp->rx_hw_idx + 1) % aspeed_mctp->rx_fifo_num) == aspeed_mctp->rx_idx) {
 					aspeed_mctp->rx_full = 1;
-				else
+					break;
+				} else
 					aspeed_mctp->rx_hw_idx++;
 			}
 			aspeed_mctp->rx_hw_idx %= aspeed_mctp->rx_fifo_num;
 		}
 		aspeed_mctp_write(aspeed_mctp, MCTP_RX_COMPLETE, ASPEED_MCTP_ISR);
-		return IRQ_HANDLED;
 	}
 
 	if (status & MCTP_RX_NO_CMD) {
@@ -515,6 +504,8 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 					vdm_header.pad_len = GET_PADDING_LEN(desc0);
 					vdm_header.src_epid = GET_SRC_EPID(desc0);
 					vdm_header.type_routing = GET_ROUTING_TYPE(desc0);
+					vdm_header.pkt_seq = GET_SEQ_NO(desc0);
+					vdm_header.msg_tag = GET_MSG_TAG(desc0);
 					vdm_header.eom = GET_MCTP_EOM(desc0);
 					vdm_header.som = GET_MCTP_SOM(desc0);
 					if (copy_to_user(argp, &vdm_header, sizeof(struct pcie_vdm_header)))
@@ -526,7 +517,7 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 						rx_cmd_desc[aspeed_mctp->rx_idx].desc0 = 0;
 					}
 					if(aspeed_mctp->rx_full) {
-						printk("TODO check \n");
+						printk("TODO check xxxxx \n");
 						aspeed_mctp->rx_hw_idx++;
 					}
 				} else 
