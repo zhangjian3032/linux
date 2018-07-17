@@ -45,20 +45,10 @@ static void aspeed_sdhci_irq_handler(struct irq_desc *desc)
 
 static void noop(struct irq_data *data) { }
 
-static unsigned int noop_ret(struct irq_data *data)
-{
-	return 0;
-}
-
 struct irq_chip sdhci_irq_chip = {
 	.name		= "sdhci-ic",
-	.irq_startup	= noop_ret,
-	.irq_shutdown	= noop,
 	.irq_enable	= noop,
 	.irq_disable	= noop,
-	.irq_ack	= noop,
-	.irq_mask	= noop,
-	.irq_unmask	= noop,
 	.flags		= IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -67,7 +57,6 @@ static int ast_sdhci_map_irq_domain(struct irq_domain *domain,
 {
 	irq_set_chip_and_handler(irq, &sdhci_irq_chip, handle_simple_irq);
 	irq_set_chip_data(irq, domain->host_data);
-	irq_set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
 
 	return 0;
 }
@@ -148,7 +137,12 @@ static struct platform_driver irq_aspeed_sdhci_device_driver = {
 	}
 };
 
-builtin_platform_driver(irq_aspeed_sdhci_device_driver);
+static int __init irq_aspeed_sdhci_init(void)
+{
+	return platform_driver_register(&irq_aspeed_sdhci_device_driver);
+}
+core_initcall(irq_aspeed_sdhci_init);
+
 
 MODULE_AUTHOR("Ryan Chen");
 MODULE_DESCRIPTION("ASPEED SOC SDHCI IRQ Driver");
