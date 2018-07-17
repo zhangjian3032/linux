@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * SDHCI IRQCHIP driver for the Aspeed SoC
- *
- * Copyright (C) ASPEED Technology Inc.
- * Ryan Chen <ryan_chen@aspeedtech.com>
- *
+  * Copyright (C) ASPEED Technology Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -151,11 +148,7 @@ static struct platform_driver irq_aspeed_sdhci_device_driver = {
 	}
 };
 
-static int __init irq_aspeed_sdhci_init(void)
-{
-	return platform_driver_register(&irq_aspeed_sdhci_device_driver);
-}
-core_initcall(irq_aspeed_sdhci_init);
+builtin_platform_driver(irq_aspeed_sdhci_device_driver);
 
 MODULE_AUTHOR("Ryan Chen");
 MODULE_DESCRIPTION("ASPEED SOC SDHCI IRQ Driver");
