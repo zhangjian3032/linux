@@ -4,6 +4,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/fips.h>
+#include <linux/dma-mapping.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/kpp.h>
@@ -18,6 +19,7 @@
 #include <crypto/md5.h>
 #include <crypto/sha.h>
 #include <crypto/ecdh.h>
+
 
 
 /* Crypto control registers*/
@@ -110,8 +112,22 @@
 #define ASPEED_EUCLID_NP		ASPEED_EUCLID_LEN * 12
 
 #define CRYPTO_FLAGS_BUSY 		BIT(1)
+
 #define CRYPTO_ABLK_INT_EN
 #define CRYPTO_AKCIPHER_INT_EN
+#define CRYPTO_AHASH_INT_EN
+
+#define SHA_BUFFER_LEN		(PAGE_SIZE / 16)
+
+#define OP_INIT				1
+#define OP_UPDATE			2
+#define OP_FINAL			3
+
+#define SHA_FLAGS_SINGLE_UPDATE		BIT(1)
+#define SHA_FLAGS_N_UPDATES		BIT(2)
+#define SHA_FLAGS_SINGLE_SG		BIT(3)
+#define SHA_FLAGS_N_SG			BIT(4)
+#define SHA_FLAGS_CPU			BIT(5)
 
 /*
  * Asynchronous crypto request structure.
@@ -144,11 +160,8 @@ struct aspeed_crypto_dev {
 	bool				is_async;
 	aspeed_crypto_fn_t		resume;
 	//hash
-	struct aspeed_sham_reqctx	*sham_reqctx;
-
 	struct crypto_queue		queue;
 
-	struct tasklet_struct		crypto_tasklet;
 	struct tasklet_struct		done_task;
 	struct tasklet_struct		queue_task;
 
@@ -165,10 +178,6 @@ struct aspeed_crypto_dev {
 	/* ablkcipher */
 	void				*cipher_addr;
 	dma_addr_t			cipher_dma_addr;
-
-	void				*hash_src;
-	dma_addr_t			hash_src_dma;
-
 };
 
 struct aspeed_crypto_alg {
@@ -183,7 +192,7 @@ struct aspeed_crypto_alg {
 
 /*************************************************************************************/
 /* the privete variable of hash for fallback */
-struct aspeed_sham_hmac_ctx {
+struct aspeed_sha_hmac_ctx {
 	struct crypto_shash *shash;
 	u8 ipad[SHA512_BLOCK_SIZE] __attribute__((aligned(sizeof(u32))));
 	u8 opad[SHA512_BLOCK_SIZE] __attribute__((aligned(sizeof(u32))));
@@ -199,23 +208,35 @@ struct aspeed_sham_ctx {
 	void				*hmac_key; //64byte align
 	dma_addr_t			hmac_key_dma;
 
+	void				*hash_src;
+	dma_addr_t			hash_src_dma;
 	/* fallback stuff */
 	struct crypto_shash		*fallback;
-	struct aspeed_sham_hmac_ctx	base[0];		//for hmac
+	struct aspeed_sha_hmac_ctx	base[0];		//for hmac
 };
 
 
 struct aspeed_sham_reqctx {
 	unsigned long		flags;	//final update flag should no use
+	unsigned long		op;	//final update flag should no use
 	u32			cmd;	//trigger cmd
-	size_t			digcnt;
-	size_t			bufcnt;
-	size_t			buflen;
+
+	u8	digest[SHA512_DIGEST_SIZE] __aligned(sizeof(u64));  //digest result
+	u64	digcnt;  //total length
+	size_t	digsize; //digest size
+	size_t	bufcnt;  //buffer counter
+	size_t	buflen;  //buffer length
+	dma_addr_t	buffer_dma_addr;  //input src dma address
+	dma_addr_t	digest_dma_addr;  //output digest result dma address
+
 	/* walk state */
-	struct scatterlist	*sg;
+	struct scatterlist	*src_sg;
 	unsigned int		offset;	/* offset in current sg */
-	size_t			total;	/* total request */
+	unsigned int		total;	/* per update length*/
+
 	size_t 			block_size;
+
+	// u8 buffer[SHA_BUFFER_LEN + SHA512_BLOCK_SIZE] __aligned(sizeof(u32));
 };
 /*************************************************************************************/
 

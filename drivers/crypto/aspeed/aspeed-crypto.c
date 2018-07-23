@@ -105,6 +105,13 @@ static irqreturn_t aspeed_crypto_irq(int irq, void *dev)
 			dev_warn(crypto_dev->dev, "CRYPTO interrupt when no active requests.\n");
 		handle = IRQ_HANDLED;
 	}
+	if (sts & HACE_HASH_ISR) {
+		if (crypto_dev->flags & CRYPTO_FLAGS_BUSY)
+			tasklet_schedule(&crypto_dev->done_task);
+		else
+			dev_warn(crypto_dev->dev, "CRYPTO interrupt when no active requests.\n");
+		handle = IRQ_HANDLED;
+	}
 	return handle;
 }
 
@@ -126,7 +133,7 @@ static void aspeed_crypto_queue_task(unsigned long data)
 static int aspeed_crypto_register(struct aspeed_crypto_dev *crypto_dev)
 {
 	aspeed_register_crypto_algs(crypto_dev);
-	// aspeed_register_ahash_algs(crypto_dev);
+	aspeed_register_ahash_algs(crypto_dev);
 	aspeed_register_akcipher_algs(crypto_dev);
 	// aspeed_register_kpp_algs(crypto_dev);
 
@@ -228,11 +235,6 @@ static int aspeed_crypto_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	crypto_dev->hash_src = crypto_dev->cipher_addr + 0x1000;
-	crypto_dev->hash_src_dma = crypto_dev->cipher_dma_addr + 0x1000;
-
-	CRYPTO_DBUG("Crypto ctx %x , in : %x, out: %x\n", crypto_dev->ctx_dma_addr, crypto_dev->dma_addr_in, crypto_dev->dma_addr_out);
-
 	err = aspeed_crypto_register(crypto_dev);
 	if (err) {
 		dev_err(dev, "err in register alg");
@@ -249,7 +251,8 @@ static int aspeed_crypto_remove(struct platform_device *pdev)
 	struct aspeed_crypto_dev *crypto_dev = platform_get_drvdata(pdev);
 
 	//aspeed_crypto_unregister();
-	tasklet_kill(&crypto_dev->crypto_tasklet);
+	tasklet_kill(&crypto_dev->done_task);
+	tasklet_kill(&crypto_dev->queue_task);
 	return 0;
 }
 
