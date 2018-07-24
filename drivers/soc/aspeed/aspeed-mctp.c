@@ -93,7 +93,7 @@
 #define BUS_NO(x)				((x & 0xff) << 24)
 #define DEV_NO(x)				((x & 0x1f) << 19)
 #define FUN_NO(x)				((x & 0x7) << 16)
-#define STOP_INT_ENABLE			BIT(15)
+#define INT_ENABLE				BIT(15)
 
 //ast-g5
 /* 0: route to RC, 1: route by ID, 2/3: broadcast from RC */
@@ -102,7 +102,7 @@
 //ast old version
 #define ROUTING_TYPE(x)			((x & 0x1) << 14)
 
-#define TAG_OWN					BIT(13)
+#define TAG_OWN(x)				(x << 13)
 
 //bit 12:2 is packet in 4bytes
 //ast2400 bit 12 can be use. 
@@ -328,20 +328,24 @@ static void aspeed_mctp_tx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct asp
 		case 0:
 			//routing type bit 14
 			//bit 15 : interrupt enable
-			//set default tag owner = 1;
-			aspeed_mctp->tx_cmd_desc->desc0 = 0x0000a000 | ROUTING_TYPE(vdm_header->type_routing) | PKG_SIZE(vdm_header->length) | (vdm_header->pcie_target_id <<16) | PADDING_LEN(vdm_header->pad_len);
+			aspeed_mctp->tx_cmd_desc->desc0 = INT_ENABLE | TAG_OWN(vdm_header->to) |
+										ROUTING_TYPE(vdm_header->type_routing) | 
+										PKG_SIZE(vdm_header->length) | (vdm_header->pcie_target_id <<16) | 
+										PADDING_LEN(vdm_header->pad_len);
 			aspeed_mctp->tx_cmd_desc->desc1 = LAST_CMD | DEST_EP_ID(vdm_header->dest_epid) | TX_DATA_ADDR(cur_tx_buff_dma);
 			break;
 		case 5:
-			//routing type [desc0 bit 12, desc0 bit 14]
+			//routing type [desc0 bit 12, desc0 bit 14], but bug at bit 12, don't use
 			//bit 15 : interrupt enable
-			//set default tag owner = 1;
-			aspeed_mctp->tx_cmd_desc->desc0 = 0x0000a000 | G5_ROUTING_TYPE_H(vdm_header->type_routing) | G5_ROUTING_TYPE_L(vdm_header->type_routing) | PKG_SIZE(vdm_header->length) | (vdm_header->pcie_target_id <<16) | PADDING_LEN(vdm_header->pad_len);
+			aspeed_mctp->tx_cmd_desc->desc0 = INT_ENABLE | TAG_OWN(vdm_header->to) |
+										G5_ROUTING_TYPE_H(vdm_header->type_routing) | 
+										G5_ROUTING_TYPE_L(vdm_header->type_routing) | 
+										PKG_SIZE(vdm_header->length) | (vdm_header->pcie_target_id <<16) | 
+										PADDING_LEN(vdm_header->pad_len);
 			aspeed_mctp->tx_cmd_desc->desc1 = LAST_CMD | DEST_EP_ID(vdm_header->dest_epid) | G5_TX_DATA_ADDR(cur_tx_buff_dma);
 			break;
 		case 6:
  			//bit 15 : interrupt enable
-			//set default tag owner = 1;
 			aspeed_mctp->tx_cmd_desc[aspeed_mctp->tx_idx].desc0 = 0x00018000 | PKG_SIZE(vdm_header->length);
 			//aspeed_mctp->tx_cmd_desc[aspeed_mctp->tx_idx].desc0 = 0x00000000 | PKG_SIZE(packet_size);
 			aspeed_mctp->tx_cmd_desc[aspeed_mctp->tx_idx].desc1 = 0x00000001 | G6_TX_DATA_ADDR(cur_tx_buff_dma);
