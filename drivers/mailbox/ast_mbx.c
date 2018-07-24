@@ -18,35 +18,22 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-#include <linux/init.h>
-#include <linux/timer.h>
-#include <linux/time.h>
-#include <linux/types.h>
-#include <net/sock.h>
-#include <net/netlink.h>
-
-
-#include <linux/module.h>
-#include <linux/fs.h>
-#include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/types.h>
-#include <linux/interrupt.h>
-#include <asm/uaccess.h>
-
-#include <linux/completion.h>
-#include <linux/slab.h>
 
 #include <linux/sched.h>
-#include <asm/io.h>
-#include <linux/delay.h>
 #include <linux/miscdevice.h>
-#include <mach/irqs.h>
-#include <mach/platform.h>
 
-#ifdef CONFIG_AST_CVIC
-extern void ast_trigger_coldfire(void);
-#endif
+#include <linux/dma-mapping.h>
+#include <linux/miscdevice.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/reset.h>
+#include <linux/slab.h>
+
+#include <linux/of.h>
+#include <linux/of_irq.h>
+#include <linux/of_device.h>
+#include <linux/io.h>
+#include <asm/uaccess.h>
 
 #define CONFIG_AST_MBX_DEBUG
 
@@ -56,7 +43,6 @@ extern void ast_trigger_coldfire(void);
 #define MBX_DBG(fmt, args...)
 #endif
 
-
 /***********************************************************************/
 #define MBXIOC_BASE       'M'
 #define AST_MBX_IOCTRIGGER			_IO(MBXIOC_BASE, 0x10)
@@ -65,6 +51,7 @@ extern void ast_trigger_coldfire(void);
 struct ast_coldfire_mbx_data {
 	struct device		*misc_dev;
 	int 				irq;
+	void				*cvic_regs;
 	u32				mbx_mem_size;
 	phys_addr_t		*mbx_mem_phy;            /* phy */
 	bool 			is_open;
@@ -134,6 +121,12 @@ static int ast_coldfire_mbx_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+void ast_trigger_coldfire(struct ast_coldfire_mbx_data *ast_coldfire_mbx)
+{
+	writel(BIT(1), ast_coldfire_mbx->cvic_regs + 0x18);
+}
+
+
 static long  ast_coldfire_mbx_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
 	int ret = 1;
@@ -145,11 +138,9 @@ static long  ast_coldfire_mbx_ioctl(struct file *fp, unsigned int cmd, unsigned 
 	case AST_MBX_IOCSIZE:
 		ret = __put_user(ast_coldfire_mbx->mbx_mem_size, (unsigned long __user *)arg);
 		break;
-#ifdef CONFIG_AST_CVIC
 	case AST_MBX_IOCTRIGGER:
-		ast_trigger_coldfire();
+		ast_trigger_coldfire(ast_coldfire_mbx);
 		break;
-#endif
 	default:
 		ret = 3;
 		break;
@@ -190,12 +181,13 @@ static int ast_coldfire_mbx_probe(struct platform_device *pdev)
 
 	MBX_DBG(" \n");
 
-	ast_coldfire_mbx = kzalloc(sizeof(struct ast_coldfire_mbx_data), GFP_KERNEL);
+	ast_coldfire_mbx = devm_kzalloc(&pdev->dev, sizeof(struct ast_coldfire_mbx_data), GFP_KERNEL);
 	if (ast_coldfire_mbx == NULL) {
 		printk("memalloc error");
 		goto out;
 	}
 
+	//CVIC register
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res) {
 		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
@@ -203,9 +195,17 @@ static int ast_coldfire_mbx_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	if (!request_mem_region(res->start, resource_size(res), res->name)) {
-		dev_err(&pdev->dev, "cannot reserved region\n");
-		ret = -ENXIO;
+	ast_coldfire_mbx->cvic_regs = devm_ioremap_resource(&pdev->dev, res);
+	if (!ast_coldfire_mbx->cvic_regs) {
+		ret = -EIO;
+		goto out_region;
+	}
+
+	//share memory
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (NULL == res) {
+		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
+		ret = -ENOENT;
 		goto out;
 	}
 
@@ -290,58 +290,28 @@ ast_coldfire_mbx_resume(struct platform_device *pdev)
 #define ast_coldfire_mbx_resume         NULL
 #endif
 
+static const struct of_device_id ast_coldfure_mbx_of_table[] = {
+	{ .compatible = "aspeed,ast-coldfire-mbx", },
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, ast_coldfure_mbx_of_table);
+
 static struct platform_driver ast_coldfire_mbx_driver = {
 	.probe		= ast_coldfire_mbx_probe,
 	.remove 		= ast_coldfire_mbx_remove,
+#ifdef CONFIG_PM	
 	.suspend        = ast_coldfire_mbx_suspend,
 	.resume         = ast_coldfire_mbx_resume,
+#endif	
 	.driver         = {
-		.name   = "ast-cf-mbx",
-		.owner  = THIS_MODULE,
+		.name   = KBUILD_MODNAME,
+		.of_match_table = ast_coldfure_mbx_of_table,
 	},
 };
 
-static struct platform_device *ast_coldfire_mbx_device;
+module_platform_driver(ast_coldfire_mbx_driver);
 
-static int __init ast_coldfire_mbx_init(void)
-{
-	int ret;
-
-	static const struct resource ast_cf_mbx_resource[] = {
-		[0] = {
-			.start = AST_SRAM_BASE,
-			.end = AST_SRAM_BASE + SZ_1K - 1,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = IRQ_CFV0,
-			.end = IRQ_CFV0,
-			.flags = IORESOURCE_IRQ,
-		},
-	};
-
-	ret = platform_driver_register(&ast_coldfire_mbx_driver);
-
-	if (!ret) {
-		ast_coldfire_mbx_device = platform_device_register_simple("ast-cf-mbx", 0,
-								  ast_cf_mbx_resource, ARRAY_SIZE(ast_cf_mbx_resource));
-		if (IS_ERR(ast_coldfire_mbx_device)) {
-			platform_driver_unregister(&ast_coldfire_mbx_driver);
-			ret = PTR_ERR(ast_coldfire_mbx_device);
-		}
-	}
-
-	return ret;
-}
-
-static void __exit ast_coldfire_mbx_exit(void)
-{
-	platform_device_unregister(ast_coldfire_mbx_device);
-	platform_driver_unregister(&ast_coldfire_mbx_driver);
-}
-
-module_init(ast_coldfire_mbx_init);
-module_exit(ast_coldfire_mbx_exit);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_DESCRIPTION("AST Coldfire Mailbox driver");

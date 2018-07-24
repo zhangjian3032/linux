@@ -24,11 +24,19 @@
 #include <linux/delay.h>
 
 #define ASPEED_I2CG_ISR		0x00
+#define ASPEED_I2CG_SLAVE_ISR		0x04	/* ast2600 */
 #define ASPEED_I2CG_OWNER	0x08
 #define ASPEED_I2CG_CTRL	0x0C
+#define ASPEED_I2CG_CLK_DIV_CTRL	0x10	/* ast2600 */
 
 /* 0x0C : I2CG SRAM Buffer Enable  */
 #define ASPEED_I2CG_SRAM_BUFFER_ENABLE		BIT(0)
+
+/*ast2600 */
+#define ASPEED_I2CG_SLAVE_PKT_NAK		BIT(4)
+
+#define ASPEED_I2CG_CTRL_NEW_REG		BIT(2)
+#define ASPEED_I2CG_CTRL_NEW_CLK_DIV	BIT(1)
 
 struct aspeed_i2c_ic {
 	void __iomem		*base;
@@ -147,6 +155,21 @@ static int aspeed_i2c_ic_probe(struct platform_device *pdev)
 	i2c_ic->bus_num = (int) match->data;
 
 	writel(ASPEED_I2CG_SRAM_BUFFER_ENABLE, i2c_ic->base + ASPEED_I2CG_CTRL);
+
+	/* ast2600 init */
+#if 0	
+	/* only support in ast-g6 platform */
+	writel(ASPEED_I2CG_SLAVE_PKT_NAK | ASPEED_I2CG_CTRL_NEW_REG | ASPEED_I2CG_CTRL_NEW_CLK_DIV, i2c_irq->regs + ASPEED_I2CG_CTRL);
+
+
+	/* assign 4 base clock 
+	 * base clk1 : 1M for 1KHz
+	 * base clk2 : 4M for 400KHz	 
+	 * base clk3 : 10M for 1MHz	 
+	 * base clk4 : 35M for 3.4MHz	 
+	*/
+	writel(xx , i2c_irq->regs + ASPEED_I2CG_CLK_DIV_CTRL);
+#endif	
 
 	if (!of_property_read_u32(node, "bus-owner", &bus_owner)) {
 		writel(bus_owner, i2c_ic->base + ASPEED_I2CG_OWNER);

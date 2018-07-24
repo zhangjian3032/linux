@@ -2811,7 +2811,7 @@ static int ast_video_probe(struct platform_device *pdev)
 	ast_video->reg_base = devm_ioremap_resource(&pdev->dev, res0);
 	if (!ast_video->reg_base) {
 		ret = -EIO;
-		goto out_region0;
+		goto out;
 	}
 
 	//Phy assign
@@ -2853,7 +2853,7 @@ static int ast_video_probe(struct platform_device *pdev)
 	if (ast_video->irq < 0) {
 		dev_err(&pdev->dev, "no irq specified\n");
 		ret = -ENOENT;
-		goto out_region0;
+		goto out_region1;
 	}
 
 	ast_video->reset = devm_reset_control_get(&pdev->dev, NULL);
@@ -2899,18 +2899,18 @@ static int ast_video_probe(struct platform_device *pdev)
 	ret = misc_register(&ast_video_misc);
 	if (ret) {
 		printk(KERN_ERR "VIDEO : failed to request interrupt\n");
-		goto out_irq;
+		goto out_region1;
 	}
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &video_attribute_group);
 	if (ret)
-		goto out_irq;
+		goto out_misc;
 
 
 	for (i = 0; i < 2; i++) {
 		ret = sysfs_create_group(&pdev->dev.kobj, &compress_attribute_groups[i]);
 		if (ret)
-			goto out_irq;
+			goto out_create_groups;
 	}
 
 	platform_set_drvdata(pdev, ast_video);
@@ -2924,7 +2924,7 @@ static int ast_video_probe(struct platform_device *pdev)
 
 	if (ret) {
 		printk(KERN_INFO "VIDEO: Failed request irq %d\n", ast_video->irq);
-		goto out_region0;
+		goto out_create_groups;
 	}
 
 #if 0
@@ -2932,7 +2932,7 @@ static int ast_video_probe(struct platform_device *pdev)
 	if (IS_ERR(ast_video->thread_task)) {
 		printk("ast video cannot create kthread\n");
 		ret = PTR_ERR(ast_video->thread_task);
-		goto out_irq;
+		goto out_create_groups;
 	}
 
 	VIDEO_DBG("kthread pid: %d\n", ast_video->thread_task->pid);
@@ -2944,14 +2944,20 @@ static int ast_video_probe(struct platform_device *pdev)
 
 	return 0;
 
-out_irq:
-	free_irq(ast_video->irq, NULL);
+out_create_groups:
+	sysfs_remove_group(&pdev->dev.kobj, &compress_attribute_groups[0]);
+	sysfs_remove_group(&pdev->dev.kobj, &video_attribute_group);
+
+out_misc:
+	misc_deregister(&ast_video_misc);
+
+out_region1:
+	iounmap(ast_video->stream_virt);
 
 out_region0:
-	release_mem_region(res0->start, res0->end - res0->start + 1);
+	devm_release_mem_region(&pdev->dev, res0->start, res0->end - res0->start + 1);
 
 out:
-
 	printk(KERN_WARNING "applesmc: driver init failed (ret=%d)!\n", ret);
 	return ret;
 
@@ -2961,19 +2967,18 @@ static int ast_video_remove(struct platform_device *pdev)
 {
 	struct resource *res0;
 	struct ast_video_data *ast_video = platform_get_drvdata(pdev);
+	int i;
 	VIDEO_DBG("ast_video_remove\n");
 
 	misc_deregister(&ast_video_misc);
 
-	free_irq(ast_video->irq, ast_video);
+	sysfs_remove_group(&pdev->dev.kobj, &video_attribute_group);
+	for (i = 0; i < 2; i++) {
+		sysfs_remove_group(&pdev->dev.kobj, &compress_attribute_groups[i]);
+	}
 
-	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	iounmap(ast_video->reg_base);
-
-	release_mem_region(res0->start, res0->end - res0->start + 1);
-
-	iounmap(ast_video->stream_virt);
+	if (ast_video->stream_virt)
+		iounmap(ast_video->stream_virt);
 
 	return 0;
 }

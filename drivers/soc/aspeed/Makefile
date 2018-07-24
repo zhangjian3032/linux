@@ -20,7 +20,6 @@ obj-$(CONFIG_ASPEED_MCTP)	+= aspeed-mctp.o #ast_g6_mctp.o
 obj-$(CONFIG_ASPEED_XDMA)	+= aspeed-xdma.o #ast_g6_xdma.o
 obj-$(CONFIG_ASPEED_ESPI)	+= aspeed-espi.o
 obj-$(CONFIG_AST_VHUB)          += ast_vhub.o
-obj-$(CONFIG_AST_CRYPTO)	+= ast_crypto.o aes.o
 obj-$(CONFIG_AST_H264)		+= ast_h264.o
 obj-$(CONFIG_AST_FORMATTER)	+= ast_formatter.o
 obj-$(CONFIG_AST_EGFX)		+= ast_egfx.o

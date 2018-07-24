@@ -17,21 +17,26 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/io.h>
+
+#include <linux/module.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/of_address.h>
 /*******************************************************************/
 /*  AST_SCU_INTR_CTRL : 0x18 - Interrupt control and status register   */
-#define INTR_LPC_H_L_RESET				(0x1 << 21)
-#define INTR_LPC_L_H_RESET				(0x1 << 20)
-#define INTR_PCIE_H_L_RESET				(0x1 << 19)
-#define INTR_PCIE_L_H_RESET				(0x1 << 18)
-#define INTR_VGA_SCRATCH_CHANGE			(0x1 << 17)
-#define INTR_VGA_CURSOR_CHANGE			(0x1 << 16)
-#define INTR_ISSUE_MSI					(0x1 << 6)
-#define INTR_LPC_H_L_RESET_EN			(0x1 << 5)
-#define INTR_LPC_L_H_RESET_EN			(0x1 << 4)
-#define INTR_PCIE_H_L_RESET_EN			(0x1 << 3)
-#define INTR_PCIE_L_H_RESET_EN			(0x1 << 2)
-#define INTR_VGA_SCRATCH_CHANGE_EN		(0x1 << 1)
-#define INTR_VGA_CURSOR_CHANGE_EN		(0x1 << 0)
+#define INTR_LPC_H_L_RESET				BIT(21)
+#define INTR_LPC_L_H_RESET				BIT(20)
+#define INTR_PCIE_H_L_RESET				BIT(19)
+#define INTR_PCIE_L_H_RESET				BIT(18)
+#define INTR_VGA_SCRATCH_CHANGE			BIT(17)
+#define INTR_VGA_CURSOR_CHANGE			BIT(16)
+#define INTR_ISSUE_MSI					BIT(6)
+#define INTR_LPC_H_L_RESET_EN			BIT(5)
+#define INTR_LPC_L_H_RESET_EN			BIT(4)
+#define INTR_PCIE_H_L_RESET_EN			BIT(3)
+#define INTR_PCIE_L_H_RESET_EN			BIT(2)
+#define INTR_VGA_SCRATCH_CHANGE_EN		BIT(1)
+#define INTR_VGA_CURSOR_CHANGE_EN		BIT(0)
 /*******************************************************************/
 //#define AST_SCU_IRQ_DEBUG
 
@@ -97,12 +102,20 @@ static const struct irq_domain_ops ast_scu_irq_domain_ops = {
 	.map = ast_scu_map_irq_domain,
 };
 
-static int __init ast_scu_irq_of_init(struct device_node *node,
-					struct device_node *parent)
+static const struct of_device_id aspeed_scu_ic_of_match[] = {
+	{ .compatible = "aspeed,ast2400-scu-ic", .data = (void *) 22},
+	{ .compatible = "aspeed,ast2500-scu-ic", .data = (void *) 22},
+	{ .compatible = "aspeed,ast2600-scu-ic", .data = (void *) 22},
+	{},
+};
+
+static int aspeed_scu_ic_probe(struct platform_device *pdev)
 {
 	struct ast_scu_irq *scu_irq;
-	u8 *buf_pool;
-
+	struct device_node *node = pdev->dev.of_node;
+	const struct of_device_id *match;
+	int ret = 0;
+	
 	scu_irq = kzalloc(sizeof(*scu_irq), GFP_KERNEL);
 	if (!scu_irq)
 		return -ENOMEM;	
@@ -111,27 +124,56 @@ static int __init ast_scu_irq_of_init(struct device_node *node,
 	if (IS_ERR(scu_irq->regs))
 		return PTR_ERR(scu_irq->regs);
 
-	node->data = scu_irq;
-	scu_irq->irq_num = 22;
-
 	scu_irq->parent_irq = irq_of_parse_and_map(node, 0);
-	if (scu_irq->parent_irq < 0)
+	if (scu_irq->parent_irq < 0) {
+		printk("get scu irq parent error \n");
 		return scu_irq->parent_irq;
+	}
+
+	match = of_match_node(aspeed_scu_ic_of_match, node);
+	if (!match)
+		goto err_iounmap;
+
+	scu_irq->irq_num = (int) match->data;
 
 	scu_irq->irq_domain = irq_domain_add_linear(
 			node, scu_irq->irq_num,
-			&ast_scu_irq_domain_ops, NULL);
-	if (!scu_irq->irq_domain)
-		return -ENOMEM;
+			&ast_scu_irq_domain_ops, scu_irq);
+	if (!scu_irq->irq_domain) {
+		ret = scu_irq->irq_domain;
+		printk("no irq domain \n");
+	
+	}
 
-	scu_irq->irq_domain->name = "ast-scu-domain";
+	scu_irq->irq_domain->name = "aspeed-scu-domain";
 
 	irq_set_chained_handler_and_data(scu_irq->parent_irq,
 					 ast_scu_irq_handler, scu_irq);
 
 	pr_info("scu-irq controller registered, irq %d\n", scu_irq->parent_irq);
-
 	return 0;
+	
+err_iounmap:
+	iounmap(scu_irq->regs);
+err_free_ic:
+	kfree(scu_irq);
+	return ret;
 }
 
-IRQCHIP_DECLARE(ast_scu_irq, "aspeed,aspeed-scu-ic", ast_scu_irq_of_init);
+static struct platform_driver aspeed_scu_ic_driver = {
+	.probe	= aspeed_scu_ic_probe,
+	.driver = {
+		.name = KBUILD_MODNAME,
+		.of_match_table = aspeed_scu_ic_of_match,
+	},
+};
+
+static int __init aspeed_scu_ic_init(void)
+{
+	return platform_driver_register(&aspeed_scu_ic_driver);
+}
+postcore_initcall(aspeed_scu_ic_init);
+
+MODULE_AUTHOR("Ryan Chen");
+MODULE_DESCRIPTION("ASPEED SCU INTC Driver");
+MODULE_LICENSE("GPL v2");

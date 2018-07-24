@@ -134,9 +134,6 @@ config AST_HID
 	help 
 	  Driver for HID (phase out)
 
-config AST_CRYPTO
-	tristate "ASPEED Crypto Driver"
-	
 config AST_RFX
 	tristate "ASPEED RFX Driver"
         default n

@@ -160,6 +160,13 @@
 			reg = <0x1e6c0080 0x80>;
 		};
 
+#if 0
+		ast_mbx@0x1e6c2000 {
+			compatible = "aspeed,ast-coldfire-mbx";
+			interrupts = <45>;
+			reg = <0x1e6c2000 0x40 0x1e720000 0x9000>;
+		};
+#endif
 		mmc: mmc@1e6e0000 {
 			compatible = "aspeed,ast2500-sdmc";
 			reg = <0x1e6e0000 0x200>;
@@ -185,20 +192,12 @@
 			};
 		};
 
-		scu_irq: interrupt-controller@1e6e2018 {
-			compatible = "aspeed,ast-scu-irq";
-			interrupt-controller;
-			#interrupt-cells = <1>;
-			reg = <0x1e6e2018 0x4>;
-			interrupts = <21>;
-		};
-
 		hace: hace@1e6e3000 {
 			compatible = "aspeed,ast2500-crypto";
-			reg = <0x1e6e3000 0x200>;
+			reg = <0x1e6e3000 0x200 0x1e728000 0x1000>;
 			interrupts = <4>;
 			clocks = <&syscon ASPEED_CLK_GATE_YCLK>, <&syscon ASPEED_CLK_GATE_RSACLK>;
-			clock-names = "yclk", "rsacllk";
+			clock-names = "yclk", "rsaclk";
 		};
 
 		jtag: jtag@1e6e4000 {
@@ -225,8 +224,9 @@
 
 		mctp: mctp@1e6e8000 {
 			compatible = "aspeed,ast2500-mctp";
-			reg = <0x1e6e8000 0x30 0x80000000 0x300>;
+			reg = <0x1e6e8000 0x30 0x80000000 0x10 0x1e6ed0c4 0x04>;
 			interrupts = <42>;
+ 			interrupts-extended = <&vic 42 &scu_ic 2>;
 			resets = <&syscon ASPEED_RESET_MCTP>;
 		};
 
@@ -600,16 +600,14 @@
 		reg = <0x0 0x100>;
 		interrupts = <26>;
 		interrupt-controller;
-		clocks = <&syscon ASPEED_CLK_GATE_SDCLKCLK>, <&syscon ASPEED_CLK_GATE_SDEXTCLK>;
-		clock-names = "sdclk", "sd_extclk";
+		clocks = <&syscon ASPEED_CLK_GATE_SDCLKCLK>;
 	};
 
 	sdhci_slot0: sdhci_slot0@100 {
-		compatible = "aspeed,sdhci-ast";
+		compatible = "aspeed,sdhci-ast2500";
 		reg = <0x100 0x100>;
 		interrupts = <0>;
 		interrupt-parent = <&sdhci_ic>;
-		slot = <0>;
 		sdhci,auto-cmd12;
 		clocks = <&syscon ASPEED_CLK_SDIO>;
 		pinctrl-names = "default";
@@ -617,15 +615,25 @@
 	};
 
 	sdhci_slot1: sdhci_slot1@200 {
-		compatible = "aspeed,sdhci-ast";
+		compatible = "aspeed,sdhci-ast2500";
 		reg = <0x200 0x100>;
 		interrupts = <1>;
 		interrupt-parent = <&sdhci_ic>;
-		slot = <1>;
 		sdhci,auto-cmd12;
 		clocks = <&syscon ASPEED_CLK_SDIO>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_sd2_default>;
+	};
+
+};
+
+&syscon {
+	scu_ic: interrupt-controller@0 {
+		#interrupt-cells = <1>;
+		compatible = "aspeed,ast2500-scu-ic";
+		reg = <0x00 0x04>;
+		interrupts = <21>;
+		interrupt-controller;
 	};
 
 };
