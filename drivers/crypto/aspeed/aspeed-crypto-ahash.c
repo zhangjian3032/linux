@@ -102,7 +102,6 @@ int aspeed_crypto_ahash_trigger(struct aspeed_crypto_dev *crypto_dev)
 {
 	struct ahash_request *req = crypto_dev->ahash_req;
 	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
-	u32 sts = aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS);
 
 	AHASH_DBG("\n");
 #ifdef CRYPTO_AHASH_INT_EN
@@ -173,7 +172,7 @@ static int aspeed_sham_update(struct ahash_request *req)
 			AHASH_DBG("CPU\n");
 			rctx->flags |= SHA_FLAGS_CPU;
 			rctx->digcnt += rctx->total;
-			sg_copy_to_buffer(rctx->src_sg, sg_nents(rctx->src_sg), tctx->hash_src, PAGE_SIZE * 10);
+			sg_copy_to_buffer(rctx->src_sg, sg_nents(rctx->src_sg), tctx->hash_src, req->nbytes);
 		} else {
 			AHASH_DBG("Not yet support accumulative mode\n");
 			return -EINVAL;
@@ -418,7 +417,7 @@ static void aspeed_sham_cra_exit(struct crypto_tfm *tfm)
 	AHASH_DBG("\n");
 
 	crypto_free_shash(tctx->fallback);
-	dma_free_coherent(tctx->crypto_dev->dev, PAGE_SIZE * 10, tctx->hash_src, tctx->hash_digst_dma);
+	dma_free_coherent(tctx->crypto_dev->dev, PAGE_SIZE * 10, tctx->hash_src, tctx->hash_src_dma);
 
 	if (tctx->flags) {
 		struct aspeed_sha_hmac_ctx *bctx = tctx->base;
