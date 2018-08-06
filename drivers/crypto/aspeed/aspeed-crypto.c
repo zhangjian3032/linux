@@ -135,7 +135,6 @@ static int aspeed_crypto_register(struct aspeed_crypto_dev *crypto_dev)
 	aspeed_register_crypto_algs(crypto_dev);
 	aspeed_register_ahash_algs(crypto_dev);
 	aspeed_register_akcipher_algs(crypto_dev);
-	// aspeed_register_kpp_algs(crypto_dev);
 
 	return 0;
 }

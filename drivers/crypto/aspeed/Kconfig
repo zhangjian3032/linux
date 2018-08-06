@@ -28,8 +28,3 @@ config CRYPTO_DEV_ASPEED_AHASH_INT
         bool "Enable Ahash Interrupt"
         depends on CRYPTO_DEV_ASPEED
         default y
-
-config CRYPTO_DEV_ASPEED_KPP_INT
-        bool "Enable Kpp Interrupt"
-        depends on CRYPTO_DEV_ASPEED
-        default y
