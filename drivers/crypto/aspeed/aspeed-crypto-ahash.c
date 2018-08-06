@@ -79,13 +79,6 @@ static inline int aspeed_ahash_wait_for_data_ready(struct aspeed_crypto_dev *cry
 		aspeed_crypto_fn_t resume)
 {
 #ifdef CONFIG_CRYPTO_DEV_ASPEED_AHASH_INT
-	// u32 isr = aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS);
-	// AHASH_DBG("\n");
-
-	// if (unlikely(isr & HACE_HASH_ISR))
-	// 	return resume(crypto_dev);
-
-	crypto_dev->resume = resume;
 	return -EINPROGRESS;
 #else
 	u32 sts = aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS);
@@ -106,6 +99,7 @@ int aspeed_crypto_ahash_trigger(struct aspeed_crypto_dev *crypto_dev)
 	AHASH_DBG("\n");
 #ifdef CONFIG_CRYPTO_DEV_ASPEED_AHASH_INT
 	rctx->cmd |= HASH_CMD_INT_ENABLE;
+	crypto_dev->resume = aspeed_ahash_transfer;
 #else
 	while (aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS) & HACE_HASH_BUSY);
 #endif
