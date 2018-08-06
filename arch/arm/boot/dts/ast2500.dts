@@ -45,22 +45,6 @@
 };
 #endif
 
-&mac0 {
-	status = "okay";
-};
-
-&mac1 {
-	status = "okay";
-};
-
-&gmac0 {
-	status = "disable";
-};
-
-&gmac1 {
-	status = "disable";
-};
-
 &fmc_spi {
 	status = "okay";
 	flash: m25p80@0 {

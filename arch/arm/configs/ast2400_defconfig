@@ -918,8 +918,7 @@ CONFIG_BONDING=y
 # Distributed Switch Architecture drivers
 #
 CONFIG_ETHERNET=y
-CONFIG_NET_VENDOR_AST=y
-# CONFIG_AST_MAC is not set
+# CONFIG_NET_VENDOR_AST is not set
 # CONFIG_ALTERA_TSE is not set
 # CONFIG_NET_VENDOR_AMAZON is not set
 # CONFIG_NET_XGENE is not set

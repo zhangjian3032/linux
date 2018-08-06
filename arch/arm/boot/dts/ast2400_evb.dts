@@ -28,14 +28,6 @@
 
 };
 
-&gmac0 {
-	status = "okay";
-};
-
-&gmac1 {
-	status = "okay";
-};
-
 &fmc_spi {
 	status = "okay";
 	flash: m25p80@0 {

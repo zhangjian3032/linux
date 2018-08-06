@@ -87,7 +87,6 @@
 			reg = <0x1e660000 0x180>;
 			interrupts = <2>;
 			clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>;
-			status = "disabled";
 		};
 
 		mac1: ftgmac@1e680000 {
@@ -95,25 +94,6 @@
 			reg = <0x1e680000 0x180>;
 			interrupts = <3>;
 			clocks = <&syscon ASPEED_CLK_GATE_MAC2CLK>;
-			status = "disabled";
-		};
-
-		gmac0: ethernet@1e660000 {
-			compatible = "aspeed,ast-gmac";
-			reg = <0x1e660000 0x180>;
-			interrupts = <2>;
-			clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_rmii1_default>;
-		};
-
-		gmac1: ethernet@1e680000 {
-			compatible = "aspeed,ast-gmac";
-			reg = <0x1e680000 0x180>;
-			interrupts = <3>;
-			clocks = <&syscon ASPEED_CLK_GATE_MAC2CLK>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_rmii2_default>;
 		};
 
 		ehci0: ehci@0x1e6a1000 {
