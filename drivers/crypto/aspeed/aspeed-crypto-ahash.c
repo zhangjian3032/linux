@@ -78,20 +78,13 @@ static int aspeed_ahash_transfer(struct aspeed_crypto_dev *crypto_dev)
 static inline int aspeed_ahash_wait_for_data_ready(struct aspeed_crypto_dev *crypto_dev,
 		aspeed_crypto_fn_t resume)
 {
-#ifdef CRYPTO_AHASH_INT_EN
-	// u32 isr = aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS);
-	// AHASH_DBG("\n");
-
-	// if (unlikely(isr & HACE_HASH_ISR))
-	// 	return resume(crypto_dev);
-
-	crypto_dev->resume = resume;
+#ifdef CONFIG_CRYPTO_DEV_ASPEED_AHASH_INT
 	return -EINPROGRESS;
 #else
 	u32 sts = aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS);
 
 	AHASH_DBG("\n");
-	printk("aspeed_ahash_wait_for_data_ready sts : %x\n", sts);
+	// printk("aspeed_ahash_wait_for_data_ready sts : %x\n", sts);
 	while (aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS) & HACE_HASH_BUSY);
 	aspeed_crypto_write(crypto_dev, sts, ASPEED_HACE_STS);
 	return resume(crypto_dev);
@@ -104,8 +97,9 @@ int aspeed_crypto_ahash_trigger(struct aspeed_crypto_dev *crypto_dev)
 	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
 
 	AHASH_DBG("\n");
-#ifdef CRYPTO_AHASH_INT_EN
+#ifdef CONFIG_CRYPTO_DEV_ASPEED_AHASH_INT
 	rctx->cmd |= HASH_CMD_INT_ENABLE;
+	crypto_dev->resume = aspeed_ahash_transfer;
 #else
 	while (aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS) & HACE_HASH_BUSY);
 #endif

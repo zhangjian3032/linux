@@ -113,10 +113,6 @@
 
 #define CRYPTO_FLAGS_BUSY 		BIT(1)
 
-#define CRYPTO_ABLK_INT_EN
-#define CRYPTO_AKCIPHER_INT_EN
-#define CRYPTO_AHASH_INT_EN
-
 #define SHA_BUFFER_LEN		(PAGE_SIZE / 16)
 
 #define OP_INIT				1
