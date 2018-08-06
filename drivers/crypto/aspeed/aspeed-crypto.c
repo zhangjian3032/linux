@@ -74,7 +74,7 @@ int aspeed_crypto_handle_queue(struct aspeed_crypto_dev *crypto_dev,
 		CRYPTO_DBUG("ahash_request_cast \n");
 		crypto_dev->ahash_req = ahash_request_cast(areq);
 		err = aspeed_crypto_ahash_trigger(crypto_dev);
-		crypto_dev->ahash_req->base.complete(&crypto_dev->ahash_req->base, err);
+		// crypto_dev->ahash_req->base.complete(&crypto_dev->ahash_req->base, err);
 	}
 
 
@@ -132,7 +132,7 @@ static void aspeed_crypto_queue_task(unsigned long data)
 
 static int aspeed_crypto_register(struct aspeed_crypto_dev *crypto_dev)
 {
-	aspeed_register_crypto_algs(crypto_dev);
+	// aspeed_register_crypto_algs(crypto_dev);
 	aspeed_register_ahash_algs(crypto_dev);
 	aspeed_register_akcipher_algs(crypto_dev);
 	// aspeed_register_kpp_algs(crypto_dev);

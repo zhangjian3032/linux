@@ -29,7 +29,7 @@
 static inline int aspeed_ablk_wait_for_data_ready(struct aspeed_crypto_dev *crypto_dev,
 		aspeed_crypto_fn_t resume)
 {
-#ifdef CRYPTO_ABLK_INT_EN
+#ifdef CONFIG_CRYPTO_DEV_ASPEED_ABLK_INT
 	// u32 isr;
 	// isr = aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS);
 	crypto_dev->resume = resume;
@@ -150,7 +150,7 @@ int aspeed_crypto_ablkcipher_trigger(struct aspeed_crypto_dev *crypto_dev)
 
 	CIPHER_DBG("\n");
 	//for enable interrupt
-#ifdef CRYPTO_ABLK_INT_EN
+#ifdef CONFIG_CRYPTO_DEV_ASPEED_ABLK_INT
 	ctx->enc_cmd |= HACE_CMD_ISR_EN;
 #endif
 	aspeed_crypto_write(crypto_dev, ctx->cipher_key_dma, ASPEED_HACE_CONTEXT);
