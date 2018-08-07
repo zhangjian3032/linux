@@ -33,6 +33,8 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/reset.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 #include <linux/of.h>
 /****************************************************************************************/
 /*AST ADC Register Definition */
@@ -178,8 +180,6 @@
 #define ASPEED_GET_TEMP_B_MASK(x)		(x & 0xfff)
 
 /******************************************************************************************/
-extern u8 ast_scu_adc_trim_read(void);
-
 struct adc_ch_vcc_data {
 	int v2;
 	int r1;
@@ -223,6 +223,7 @@ struct aspeed_adc_config {
 struct aspeed_adc_data {
 	struct device			*dev;
 	void __iomem			*reg_base;			/* virtual */
+	struct regmap			*scu;
 	int 	irq;			//ADC IRQ number 
 	struct aspeed_adc_config	*config;
 	int	compen_value;		//Compensating value
@@ -249,6 +250,7 @@ aspeed_adc_read(struct aspeed_adc_data *aspeed_adc, u32 reg)
 static void aspeed_g5_adc_ctrl_init(struct aspeed_adc_data *aspeed_adc)
 {
 	//Auto Compensating Sensing Mode : do not use in AST-G5
+	u32 scu_otp1;
 	u8 trim;
 
 	//Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[31:17] + 1) * (ADC0c[9:0] +1)
@@ -256,14 +258,18 @@ static void aspeed_g5_adc_ctrl_init(struct aspeed_adc_data *aspeed_adc)
 	// --> 0.0325s	= 12 * 2 * (0x3e7 + 1) *(64+1) / 48000000
 	// --> 0.0005s	= 12 * 2 * (0x3e7 + 1) / 48000000	
 
-//	TODO ... 
-//	scu read trim 
-//	write trim 0xC4 [3:0]
-	trim = ast_scu_adc_trim_read();
+	//scu read trim : 0x154 : AST_SCU_OTP1	
+	if(regmap_read(aspeed_adc->scu, 0x154, &scu_otp1)) {
+		printk("read scu trim value fail \n");
+		trim = 0x0;
+	} else {
+		trim = scu_otp1 >> 28;
+	}
 
 	if((trim == 0x0))
 		trim = 0x8;
 
+	//write trim 0xC4 [3:0]
 	aspeed_adc_write(aspeed_adc, trim, ASPEED_ADC_COMP_TRIM);
 
 	aspeed_adc_write(aspeed_adc, 0x40, ASPEED_ADC_CLK);
@@ -1025,6 +1031,11 @@ aspeed_adc_probe(struct platform_device *pdev)
 	} else if (aspeed_adc->config->adc_version == 4) {
 		aspeed_g4_adc_ctrl_init(aspeed_adc);
 	} else if(aspeed_adc->config->adc_version == 5) {
+		aspeed_adc->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2500-scu");
+		if (IS_ERR(aspeed_adc->scu)) {
+			dev_err(&pdev->dev, "failed to find SCU regmap\n");
+			return PTR_ERR(aspeed_adc->scu);
+		}
 		aspeed_g5_adc_ctrl_init(aspeed_adc);
 	} else {
 		dev_err(&pdev->dev, "adc config error \n");	
