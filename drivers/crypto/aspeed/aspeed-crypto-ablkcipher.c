@@ -29,14 +29,8 @@
 static inline int aspeed_ablk_wait_for_data_ready(struct aspeed_crypto_dev *crypto_dev,
 		aspeed_crypto_fn_t resume)
 {
-#ifdef CRYPTO_ABLK_INT_EN
-	// u32 isr;
-	// isr = aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS);
-	crypto_dev->resume = resume;
+#ifdef CONFIG_CRYPTO_DEV_ASPEED_ABLK_INT
 	CIPHER_DBG("\n");
-
-	// if (unlikely(isr & HACE_CRYPTO_ISR))
-	// 	return resume(crypto_dev);
 
 	return -EINPROGRESS;
 #else
@@ -97,6 +91,9 @@ static int aspeed_ablk_dma_start(struct aspeed_crypto_dev *crypto_dev)
 
 	CIPHER_DBG("\n");
 	CIPHER_DBG("req->nbytes %d , nb_in_sg %d, nb_out_sg %d \n", req->nbytes, sg_nents(req->src), sg_nents(req->dst));
+#ifdef CONFIG_CRYPTO_DEV_ASPEED_ABLK_INT
+	crypto_dev->resume = aspeed_ablk_transfer_complete;
+#endif
 	//src dma map
 	if (!dma_map_sg(crypto_dev->dev, req->src, 1, DMA_TO_DEVICE)) {
 		dev_err(crypto_dev->dev, "[%s:%d] dma_map_sg(src)	error\n",
@@ -134,6 +131,9 @@ static int aspeed_ablk_cpu_start(struct aspeed_crypto_dev *crypto_dev)
 		printk("nbytes error \n");
 		return -EINVAL;
 	}
+#ifdef CONFIG_CRYPTO_DEV_ASPEED_ABLK_INT
+	crypto_dev->resume = aspeed_ablk_cpu_transfer;
+#endif
 	aspeed_crypto_write(crypto_dev, crypto_dev->cipher_dma_addr, ASPEED_HACE_SRC);
 	aspeed_crypto_write(crypto_dev, crypto_dev->cipher_dma_addr, ASPEED_HACE_DEST);
 	aspeed_crypto_write(crypto_dev, req->nbytes, ASPEED_HACE_DATA_LEN);
@@ -150,7 +150,7 @@ int aspeed_crypto_ablkcipher_trigger(struct aspeed_crypto_dev *crypto_dev)
 
 	CIPHER_DBG("\n");
 	//for enable interrupt
-#ifdef CRYPTO_ABLK_INT_EN
+#ifdef CONFIG_CRYPTO_DEV_ASPEED_ABLK_INT
 	ctx->enc_cmd |= HACE_CMD_ISR_EN;
 #endif
 	aspeed_crypto_write(crypto_dev, ctx->cipher_key_dma, ASPEED_HACE_CONTEXT);

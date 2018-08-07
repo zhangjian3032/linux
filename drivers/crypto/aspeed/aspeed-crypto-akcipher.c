@@ -529,7 +529,7 @@ static int aspeed_akcipher_transfer(struct aspeed_crypto_dev *crypto_dev)
 static inline int aspeed_akcipher_wait_for_data_ready(struct aspeed_crypto_dev *crypto_dev,
 		aspeed_crypto_fn_t resume)
 {
-#ifdef CRYPTO_AKCIPHER_INT_EN
+#ifdef CONFIG_CRYPTO_DEV_ASPEED_AKCIPHER_INT
 	u32 isr = aspeed_crypto_read(crypto_dev, ASPEED_HACE_STS);
 
 	RSA_DBG("\n");
@@ -602,7 +602,7 @@ int aspeed_crypto_rsa_trigger(struct aspeed_crypto_dev *crypto_dev)
 		aspeed_crypto_write(crypto_dev, rsa_key->nd + (rsa_key->nm << 16),
 				    ASPEED_HACE_RSA_MD_EXP_BIT);
 	}
-#ifdef CRYPTO_AKCIPHER_INT_EN
+#ifdef CONFIG_CRYPTO_DEV_ASPEED_AKCIPHER_INT
 	aspeed_crypto_write(crypto_dev,
 			    RSA_CMD_SRAM_ENGINE_ACCESSABLE | RSA_CMD_FIRE | RSA_CMD_INT_ENABLE,
 			    ASPEED_HACE_RSA_CMD);
