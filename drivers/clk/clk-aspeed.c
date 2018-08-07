@@ -211,18 +211,6 @@ extern u32 ast_scu_get_vga_memsize(void)
 
 EXPORT_SYMBOL(ast_scu_get_vga_memsize);
 
-// extern function call
-#define AST_SCU_OTP0				0x150
-#define AST_SCU_OTP1				0x154
-#define AST_SCU_OTP2				0x158
-#define AST_SCU_OTP3				0x15C
-
-extern u8 ast_scu_adc_trim_read(void)
-{
-	return (readl(scu_base + AST_SCU_OTP1) >> 28);
-}
-EXPORT_SYMBOL(ast_scu_adc_trim_read);
-
 #define AST_SCU_MISC1_CTRL			0x2C		/*	Misc. Control register */
 #define SCU_MISC_VGA_CRT_DIS		BIT(6)
 
