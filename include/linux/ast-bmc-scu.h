@@ -28,7 +28,6 @@ extern void ast_scu_sys_rest_info(void);
 extern u32 ast_scu_revision_id(void);
 extern u32 ast_scu_get_phy_interface(u8 mac_num);
 extern u32 ast_scu_get_phy_config(u8 mac_num);
-extern u32 ast_scu_get_vga_memsize(void);
 extern void ast_scu_get_who_init_dram(void);
 extern void ast_scu_set_lpc_mode(void);
 
@@ -49,7 +48,6 @@ extern void ast_set_d2_pll_clk(u32 pll_setting);
 extern u32 ast_get_lhclk(void);
 extern void ast_scu_osc_clk_output(void);
 
-extern u32 ast_scu_get_vga_memsize(void);
 
 //Ctrl Initial
 extern void ast_scu_init_video(u8 dynamic_en);

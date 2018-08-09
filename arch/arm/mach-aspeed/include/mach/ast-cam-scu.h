@@ -46,7 +46,6 @@ extern void ast_set_d2_pll_clk(u32 pll_setting);
 extern u32 ast_get_lhclk(void);
 extern void ast_scu_osc_clk_output(void);
 
-extern u32 ast_scu_get_vga_memsize(void);
 
 //Ctrl Initial
 extern void ast_scu_init_jpeg(u8 dynamic_en);
