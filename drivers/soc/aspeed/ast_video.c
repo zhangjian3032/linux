@@ -36,7 +36,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
-
+#include <linux/dma-mapping.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/aspeed-sdmc.h>
@@ -600,7 +600,11 @@ struct compress_header {
 struct aspeed_video_config {
 	u8		version;	
 	u32		dram_base;
-	u32		video_base;
+};
+
+struct aspeed_video_mem {
+	dma_addr_t	dma;
+	void *virt;
 };
 
 struct ast_video_data {
@@ -614,6 +618,9 @@ struct ast_video_data {
 	struct clk 			*eclk;
 //	compress_header
 	struct compress_header			compress_mode;
+
+	struct aspeed_video_mem		video_mem;
+
 	phys_addr_t             *stream_phy;            /* phy */
 	u32                             *stream_virt;           /* virt */
 	phys_addr_t             *buff0_phy;             /* phy */
@@ -2818,14 +2825,12 @@ static const struct attribute_group compress_attribute_groups[] = {
 static const struct aspeed_video_config ast2500_config = { 
 	.version = 5, 
 	.dram_base =0x80000000, 
-	.video_base = 0, 
 };
 
 
 static const struct aspeed_video_config ast2400_config = { 
 	.version = 4, 
 	.dram_base =0x40000000, 
-	.video_base = 0, 
 };
 
 static const struct of_device_id aspeed_video_matches[] = {
@@ -2858,7 +2863,6 @@ static int ast_video_probe(struct platform_device *pdev)
 
 	ast_video->config = (struct aspeed_video_config *) video_dev_id->data;
 
-
 	if (ast_video->config->version == 5) {
 		ast_video->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2500-scu");
 		if (IS_ERR(ast_video->scu)) {
@@ -2872,8 +2876,6 @@ static int ast_video_probe(struct platform_device *pdev)
 			return PTR_ERR(ast_video->scu);
 		}
 	}
-
-	ast_video->config->video_base = dram - vga - CONFIG_AST_VIDEO_MEM_SIZE + ast_video->config->dram_base;
 
 	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (NULL == res0) {
@@ -2891,25 +2893,26 @@ static int ast_video_probe(struct platform_device *pdev)
 	ast_video->video_mem_size = CONFIG_AST_VIDEO_MEM_SIZE;
 	VIDEO_DBG("video_mem_size %d MB\n", ast_video->video_mem_size / 1024 / 1024);
 
-	ast_video->stream_phy = ast_video->config->video_base;
-	ast_video->buff0_phy = (phys_addr_t *)(ast_video->config->video_base + 0x400000);   //4M : size 10MB
-	ast_video->buff1_phy = (phys_addr_t *)(ast_video->config->video_base + 0xe00000);   //14M : size 10MB
-	ast_video->bcd_phy = (phys_addr_t *)(ast_video->config->video_base + 0x1800000);    //24M : size 1MB
-	ast_video->jpeg_buf0_phy = (phys_addr_t *)(ast_video->config->video_base + 0x1900000);   //25MB: size 10 MB
+	ast_video->video_mem.virt = dma_alloc_coherent(&pdev->dev, CONFIG_AST_VIDEO_MEM_SIZE, &ast_video->video_mem.dma, GFP_KERNEL);
+	if(!ast_video->video_mem.virt){
+		printk(KERN_NOTICE "video dma_alloc_coherent got error\n");
+		return -ENOMEM;
+	}
+
+	ast_video->stream_phy = ast_video->video_mem.dma;
+	ast_video->buff0_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x400000);   //4M : size 10MB
+	ast_video->buff1_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0xe00000);   //14M : size 10MB
+	ast_video->bcd_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x1800000);    //24M : size 1MB
+	ast_video->jpeg_buf0_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x1900000);   //25MB: size 10 MB
 	ast_video->video_jpeg_offset = 0x2300000;						//TODO define
-	ast_video->jpeg_phy = (phys_addr_t *)(ast_video->config->video_base + 0x2300000);   //35MB: size 4 MB
-	ast_video->jpeg_tbl_phy = (phys_addr_t *)(ast_video->config->video_base + 0x2700000);       //39MB: size 1 MB
+	ast_video->jpeg_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x2300000);   //35MB: size 4 MB
+	ast_video->jpeg_tbl_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x2700000);       //39MB: size 1 MB
 
 	VIDEO_DBG("\nstream_phy: %x, buff0_phy: %x, buff1_phy:%x, bcd_phy:%x \njpeg_phy:%x, jpeg_tbl_phy:%x \n",
 			  (u32)ast_video->stream_phy, (u32)ast_video->buff0_phy, (u32)ast_video->buff1_phy, (u32)ast_video->bcd_phy, (u32)ast_video->jpeg_phy, (u32)ast_video->jpeg_tbl_phy);
 
 	//virt assign
-	ast_video->stream_virt = ioremap(ast_video->config->video_base, ast_video->video_mem_size);
-	if (!ast_video->stream_virt) {
-		ret = -EIO;
-		goto out_region0;
-	}
-
+	ast_video->stream_virt = ast_video->video_mem.virt;
 	ast_video->buff0_virt = (u32)ast_video->stream_virt + 0x400000; //4M : size 10MB
 	ast_video->buff1_virt = (u32)ast_video->stream_virt + 0xe00000; //14M : size 10MB
 	ast_video->bcd_virt = (u32)ast_video->stream_virt + 0x1800000;  //24M : size 4MB
