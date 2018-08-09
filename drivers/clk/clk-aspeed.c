@@ -211,31 +211,6 @@ extern u32 ast_scu_get_vga_memsize(void)
 
 EXPORT_SYMBOL(ast_scu_get_vga_memsize);
 
-#define AST_SCU_MISC1_CTRL			0x2C		/*	Misc. Control register */
-#define SCU_MISC_VGA_CRT_DIS		BIT(6)
-
-extern void
-ast_scu_set_vga_display(u8 enable)
-{
-	if(enable)
-		writel(readl(scu_base + AST_SCU_MISC1_CTRL) & ~SCU_MISC_VGA_CRT_DIS, scu_base + AST_SCU_MISC1_CTRL);
-	else
-		writel(readl(scu_base + AST_SCU_MISC1_CTRL) | SCU_MISC_VGA_CRT_DIS, scu_base + AST_SCU_MISC1_CTRL);
-}
-
-EXPORT_SYMBOL(ast_scu_set_vga_display);
-
-extern u8
-ast_scu_get_vga_display(void)
-{
-	if(readl(scu_base + AST_SCU_MISC1_CTRL) & SCU_MISC_VGA_CRT_DIS)
-		return 0;
-	else
-		return 1;
-}
-
-EXPORT_SYMBOL(ast_scu_get_vga_display);
-
 /*************************************************************************/
 
 static struct clk_hw *aspeed_ast2400_calc_pll(const char *name, u32 val)

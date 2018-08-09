@@ -191,7 +191,7 @@
 		};
 
 		video: video@1e700000 {
-			compatible = "aspeed,ast-video";
+			compatible = "aspeed,ast2400-video";
 			/* 184MB : 40MB*/
 			reg = <0x1e700000 0x300>;
 			interrupts = <7>;

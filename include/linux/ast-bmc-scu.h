@@ -49,9 +49,6 @@ extern void ast_set_d2_pll_clk(u32 pll_setting);
 extern u32 ast_get_lhclk(void);
 extern void ast_scu_osc_clk_output(void);
 
-extern void ast_scu_set_vga_display(u8 enable);
-extern u8 ast_scu_get_vga_display(void);
-
 extern u32 ast_scu_get_vga_memsize(void);
 
 //Ctrl Initial
