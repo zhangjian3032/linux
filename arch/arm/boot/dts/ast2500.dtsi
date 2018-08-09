@@ -45,7 +45,7 @@
 			compatible = "aspeed,fmc-spi";
 			clocks = <&syscon ASPEED_CLK_AHB>;
 			status = "disable";
-			number_of_chip_select = /bits/ 8 <2>;
+			number_of_chip_select = /bits/ 16 <2>;
 			interrupts = <19>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_fwspics1_default>;

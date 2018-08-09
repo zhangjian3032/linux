@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
@@ -277,14 +278,14 @@ static int fmc_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 			printk("\n");
 #endif
 			for(i=0;i<xfer->len;i++) {
-				writeb(tx_buf[i], host->buff[host->spi_dev->chip_select]);
+				writeb(tx_buf[i], (void *)host->buff[host->spi_dev->chip_select]);
 			}
 		}
 		//Issue need clarify 
 		udelay(1);
 		if(rx_buf != 0) {
 			for(i=0;i<xfer->len;i++) {
-				rx_buf[i] = readb(host->buff[host->spi_dev->chip_select]);
+				rx_buf[i] = readb((void *)host->buff[host->spi_dev->chip_select]);
 			}
 #if 0
 			printk("rx : ");
@@ -331,10 +332,11 @@ static void fmc_spi_cleanup(struct spi_device *spi)
         spin_unlock_irqrestore(&host->lock, flags);
 }
 
+#if 0
 static int fmc_spi_flash_read(struct spi_device *spi,
 				 struct spi_flash_read_message *msg)
 {
-	struct fmc_spi_host 	*host = spi_master_get_devdata(spi->master);
+//	struct fmc_spi_host 	*host = spi_master_get_devdata(spi->master);
 	int ret = 0;
 
 //	printk("read msg->from %x,  msg->len %x , msg->buf %x , msg->addr_width %d , msg->dummy_bytes %x , msg->read_opcode %x \n", msg->from, msg->len, msg->buf, msg->addr_width, msg->dummy_bytes, msg->read_opcode);
@@ -344,6 +346,7 @@ static int fmc_spi_flash_read(struct spi_device *spi,
 
 	return ret;
 }
+#endif
 
 static int fmc_spi_probe(struct platform_device *pdev)
 {
@@ -352,7 +355,7 @@ static int fmc_spi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct clk *clk;
 	int cs_num = 0;	
-	int err;
+	int err = 0;
 
 	dev_dbg(&pdev->dev, "fmc_spi_probe() \n");
 
@@ -403,7 +406,7 @@ static int fmc_spi_probe(struct platform_device *pdev)
 
 	host->master = spi_master_get(master);
 
-	if(of_property_read_u8(pdev->dev.of_node, "number_of_chip_select", &host->master->num_chipselect))
+	if(of_property_read_u16(pdev->dev.of_node, "number_of_chip_select", &host->master->num_chipselect))
 		goto err_register;
 
 	for(cs_num = 0; cs_num < host->master->num_chipselect ; cs_num++) {
