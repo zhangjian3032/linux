@@ -33,16 +33,14 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/miscdevice.h>
-
 #include <linux/hwmon-sysfs.h>
-
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
+#include <linux/dma-mapping.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/aspeed-sdmc.h>
 #include <linux/ast_lcd.h>
-
-extern void ast_scu_set_vga_display(u8 enable);
-extern u8 ast_scu_get_vga_display(void);
 
 /***********************************************************************/
 /* Register for VIDEO */
@@ -428,7 +426,6 @@ extern u8 ast_scu_get_vga_display(void);
 #define SCRATCH_VGA_RESET						(1 << 25)
 #define SCRATCH_VGA_ENABLE						(1 << 24)
 /***********************************************************************/
-
 //#define CONFIG_AST_VIDEO_LOCK
 #define CONFIG_AUTO_MODE
 
@@ -600,16 +597,30 @@ struct compress_header {
 	u8	Visual_Lossless;
 };
 
+struct aspeed_video_config {
+	u8		version;	
+	u32		dram_base;
+};
+
+struct aspeed_video_mem {
+	dma_addr_t	dma;
+	void *virt;
+};
+
 struct ast_video_data {
 	struct device		*misc_dev;
 	void __iomem		*reg_base;			/* virtual */
+	struct regmap		*scu;	
 	int 	irq;				//Video IRQ number
-	u8 		ast_g5;
+	struct aspeed_video_config	*config;
 	struct reset_control *reset;
 	struct clk 			*vclk;
 	struct clk 			*eclk;
 //	compress_header
 	struct compress_header			compress_mode;
+
+	struct aspeed_video_mem		video_mem;
+
 	phys_addr_t             *stream_phy;            /* phy */
 	u32                             *stream_virt;           /* virt */
 	phys_addr_t             *buff0_phy;             /* phy */
@@ -673,6 +684,30 @@ struct rc4_state {
 };
 
 extern u32 ast_scu_get_vga_memsize(void);
+/***********************************************************************/
+#define AST_SCU_MISC1_CTRL			0x2C		/*	Misc. Control register */
+#define SCU_MISC_VGA_CRT_DIS		BIT(6)
+
+static void ast_scu_set_vga_display(struct ast_video_data *ast_video, u8 enable)
+{
+	if(enable)
+		regmap_update_bits(ast_video->scu, AST_SCU_MISC1_CTRL, SCU_MISC_VGA_CRT_DIS, 0);
+	else
+		regmap_update_bits(ast_video->scu, AST_SCU_MISC1_CTRL, SCU_MISC_VGA_CRT_DIS, SCU_MISC_VGA_CRT_DIS);
+}
+
+static int ast_scu_get_vga_display(struct ast_video_data *ast_video)
+{
+	u32 val;
+	regmap_read(ast_video->scu, AST_SCU_MISC1_CTRL, &val);
+
+	if(val & SCU_MISC_VGA_CRT_DIS)
+		return 0;
+	else
+		return 1;
+}
+
+/***********************************************************************/
 
 
 static inline void
@@ -1507,7 +1542,7 @@ static void ast_video_set_eng_config(struct ast_video_data *ast_video, struct as
 
 	ast_video_write(ast_video, VIDEO_COMPRESS_COMPLETE | VIDEO_CAPTURE_COMPLETE | VIDEO_MODE_DETECT_WDT, AST_VIDEO_INT_EN);
 
-	if (ast_video->ast_g5) {
+	if (ast_video->config->version == 5) {
 		if (video_config->compression_format)
 			ctrl |= G5_VIDEO_COMPRESS_JPEG_MODE;
 		else
@@ -1607,7 +1642,7 @@ static void ast_video_set_0_scaling(struct ast_video_data *ast_video, struct ast
 			if ((v_factor * (scaling->y - 1)) != (ast_video->src_fbinfo.y - 1) * 4096)
 				v_factor += 1;
 
-			if (!ast_video->ast_g5)
+			if (ast_video->config->version != 5)
 				ctrl |= VIDEO_CTRL_DWN_SCALING_ENABLE_LINE_BUFFER;
 
 			if (ast_video->src_fbinfo.x <= scaling->x * 2) {
@@ -1643,7 +1678,7 @@ static void ast_video_set_0_scaling(struct ast_video_data *ast_video, struct ast
 	ast_video_write(ast_video, ctrl, AST_VIDEO_CTRL);
 
 	//capture x y
-	if (ast_video->ast_g5) {
+	if (ast_video->config->version == 5) {
 		//A1 issue fix
 		if (ast_video->src_fbinfo.x == 1680) {
 			ast_video_write(ast_video, VIDEO_CAPTURE_H(1728) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VIDEO_CAPTURE_WIN);
@@ -1702,7 +1737,7 @@ static void ast_video_set_1_scaling(struct ast_video_data *ast_video, struct ast
 	}
 
 	//capture x y
-	if (ast_video->ast_g5) {
+	if (ast_video->config->version == 5) {
 		if (ast_video->src_fbinfo.x == 1680) {
 			ast_video_write(ast_video, VIDEO_CAPTURE_H(1728) | VIDEO_CAPTURE_V(ast_video->src_fbinfo.y), AST_VM_CAPTURE_WIN);
 		} else {
@@ -2217,7 +2252,7 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 		break;
 	case AST_VIDEO_SET_VGA_DISPLAY:
 		ret = __get_user(vga_enable, (int __user *)arg);
-		ast_scu_set_vga_display(vga_enable);
+		ast_scu_set_vga_display(ast_video, vga_enable);
 		break;
 	case AST_VIDEO_SET_ENCRYPTION:
 		ret = __get_user(encrypt_en, (int __user *)arg);
@@ -2328,20 +2363,23 @@ struct miscdevice ast_video_misc = {
 static ssize_t show_vga_display(struct device *dev,
 								struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d: %s\n", ast_scu_get_vga_display(), ast_scu_get_vga_display() ? "Enable" : "Disable");
+	struct ast_video_data *ast_video = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d: %s\n", ast_scu_get_vga_display(ast_video), ast_scu_get_vga_display(ast_video) ? "Enable" : "Disable");
 }
 
 static ssize_t store_vga_display(struct device *dev,
 								 struct device_attribute *attr, const char *buf, size_t count)
 {
 	u32 val;
+	struct ast_video_data *ast_video = dev_get_drvdata(dev);
 
 	val = simple_strtoul(buf, NULL, 10);
 
 	if (val)
-		ast_scu_set_vga_display(1);
+		ast_scu_set_vga_display(ast_video, 1);
 	else
-		ast_scu_set_vga_display(0);
+		ast_scu_set_vga_display(ast_video, 0);
 
 	return count;
 }
@@ -2535,7 +2573,7 @@ static u8 ast_get_compress_jpeg_mode(struct ast_video_data *ast_video, u8 eng_id
 {
 	switch (eng_idx) {
 	case 0:
-		if (ast_video->ast_g5) {
+		if (ast_video->config->version == 5) {
 			if (ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & G5_VIDEO_COMPRESS_JPEG_MODE)
 				return 1;
 			else
@@ -2548,7 +2586,7 @@ static u8 ast_get_compress_jpeg_mode(struct ast_video_data *ast_video, u8 eng_id
 		}
 		break;
 	case 1:
-		if (ast_video->ast_g5) {
+		if (ast_video->config->version == 5) {
 			if (ast_video_read(ast_video, AST_VM_SEQ_CTRL) & G5_VIDEO_COMPRESS_JPEG_MODE)
 				return 1;
 			else
@@ -2568,13 +2606,13 @@ static void ast_set_compress_jpeg_mode(struct ast_video_data *ast_video, u8 eng_
 	switch (eng_idx) {
 	case 0:	//video 1
 		if (jpeg_mode) {
-			if (ast_video->ast_g5) {
+			if (ast_video->config->version == 5) {
 				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) | G5_VIDEO_COMPRESS_JPEG_MODE, AST_VIDEO_SEQ_CTRL);
 			} else {
 				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_COMPRESS_JPEG_MODE, AST_VIDEO_SEQ_CTRL);
 			}
 		} else {
-			if (ast_video->ast_g5) {
+			if (ast_video->config->version == 5) {
 				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~G5_VIDEO_COMPRESS_JPEG_MODE , AST_VIDEO_SEQ_CTRL);
 			} else {
 				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~VIDEO_COMPRESS_JPEG_MODE , AST_VIDEO_SEQ_CTRL);
@@ -2584,12 +2622,12 @@ static void ast_set_compress_jpeg_mode(struct ast_video_data *ast_video, u8 eng_
 		break;
 	case 1:	//video M
 		if (jpeg_mode) {
-			if (ast_video->ast_g5)
+			if (ast_video->config->version == 5)
 				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) | G5_VIDEO_COMPRESS_JPEG_MODE, AST_VM_SEQ_CTRL);
 			else
 				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) | VIDEO_COMPRESS_JPEG_MODE, AST_VM_SEQ_CTRL);
 		} else {
-			if (ast_video->ast_g5)
+			if (ast_video->config->version == 5)
 				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) & ~G5_VIDEO_COMPRESS_JPEG_MODE , AST_VM_SEQ_CTRL);
 			else
 				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_SEQ_CTRL) & ~VIDEO_COMPRESS_JPEG_MODE , AST_VM_SEQ_CTRL);
@@ -2782,24 +2820,61 @@ static const struct attribute_group compress_attribute_groups[] = {
 };
 
 /************************************************** SYS FS End ***********************************************************/
+
+
+static const struct aspeed_video_config ast2500_config = { 
+	.version = 5, 
+	.dram_base =0x80000000, 
+};
+
+
+static const struct aspeed_video_config ast2400_config = { 
+	.version = 4, 
+	.dram_base =0x40000000, 
+};
+
+static const struct of_device_id aspeed_video_matches[] = {
+	{ .compatible = "aspeed,ast2400-video",	.data = &ast2400_config, },
+	{ .compatible = "aspeed,ast2500-video",	.data = &ast2500_config, },	
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, aspeed_video_matches);
+
 #define CONFIG_AST_VIDEO_MEM_SIZE	0x2800000
+
 static int ast_video_probe(struct platform_device *pdev)
 {
 	struct resource *res0;
 	int ret = 0;
 	int i;
 	struct ast_video_data *ast_video;
+	const struct of_device_id *video_dev_id;	
 	u32 vga = ast_scu_get_vga_memsize();
 	u32 dram = ast_sdmc_get_mem_size();
-#ifdef CONFIG_MACH_ASPEED_G5
-	u32 dram_base = 0x80000000;
-#else
-	u32 dram_base = 0x40000000;
-#endif
-	u32 video_base = dram - vga - CONFIG_AST_VIDEO_MEM_SIZE + dram_base;
 
 	if (!(ast_video = devm_kzalloc(&pdev->dev, sizeof(struct ast_video_data), GFP_KERNEL))) {
 		return -ENOMEM;
+	}
+
+	video_dev_id = of_match_node(aspeed_video_matches, pdev->dev.of_node);
+	if (!video_dev_id)
+		return -EINVAL;
+
+	ast_video->config = (struct aspeed_video_config *) video_dev_id->data;
+
+	if (ast_video->config->version == 5) {
+		ast_video->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2500-scu");
+		if (IS_ERR(ast_video->scu)) {
+			dev_err(&pdev->dev, "failed to find 2500 SCU regmap\n");
+			return PTR_ERR(ast_video->scu);
+		}
+	} else {
+		ast_video->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2400-scu");
+		if (IS_ERR(ast_video->scu)) {
+			dev_err(&pdev->dev, "failed to find 2400 SCU regmap\n");
+			return PTR_ERR(ast_video->scu);
+		}
 	}
 
 	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2818,25 +2893,26 @@ static int ast_video_probe(struct platform_device *pdev)
 	ast_video->video_mem_size = CONFIG_AST_VIDEO_MEM_SIZE;
 	VIDEO_DBG("video_mem_size %d MB\n", ast_video->video_mem_size / 1024 / 1024);
 
-	ast_video->stream_phy = video_base;
-	ast_video->buff0_phy = (phys_addr_t *)(video_base + 0x400000);   //4M : size 10MB
-	ast_video->buff1_phy = (phys_addr_t *)(video_base + 0xe00000);   //14M : size 10MB
-	ast_video->bcd_phy = (phys_addr_t *)(video_base + 0x1800000);    //24M : size 1MB
-	ast_video->jpeg_buf0_phy = (phys_addr_t *)(video_base + 0x1900000);   //25MB: size 10 MB
+	ast_video->video_mem.virt = dma_alloc_coherent(&pdev->dev, CONFIG_AST_VIDEO_MEM_SIZE, &ast_video->video_mem.dma, GFP_KERNEL);
+	if(!ast_video->video_mem.virt){
+		printk(KERN_NOTICE "video dma_alloc_coherent got error\n");
+		return -ENOMEM;
+	}
+
+	ast_video->stream_phy = ast_video->video_mem.dma;
+	ast_video->buff0_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x400000);   //4M : size 10MB
+	ast_video->buff1_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0xe00000);   //14M : size 10MB
+	ast_video->bcd_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x1800000);    //24M : size 1MB
+	ast_video->jpeg_buf0_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x1900000);   //25MB: size 10 MB
 	ast_video->video_jpeg_offset = 0x2300000;						//TODO define
-	ast_video->jpeg_phy = (phys_addr_t *)(video_base + 0x2300000);   //35MB: size 4 MB
-	ast_video->jpeg_tbl_phy = (phys_addr_t *)(video_base + 0x2700000);       //39MB: size 1 MB
+	ast_video->jpeg_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x2300000);   //35MB: size 4 MB
+	ast_video->jpeg_tbl_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x2700000);       //39MB: size 1 MB
 
 	VIDEO_DBG("\nstream_phy: %x, buff0_phy: %x, buff1_phy:%x, bcd_phy:%x \njpeg_phy:%x, jpeg_tbl_phy:%x \n",
 			  (u32)ast_video->stream_phy, (u32)ast_video->buff0_phy, (u32)ast_video->buff1_phy, (u32)ast_video->bcd_phy, (u32)ast_video->jpeg_phy, (u32)ast_video->jpeg_tbl_phy);
 
 	//virt assign
-	ast_video->stream_virt = ioremap(video_base, ast_video->video_mem_size);
-	if (!ast_video->stream_virt) {
-		ret = -EIO;
-		goto out_region0;
-	}
-
+	ast_video->stream_virt = ast_video->video_mem.virt;
 	ast_video->buff0_virt = (u32)ast_video->stream_virt + 0x400000; //4M : size 10MB
 	ast_video->buff1_virt = (u32)ast_video->stream_virt + 0xe00000; //14M : size 10MB
 	ast_video->bcd_virt = (u32)ast_video->stream_virt + 0x1800000;  //24M : size 4MB
@@ -2860,12 +2936,6 @@ static int ast_video_probe(struct platform_device *pdev)
 	if (IS_ERR(ast_video->reset)) {
 		dev_err(&pdev->dev, "can't get mctp reset\n");
 		return PTR_ERR(ast_video->reset);
-	}
-
-	if (of_machine_is_compatible("aspeed,ast2500")) {
-		ast_video->ast_g5 = 1;
-	} else {
-		ast_video->ast_g5 = 0;
 	}
 
 	ast_video->eclk = devm_clk_get(&pdev->dev, "eclk");
@@ -3002,14 +3072,6 @@ ast_video_resume(struct platform_device *pdev)
 #define ast_video_resume         NULL
 #endif
 
-
-static const struct of_device_id ast_video_of_matches[] = {
-	{ .compatible = "aspeed,ast-video", },
-	{},
-};
-
-MODULE_DEVICE_TABLE(of, ast_video_of_matches);
-
 static struct platform_driver ast_video_driver = {
 	.probe 		= ast_video_probe,
 	.remove 		= ast_video_remove,
@@ -3019,7 +3081,7 @@ static struct platform_driver ast_video_driver = {
 #endif
 	.driver  	       = {
 		.name   = KBUILD_MODNAME,
-		.of_match_table = ast_video_of_matches,
+		.of_match_table = aspeed_video_matches,
 	},
 };
 
