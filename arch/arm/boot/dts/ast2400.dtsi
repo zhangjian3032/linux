@@ -157,6 +157,7 @@
 			compatible = "aspeed,ast-g4-gfx", "syscon";
 			reg = <0x1e6e6000 0x1000 0x8b000000 0x800000>;
 			interrupts = <25>;
+			resets = <&syscon ASPEED_RESET_CRT>;
 		};
 
 		xdma: xdma@1e6e7000 {
