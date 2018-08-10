@@ -237,7 +237,7 @@ static int gGUIWaitVsync;
 
 #define ASTFB_GET_DFBINFO       _IOR(0xF3,0x00,struct astfb_dfbinfo)
 
-#define CONFIG_ASTFB_DEBUG
+//#define CONFIG_ASTFB_DEBUG
 
 #ifdef CONFIG_ASTFB_DEBUG
 	#define ASTFB_DBG(fmt, args...) printk("%s(): " fmt, __FUNCTION__, ## args)
