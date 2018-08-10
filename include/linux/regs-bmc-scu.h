@@ -146,7 +146,7 @@
 #define SCU_RESET_SD				(0x1 << 16)
 #define SCU_RESET_USB11				(0x1 << 15)
 #define SCU_RESET_USB20				(0x1 << 14)
-#define SCU_RESET_CRT				(0x1 << 13)
+
 #define SCU_RESET_MAC1				(0x1 << 12)
 #define SCU_RESET_MAC0				(0x1 << 11)
 #define SCU_RESET_PECI				(0x1 << 10)
@@ -166,7 +166,7 @@
 #define SCU_RESET_CRT3				(0x1 << 8)
 #define SCU_RESET_CRT2				(0x1 << 7)
 #define SCU_RESET_CRT1				(0x1 << 6)
-#define SCU_RESET_CRT0				(0x1 << 5)
+
 #define SCU_RESET_NIC1				(0x1 << 4)
 #define SCU_RESET_NIC0				(0x1 << 3)
 #define SCU_RESET_RFXDEC			(0x1 << 2)
@@ -242,7 +242,7 @@
 #define SCU_UART1CLK_STOP_EN		(0x1 << 15)
 
 #define SCU_YCLK_STOP_EN			(0x1 << 13)
-#define SCU_D2CLK_STOP_EN			(0x1 << 10)
+
 #define SCU_LCLK_STOP_EN			(0x1 << 8)
 
 #define SCU_REFCLK_STOP_EN			(0x1 << 6)
@@ -365,10 +365,9 @@
 #define SCU_MISC_D_PLL_ASSIGN_MASK	(0x3 << 20)
 #endif
 #define SCU_MISC_VGA_CONFIG_PREFETCH	(0x1 << 19)
-#define SCU_MISC_DVO_SOURCE_CRT			(0x1 << 18) 	//0:VGA , 1:CRT
-#define SCU_MISC_DAC_MASK				(0x3 << 16)
+
+
 #define SCU_MISC_SET_DAC_SOURCE(x)		(x << 16)		
-#define SCU_MISC_DAC_SOURCE_CRT			(0x1 << 16)		//00 VGA, 01: CRT, 1x: PASS-Through DVO
 #define SCU_MISC_DAC_SOURCE_MASK		(0x3 << 16)		
 #define SCU_MISC_JTAG_TO_PCIE_EN		(0x1 << 15)
 #define SCU_MISC_JTAG__M_TO_PCIE_EN		(0x1 << 14)
@@ -377,10 +376,10 @@
 #define SCU_MISC_Y_CLK_INVERT			(0x1 << 11)
 #define SCU_MISC_OUT_DELAY				(0x1 << 9)
 #define SCU_MISC_PCI_TO_AHB_DIS			(0x1 << 8)
-#define SCU_MISC_2D_CRT_EN				(0x1 << 7)
+
 
 #define SCU_MISC_VGA_REG_ACCESS_EN		(0x1 << 5)
-#define SCU_MISC_D2_PLL_DIS				(0x1 << 4)
+
 #define SCU_MISC_DAC_DIS				(0x1 << 3)
 #define SCU_MISC_D_PLL_DIS				(0x1 << 2)
 #define SCU_MISC_OSC_CLK_OUT_PIN		(0x1 << 1)
@@ -763,11 +762,7 @@
 #define SCU_FUC_PIN_UART6		(0x1 << 7)
 #define SCU_FUC_PIN_ROM_16BIT	(0x1 << 6)
 #define SCU_FUC_PIN_DIGI_V_OUT(x)	(x)
-#define SCU_FUC_PIN_DIGI_V_OUT_MASK	(0x3)
 
-#define VIDEO_DISABLE	0x0
-#define VIDEO_12BITS	0x1
-#define VIDEO_24BITS	0x2
 //#define VIDEO_DISABLE	0x3
 
 #define SCU_FUC_PIN_USB11_PORT2	(0x1 << 3)

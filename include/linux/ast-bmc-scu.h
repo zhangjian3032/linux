@@ -71,7 +71,6 @@ extern void ast_scu_init_jtag(void);
 extern void ast_scu_init_rfx(void);
 extern void ast_scu_init_h264(void);
 extern void ast_scu_set_crt_source(u8 dac_soource);
-extern void ast_scu_init_crt(void);
 extern void ast_scu_init_hace(void);
 extern void ast_scu_uartx_init(void);
 
@@ -97,7 +96,6 @@ extern void ast_scu_multi_func_usb_port34_mode(u8 mode);
 
 extern void ast_scu_multi_func_sdhc_8bit_mode(void);
 extern void ast_scu_multi_func_sdhc_slot(u8 slot);
-extern void ast_scu_multi_func_crt(void);
 
 extern void ast_scu_multi_nic_switch(u8 enable);
 extern void ast_scu_multi_func_sgpio(void);

@@ -671,9 +671,6 @@ struct ast_video_data {
 	struct mutex lock;
 
 	bool is_open;
-#ifdef CONFIG_FB_AST
-	struct fb_info *info;
-#endif
 };
 
 //  RC4 structure
@@ -2089,7 +2086,7 @@ static irqreturn_t ast_video_isr(int this_irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_FB_AST
+#if 0//def CONFIG_FB_AST
 static void ast_set_crt_compression(struct ast_video_data *ast_video)
 {
 	//VR008[8]<=0
@@ -2272,7 +2269,7 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 		ret = 0;
 		break;
 	case AST_VIDEO_SET_CRT_COMPRESSION:
-#ifdef CONFIG_FB_AST
+#if 0//def CONFIG_FB_AST
 		ast_set_crt_compression(ast_video);
 #endif
 		ret = 0;
@@ -2961,10 +2958,6 @@ static int ast_video_probe(struct platform_device *pdev)
 	ast_video->rc4_enable = 0;
 	strcpy(ast_video->EncodeKeys, "fedcba9876543210");
 	ast_video->scaling = 0;
-
-#ifdef CONFIG_FB_AST
-	ast_video->info = astfb_get_fb_info(0);
-#endif
 
 	ret = misc_register(&ast_video_misc);
 	if (ret) {
