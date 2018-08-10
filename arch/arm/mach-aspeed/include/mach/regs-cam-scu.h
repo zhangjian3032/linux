@@ -510,12 +510,7 @@
 
 #define SCU_FUC_PIN_UART6		(0x1 << 7)
 #define SCU_FUC_PIN_ROM_16BIT	(0x1 << 6)
-#define SCU_FUC_PIN_DIGI_V_OUT(x)	(x)
-#define SCU_FUC_PIN_DIGI_V_OUT_MASK	(0x3)
 
-#define VIDEO_DISABLE	0x0
-#define VIDEO_12BITS	0x1
-#define VIDEO_24BITS	0x2
 //#define VIDEO_DISABLE	0x3
 
 #define SCU_FUC_PIN_USB11_PORT2	(0x1 << 3)
