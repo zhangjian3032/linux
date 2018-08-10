@@ -23,13 +23,15 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
+#include <linux/reset.h>
 
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/mach/map.h>
-#include <mach/aspeed.h>
-#include <mach/ast_lcd.h>
-#include <mach/ast-scu.h>
+#include <linux/ast_lcd.h>
 /***********************************************************************/
 /* CRT control registers */
 //0x00 ~ 0x5F Reserved - FB0 
@@ -235,7 +237,7 @@ static int gGUIWaitVsync;
 
 #define ASTFB_GET_DFBINFO       _IOR(0xF3,0x00,struct astfb_dfbinfo)
 
-//#define CONFIG_ASTFB_DEBUG
+#define CONFIG_ASTFB_DEBUG
 
 #ifdef CONFIG_ASTFB_DEBUG
 	#define ASTFB_DBG(fmt, args...) printk("%s(): " fmt, __FUNCTION__, ## args)
@@ -481,6 +483,7 @@ struct astfb_info {
 	struct fb_info			*info;
 	struct resource *reg_res;
 	void __iomem *base;
+	struct regmap			*scu;	
 	u8	ast_g5;
 	phys_addr_t *cursor_phy;	
 	void __iomem *cursor_virt;
@@ -500,6 +503,15 @@ struct astfb_info {
 	int need_wakeup;
 	void __iomem *next_addr;
 
+#ifdef CONFIG_MACH_ASPEED_G5
+	struct clk			*d1_clk;
+	struct reset_control *crt_rst;
+	struct reset_control *crt1_rst;
+#else
+	struct clk			*clk;
+	struct reset_control *reset;
+#endif
+	
 	u8 hwcursor;   //0: disable , 1 : enable
 	u8 dac;	//0: disable , 1 : enable
 	u8 dvo;	//0: disable , 1 : enable
@@ -787,7 +799,7 @@ static int astfb_set_par(struct fb_info *info)
 		for(i=0; i<sizeof(ast_pll_table)/sizeof(struct pixel_freq_pll_data); i++) {
 			if(ast_pll_table[i].pixel_freq == var->pixclock) {
 				astfb_write(sfb, ast_pll_table[i].pll_set, AST_CRT_PLL);
-				ASTFB_DBG("find pixclk in table set 0x%x \n",pll_table[i].pll_set);
+				ASTFB_DBG("find pixclk in table set 0x%x \n",ast_pll_table[i].pll_set);
 				break;
 			}
 		}
@@ -1077,8 +1089,6 @@ static int astfb_setup(struct astfb_info *sfb)
 	char *options = NULL;
 	char tmp[128];
 	char *tmp_opt;
-	char name[10];
-	int i;
 	
 	fb_get_options("astfb", &options);
 	ASTFB_DBG("%s\n", options);
@@ -1222,26 +1232,10 @@ static struct device_attribute device_attrs[] = {
 #endif
 
 struct fb_info *info0;
-struct fb_info *info1;
-struct fb_info *info2;
-struct fb_info *info3;
 
-struct fb_info *astfb_get_fb_info(u8 crt)
+struct fb_info *astfb_get_fb_info(void)
 {
-	switch(crt) {
-		case 0:
-			return info0;
-			break;
-		case 1:
-			return info1;
-			break;
-		case 2:
-			return info2;
-			break;
-		case 3:
-			return info3;
-			break;
-	}
+	return info0;
 }
 
 EXPORT_SYMBOL(astfb_get_fb_info);
@@ -1271,6 +1265,53 @@ u16 astfb_get_crt_fb_line_offset(struct fb_info *info)
 	return CRT_GET_DISP_OFFSET(astfb_read(sfb, AST_CRT_OFFSET));
 }
 EXPORT_SYMBOL(astfb_get_crt_fb_line_offset);
+/**********************************************************************************/
+#define AST_SCU_MISC1_CTRL			0x2C		/*	Misc. Control register */
+
+#define SCU_MISC_DAC_MASK			(0x3 << 16)
+#define SCU_MISC_DAC_SOURCE_CRT		BIT(16)		//00 VGA, 01: CRT, 1x: PASS-Through DVO
+#define SCU_MISC_DVO_SOURCE_CRT		BIT(18) 	//0:VGA , 1:CRT
+#define SCU_MISC_2D_CRT_EN			BIT(7)
+
+#define AST_SCU_FUN_PIN_CTRL6		0x94		/*	Multi-function Pin Control#6*/
+#define SCU_FUC_PIN_DIGI_V_OUT_MASK	(0x3)
+#define SCU_FUC_PIN_DIGI_V_OUT(x)	(x)
+
+#define VIDEO_DISABLE	0x0
+#define VIDEO_12BITS	0x1
+#define VIDEO_24BITS	0x2
+
+static void ast_scu_multi_func_crt(struct astfb_info *sfb)
+{	
+	/* multi-pin for DVO enable DVO (bit18) is VGA , enable DAC (bit16) is CRT  */
+#if defined(CONFIG_AST_DAC) || defined(CONFIG_AST_DVO)
+	regmap_update_bits(sfb->scu, AST_SCU_MISC1_CTRL, SCU_MISC_DAC_MASK, 0);
+	regmap_update_bits(sfb->scu, AST_SCU_MISC1_CTRL, SCU_MISC_DAC_SOURCE_CRT | SCU_MISC_DVO_SOURCE_CRT | SCU_MISC_2D_CRT_EN, 
+								SCU_MISC_DAC_SOURCE_CRT | SCU_MISC_DVO_SOURCE_CRT | SCU_MISC_2D_CRT_EN);
+#elif defined(CONFIG_AST_DVO) 
+	regmap_update_bits(sfb->scu, AST_SCU_MISC1_CTRL, SCU_MISC_DVO_SOURCE_CRT | SCU_MISC_2D_CRT_EN, 
+								SCU_MISC_DVO_SOURCE_CRT | SCU_MISC_2D_CRT_EN);
+#else //default(CONFIG_AST_DAC) 
+	regmap_update_bits(sfb->scu, AST_SCU_MISC1_CTRL, SCU_MISC_DAC_MASK, 0);
+	regmap_update_bits(sfb->scu, AST_SCU_MISC1_CTRL, SCU_MISC_DAC_SOURCE_CRT | SCU_MISC_2D_CRT_EN, 
+								SCU_MISC_DAC_SOURCE_CRT | SCU_MISC_2D_CRT_EN);
+#endif
+	//Digital vodeo input function pins : 00 disable, 10 24bits mode 888,
+	regmap_update_bits(sfb->scu, AST_SCU_FUN_PIN_CTRL6, SCU_FUC_PIN_DIGI_V_OUT_MASK, 0);
+	regmap_update_bits(sfb->scu, AST_SCU_FUN_PIN_CTRL6, SCU_FUC_PIN_DIGI_V_OUT(VIDEO_24BITS), SCU_FUC_PIN_DIGI_V_OUT(VIDEO_24BITS));
+}
+
+
+#define AST_SCU_CLK_STOP			0x0C		/*	clock stop control register	*/
+#define AST_SCU_CLK_SEL				0x08		/*	clock selection register	*/
+
+#define SCU_MISC_D2_PLL_DIS				(0x1 << 4)
+#define SCU_CLK_VIDEO_DELAY(x)		(x << 8)
+#define SCU_CLK_VIDEO_DELAY_MASK	(0xf << 8)
+
+#define SCU_D2CLK_STOP_EN			BIT(10)
+
+/**********************************************************************************/
 
 static int astfb_probe(struct platform_device *pdev)
 {
@@ -1289,38 +1330,84 @@ static int astfb_probe(struct platform_device *pdev)
 	bool found = false;	
 
 	ASTFB_DBG("\n");
-	ast_scu_multi_func_crt();
-	ast_scu_init_crt();
 
 	info = framebuffer_alloc(sizeof(struct astfb_info), dev);
 	if (!info) {
 			dev_err(dev, "cannot allocate memory\n");
 			return -ENOMEM;
 	}
-
 	sfb = info->par;
-
-	if(of_device_is_compatible(pdev->dev.of_node, "aspeed,ast-g5-gfx"))
-		sfb->ast_g5 = 1;
-	else 
-		sfb->ast_g5 = 0;
-
 	sfb->info = info;
 
-	switch(dev->id) {
-		case 0:
-			info0 = info;
-			break;
-		case 1:
-			info1 = info;
-			break;
-		case 2:
-			info2 = info;
-			break;
-		case 3:
-			info3 = info;
-			break;
+	//ast2400 : VGA use D1 clk, CRT use D2 clk
+	//ast2500 : VGA use D1 clk, CRT use 40Mhz 
+	//ast3200/ast1520 : VGA use D1 clk, CRT use D1/D2 clk select L: SCU08[bit 8] - H SCU2C[bit 21]
+
+	if(of_device_is_compatible(pdev->dev.of_node, "aspeed,ast-g5-gfx")) {
+		sfb->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2500-scu");
+		if (IS_ERR(sfb->scu)) {
+			dev_err(&pdev->dev, "failed to find 2500 SCU regmap\n");
+			return PTR_ERR(sfb->scu);
+		}
+		sfb->ast_g5 = 1;
+		sfb->crt_rst = devm_reset_control_get_exclusive(&pdev->dev, "crt");
+		if (IS_ERR(sfb->crt_rst)) {
+			dev_err(&pdev->dev,
+				"missing or invalid reset controller device tree entry");
+			return PTR_ERR(sfb->crt_rst);
+		}
+		reset_control_deassert(sfb->crt_rst);
+
+		sfb->crt1_rst = devm_reset_control_get_exclusive(&pdev->dev, "crt1");
+		if (IS_ERR(sfb->crt1_rst)) {
+			dev_err(&pdev->dev,
+				"missing or invalid reset controller device tree entry");
+			return PTR_ERR(sfb->crt1_rst);
+		}
+		reset_control_deassert(sfb->crt1_rst);
+		
+		sfb->d1_clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(sfb->d1_clk)) {
+			dev_err(&pdev->dev,
+				"missing or invalid clk device tree entry");
+			return PTR_ERR(sfb->d1_clk);
+		}
+		clk_prepare_enable(sfb->d1_clk);
+	} else {
+		sfb->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2400-scu");
+		if (IS_ERR(sfb->scu)) {
+			dev_err(&pdev->dev, "failed to find 2500 SCU regmap\n");
+			return PTR_ERR(sfb->scu);
+		}
+		
+		sfb->ast_g5 = 0;
+		sfb->crt_rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+		if (IS_ERR(sfb->crt_rst)) {
+			dev_err(&pdev->dev,
+				"missing or invalid reset controller device tree entry");
+			return PTR_ERR(sfb->crt_rst);
+		}
+		
+		/* Enable D2 - PLL */
+		regmap_update_bits(sfb->scu, AST_SCU_MISC1_CTRL, SCU_MISC_D2_PLL_DIS, 0);
+		
+		/* Reset CRT */
+		reset_control_assert(sfb->crt_rst);
+		
+		/* Set Delay 5 Compensation TODO ...*/
+		regmap_update_bits(sfb->scu, AST_SCU_CLK_SEL, SCU_CLK_VIDEO_DELAY_MASK, 0);
+		regmap_update_bits(sfb->scu, AST_SCU_CLK_SEL, SCU_CLK_VIDEO_DELAY(5), SCU_CLK_VIDEO_DELAY(5));
+		
+		//enable D2 CLK
+		regmap_update_bits(sfb->scu, AST_SCU_CLK_STOP, SCU_D2CLK_STOP_EN, 0);
+		
+		udelay(10);
+		reset_control_deassert(sfb->crt_rst);
 	}
+
+	ast_scu_multi_func_crt(sfb);
+
+	info0 = info;
 	
 	sfb->pdev = pdev;	
 	strcpy(info->fix.id, sfb->pdev->name);

@@ -271,77 +271,6 @@ ast_scu_spi_master(u8 mode)
 
 EXPORT_SYMBOL(ast_scu_spi_master);
 
-#ifdef SCU_RESET_CRT
-extern void
-ast_scu_init_crt(void)
-{
-	//ast2400 : VGA use D1 clk, CRT use D2 clk
-	//ast2500 : VGA use D1 clk, CRT use 40Mhz 
-	//ast3200/ast1520 : VGA use D1 clk, CRT use D1/D2 clk select L: SCU08[bit 8] - H SCU2C[bit 21]
-
-#ifdef CONFIG_MACH_ASPEED_G5
-
-#ifdef CONFIG_ARCH_AST3200
-	//Select D2 CLK source 00:D-PLL, 01: D2-PLL, 1x : 40Mhz
-	//H: 2c[bit : 21], L: 08[bit : 8]
-	//Select D2-PLL parameter source [01]
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_SEL) | SCU_CRT_CLK_L_SOURCE , AST_SCU_CLK_SEL);
-	ast_scu_write(ast_scu_read(AST_SCU_MISC1_CTRL) & ~SCU_MISC_CRT_CLK_H_SOURCE , AST_SCU_MISC1_CTRL);
-	
-	//Off D2-PLL
-//	ast_scu_write(ast_scu_read(AST_SCU_D2_PLL_EXTEND) |  SCU_D2_PLL_OFF | SCU_D2_PLL_RESET , AST_SCU_D2_PLL_EXTEND);
-	ast_scu_write(0x585, AST_SCU_D2_PLL_EXTEND);
-
-	//set D2-PLL parameter 
-	ast_scu_write((0x15 << 27) | (0xE << 22) | (0x03D << 13) | (0x40), AST_SCU_D2_PLL);
-
-	//enable D2-PLL
-//	ast_scu_write(ast_scu_read(AST_SCU_D2_PLL_EXTEND) &  ~(SCU_D2_PLL_OFF | SCU_D2_PLL_RESET) , AST_SCU_D2_PLL_EXTEND);
-	ast_scu_write(0x580, AST_SCU_D2_PLL_EXTEND);
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_CRT, AST_SCU_RESET);	
-
-	ast_scu_write(ast_scu_read(AST_SCU_RESET2) & ~(SCU_RESET_CRT0 | SCU_RESET_CRT1 | SCU_RESET_CRT2 | SCU_RESET_CRT3), AST_SCU_RESET2);
-
-	//For DVO output timing
-	ast_scu_write((ast_scu_read(AST_SCU_CLK_SEL2) & SCU_VIDEO1_OUTPUT_CLK_DELAY_MASK) | SCU_VIDEO1_OUTPUT_CLK_DELAY(5), AST_SCU_CLK_SEL2);	
-	
-#else
-	//ast2500 use 40Mhz (init @ platform.S)
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_CRT, AST_SCU_RESET);	
-
-	ast_scu_write(ast_scu_read(AST_SCU_RESET2) & ~SCU_RESET_CRT0, AST_SCU_RESET2);	
-
-#endif
-	//enable CRT CLK
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_D1CLK_STOP , AST_SCU_CLK_STOP);	
-
-	ast_scu_write(0x1df, 0xd4); 
-
-#else
-	//SOC VER < G5
-	/* Enable D2 - PLL */
-	ast_scu_write(ast_scu_read(AST_SCU_MISC1_CTRL) & ~SCU_MISC_D2_PLL_DIS, AST_SCU_MISC1_CTRL);
-
-	/* Reset CRT */ 
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) | SCU_RESET_CRT, AST_SCU_RESET);
-	
-	/* Set Delay 5 Compensation TODO ...*/
-	ast_scu_write((ast_scu_read(AST_SCU_CLK_SEL) & ~SCU_CLK_VIDEO_DELAY_MASK) |
-						SCU_CLK_VIDEO_DELAY(5), AST_SCU_CLK_SEL);
-
-	//enable D2 CLK
-	ast_scu_write(ast_scu_read(AST_SCU_CLK_STOP) & ~SCU_D2CLK_STOP_EN , AST_SCU_CLK_STOP);
-
-	udelay(10);
-	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_CRT, AST_SCU_RESET);
-	
-#endif
-
-	
-}
-EXPORT_SYMBOL(ast_scu_init_crt);
-#endif
-
 extern void
 ast_scu_uartx_init(void)
 {
@@ -649,29 +578,6 @@ ast_scu_set_crt_source(u8 dac_soource)
 }
 
 EXPORT_SYMBOL(ast_scu_set_crt_source);
-
-extern void
-ast_scu_multi_func_crt(void)
-{	
-	/* multi-pin for DVO enable DVO (bit18) is VGA , enable DAC (bit16) is CRT  */
-#if defined(CONFIG_AST_DAC) || defined(CONFIG_AST_DVO)
-		ast_scu_write((ast_scu_read(AST_SCU_MISC1_CTRL) & ~SCU_MISC_DAC_MASK)
-					| SCU_MISC_DAC_SOURCE_CRT | SCU_MISC_DVO_SOURCE_CRT | SCU_MISC_2D_CRT_EN , AST_SCU_MISC1_CTRL);
-#elif defined(CONFIG_AST_DVO) 
-		ast_scu_write(ast_scu_read(AST_SCU_MISC1_CTRL) | SCU_MISC_DVO_SOURCE_CRT| SCU_MISC_2D_CRT_EN, AST_SCU_MISC1_CTRL);
-#else //default(CONFIG_AST_DAC) 
-		ast_scu_write((ast_scu_read(AST_SCU_MISC1_CTRL) & ~SCU_MISC_DAC_MASK) 
-					| SCU_MISC_DAC_SOURCE_CRT | SCU_MISC_2D_CRT_EN, AST_SCU_MISC1_CTRL);
-#endif
-
-	//Digital vodeo input function pins : 00 disable, 10 24bits mode 888,
-	ast_scu_write((ast_scu_read(AST_SCU_FUN_PIN_CTRL6) &
-			~SCU_FUC_PIN_DIGI_V_OUT_MASK) |
-			SCU_FUC_PIN_DIGI_V_OUT(VIDEO_24BITS), AST_SCU_FUN_PIN_CTRL6);
-}
-
-EXPORT_SYMBOL(ast_scu_multi_func_crt);
-
 
 extern void
 ast_scu_multi_func_sgpio(void)
