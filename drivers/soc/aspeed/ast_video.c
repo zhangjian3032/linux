@@ -610,7 +610,8 @@ struct aspeed_video_mem {
 struct ast_video_data {
 	struct device		*misc_dev;
 	void __iomem		*reg_base;			/* virtual */
-	struct regmap		*scu;	
+	struct regmap		*scu;
+	struct regmap		*gfx;
 	int 	irq;				//Video IRQ number
 	struct aspeed_video_config	*config;
 	struct reset_control *reset;
@@ -1949,11 +1950,20 @@ static void ast_video_auto_mode_trigger(struct ast_video_data *ast_video, struct
 			auto_mode->total_size = ast_video_read(ast_video, AST_VIDEO_COMPRESS_DATA_COUNT);
 			auto_mode->block_count = ast_video_read(ast_video, AST_VIDEO_COMPRESS_BLOCK_COUNT) >> 16;
 
-			if(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & G5_VIDEO_COMPRESS_JPEG_MODE) {
-				auto_mode->total_size = ast_video_read(ast_video, AST_VIDEO_JPEG_COUNT);
-//				printk("jpeg %d auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);
+			if (ast_video->config->version == 5) {
+				if(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & G5_VIDEO_COMPRESS_JPEG_MODE) {
+					auto_mode->total_size = ast_video_read(ast_video, AST_VIDEO_JPEG_COUNT);
+					printk("jpeg %d auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);
+				} else {
+					printk("%d	auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);					
+				}
 			} else {
-//				printk("%d  auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);					
+				if (ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & VIDEO_COMPRESS_JPEG_MODE) {
+					auto_mode->total_size = ast_video_read(ast_video, AST_VIDEO_JPEG_COUNT);
+					printk("jpeg %d auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);
+				} else {
+					printk("%d	auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);
+				}
 			}
 		}
 
@@ -2086,30 +2096,62 @@ static irqreturn_t ast_video_isr(int this_irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#if 0//def CONFIG_FB_AST
+#define AST_CRT_CTRL1				0x60
+#define CRT_CTRL_GET_FORMAT(x)		((x >> 7) & 0x7)
+#define AST_CRT_ADDR				0x80
+
+#define AST_CRT_OFFSET				0x84
+#define CRT_GET_DISP_OFFSET(x)		(x & 0xffff)
+
 static void ast_set_crt_compression(struct ast_video_data *ast_video)
 {
+	u32 val;
+
+///
+#if 0
+	VR008[8]<=0
+	VR008[4]<=0 when CRT60[8:7]=10. VR008[4]<=1 when CRT60[8:7]=00.
+	VR00C <= CRT80
+	VR010[14:0] <= CRT84[14:0]
+	VR010[15]<=0
+#endif	
+#if 0
+ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) &
+				~(VIDEO_SO_VSYNC_POLARITY | VIDEO_SO_HSYNC_POLARITY),
+				AST_VIDEO_PASS_CTRL);
+
+///
+ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) | VIDEO_DIRT_FATCH, AST_VIDEO_PASS_CTRL);
+
+#endif
+
+	//VR008[5] = 1 
 	//VR008[8]<=0
 	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) & ~VIDEO_AUTO_FATCH, AST_VIDEO_PASS_CTRL);
 
 	//VR008[4]<=0 when CRT60[8:7]=10. VR008[4]<=1 when CRT60[8:7]=00.
-	if (astfb_get_crt_color_format(ast_video->info) == 0x2) {
+	regmap_read(ast_video->gfx, AST_CRT_CTRL1, &val);
+	printk("AST_CRT_CTRL1 %x \n", val);
+	if (CRT_CTRL_GET_FORMAT(val) == 0x2) {
 		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) & ~VIDEO_16BPP_MODE, AST_VIDEO_PASS_CTRL);
-	} else if (astfb_get_crt_color_format(ast_video->info) == 0x0) {
+	} else if (CRT_CTRL_GET_FORMAT(val) == 0x0) {
 		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) | VIDEO_16BPP_MODE, AST_VIDEO_PASS_CTRL);
 	} else {
 		printk("error \n");
 	}
 
 	//VR00C <= CRT80
-	ast_video_write(ast_video, astfb_get_crt_fb_addr(ast_video->info), AST_VIDEO_DIRECT_BASE);
+	regmap_read(ast_video->gfx, AST_CRT_ADDR, &val);
+	printk("AST_CRT_ADDR %x \n", val);
+	ast_video_write(ast_video, val, AST_VIDEO_DIRECT_BASE);
 
 	//VR010[14:0] <= CRT84[14:0]
-	ast_video_write(ast_video, VIDEO_FETCH_LINE_OFFSET(astfb_get_crt_fb_line_offset(ast_video->info)), AST_VIDEO_DIRECT_CTRL);
+	regmap_read(ast_video->gfx, AST_CRT_OFFSET, &val);
+	printk("AST_CRT_OFFSET %x \n", val);
+	ast_video_write(ast_video, VIDEO_FETCH_LINE_OFFSET(CRT_GET_DISP_OFFSET(val)), AST_VIDEO_DIRECT_CTRL);
 
 	//VR010[15]<=0 //force VGA blank, don;t have to do
 }
-#endif
 
 static void ast_video_ctrl_init(struct ast_video_data *ast_video)
 {
@@ -2269,9 +2311,7 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 		ret = 0;
 		break;
 	case AST_VIDEO_SET_CRT_COMPRESSION:
-#if 0//def CONFIG_FB_AST
 		ast_set_crt_compression(ast_video);
-#endif
 		ret = 0;
 		break;
 	default:
@@ -2861,12 +2901,22 @@ static int ast_video_probe(struct platform_device *pdev)
 	ast_video->config = (struct aspeed_video_config *) video_dev_id->data;
 
 	if (ast_video->config->version == 5) {
+		ast_video->gfx = syscon_regmap_lookup_by_compatible("aspeed,ast-g5-gfx");
+		if (IS_ERR(ast_video->gfx)) {
+			dev_err(&pdev->dev, "failed to find 2500 GFX regmap\n");
+			return PTR_ERR(ast_video->gfx);
+		}
 		ast_video->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2500-scu");
 		if (IS_ERR(ast_video->scu)) {
 			dev_err(&pdev->dev, "failed to find 2500 SCU regmap\n");
 			return PTR_ERR(ast_video->scu);
 		}
 	} else {
+		ast_video->gfx = syscon_regmap_lookup_by_compatible("aspeed,ast-g4-gfx");
+		if (IS_ERR(ast_video->gfx)) {
+			dev_err(&pdev->dev, "failed to find 2400 GFX regmap\n");
+			return PTR_ERR(ast_video->gfx);
+		}
 		ast_video->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2400-scu");
 		if (IS_ERR(ast_video->scu)) {
 			dev_err(&pdev->dev, "failed to find 2400 SCU regmap\n");
