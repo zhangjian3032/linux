@@ -1231,40 +1231,6 @@ static struct device_attribute device_attrs[] = {
 };
 #endif
 
-struct fb_info *info0;
-
-struct fb_info *astfb_get_fb_info(void)
-{
-	return info0;
-}
-
-EXPORT_SYMBOL(astfb_get_fb_info);
-
-u8 astfb_get_crt_color_format(struct fb_info *info)
-{
-	struct astfb_info *sfb = info->dev->driver_data;
-
-	return CRT_CTRL_GET_FORMAT(astfb_read(sfb, AST_CRT_CTRL1));
-}
-
-EXPORT_SYMBOL(astfb_get_crt_color_format);
-
-u32 astfb_get_crt_fb_addr(struct fb_info *info)
-{
-	struct astfb_info *sfb = info->dev->driver_data;
-	
-	return astfb_read(sfb, AST_CRT_ADDR);;
-}
-
-EXPORT_SYMBOL(astfb_get_crt_fb_addr);
-
-u16 astfb_get_crt_fb_line_offset(struct fb_info *info)
-{
-	struct astfb_info *sfb = info->dev->driver_data;
-
-	return CRT_GET_DISP_OFFSET(astfb_read(sfb, AST_CRT_OFFSET));
-}
-EXPORT_SYMBOL(astfb_get_crt_fb_line_offset);
 /**********************************************************************************/
 #define AST_SCU_MISC1_CTRL			0x2C		/*	Misc. Control register */
 
@@ -1407,8 +1373,6 @@ static int astfb_probe(struct platform_device *pdev)
 
 	ast_scu_multi_func_crt(sfb);
 
-	info0 = info;
-	
 	sfb->pdev = pdev;	
 	strcpy(info->fix.id, sfb->pdev->name);
 

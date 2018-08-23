@@ -191,7 +191,7 @@
 
 		gfx: display@1e6e6000 {
 			compatible = "aspeed,ast-g5-gfx", "syscon";
-			reg = <0x1e6e6000 0x1000 0x8b000000 0x800000>;
+			reg = <0x1e6e6000 0x1000>;
 			interrupts = <25>;
 			clocks = <&syscon ASPEED_CLK_GATE_D1CLK>;
 			resets = <&syscon ASPEED_RESET_CRT>, <&syscon ASPEED_RESET_CRT1>;
