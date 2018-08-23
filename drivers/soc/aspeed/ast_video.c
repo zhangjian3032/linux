@@ -41,6 +41,7 @@
 #include <asm/uaccess.h>
 #include <linux/aspeed-sdmc.h>
 #include <linux/ast_lcd.h>
+#include <linux/fb.h>
 
 /***********************************************************************/
 /* Register for VIDEO */
@@ -539,7 +540,7 @@ struct ast_mode_detection {
 #define AST_VIDEO_SET_VGA_DISPLAY				_IOW(VIDEOIOC_BASE, 0xa, int)
 #define AST_VIDEO_SET_ENCRYPTION				_IOW(VIDEOIOC_BASE, 0xb, int)
 #define AST_VIDEO_SET_ENCRYPTION_KEY			_IOW(VIDEOIOC_BASE, 0xc, unsigned char*)
-#define AST_VIDEO_SET_CRT_COMPRESSION		_IO(VIDEOIOC_BASE, 0xd)
+#define AST_VIDEO_SET_CRT_COMPRESSION		_IOW(VIDEOIOC_BASE, 0xd, struct fb_var_screeninfo*)
 /***********************************************************************/
 typedef struct {
 	u16	HorizontalActive;
@@ -1902,7 +1903,7 @@ Redo:
 
 		ast_video_write(ast_video, get_vga_mem_base(), AST_VIDEO_DIRECT_BASE);
 
-		ast_video_write(ast_video, VIDEO_FETCH_TIMING(0) | VIDEO_FETCH_LINE_OFFSET(ast_video->src_fbinfo.x * 4)	, AST_VIDEO_DIRECT_CTRL);
+		ast_video_write(ast_video, VIDEO_FETCH_TIMING(0) | VIDEO_FETCH_LINE_OFFSET(ast_video->src_fbinfo.x * 4), AST_VIDEO_DIRECT_CTRL);
 
 	} else {
 		VIDEO_DBG("Sync Mode \n");
@@ -1920,6 +1921,7 @@ static void ast_video_auto_mode_trigger(struct ast_video_data *ast_video, struct
 	int timeout = 0;
 
 	VIDEO_DBG("\n");
+	//u8 *buff = ast_video->stream_virt;
 
 	if (ast_video->mode_change) {
 		auto_mode->mode_change = ast_video->mode_change;
@@ -1953,16 +1955,21 @@ static void ast_video_auto_mode_trigger(struct ast_video_data *ast_video, struct
 			if (ast_video->config->version == 5) {
 				if(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & G5_VIDEO_COMPRESS_JPEG_MODE) {
 					auto_mode->total_size = ast_video_read(ast_video, AST_VIDEO_JPEG_COUNT);
-					printk("jpeg %d auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);
+//					if((buff[auto_mode->total_size - 2] != 0xff) && (buff[auto_mode->total_size - 1] != 0xd9))
+//						printk("Error --- %x %x\n", buff[auto_mode->total_size - 2], buff[auto_mode->total_size - 1]);
+//					printk("jpeg %d auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);
 				} else {
-					printk("%d	auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);					
+//					printk("%d	auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);					
 				}
 			} else {
 				if (ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & VIDEO_COMPRESS_JPEG_MODE) {
 					auto_mode->total_size = ast_video_read(ast_video, AST_VIDEO_JPEG_COUNT);
-					printk("jpeg %d auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);
+//					if((buff[auto_mode->total_size - 2] != 0xff) && (buff[auto_mode->total_size - 1] != 0xd9)) {
+//						printk("Error --- %x %x\n", buff[auto_mode->total_size - 2], buff[auto_mode->total_size - 1]);
+//					}
+//					printk("jpeg %d auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);
 				} else {
-					printk("%d	auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);
+//					printk("%d	auto_mode->total_size %d , block count %d \n",auto_mode->differential, auto_mode->total_size, auto_mode->block_count);
 				}
 			}
 		}
@@ -2096,45 +2103,31 @@ static irqreturn_t ast_video_isr(int this_irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#define AST_CRT_CTRL1				0x60
-#define CRT_CTRL_GET_FORMAT(x)		((x >> 7) & 0x7)
 #define AST_CRT_ADDR				0x80
 
-#define AST_CRT_OFFSET				0x84
-#define CRT_GET_DISP_OFFSET(x)		(x & 0xffff)
-
-static void ast_set_crt_compression(struct ast_video_data *ast_video)
+static void ast_set_crt_compression(struct ast_video_data *ast_video, struct fb_var_screeninfo *fb_info)
 {
 	u32 val;
 
-///
-#if 0
-	VR008[8]<=0
-	VR008[4]<=0 when CRT60[8:7]=10. VR008[4]<=1 when CRT60[8:7]=00.
-	VR00C <= CRT80
-	VR010[14:0] <= CRT84[14:0]
-	VR010[15]<=0
-#endif	
-#if 0
-ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) &
-				~(VIDEO_SO_VSYNC_POLARITY | VIDEO_SO_HSYNC_POLARITY),
-				AST_VIDEO_PASS_CTRL);
-
-///
-ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) | VIDEO_DIRT_FATCH, AST_VIDEO_PASS_CTRL);
-
-#endif
+	//if use crt compression, need give capture engine clk and also can't less then 1/4 dram controller clk
+	//now set d-pll for 66mhz
+	regmap_write(ast_video->scu, 0x028, 0x5c822029);
+	regmap_write(ast_video->scu, 0x130, 0x00000580);
+	regmap_update_bits(ast_video->scu, AST_SCU_MISC1_CTRL, BIT(20), BIT(20));
+	
+	ast_video->src_fbinfo.x = fb_info->xres;
+	ast_video->src_fbinfo.y = fb_info->yres;
 
 	//VR008[5] = 1 
 	//VR008[8]<=0
-	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) & ~VIDEO_AUTO_FATCH, AST_VIDEO_PASS_CTRL);
+	ast_video_write(ast_video, (ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) | VIDEO_DIRT_FATCH) & ~VIDEO_AUTO_FATCH, AST_VIDEO_PASS_CTRL);
 
 	//VR008[4]<=0 when CRT60[8:7]=10. VR008[4]<=1 when CRT60[8:7]=00.
-	regmap_read(ast_video->gfx, AST_CRT_CTRL1, &val);
-	printk("AST_CRT_CTRL1 %x \n", val);
-	if (CRT_CTRL_GET_FORMAT(val) == 0x2) {
+	//regmap_read(ast_video->gfx, AST_CRT_CTRL1, &val);
+//	printk("AST_CRT_CTRL1 %x \n", val);
+	if (fb_info->bits_per_pixel == 32) {
 		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) & ~VIDEO_16BPP_MODE, AST_VIDEO_PASS_CTRL);
-	} else if (CRT_CTRL_GET_FORMAT(val) == 0x0) {
+	} else if (fb_info->bits_per_pixel == 16) {
 		ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) | VIDEO_16BPP_MODE, AST_VIDEO_PASS_CTRL);
 	} else {
 		printk("error \n");
@@ -2142,13 +2135,15 @@ ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) | VIDE
 
 	//VR00C <= CRT80
 	regmap_read(ast_video->gfx, AST_CRT_ADDR, &val);
-	printk("AST_CRT_ADDR %x \n", val);
+//	printk("AST_CRT_ADDR %x \n", val);
 	ast_video_write(ast_video, val, AST_VIDEO_DIRECT_BASE);
 
 	//VR010[14:0] <= CRT84[14:0]
-	regmap_read(ast_video->gfx, AST_CRT_OFFSET, &val);
-	printk("AST_CRT_OFFSET %x \n", val);
-	ast_video_write(ast_video, VIDEO_FETCH_LINE_OFFSET(CRT_GET_DISP_OFFSET(val)), AST_VIDEO_DIRECT_CTRL);
+	//var->xres * var->bits_per_pixel /8;
+//	regmap_read(ast_video->gfx, AST_CRT_OFFSET, &val);
+//	printk("AST_CRT_OFFSET %x \n", val);
+	val = fb_info->xres * fb_info->bits_per_pixel / 8;
+	ast_video_write(ast_video, val, AST_VIDEO_DIRECT_CTRL);
 
 	//VR010[15]<=0 //force VGA blank, don;t have to do
 }
@@ -2232,6 +2227,7 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 	struct ast_video_data *ast_video = dev_get_drvdata(c->this_device);
 	struct ast_scaling set_scaling;
 	struct ast_video_config video_config;
+	struct fb_var_screeninfo fb_info;
 
 	int vga_enable = 0;
 	int encrypt_en = 0;
@@ -2311,7 +2307,8 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 		ret = 0;
 		break;
 	case AST_VIDEO_SET_CRT_COMPRESSION:
-		ast_set_crt_compression(ast_video);
+		ret = copy_from_user(&fb_info, argp, sizeof(struct fb_var_screeninfo));
+		ast_set_crt_compression(ast_video, &fb_info);
 		ret = 0;
 		break;
 	default:
