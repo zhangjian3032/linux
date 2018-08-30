@@ -315,13 +315,13 @@ static void aspeed_mctp_tx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct asp
 	}
 
 	//check length
-	if (vdm_header->length != (mctp_xfer->xfer_len / 4)) {
+	if (vdm_header->length != (((mctp_xfer->xfer_len + 3) & ~3) / 4)) {
 		printk("vdm_header->length %d , mctp_xfer_len %d not match \n", vdm_header->length, (mctp_xfer->xfer_len - 16) / 4);
 		return;
 	}
 	//check padding
-	if (vdm_header->pad_len != (4 - (mctp_xfer->xfer_len % 4))) {
-		printk("vdm_header->pad_len %d , mctp_xfer_len %d not match \n", vdm_header->length, (mctp_xfer->xfer_len - 16) % 4);
+	if (vdm_header->pad_len != (((mctp_xfer->xfer_len + 3) & ~3)) - mctp_xfer->xfer_len) {
+		printk("vdm_header->pad_len %d , mctp_xfer_len %d not match \n", vdm_header->pad_len, (mctp_xfer->xfer_len - 16) % 4);
 		return;
 	}
 
@@ -404,7 +404,7 @@ static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 		aspeed_mctp_write(aspeed_mctp, 0, ASPEED_MCTP_READ_POINT);
 	}
 	aspeed_mctp_write(aspeed_mctp, aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_CTRL) | MCTP_RX_CMD_RDY, ASPEED_MCTP_CTRL);
-	aspeed_mctp_write(aspeed_mctp, MCTP_RX_COMPLETE | MCTP_TX_LAST, ASPEED_MCTP_IER);
+	aspeed_mctp_write(aspeed_mctp, MCTP_RX_COMPLETE | MCTP_TX_LAST | MCTP_RX_NO_CMD, ASPEED_MCTP_IER);
 }
 
 static irqreturn_t aspeed_pcie_raise_isr(int this_irq, void *dev_id)
@@ -444,13 +444,11 @@ static irqreturn_t aspeed_mctp_isr(int this_irq, void *dev_id)
 			struct aspeed_mctp_cmd_desc *rx_cmd_desc = aspeed_mctp->rx_cmd_desc;
 
 			while (rx_cmd_desc[aspeed_mctp->rx_hw_idx].desc0 & CMD_UPDATE) {
-				if (((aspeed_mctp->rx_hw_idx + 1) % aspeed_mctp->rx_fifo_num) == aspeed_mctp->rx_idx) {
-					aspeed_mctp->rx_full = 1;
+				aspeed_mctp->rx_hw_idx++;
+				aspeed_mctp->rx_hw_idx %= aspeed_mctp->rx_fifo_num;
+				if (aspeed_mctp->rx_hw_idx == aspeed_mctp->rx_idx)
 					break;
-				} else
-					aspeed_mctp->rx_hw_idx++;
 			}
-			aspeed_mctp->rx_hw_idx %= aspeed_mctp->rx_fifo_num;
 		}
 		aspeed_mctp_write(aspeed_mctp, MCTP_RX_COMPLETE, ASPEED_MCTP_ISR);
 	}
@@ -506,6 +504,7 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 			struct aspeed_mctp_cmd_desc *rx_cmd_desc = aspeed_mctp->rx_cmd_desc;
 			u32 desc0 = rx_cmd_desc[aspeed_mctp->rx_idx].desc0;
 			int recv_length;
+			int i;
 
 			if (copy_from_user(&mctp_xfer, argp, sizeof(struct aspeed_mctp_xfer))) {
 				MCTP_DBUG("copy_from_user fail\n");
@@ -541,14 +540,8 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 			} else {
 				copy_to_user(argp, &mctp_xfer, sizeof(struct aspeed_mctp_xfer));
 				rx_cmd_desc[aspeed_mctp->rx_idx].desc0 = 0;
-				if ((aspeed_mctp->rx_idx == aspeed_mctp->rx_hw_idx) && (desc0 != 0) && aspeed_mctp->rx_full) {
-					MCTP_DBUG("re-trigger\n");
-					aspeed_mctp_ctrl_init(aspeed_mctp);
-					aspeed_mctp->rx_full = 0;
-				} else {
-					aspeed_mctp->rx_idx++;
-					aspeed_mctp->rx_idx %= aspeed_mctp->rx_fifo_num;
-				}
+				aspeed_mctp->rx_idx++;
+				aspeed_mctp->rx_idx %= aspeed_mctp->rx_fifo_num;
 			}
 		}
 		break;
