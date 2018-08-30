@@ -456,6 +456,7 @@ static irqreturn_t aspeed_mctp_isr(int this_irq, void *dev_id)
 	}
 
 	if (status & MCTP_RX_NO_CMD) {
+		aspeed_mctp->rx_full = 1;
 		aspeed_mctp_write(aspeed_mctp, MCTP_RX_NO_CMD, ASPEED_MCTP_ISR);
 		printk("MCTP_RX_NO_CMD \n");
 	}
@@ -511,8 +512,14 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 				return -EFAULT;
 			}
 
-			if ((aspeed_mctp->rx_idx == aspeed_mctp->rx_hw_idx) && (desc0 == 0))
+			if ((aspeed_mctp->rx_idx == aspeed_mctp->rx_hw_idx) && (desc0 == 0)) {
+				if (aspeed_mctp->rx_full) {
+					MCTP_DBUG("re-trigger\n");
+					aspeed_mctp_ctrl_init(aspeed_mctp);
+					aspeed_mctp->rx_full = 0;
+				}
 				return 0;
+			}
 
 			mctp_xfer.header.length = GET_PKG_LEN(desc0);
 			mctp_xfer.header.pad_len = GET_PADDING_LEN(desc0);
