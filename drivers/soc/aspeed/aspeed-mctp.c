@@ -26,7 +26,7 @@
 /*************************************************************************************/
 #define MCTP_DESC_SIZE		4096	//for tx/rx descript
 #define MCTP_TX_BUFF_SIZE		4096
-#define MCTP_RX_BUFF_POOL_SIZE		4096
+#define MCTP_RX_BUFF_POOL_SIZE		16384
 #define MCTP_TX_FIFO_NUM	1
 #define MCTP_G6_TX_FIFO_NUM	4
 
@@ -171,11 +171,6 @@ struct aspeed_mctp_cmd_desc {
 /*************************************************************************************/
 #define ASPEED_MCTP_XFER_SIZE 4096
 
-struct aspeed_mctp_xfer {
-	unsigned char *xfer_buff;
-	unsigned int xfer_len;
-};
-
 #define MCTPIOC_BASE       'M'
 
 #define ASPEED_MCTP_IOCTX			_IOW(MCTPIOC_BASE, 0, struct aspeed_mctp_xfer*)
@@ -210,6 +205,12 @@ struct pcie_vdm_header {
 	__u8		dest_epid;
 	__u8		header_ver:4,
 				rsvd:4;
+};
+
+struct aspeed_mctp_xfer {
+	unsigned char *xfer_buff;
+	unsigned int xfer_len;
+	struct pcie_vdm_header header;
 };
 /*************************************************************************************/
 #define ASPEED_MCTP_DEBUG
@@ -284,7 +285,7 @@ static void aspeed_mctp_tx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct asp
 {
 	void *cur_tx_buff = aspeed_mctp->tx_pool + (MCTP_TX_BUFF_SIZE * aspeed_mctp->tx_idx);
 	dma_addr_t cur_tx_buff_dma = aspeed_mctp->tx_pool_dma + (MCTP_TX_BUFF_SIZE * aspeed_mctp->tx_idx);
-	struct pcie_vdm_header *vdm_header = (struct pcie_vdm_header *) mctp_xfer->xfer_buff;
+	struct pcie_vdm_header *vdm_header = &mctp_xfer->header;
 	u8 routing_type = vdm_header->type_routing;
 
 	copy_from_user(cur_tx_buff, mctp_xfer->xfer_buff, mctp_xfer->xfer_len);
@@ -314,12 +315,12 @@ static void aspeed_mctp_tx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct asp
 	}
 
 	//check length
-	if (vdm_header->length != ((mctp_xfer->xfer_len - 16) / 4)) {
+	if (vdm_header->length != (mctp_xfer->xfer_len / 4)) {
 		printk("vdm_header->length %d , mctp_xfer_len %d not match \n", vdm_header->length, (mctp_xfer->xfer_len - 16) /4);
 		return;
 	}
 	//check padding
-	if (vdm_header->pad_len != (4 - ((mctp_xfer->xfer_len - 16) % 4))) {
+	if (vdm_header->pad_len != (4 - (mctp_xfer->xfer_len % 4))) {
 		printk("vdm_header->pad_len %d , mctp_xfer_len %d not match \n", vdm_header->length, (mctp_xfer->xfer_len - 16) % 4);
 		return;
 	}
@@ -441,7 +442,8 @@ static irqreturn_t aspeed_mctp_isr(int this_irq, void *dev_id)
 			aspeed_mctp->rx_hw_idx %= aspeed_mctp->rx_fifo_num;
 		} else {
 			struct aspeed_mctp_cmd_desc *rx_cmd_desc = aspeed_mctp->rx_cmd_desc;
-			while(rx_cmd_desc[aspeed_mctp->rx_hw_idx].desc0 & 0x1) {
+
+			while(rx_cmd_desc[aspeed_mctp->rx_hw_idx].desc0 & CMD_UPDATE) {
 				if(((aspeed_mctp->rx_hw_idx + 1) % aspeed_mctp->rx_fifo_num) == aspeed_mctp->rx_idx) {
 					aspeed_mctp->rx_full = 1;
 					break;
@@ -468,7 +470,6 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 	struct aspeed_mctp_info *aspeed_mctp = dev_get_drvdata(c->this_device);
 	void __user *argp = (void __user *)arg;
 	struct aspeed_mctp_xfer mctp_xfer;
-	struct pcie_vdm_header vdm_header;	
 
 	switch (cmd) {
 		case ASPEED_MCTP_IOCTX:
@@ -493,7 +494,7 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 					return -EFAULT;
 				else {
 					aspeed_mctp->rx_idx++;
-					aspeed_mctp->rx_idx %= aspeed_mctp->rx_fifo_size;
+					aspeed_mctp->rx_idx %= aspeed_mctp->rx_fifo_num;
 					aspeed_mctp_write(aspeed_mctp, aspeed_mctp->rx_idx, ASPEED_MCTP_RXBUFF_SIZE);
 				}
 				if(aspeed_mctp->rx_full) {
@@ -503,29 +504,44 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 			} else {
 				struct aspeed_mctp_cmd_desc *rx_cmd_desc = aspeed_mctp->rx_cmd_desc;
 				u32 desc0 = rx_cmd_desc[aspeed_mctp->rx_idx].desc0;
-				if(aspeed_mctp->rx_idx != aspeed_mctp->rx_hw_idx) {
-					vdm_header.length = GET_PKG_LEN(desc0);
-					vdm_header.pad_len = GET_PADDING_LEN(desc0);
-					vdm_header.src_epid = GET_SRC_EPID(desc0);
-					vdm_header.type_routing = GET_ROUTING_TYPE(desc0);
-					vdm_header.pkt_seq = GET_SEQ_NO(desc0);
-					vdm_header.msg_tag = GET_MSG_TAG(desc0);
-					vdm_header.eom = GET_MCTP_EOM(desc0);
-					vdm_header.som = GET_MCTP_SOM(desc0);
-					if (copy_to_user(argp, &vdm_header, sizeof(struct pcie_vdm_header)))
-						return -EFAULT;
-					else {
-						copy_to_user(argp, aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_idx), (vdm_header.length * 4) + vdm_header.pad_len);
-						aspeed_mctp->rx_idx++;
-						aspeed_mctp->rx_idx %= aspeed_mctp->rx_fifo_size;
-						rx_cmd_desc[aspeed_mctp->rx_idx].desc0 = 0;
-					}
-					if(aspeed_mctp->rx_full) {
-						printk("TODO check xxxxx \n");
-						aspeed_mctp->rx_hw_idx++;
-					}
-				} else 
+				int recv_length;
+
+				if (copy_from_user(&mctp_xfer, argp, sizeof(struct aspeed_mctp_xfer))) {
+					MCTP_DBUG("copy_from_user fail\n");
 					return -EFAULT;
+				}
+
+				if((aspeed_mctp->rx_idx == aspeed_mctp->rx_hw_idx) && (desc0 == 0))
+					return 0;
+
+				mctp_xfer.header.length = GET_PKG_LEN(desc0);
+				mctp_xfer.header.pad_len = GET_PADDING_LEN(desc0);
+				mctp_xfer.header.src_epid = GET_SRC_EPID(desc0);
+				mctp_xfer.header.type_routing = GET_ROUTING_TYPE(desc0);
+				mctp_xfer.header.pkt_seq = GET_SEQ_NO(desc0);
+				mctp_xfer.header.msg_tag = GET_MSG_TAG(desc0);
+				mctp_xfer.header.eom = GET_MCTP_EOM(desc0);
+				mctp_xfer.header.som = GET_MCTP_SOM(desc0);
+				recv_length = (mctp_xfer.header.length * 4);
+
+				if (recv_length > mctp_xfer.xfer_len)
+					return -EFAULT;
+
+				if (copy_to_user(mctp_xfer.xfer_buff, aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_idx), recv_length)){
+					return -EFAULT;
+				}
+				else {
+					copy_to_user(argp, &mctp_xfer, sizeof(struct aspeed_mctp_xfer));
+					rx_cmd_desc[aspeed_mctp->rx_idx].desc0 = 0;
+					if ((aspeed_mctp->rx_idx == aspeed_mctp->rx_hw_idx) && (desc0 != 0) && aspeed_mctp->rx_full) {
+						MCTP_DBUG("re-trigger\n");
+						aspeed_mctp_ctrl_init(aspeed_mctp);
+						aspeed_mctp->rx_full = 0;
+					} else {
+						aspeed_mctp->rx_idx++;
+						aspeed_mctp->rx_idx %= aspeed_mctp->rx_fifo_num;
+					}
+				}
 			}
 			break;
 
@@ -701,7 +717,7 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	aspeed_mctp->rx_hw_idx = 0;
 
 	//rx desc allocate : 2048 ~ 4096
-	aspeed_mctp->rx_cmd_desc = (struct aspeed_mctp_cmd_desc *)(aspeed_mctp->tx_cmd_desc + 2048);
+	aspeed_mctp->rx_cmd_desc = (void *)aspeed_mctp->tx_cmd_desc + 2048;
 	aspeed_mctp->rx_cmd_desc_dma = aspeed_mctp->tx_cmd_desc_dma + 2048;
 	
 	//rx buff pool init : 
