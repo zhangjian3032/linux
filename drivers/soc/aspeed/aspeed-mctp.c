@@ -213,7 +213,7 @@ struct aspeed_mctp_xfer {
 	struct pcie_vdm_header header;
 };
 /*************************************************************************************/
-#define ASPEED_MCTP_DEBUG
+// #define ASPEED_MCTP_DEBUG
 
 #ifdef ASPEED_MCTP_DEBUG
 #define MCTP_DBUG(fmt, args...) printk("%s() " fmt,__FUNCTION__, ## args)
@@ -403,8 +403,8 @@ static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 		aspeed_mctp_write(aspeed_mctp, aspeed_mctp->rx_fifo_num, ASPEED_MCTP_RXBUFF_SIZE);
 		aspeed_mctp_write(aspeed_mctp, 0, ASPEED_MCTP_READ_POINT);
 	}
-	aspeed_mctp_write(aspeed_mctp, aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_CTRL) | MCTP_RX_CMD_RDY, ASPEED_MCTP_CTRL);
 	aspeed_mctp_write(aspeed_mctp, MCTP_RX_COMPLETE | MCTP_TX_LAST | MCTP_RX_NO_CMD, ASPEED_MCTP_IER);
+	aspeed_mctp_write(aspeed_mctp, aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_CTRL) | MCTP_RX_CMD_RDY, ASPEED_MCTP_CTRL);
 }
 
 static irqreturn_t aspeed_pcie_raise_isr(int this_irq, void *dev_id)
@@ -579,10 +579,10 @@ static int mctp_release(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations aspeed_mctp_fops = {
-	.owner			= THIS_MODULE,
+	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= mctp_ioctl,
-	.open			= mctp_open,
-	.release			= mctp_release,
+	.open		= mctp_open,
+	.release	= mctp_release,
 };
 
 static struct miscdevice aspeed_mctp_misc = {
