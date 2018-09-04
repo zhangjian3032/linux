@@ -62,40 +62,36 @@ static void ast_scu_irq_handler(struct irq_desc *desc)
 
 	chained_irq_enter(chip, desc);
 	status = readl(scu_irq->regs);
-	irq_sts = (status & 0x7f) << 16;
-	irq_sts &= status;
+	irq_sts = (status >> 16) & status;
+
 	for_each_set_bit(bit, &irq_sts, scu_irq->irq_num) {
 		bus_irq = irq_find_mapping(scu_irq->irq_domain, bit);
 		generic_handle_irq(bus_irq);
+		writel((status & 0x7f) | (1 << (bit + 16)), scu_irq->regs);
 	}
-	writel(status, scu_irq->regs);
 	chained_irq_exit(chip, desc);
 }
 
-static void noop(struct irq_data *data) { }
-
-static unsigned int scu_startup_irq(struct irq_data *data)
+static void scu_mask_irq(struct irq_data *data)
 {
 	struct ast_scu_irq *scu_irq = irq_data_get_irq_chip_data(data);
-	unsigned int sbit = 1 << (data->hwirq - 16);
-	unsigned long status;
+	unsigned int sbit = 1 << data->hwirq;
 
-	status = readl(scu_irq->regs);
-	writel(status | sbit, scu_irq->regs);
+	writel(readl(scu_irq->regs) & ~sbit, scu_irq->regs);
+}
 
-	return 0;
+static void scu_unmask_irq(struct irq_data *data)
+{
+	struct ast_scu_irq *scu_irq = irq_data_get_irq_chip_data(data);
+	unsigned int sbit = 1 << (data->hwirq);
+
+	writel((readl(scu_irq->regs) | sbit) & 0x7f, scu_irq->regs);
 }
 
 struct irq_chip scu_irq_chip = {
 	.name		= "scu-irq",
-	.irq_startup	= scu_startup_irq,
-	.irq_shutdown	= noop,
-	.irq_enable	= noop,
-	.irq_disable	= noop,
-	.irq_ack	= noop,
-	.irq_mask	= noop,
-	.irq_unmask	= noop,
-	.flags		= IRQCHIP_SKIP_SET_WAKE,
+	.irq_mask	= scu_mask_irq,
+	.irq_unmask	= scu_unmask_irq,
 };
 
 static int ast_scu_map_irq_domain(struct irq_domain *domain,
@@ -149,7 +145,7 @@ static int aspeed_scu_ic_probe(struct platform_device *pdev)
 				      node, scu_irq->irq_num,
 				      &ast_scu_irq_domain_ops, scu_irq);
 	if (!scu_irq->irq_domain) {
-		ret = scu_irq->irq_domain;
+		ret = (int) scu_irq->irq_domain;
 		printk("no irq domain \n");
 
 	}

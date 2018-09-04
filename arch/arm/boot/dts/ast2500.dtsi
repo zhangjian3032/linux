@@ -1,6 +1,7 @@
 #include "skeleton.dtsi"
 #include <dt-bindings/clock/aspeed-clock.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/aspeed-scu-irq.h>
 
 / {
 	model = "AST2500 SOC";
@@ -225,9 +226,9 @@
 
 		mctp: mctp@1e6e8000 {
 			compatible = "aspeed,ast2500-mctp";
-			reg = <0x1e6e8000 0x30 0x80000000 0x10 0x1e6ed0c4 0x04>;
+			reg = <0x1e6e8000 0x30 0x1e6ed0c4 0x04>;
 			interrupts = <42>;
- 			interrupts-extended = <&vic 42>, <&scu_ic 18>;
+ 			interrupts-extended = <&vic 42>, <&scu_ic ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
 			resets = <&syscon ASPEED_RESET_MCTP>;
 		};
 
@@ -648,7 +649,7 @@
 		#interrupt-cells = <1>;
 		compatible = "aspeed,ast2500-i2c-ic";
 		resets = <&syscon ASPEED_RESET_I2C>;
-		reg = <0x0 0x04>;
+		reg = <0x0 0x40>;
 		interrupts = <12>;
 		interrupt-controller;
 	};

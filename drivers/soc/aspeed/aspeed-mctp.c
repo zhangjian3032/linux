@@ -32,6 +32,9 @@
 
 #define MCTP_RX_DESC_BUFF_NUM	8
 
+#define G5_DRAM_BASE_ADDR	0x80000000
+#define G6_DRAM_BASE_ADDR	0x80000000
+
 /*************************************************************************************/
 #define ASPEED_MCTP_CTRL 		0x00
 #define  MCTP_GET_CUR_CMD_CNT(x)	((x >> 24) & 0x3f)
@@ -504,7 +507,6 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 			struct aspeed_mctp_cmd_desc *rx_cmd_desc = aspeed_mctp->rx_cmd_desc;
 			u32 desc0 = rx_cmd_desc[aspeed_mctp->rx_idx].desc0;
 			int recv_length;
-			int i;
 
 			if (copy_from_user(&mctp_xfer, argp, sizeof(struct aspeed_mctp_xfer))) {
 				MCTP_DBUG("copy_from_user fail\n");
@@ -622,12 +624,13 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		aspeed_mctp->tx_fifo_num = MCTP_TX_FIFO_NUM;
 		aspeed_mctp->rx_fifo_size = 128;
 		aspeed_mctp->rx_fifo_num = MCTP_RX_BUFF_POOL_SIZE / aspeed_mctp->rx_fifo_size;
-
+		aspeed_mctp->dram_base = G5_DRAM_BASE_ADDR;
 		break;
 	case 6:
 		aspeed_mctp->tx_fifo_num = MCTP_G6_TX_FIFO_NUM;
 		aspeed_mctp->rx_fifo_size = 64;	//TODO Configurable
 		aspeed_mctp->rx_fifo_num = MCTP_RX_BUFF_POOL_SIZE / aspeed_mctp->rx_fifo_size;
+		aspeed_mctp->dram_base = G6_DRAM_BASE_ADDR;
 		break;
 	default:
 		dev_err(&pdev->dev, "cannot get mctp version\n");
@@ -649,15 +652,6 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (NULL == res) {
-		dev_err(&pdev->dev, "cannot get IORESOURCE_BUS\n");
-		ret = -ENOENT;
-		goto out_region;
-	}
-
-	aspeed_mctp->dram_base = (u32)res->start;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	if (NULL == res) {
 		dev_err(&pdev->dev, "cannot get BDF\n");
 	}
