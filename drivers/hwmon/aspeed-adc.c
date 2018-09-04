@@ -592,6 +592,7 @@ aspeed_show_adc(struct device *dev, struct device_attribute *attr, char *sysfsbu
 	struct sensor_device_attribute_2 *sensor_attr = to_sensor_dev_attr_2(attr);
 	u16 tmp;
 	u32 voltage,tmp1, tmp2,tmp3;
+	u32 vref;
 
 	//sensor_attr->index : pwm_ch#
 	//sensor_attr->nr : attr#
@@ -624,8 +625,13 @@ aspeed_show_adc(struct device *dev, struct device_attribute *attr, char *sysfsbu
 			break;			
 		case 8: //voltage
 			tmp = aspeed_get_adc_value(aspeed_adc, sensor_attr->index);		
-			//Voltage Sense Method
-			tmp1 = (vcc_ref[sensor_attr->index].r1 + vcc_ref[sensor_attr->index].r2) * tmp * 25 * 10;
+			//Voltage Sense Method ast2400 is for 1.8v, ast2500 is for 2.5v 
+			if(aspeed_adc->config->adc_version == 5)
+				vref = 25 * 10;
+			else
+				vref = 18 * 10;
+			
+			tmp1 = (vcc_ref[sensor_attr->index].r1 + vcc_ref[sensor_attr->index].r2) * tmp * vref;
 			tmp2 = vcc_ref[sensor_attr->index].r2 * 1023 ;
 		
 			tmp3 = (vcc_ref[sensor_attr->index].r1 * vcc_ref[sensor_attr->index].v2) / vcc_ref[sensor_attr->index].r2;
