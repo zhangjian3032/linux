@@ -181,8 +181,9 @@
 		syscon: syscon@1e6e2000 {
 			compatible = "aspeed,ast2500-scu", "syscon", "simple-mfd";
 			reg = <0x1e6e2000 0x1a8>;
+			ranges = <0 0x1e6e2000 0x1a8>;
 			#address-cells = <1>;
-			#size-cells = <0>;
+			#size-cells = <1>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 
@@ -226,7 +227,7 @@
 			compatible = "aspeed,ast2500-mctp";
 			reg = <0x1e6e8000 0x30 0x80000000 0x10 0x1e6ed0c4 0x04>;
 			interrupts = <42>;
- 			interrupts-extended = <&vic 42 &scu_ic 2>;
+ 			interrupts-extended = <&vic 42>, <&scu_ic 18>;
 			resets = <&syscon ASPEED_RESET_MCTP>;
 		};
 
@@ -635,7 +636,7 @@
 	scu_ic: interrupt-controller@0 {
 		#interrupt-cells = <1>;
 		compatible = "aspeed,ast2500-scu-ic";
-		reg = <0x00 0x04>;
+		reg = <0x18 0x04>;
 		interrupts = <21>;
 		interrupt-controller;
 	};
@@ -647,7 +648,7 @@
 		#interrupt-cells = <1>;
 		compatible = "aspeed,ast2500-i2c-ic";
 		resets = <&syscon ASPEED_RESET_I2C>;
-		reg = <0x0 0x40>;
+		reg = <0x0 0x04>;
 		interrupts = <12>;
 		interrupt-controller;
 	};
