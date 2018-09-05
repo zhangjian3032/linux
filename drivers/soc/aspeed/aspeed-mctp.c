@@ -212,7 +212,6 @@ struct pcie_vdm_header {
 
 struct aspeed_mctp_xfer {
 	unsigned char *xfer_buff;
-	unsigned int xfer_len;
 	struct pcie_vdm_header header;
 };
 /*************************************************************************************/
@@ -290,10 +289,11 @@ static void aspeed_mctp_tx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct asp
 	dma_addr_t cur_tx_buff_dma = aspeed_mctp->tx_pool_dma + (MCTP_TX_BUFF_SIZE * aspeed_mctp->tx_idx);
 	struct pcie_vdm_header *vdm_header = &mctp_xfer->header;
 	u8 routing_type = vdm_header->type_routing;
+	unsigned long byte_length = vdm_header->length * 4 - vdm_header->pad_len;
 
-	copy_from_user(cur_tx_buff, mctp_xfer->xfer_buff, mctp_xfer->xfer_len);
+	copy_from_user(cur_tx_buff, mctp_xfer->xfer_buff, byte_length);
 
-	MCTP_DBUG("xfer dma : %x, xfer_len = %d, padding len = %d\n", cur_tx_buff_dma, mctp_xfer->xfer_len, vdm_header->pad_len);
+	MCTP_DBUG("xfer dma : %x, byte_length = %d, padding len = %d\n", cur_tx_buff_dma, byte_length, vdm_header->pad_len);
 	init_completion(&aspeed_mctp->tx_complete);
 	if ((aspeed_mctp->mctp_version == 0) && (aspeed_mctp->mctp_version == 5)) {
 		//if use ast2400/ast2500 need to check vdm header support
@@ -315,17 +315,6 @@ static void aspeed_mctp_tx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct asp
 			}
 		}
 
-	}
-
-	//check length
-	if (vdm_header->length != (((mctp_xfer->xfer_len + 3) & ~3) / 4)) {
-		printk("vdm_header->length %d , mctp_xfer_len %d not match \n", vdm_header->length, (mctp_xfer->xfer_len - 16) / 4);
-		return;
-	}
-	//check padding
-	if (vdm_header->pad_len != (((mctp_xfer->xfer_len + 3) & ~3)) - mctp_xfer->xfer_len) {
-		printk("vdm_header->pad_len %d , mctp_xfer_len %d not match \n", vdm_header->pad_len, (mctp_xfer->xfer_len - 16) % 4);
-		return;
 	}
 
 	switch (aspeed_mctp->mctp_version) {
@@ -484,8 +473,8 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 			MCTP_DBUG("copy_from_user fail\n");
 			return -EFAULT;
 		} else {
-			// g5 is not supporting Tx length > 4092
-			if (aspeed_mctp->mctp_version == 5 && mctp_xfer.xfer_len > 4092)
+			// g5 is not supporting Tx length = 1024
+			if (aspeed_mctp->mctp_version == 5 && mctp_xfer.header.length == 0)
 				return -EINVAL;
 
 			aspeed_mctp_tx_xfer(aspeed_mctp, &mctp_xfer);
@@ -510,6 +499,7 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 		} else {
 			struct aspeed_mctp_cmd_desc *rx_cmd_desc = aspeed_mctp->rx_cmd_desc;
 			u32 desc0 = rx_cmd_desc[aspeed_mctp->rx_idx].desc0;
+			unsigned int pci_bdf;
 			int recv_length;
 
 			if (copy_from_user(&mctp_xfer, argp, sizeof(struct aspeed_mctp_xfer))) {
@@ -526,6 +516,9 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 				return 0;
 			}
 
+			if (mctp_xfer.header.length != 0 && mctp_xfer.header.length < GET_PKG_LEN(desc0))
+				return -EINVAL;
+			pci_bdf = readl(aspeed_mctp->pci_bdf_regs);
 			mctp_xfer.header.length = GET_PKG_LEN(desc0);
 			mctp_xfer.header.pad_len = GET_PADDING_LEN(desc0);
 			mctp_xfer.header.src_epid = GET_SRC_EPID(desc0);
@@ -534,10 +527,12 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 			mctp_xfer.header.msg_tag = GET_MSG_TAG(desc0);
 			mctp_xfer.header.eom = GET_MCTP_EOM(desc0);
 			mctp_xfer.header.som = GET_MCTP_SOM(desc0);
+			// 0x1e6ed0c4[4:0]: Dev#
+			// 0x1e6ed0c4[12:5]: Bus#
+			// Fun# always 0
+			mctp_xfer.header.pcie_target_id = (pci_bdf & 0x1f) << 3 |
+							  (pci_bdf >> 5 & 0xff) << 8;
 			recv_length = (mctp_xfer.header.length * 4);
-
-			if (recv_length > mctp_xfer.xfer_len)
-				return -EFAULT;
 
 			if (copy_to_user(mctp_xfer.xfer_buff,
 					 aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_idx),
@@ -660,9 +655,9 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot get BDF\n");
 	}
 
-	/*	0x1e6ed0c4[4:0]: Dev#
-	0x1e6ed0c4[12:5]: Bus#
-	Fun# always 0 */
+	// 0x1e6ed0c4[4:0]: Dev#
+	// 0x1e6ed0c4[12:5]: Bus#
+	// Fun# always 0
 
 	aspeed_mctp->pci_bdf_regs = devm_ioremap_resource(&pdev->dev, res);
 
