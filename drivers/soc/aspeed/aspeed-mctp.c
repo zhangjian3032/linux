@@ -484,6 +484,10 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 			MCTP_DBUG("copy_from_user fail\n");
 			return -EFAULT;
 		} else {
+			// g5 is not supporting Tx length > 4092
+			if (aspeed_mctp->mctp_version == 5 && mctp_xfer.xfer_len > 4092)
+				return -EINVAL;
+
 			aspeed_mctp_tx_xfer(aspeed_mctp, &mctp_xfer);
 			return 0;
 		}
