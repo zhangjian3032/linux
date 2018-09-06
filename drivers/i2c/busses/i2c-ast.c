@@ -983,7 +983,7 @@ static void ast_i2c_do_inc_dma_xfer(struct ast_i2c_bus *i2c_bus)
 
 				ast_i2c_write(i2c_bus, i2c_bus->dma_addr, I2C_DMA_BASE_REG);
 				ast_i2c_write(i2c_bus, (i2c_bus->master_xfer_len), I2C_DMA_LEN_REG);
-				ast_i2c_write(i2c_bus, cmd , I2C_CMD_REG);
+				ast_i2c_write(i2c_bus, cmd, I2C_CMD_REG);
 				dev_dbg(i2c_bus->dev, "txfer size %d , cmd = %x \n", i2c_bus->master_xfer_len,
 					cmd);
 
@@ -1032,7 +1032,7 @@ static void ast_i2c_do_pool_xfer(struct ast_i2c_bus *i2c_bus)
 			}
 			//ast2400 sw always fix from page_add_point 0
 			ast_i2c_write(i2c_bus, AST_I2CD_TX_DATA_BUF_END_SET((i2c_bus->slave_xfer_len -
-					1)) , I2C_BUF_CTRL_REG);
+					1)), I2C_BUF_CTRL_REG);
 
 			ast_i2c_write(i2c_bus, AST_I2CD_TX_BUFF_ENABLE | AST_I2CD_S_TX_CMD,
 				      I2C_CMD_REG);
@@ -1180,7 +1180,7 @@ static void ast_i2c_do_pool_xfer(struct ast_i2c_bus *i2c_bus)
 				ast_i2c_write(i2c_bus, AST_I2CD_TX_DATA_BUF_END_SET((i2c_bus->master_xfer_len -
 						1)), I2C_BUF_CTRL_REG);
 
-				ast_i2c_write(i2c_bus, cmd , I2C_CMD_REG);
+				ast_i2c_write(i2c_bus, cmd, I2C_CMD_REG);
 				dev_dbg(i2c_bus->dev, "txfer size %d , cmd = %x \n", i2c_bus->master_xfer_len,
 					cmd);
 			}
@@ -1526,7 +1526,7 @@ static void ast_i2c_slave_xfer_done(struct ast_i2c_bus *i2c_bus)
 			}
 			for (i = 0; i < xfer_len ; i++) {
 				i2c_bus->slave_msgs->buf[i2c_bus->slave_msgs->len + i] = rx_buf[i];
-				dev_dbg(i2c_bus->dev, "%d, [%x] \n", i2c_bus->slave_xfer_cnt + i ,
+				dev_dbg(i2c_bus->dev, "%d, [%x] \n", i2c_bus->slave_xfer_cnt + i,
 					i2c_bus->slave_msgs->buf[i2c_bus->slave_msgs->len + i]);
 			}
 			i2c_bus->slave_msgs->len += xfer_len;
@@ -1550,7 +1550,7 @@ static void ast_i2c_slave_xfer_done(struct ast_i2c_bus *i2c_bus)
 			dev_dbg(i2c_bus->dev, "0, [%02x] \n", i2c_bus->slave_msgs->buf[0]);
 			for (i = 0; i < xfer_len; i++) {
 				i2c_bus->slave_msgs->buf[i2c_bus->slave_msgs->len + i] = i2c_bus->dma_buf[i];
-				dev_dbg(i2c_bus->dev, "%d, [%02x] \n", i2c_bus->slave_msgs->len + i ,
+				dev_dbg(i2c_bus->dev, "%d, [%02x] \n", i2c_bus->slave_msgs->len + i,
 					i2c_bus->slave_msgs->buf[i2c_bus->slave_msgs->len + i]);
 			}
 			i2c_bus->slave_msgs->len += xfer_len;
