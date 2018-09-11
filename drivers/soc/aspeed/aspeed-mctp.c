@@ -32,6 +32,7 @@
 
 #define MCTP_RX_DESC_BUFF_NUM	8
 
+#define G4_DRAM_BASE_ADDR	0x40000000
 #define G5_DRAM_BASE_ADDR	0x80000000
 #define G6_DRAM_BASE_ADDR	0x80000000
 
@@ -465,9 +466,11 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 	switch (cmd) {
 	case ASPEED_MCTP_IOCTX:
 		MCTP_DBUG("ASPEED_MCTP_IOCTX ver %d\n", aspeed_mctp->mctp_version);
-		if (((u32)aspeed_mctp->pci_bdf_regs & 0x1fff) == 0) {
-			printk("PCIE not ready \n");
-			return -EFAULT;
+		if (aspeed_mctp->mctp_version != 0) {
+			if ((readl(aspeed_mctp->pci_bdf_regs) & 0x1fff) == 0) {
+				printk("PCIE not ready \n");
+				return -EFAULT;
+			}
 		}
 		if (copy_from_user(&mctp_xfer, argp, sizeof(struct aspeed_mctp_xfer))) {
 			MCTP_DBUG("copy_from_user fail\n");
@@ -518,7 +521,7 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 
 			if (mctp_xfer.header.length != 0 && mctp_xfer.header.length < GET_PKG_LEN(desc0))
 				return -EINVAL;
-			pci_bdf = readl(aspeed_mctp->pci_bdf_regs);
+
 			mctp_xfer.header.length = GET_PKG_LEN(desc0);
 			mctp_xfer.header.pad_len = GET_PADDING_LEN(desc0);
 			mctp_xfer.header.src_epid = GET_SRC_EPID(desc0);
@@ -530,8 +533,11 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 			// 0x1e6ed0c4[4:0]: Dev#
 			// 0x1e6ed0c4[12:5]: Bus#
 			// Fun# always 0
-			mctp_xfer.header.pcie_target_id = (pci_bdf & 0x1f) << 3 |
-							  (pci_bdf >> 5 & 0xff) << 8;
+			if (aspeed_mctp->mctp_version != 0) {
+				pci_bdf = readl(aspeed_mctp->pci_bdf_regs);
+				mctp_xfer.header.pcie_target_id = (pci_bdf & 0x1f) << 3 |
+								  (pci_bdf >> 5 & 0xff) << 8;
+			}
 			recv_length = (mctp_xfer.header.length * 4);
 
 			if (copy_to_user(mctp_xfer.xfer_buff,
@@ -619,6 +625,11 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	aspeed_mctp->mctp_version = (unsigned long)mctp_dev_id->data;
 	switch (aspeed_mctp->mctp_version) {
 	case 0:
+		aspeed_mctp->tx_fifo_num = MCTP_TX_FIFO_NUM;
+		aspeed_mctp->rx_fifo_size = 128;
+		aspeed_mctp->rx_fifo_num = MCTP_RX_BUFF_POOL_SIZE / aspeed_mctp->rx_fifo_size;
+		aspeed_mctp->dram_base = G4_DRAM_BASE_ADDR;
+		break;
 	case 5:
 		aspeed_mctp->tx_fifo_num = MCTP_TX_FIFO_NUM;
 		aspeed_mctp->rx_fifo_size = 128;
@@ -649,17 +660,18 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		ret = -EIO;
 		goto out_region;
 	}
+	// g4 not support pcie host controller
+	if (aspeed_mctp->mctp_version != 0) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		if (NULL == res) {
+			dev_err(&pdev->dev, "cannot get BDF\n");
+		}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (NULL == res) {
-		dev_err(&pdev->dev, "cannot get BDF\n");
+		// 0x1e6ed0c4[4:0]: Dev#
+		// 0x1e6ed0c4[12:5]: Bus#
+		// Fun# always 0
+		aspeed_mctp->pci_bdf_regs = devm_ioremap_resource(&pdev->dev, res);
 	}
-
-	// 0x1e6ed0c4[4:0]: Dev#
-	// 0x1e6ed0c4[12:5]: Bus#
-	// Fun# always 0
-
-	aspeed_mctp->pci_bdf_regs = devm_ioremap_resource(&pdev->dev, res);
 
 	aspeed_mctp->irq = platform_get_irq(pdev, 0);
 	if (aspeed_mctp->irq < 0) {
@@ -680,7 +692,7 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		return PTR_ERR(aspeed_mctp->reset);
 	}
 
-	//scu init
+//scu init
 	reset_control_assert(aspeed_mctp->reset);
 	reset_control_deassert(aspeed_mctp->reset);
 
@@ -695,14 +707,14 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 
 	aspeed_mctp->tx_idx = 0;
 
-	//tx desc allocate --> tx desc : 0~2048, rx desc : 2048 ~ 4096
+//tx desc allocate --> tx desc : 0~2048, rx desc : 2048 ~ 4096
 	aspeed_mctp->tx_cmd_desc = dma_alloc_coherent(NULL,
 				   MCTP_DESC_SIZE,
 				   &aspeed_mctp->tx_cmd_desc_dma, GFP_KERNEL);
 
-	//tx buff pool init
-	//ast2400/ast2500 : 128 bytes aligned,
-	//ast2600 : 16 bytes aligned,
+//tx buff pool init
+//ast2400/ast2500 : 128 bytes aligned,
+//ast2600 : 16 bytes aligned,
 	aspeed_mctp->tx_pool = dma_alloc_coherent(NULL,
 			       MCTP_TX_BUFF_SIZE * aspeed_mctp->tx_fifo_num,
 			       &aspeed_mctp->tx_pool_dma, GFP_KERNEL);
@@ -710,13 +722,13 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	aspeed_mctp->rx_idx = 0;
 	aspeed_mctp->rx_hw_idx = 0;
 
-	//rx desc allocate : 2048 ~ 4096
+//rx desc allocate : 2048 ~ 4096
 	aspeed_mctp->rx_cmd_desc = (void *)aspeed_mctp->tx_cmd_desc + 2048;
 	aspeed_mctp->rx_cmd_desc_dma = aspeed_mctp->tx_cmd_desc_dma + 2048;
 
-	//rx buff pool init :
-	//ast2400/ast2500, data address [29:7]: 0x00 , 0x80 , 0x100, 0x180,
-	//ast2600, data address [30:4]: 0x00 , 0x10 , 0x20, 0x30,
+//rx buff pool init :
+//ast2400/ast2500, data address [29:7]: 0x00 , 0x80 , 0x100, 0x180,
+//ast2600, data address [30:4]: 0x00 , 0x10 , 0x20, 0x30,
 	aspeed_mctp->rx_pool = dma_alloc_coherent(NULL,
 			       MCTP_RX_BUFF_POOL_SIZE,
 			       &aspeed_mctp->rx_pool_dma, GFP_KERNEL);
