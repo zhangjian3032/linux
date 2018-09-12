@@ -445,7 +445,8 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0x40 0x40 0x200 0x10>;
+		page_no = <0>;
+		reg = <0x40 0x40 0x800 0x100>;
 		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
@@ -459,7 +460,8 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0x80 0x40 0x210 0x10>;
+		page_no = <1>;
+		reg = <0x80 0x40 0x900 0x100>;
 		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
@@ -472,7 +474,8 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0xc0 0x40 0x220 0x10>;
+		page_no = <2>;
+		reg = <0xc0 0x40 0xa00 0x100>;
 		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
@@ -486,7 +489,8 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0x100 0x40 0x230 0x10>;
+		page_no = <3>;
+		reg = <0x100 0x40 0xb00 0x100>;
 		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
@@ -500,7 +504,8 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0x140 0x40 0x240 0x10>;
+		page_no = <4>;
+		reg = <0x140 0x40 0xc00 0x100>;
 		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
@@ -514,7 +519,8 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0x180 0x40 0x250 0x10>;
+		page_no = <5>;
+		reg = <0x180 0x40 0xd00 0x100>;
 		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
@@ -528,7 +534,8 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0x1c0 0x40 0x260 0x10>;
+		page_no = <6>;
+		reg = <0x1c0 0x40 0xe00 0x100>;
 		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
@@ -541,7 +548,8 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0x300 0x40 0x270 0x10>;
+		page_no = <7>;
+		reg = <0x300 0x40 0xf00 0x100>;
 		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
@@ -556,7 +564,7 @@
 		#interrupt-cells = <1>;
 
 		reg = <0x340 0x40 0x280 0x10>;
-		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
+		compatible = "aspeed,ast-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <8>;
