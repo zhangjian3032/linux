@@ -2247,7 +2247,7 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 		ret = 0;
 		break;
 	case AST_VIDEO_IOC_GET_VGA_SIGNAL:
-		ret = put_user(ast_get_vga_signal(ast_video), (unsigned long __user *)arg);
+		ret = put_user(ast_get_vga_signal(ast_video), (unsigned char __user *)arg);
 		break;
 	case AST_VIDEO_GET_MEM_SIZE_IOCRX:
 		ret = __put_user(ast_video->video_mem_size, (unsigned long __user *)arg);

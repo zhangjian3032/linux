@@ -57,40 +57,45 @@ static void ast_scu_irq_handler(struct irq_desc *desc)
 {
 	struct ast_scu_irq *scu_irq = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	unsigned long bit, status;
+	unsigned long bit, status, irq_sts;
 	unsigned int bus_irq;
 
 	chained_irq_enter(chip, desc);
 	status = readl(scu_irq->regs);
-	for_each_set_bit(bit, &status, scu_irq->irq_num) {
+	irq_sts = (status >> 16) & status;
+
+	for_each_set_bit(bit, &irq_sts, scu_irq->irq_num) {
 		bus_irq = irq_find_mapping(scu_irq->irq_domain, bit);
 		generic_handle_irq(bus_irq);
+		writel((status & 0x7f) | (1 << (bit + 16)), scu_irq->regs);
 	}
-	writel(status, scu_irq->regs);
 	chained_irq_exit(chip, desc);
 }
 
-static void noop(struct irq_data *data) { }
-
-static unsigned int noop_ret(struct irq_data *data)
+static void scu_mask_irq(struct irq_data *data)
 {
-	return 0;
+	struct ast_scu_irq *scu_irq = irq_data_get_irq_chip_data(data);
+	unsigned int sbit = 1 << data->hwirq;
+
+	writel(readl(scu_irq->regs) & ~sbit, scu_irq->regs);
+}
+
+static void scu_unmask_irq(struct irq_data *data)
+{
+	struct ast_scu_irq *scu_irq = irq_data_get_irq_chip_data(data);
+	unsigned int sbit = 1 << (data->hwirq);
+
+	writel((readl(scu_irq->regs) | sbit) & 0x7f, scu_irq->regs);
 }
 
 struct irq_chip scu_irq_chip = {
 	.name		= "scu-irq",
-	.irq_startup	= noop_ret,
-	.irq_shutdown	= noop,
-	.irq_enable	= noop,
-	.irq_disable	= noop,
-	.irq_ack	= noop,
-	.irq_mask	= noop,
-	.irq_unmask	= noop,
-	.flags		= IRQCHIP_SKIP_SET_WAKE,
+	.irq_mask	= scu_mask_irq,
+	.irq_unmask	= scu_unmask_irq,
 };
 
 static int ast_scu_map_irq_domain(struct irq_domain *domain,
-					unsigned int irq, irq_hw_number_t hwirq)
+				  unsigned int irq, irq_hw_number_t hwirq)
 {
 	irq_set_chip_and_handler(irq, &scu_irq_chip, handle_simple_irq);
 	irq_set_chip_data(irq, domain->host_data);
@@ -115,10 +120,10 @@ static int aspeed_scu_ic_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	const struct of_device_id *match;
 	int ret = 0;
-	
+
 	scu_irq = kzalloc(sizeof(*scu_irq), GFP_KERNEL);
 	if (!scu_irq)
-		return -ENOMEM;	
+		return -ENOMEM;
 
 	scu_irq->regs = of_iomap(node, 0);
 	if (IS_ERR(scu_irq->regs))
@@ -137,12 +142,12 @@ static int aspeed_scu_ic_probe(struct platform_device *pdev)
 	scu_irq->irq_num = (int) match->data;
 
 	scu_irq->irq_domain = irq_domain_add_linear(
-			node, scu_irq->irq_num,
-			&ast_scu_irq_domain_ops, scu_irq);
+				      node, scu_irq->irq_num,
+				      &ast_scu_irq_domain_ops, scu_irq);
 	if (!scu_irq->irq_domain) {
-		ret = scu_irq->irq_domain;
+		ret = (int) scu_irq->irq_domain;
 		printk("no irq domain \n");
-	
+
 	}
 
 	scu_irq->irq_domain->name = "aspeed-scu-domain";
@@ -152,7 +157,7 @@ static int aspeed_scu_ic_probe(struct platform_device *pdev)
 
 	pr_info("scu-irq controller registered, irq %d\n", scu_irq->parent_irq);
 	return 0;
-	
+
 err_iounmap:
 	iounmap(scu_irq->regs);
 err_free_ic:

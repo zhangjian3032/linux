@@ -1,6 +1,7 @@
 #include "skeleton.dtsi"
 #include <dt-bindings/clock/aspeed-clock.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/aspeed-scu-irq.h>
 
 / {
 	model = "AST2400 SOC";
@@ -76,7 +77,8 @@
 			reg = <0x1e6a1000 0x100>;
 			interrupts = <5>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
-			status = "disabled";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2h_default>;
 		};
 
 		uhci: uhci@0x1e6b0000 {
@@ -84,6 +86,8 @@
 			reg = <0x1e6b0000 0x100>;
 			interrupts = <14>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBUHCICLK>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb11h_default>;
 		};
 
 		udc: udc@0x1e6a0000 {
@@ -93,6 +97,7 @@
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
 			pinctrl-names = "default";
 			list_mode = <0>;
+			status = "disabled";
 		};
 
 		vic: interrupt-controller@1e6c0080 {
@@ -117,8 +122,9 @@
 		syscon: syscon@1e6e2000 {
 			compatible = "aspeed,ast2400-scu", "syscon", "simple-mfd";
 			reg = <0x1e6e2000 0x1a8>;
+			ranges = <0 0x1e6e2000 0x1a8>;
 			#address-cells = <1>;
-			#size-cells = <0>;
+			#size-cells = <1>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 
@@ -128,17 +134,9 @@
 			};
 		};
 
-		scu_irq: interrupt-controller@1e6e2018 {
-			compatible = "aspeed,ast-scu-irq";
-			interrupt-controller;
-			#interrupt-cells = <1>;
-			reg = <0x1e6e2018 0x4>;
-			interrupts = <21>;
-		};
-
 		hace: hace@1e6e3000 {
 			compatible = "aspeed,ast2400-crypto";
-			reg = <0x1e6e3000 0x200>;
+			reg = <0x1e6e3000 0x200 0x1e728000 0x1000>;
 			interrupts = <4>;
 			clocks = <&syscon ASPEED_CLK_GATE_YCLK>, <&syscon ASPEED_CLK_GATE_RSACLK>;
 			clock-names = "yclk", "rsaclk";
@@ -169,8 +167,9 @@
 
 		mctp: mctp@1e6e8000 {
 			compatible = "aspeed,ast2400-mctp";
-			reg = <0x1e6e8000 0x30 0x80000000 0x300>;
+			reg = <0x1e6e8000 0x30>;
 			interrupts = <42>;
+ 			interrupts-extended = <&vic 42>, <&scu_ic ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
 			resets = <&syscon ASPEED_RESET_MCTP>;
 		};
 
@@ -424,6 +423,17 @@
 
 };
 
+&syscon {
+	scu_ic: interrupt-controller@0 {
+		#interrupt-cells = <1>;
+		compatible = "aspeed,ast2400-scu-ic";
+		reg = <0x18 0x04>;
+		interrupts = <21>;
+		interrupt-controller;
+	};
+
+};
+
 &i2c {
 	i2c_ic: interrupt-controller@0 {
 		#interrupt-cells = <1>;
@@ -439,8 +449,9 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0x40 0x40 0x200 0x10>;
-		compatible = "aspeed,ast-g4-i2c", "aspeed,ast-buff-i2c";
+		page_no = <0>;
+		reg = <0x40 0x40 0x800 0x100>;
+		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <0>;
@@ -453,8 +464,9 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0x80 0x40 0x210 0x10>;
-		compatible = "aspeed,ast-g4-i2c", "aspeed,ast-buff-i2c";
+		page_no = <1>;
+		reg = <0x80 0x40 0x900 0x100>;
+		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <1>;
@@ -466,8 +478,9 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0xc0 0x40 0x220 0x10>;
-		compatible = "aspeed,ast-g4-i2c", "aspeed,ast-buff-i2c";
+		page_no = <2>;
+		reg = <0xc0 0x40 0xa00 0x100>;
+		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <2>;
@@ -480,8 +493,9 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0x100 0x40 0x230 0x10>;
-		compatible = "aspeed,ast-g4-i2c", "aspeed,ast-buff-i2c";
+		page_no = <3>;
+		reg = <0x100 0x40 0xb00 0x100>;
+		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <3>;
@@ -494,8 +508,9 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0x140 0x40 0x240 0x10>;
-		compatible = "aspeed,ast-g4-i2c", "aspeed,ast-buff-i2c";
+		page_no = <4>;
+		reg = <0x140 0x40 0xc00 0x100>;
+		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <4>;
@@ -508,8 +523,9 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0x180 0x40 0x250 0x10>;
-		compatible = "aspeed,ast-g4-i2c", "aspeed,ast-buff-i2c";
+		page_no = <5>;
+		reg = <0x180 0x40 0xd00 0x100>;
+		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <5>;
@@ -522,8 +538,9 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0x1c0 0x40 0x260 0x10>;
-		compatible = "aspeed,ast-g4-i2c", "aspeed,ast-buff-i2c";
+		page_no = <6>;
+		reg = <0x1c0 0x40 0xe00 0x100>;
+		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <6>;
@@ -535,8 +552,9 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
-		reg = <0x300 0x40 0x270 0x10>;
-		compatible = "aspeed,ast-g4-i2c", "aspeed,ast-buff-i2c";
+		page_no = <7>;
+		reg = <0x300 0x40 0xf00 0x100>;
+		compatible = "aspeed,ast-i2c", "aspeed,ast-buff-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <7>;
@@ -550,7 +568,7 @@
 		#interrupt-cells = <1>;
 
 		reg = <0x340 0x40 0x280 0x10>;
-		compatible = "aspeed,ast-g4-i2c", "aspeed,ast-buff-i2c";
+		compatible = "aspeed,ast-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <8>;
@@ -564,7 +582,7 @@
 		#interrupt-cells = <1>;
 
 		reg = <0x380 0x40 0x290 0x10>;
-		compatible = "aspeed,ast-g4-i2c";
+		compatible = "aspeed,ast-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <9>;
@@ -579,7 +597,7 @@
 		#interrupt-cells = <1>;
 
 		reg = <0x3c0 0x40 0x2a0 0x10>;
-		compatible = "aspeed,ast-g4-i2c";
+		compatible = "aspeed,ast-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <10>;
@@ -594,7 +612,7 @@
 		#interrupt-cells = <1>;
 
 		reg = <0x400 0x40 0x2b0 0x10>;
-		compatible = "aspeed,ast-g4-i2c";
+		compatible = "aspeed,ast-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <11>;
@@ -609,7 +627,7 @@
 		#interrupt-cells = <1>;
 
 		reg = <0x440 0x40 0x2c0 0x10>;
-		compatible = "aspeed,ast-g4-i2c";
+		compatible = "aspeed,ast-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <12>;
@@ -624,7 +642,7 @@
 		#interrupt-cells = <1>;
 
 		reg = <0x480 0x40 0x2d0 0x10>;
-		compatible = "aspeed,ast-g4-i2c";
+		compatible = "aspeed,ast-i2c";
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <13>;
@@ -1329,6 +1347,26 @@
 	pinctrl_usbcki_default: usbcki_default {
 		function = "USBCKI";
 		groups = "USBCKI";
+	};
+
+	pinctrl_usb2h_default: usb2h_default {
+		function = "USB2H1";
+		groups = "USB2H1";
+	};
+
+	pinctrl_usb2d_default: usb2d_default {
+		function = "USB2D1";
+		groups = "USB2D1";
+	};
+
+	pinctrl_usb11h_default: usb11h_default {
+		function = "USB11H2";
+		groups = "USB11H2";
+	};
+
+	pinctrl_usb11d_default: usb11d_default {
+		function = "USB11D1";
+		groups = "USB11D1";
 	};
 
 	pinctrl_vgabios_rom_default: vgabios_rom_default {
