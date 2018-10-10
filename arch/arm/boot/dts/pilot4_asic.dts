@@ -1,0 +1,155 @@
+/*
+ * Copyright (C) 2018  ASpeed Technology
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+/include/ "pilot4.dtsi"
+
+/ {
+	compatible = "pilot4,ASIC";
+
+	memory {
+		device_type = "memory";
+		reg = <0x81000000 0X1e000000>; 
+	};
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+};
+
+&watchdog1 {
+	status = "okay";
+};
+
+&ddr {
+	status = "okay";
+};
+
+&eth0 {
+	status = "okay";
+};
+
+&eth1 {
+    status = "okay";
+};
+
+
+&sdhci0 {
+    status = "okay";
+};
+
+&sdhci1 {
+	status = "okay";
+};
+
+&emmc {
+    status = "okay";
+};
+
+&nand {
+    status = "okay";
+};
+
+&usbhost{
+    status = "okay";
+};
+
+&usbhub{
+    status = "okay";
+};
+
+&msudc1{
+    status = "okay";
+};
+
+&nicudc1{
+    status = "okay";
+};
+
+&i2c{
+	    status = "okay";
+};
+
+&upctl{
+	    status = "okay";
+};
+
+&peci{
+	    status = "okay";
+};
+
+&swdt{
+	    status = "okay";
+};
+
+&gpio{
+	    status = "okay";
+};
+
+&rtc_miscctrl{
+	    status = "okay";
+};
+
+&psr{
+	    status = "okay";
+};
+
+&pwmtach{
+	    status = "okay";
+};
+
+&kcs{
+	    status = "okay";
+};
+
+&bt{
+	    status = "okay";
+};
+
+&mailbox{
+	    status = "okay";
+};
+
+&smic{
+	    status = "okay";
+};
+
+&pc{
+	    status = "okay";
+};
+
+&mc{
+	    status = "okay";
+};
+
+&adc{
+	    status = "okay";
+};
+
+&espi{
+	    status = "okay";
+};
+
+&espi_mafs{
+	    status = "okay";
+};
+
+&espi_oob{
+	    status = "okay";
+};
+
+&espi_safs{
+	    status = "okay";
+};
+

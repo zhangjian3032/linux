@@ -1,0 +1,363 @@
+/*
+ *  Copyright (C) 2011 - 2014 Xilinx
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "pilot4,ASIC";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-method = "aspeed,pilot4-asic-smp";
+
+		cpu@0 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <0>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <1>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x81000000 0X1e000000>;
+	};
+
+   	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 root=/dev/ram0 rw initrd=0x81A00000,32M mem=488M	enable_hub=1 earlyprintk";
+		stdout-path = "serial0:115200n8";
+	};
+
+	amba: amba {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupt-parent = <&gic>;
+		ranges;
+
+		gic: intc@40461000 {
+			 interrupt-controller;
+			 compatible = "arm,cortex-a9-gic";
+			  #interrupt-cells = <3>;
+			  reg = < 0x40461000 0x1000 >,
+					< 0x40460100 0x0100 >;
+		};
+
+		timer: timer@40411000 {
+			  compatible = "pilot,p4-timer";
+			  reg = <0x40411000  0x1000>;
+			  interrupt-parent = <&gic>;
+			  interrupts = <0 11 4>;
+		};
+
+		timer3: timer3@40411000 {
+			  compatible = "pilot,timer3-cpu-reset";
+			  reg = <0x40411000  0x1000>;
+			  interrupt-parent = <&gic>;
+			  interrupts = <0 54 4>;
+		};
+
+		local-timer@40460600 {
+			   compatible = "arm,cortex-a9-twd-timer";
+			   reg = <0x40460600 0x20>;
+			   interrupts = <1 13 0xf01>;
+			   interrupt-parent = <&gic>;
+		};
+
+		uart0: serial@40430000 {
+		   compatible = "pilot,ns16550a";
+		   reg = <0x40430000 0x1000>;
+		   reg-shift = <2>;
+		   reg-io-width = <4>;
+		   interrupts = <0 14 4>;
+		   interrupt-parent = <&gic>;
+		   clock-frequency = <1843200>;
+		   /*clock-frequency = <50000000>;*/
+		   /* when highspeed-uart=1, clock-frequency should be set to 50000000 */
+		   highspeed-uart = <0>;
+			no-loopback-test;
+		};
+
+		ddr: ddr@40300000 {
+			compatible = "pilot,pilot-ddr";
+			reg = <0x40300000  0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 64 4>;
+			status = "disabled";
+		};
+
+		watchdog1: watchdog-1@40100800 {
+			compatible = "pilot,wdt-1";
+			reg = <0x40100800 0x100>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 59 4>;
+			timeout-sec = <120>;
+			pretimeout-sec = <20>;
+			status = "disabled";
+		};
+
+		eth0: eth0@40500000 {
+			compatible = "pilot,eth-0";
+			reg = <0x40500000 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 0 4>;
+			local-mac-address = [00 16 88 01 01 45];
+			status = "disabled";
+		};
+
+		eth1: eth1@40600000 {
+			compatible = "pilot,eth-1";
+			reg = <0x40600000 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 1 4>;
+			local-mac-address = [00 16 88 01 01 46];
+			status = "disabled";
+		};
+
+		sdhci0: sdhci-0@40c00000 {
+			compatible = "pilot,sdhci-0";
+			reg = <0x40C00000 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 68 4>;
+			status = "disabled";
+		};
+
+		sdhci1: sdhci-1@40c01000 {
+			compatible = "pilot,sdhci-1";
+			reg = <0x40C01000 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 69 4>;
+			status = "disabled";
+		};
+
+		emmc: emmc@40c02000 {
+			compatible = "pilot,emmc";
+			reg = <0x40C02000 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 70 4>;
+			status = "disabled";
+		};
+
+		nand: nand@40d00000 {
+			compatible = "pilot,nand";
+			reg = <0x40D00000 0x400>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 71 4>;
+			status = "disabled";
+		};
+
+		usbhost: usbhost@40700000 {
+			compatible = "pilot,usb-2.0-host";
+			reg = <0x40700000 0x100000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 3 4>, <0 49 4>;
+			status = "disabled";
+		};
+
+		usbhub: usbhub@40800000 {
+			compatible = "pilot,usb-2.0-hub";
+			reg = <0x40800000 0x100000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 30 4>, <0 31 4>,
+						<0 32 4>, <0 33 4>,
+						<0 34 4>, <0 35 4>,
+						<0 36 4>, <0 37 4>,
+						<0 49 4>;
+			status = "disabled";
+		};
+
+		msudc1: msudc1@40800000 {
+			compatible = "pilot,ms_udc1";
+			reg = <0x40800000 0x100000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 35 4>, <0 49 4>;
+			status = "disabled";
+		};
+
+		nicudc1: nicudc1@40800000 {
+			compatible = "pilot,nic_udc1";
+			reg = <0x40800000 0x100000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 33 4>, <0 49 4>;
+			status = "disabled";
+		};
+
+		psr:pilot_psr_dev@40425000 {
+			compatible = "pilot,pilot-psr";
+			reg = <0x40426500 0xB00>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 48 4>;
+			status = "disabled";
+		};
+
+		rtc_miscctrl:pilot_rtc_dev@40428000 {
+			compatible = "pilot,pilot-rtc";
+			reg = <0x40428000 0x100>, <0x40425000 0x100>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 60 4>, <0 49 4>;
+			status = "disabled";
+		};
+
+		swdt: pilot_swdt_dev@40427000 {
+			compatible = "pilot,swdt";
+			reg = <0x40427000 0x100>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 59 4>;
+			status = "disabled";
+		};
+
+		smic: pilot_smic_intf_dev@4010012c {
+			compatible = "pilot,pilot-smic";
+			reg = <0x40426400  0x100>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 10 4>; 
+			status = "disabled";
+		};
+
+		upctl: pilot_upctldev@4010012c {
+			compatible = "pilot,pilot-upctl";
+			reg = <0x4010012c 0x10>;
+			status = "disabled";
+		};
+
+		pwmtach: pilot_pwmtachdev1@40413000 {
+			compatible = "pilot,pilot-pwmtach";
+			reg = <0x40413000 0x1000>;
+			status = "disabled";
+		};
+
+		adc: pilot_adc@40414000 {
+			compatible = "pilot,pilot-adc";
+			reg = <0x40414000 0x1000>,
+			<0x40100134 0x10>;
+			status = "disabled";
+		};
+
+		bt: pilot_bt@40426400 {
+			compatible = "pilot,pilot-bt";
+			reg = <0x40426400 0x100>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 10 4>;
+			status = "disabled";
+		};
+
+		espi: pilot_espi@40423000 {
+			compatible = "pilot,pilot-espi";
+			reg = <0x40426500 0x200>, 
+				<0x40100100 0x100>, 
+				<0x40100200 0x100>,
+				<0x40423000 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 44 4>, <0 48 4>;
+			status = "disabled";
+		};
+
+		espi_mafs: pilot_espi_mafs@40423000 {
+			compatible = "pilot,pilot-espi-mafs";
+			reg = <0x40423000 0x1000>, 
+				<0x40100100 0x100>; 
+			interrupt-parent = <&gic>;
+			interrupts = <0 46 4>;
+			status = "disabled";
+		};
+
+		espi_oob: pilot_espi_oob@40423000 {
+			 compatible = "pilot,pilot-espi-oob";
+			 reg = <0x40423000 0x1000>, 
+				 <0x40100100 0x100>; 
+			 interrupt-parent = <&gic>;
+			 interrupts = <0 45 4>, <0 48 4>;
+			 status = "disabled";
+		};
+
+		espi_safs: pilot_espi_safs@40423000 {
+			compatible = "pilot,pilot-espi-safs";
+			reg = <0x40423000 0x1000>, 
+				<0x40100100 0x100>; 
+			interrupt-parent = <&gic>;
+			interrupts = <0 46 4>;
+			status = "disabled";
+		};
+
+		gpio: pilot_gpio@40423000 {
+			compatible = "pilot,pilot-gpio";
+			reg = <0x40420000 0x1000>, 
+				<0x40100100 0x500>, 
+				<0x40100900 0x200>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 8 4>;
+			status = "disabled";
+		};
+
+		i2c: i2c@40433000 {
+			compatible = "pilot,pilot-i2c";
+			reg = <0x40433000 0x200>, <0x40434000 0x200>, <0x40435000 0x200>, <0x40436000 0x200>, 
+				<0x40437000 0x200>, <0x40438000 0x200>, <0x40439000 0x200>, <0x4043A000 0x200>, 
+				<0x4043C000 0x200>, <0x4043D000 0x200>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 17 4>, <0 18 4>, <0 19 4>, <0 20 4>, <0 21 4>, 
+						 <0 22 4>, <0 24 4>, <0 25 4>, <0 26 4>, <0 27 4>, 
+						 <0 23 4>;
+			status = "disabled";
+		};
+
+		kcs: pilot_kcs@40426000 {
+			compatible = "pilot,pilot-kcs";
+			reg = <0x40426000 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 10 4>;
+			status = "disabled";
+		};
+
+		mailbox: pilot_mailbox@40426400 {
+			compatible = "pilot,pilot-mailbox";
+			reg = <0x40426400 0x100>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 10 4>;
+			status = "disabled";
+		};
+
+		mc: pilot_mc@40426500 {
+			compatible = "pilot,pilot-mc";
+			reg = <0x40426500 0x100>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 48 4>;
+			status = "disabled";
+		};
+
+		pc: pilot_pc@40426500 {
+			compatible = "pilot,pilot-pc";
+			reg = <0x40426500 0x100>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 48 4>;
+			status = "disabled";
+		};
+
+		peci: pilot_peci@40418000 {
+			compatible = "pilot,pilot-peci";
+			reg = <0x40418000 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 63 4>;
+			status = "disabled";
+		};
+	};
+};

@@ -777,6 +777,7 @@ dtb-$(CONFIG_ARCH_MEDIATEK) += \
 	mt8127-moose.dtb \
 	mt8135-evbp1.dtb
 dtb-$(CONFIG_ARCH_ZX) += zx296702-ad1.dtb
+dtb-$(CONFIG_ARCH_PILOT4) += pilot4_asic.dtb
 endif
 
 dtstree		:= $(srctree)/$(src)
