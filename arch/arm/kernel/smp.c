@@ -50,7 +50,7 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ipi.h>
-
+extern unsigned int * IO_ADDRESS(unsigned int);
 /*
  * as from 2.5, kernels no longer have an init_tasks structure
  * so we need some other way of telling a new secondary core
@@ -74,6 +74,9 @@ enum ipi_msg_type {
 	IPI_IRQ_WORK,
 	IPI_COMPLETION,
 	IPI_CPU_BACKTRACE = 15,
+#ifdef CONFIG_MACH_PILOT4_ASIC
+	IPI_WFE,
+#endif
 };
 
 static DECLARE_COMPLETION(cpu_running);
@@ -469,7 +472,7 @@ void __init set_smp_cross_call(void (*fn)(const struct cpumask *, unsigned int))
 		__smp_cross_call = fn;
 }
 
-static const char *ipi_types[NR_IPI] __tracepoint_string = {
+static const char *ipi_types[] __tracepoint_string = {
 #define S(x,s)	[x] = s
 	S(IPI_WAKEUP, "CPU wakeup interrupts"),
 	S(IPI_TIMER, "Timer broadcast interrupts"),
@@ -479,6 +482,9 @@ static const char *ipi_types[NR_IPI] __tracepoint_string = {
 	S(IPI_CPU_STOP, "CPU stop interrupts"),
 	S(IPI_IRQ_WORK, "IRQ work interrupts"),
 	S(IPI_COMPLETION, "completion interrupts"),
+#ifdef CONFIG_MACH_PILOT4_ASIC
+	S(IPI_WFE, "Wfe interrupts"),
+#endif
 };
 
 static void smp_cross_call(const struct cpumask *target, unsigned int ipinr)
@@ -562,9 +568,16 @@ static void ipi_cpu_stop(unsigned int cpu)
 
 	local_fiq_disable();
 	local_irq_disable();
-
+#ifdef CONFIG_MACH_PILOT4_ASIC
+	raw_spin_lock(&stop_lock);
+	printk(KERN_CRIT "CPU%u: WFE\n", cpu);
+	raw_spin_unlock(&stop_lock);
+	while (1)
+		wfe();
+#else
 	while (1)
 		cpu_relax();
+#endif
 }
 
 static DEFINE_PER_CPU(struct completion *, cpu_completion);
@@ -614,6 +627,16 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		scheduler_ipi();
 		break;
 
+#ifdef CONFIG_MACH_PILOT4_ASIC
+	case IPI_WFE:
+#ifdef CONFIG_USE_SSP_RESET
+		local_irq_disable();
+#endif
+		printk("core1 going to wfe\n");
+		for(;;)
+			wfe();
+		break;
+#endif
 	case IPI_CALL_FUNC:
 		irq_enter();
 		generic_smp_call_function_interrupt();
@@ -667,6 +690,42 @@ void smp_send_reschedule(int cpu)
 {
 	smp_cross_call(cpumask_of(cpu), IPI_RESCHEDULE);
 }
+
+#ifdef CONFIG_MACH_PILOT4_ASIC
+void smp_send_wfe(int cpu)
+{
+	smp_cross_call(cpumask_of(cpu), IPI_WFE);
+}
+EXPORT_SYMBOL(smp_send_wfe);
+
+void execute_smp_wfe(void)
+{
+	int cpu;
+	int i = 0x0;
+	u32 wfe_status;
+
+	cpu = task_cpu(current);
+
+	printk("Entered %s cpu %d\n", __FUNCTION__, cpu);
+
+	for_each_online_cpu(cpu) {
+		if (cpu == smp_processor_id())
+			continue;
+		printk("sending wfe to %d cpu\n", cpu);
+		smp_send_wfe(cpu);
+#ifndef CONFIG_USE_SSP_RESET
+		for(i = 0; i < 0xFFFFF; i++) {
+			wfe_status = *(volatile unsigned int *)IO_ADDRESS(0x40100D00);
+			printk("wfe_status %x\n", wfe_status);
+			if(!(wfe_status & (1<<27)))
+				continue;
+			break;
+		}
+#endif
+	}
+}
+EXPORT_SYMBOL(execute_smp_wfe);
+#endif
 
 void smp_send_stop(void)
 {

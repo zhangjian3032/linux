@@ -494,6 +494,42 @@ static void __init mm_init(void)
 	ioremap_huge_init();
 }
 
+void __iomem *uart_base = (void*)CONFIG_DEBUG_UART_VIRT;
+#define SERIAL_LSR_THRE	0x20 /* THR Empty */
+#define SERIAL_LSR		0x14
+#define SERIAL_THR		0x00
+static void power_putc(const char c)
+{
+	volatile unsigned int status=0;
+#ifdef CONFIG_MACH_PILOT4
+	return;//It may be causing some spurious interrupts
+#endif
+	/* Wait for Ready */
+	do
+	{
+		status = *(volatile unsigned int*)(uart_base+SERIAL_LSR);
+	}
+	while (!((status & SERIAL_LSR_THRE)==SERIAL_LSR_THRE) );
+
+	/* Write Character */
+	*(volatile unsigned int*)(uart_base+SERIAL_THR) = c;
+
+	return;
+}
+
+void power_putstr(const char *ptr)
+{
+	char c;
+
+	while ((c = *ptr++) != '\0') {
+		if (c == '\n')
+			power_putc('\r');
+		power_putc(c);
+	}
+}
+
+extern void fb_init(void);
+
 asmlinkage __visible void __init start_kernel(void)
 {
 	char *command_line;
