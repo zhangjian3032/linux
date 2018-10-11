@@ -65,6 +65,12 @@ config SOFT_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called softdog.
 
+config PILOT_WDT
+	  tristate "\"Pilot Watchdog\" "
+	  help
+	  This selects the "WATCHDOG 1" driver support for Aspeed's Pilot.
+	  If you enable this PILOT WATCHDOG 1 module will be active.
+
 config DA9052_WATCHDOG
         tristate "Dialog DA9052 Watchdog"
         depends on PMIC_DA9052
