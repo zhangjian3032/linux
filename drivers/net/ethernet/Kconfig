@@ -66,6 +66,7 @@ config DNET
 	  will be called dnet.
 
 source "drivers/net/ethernet/dec/Kconfig"
+source "drivers/net/ethernet/pilot_tulip/Kconfig"
 source "drivers/net/ethernet/dlink/Kconfig"
 source "drivers/net/ethernet/emulex/Kconfig"
 source "drivers/net/ethernet/ezchip/Kconfig"

@@ -28,6 +28,7 @@ obj-$(CONFIG_NET_VENDOR_CISCO) += cisco/
 obj-$(CONFIG_CX_ECAT) += ec_bhf.o
 obj-$(CONFIG_DM9000) += davicom/
 obj-$(CONFIG_DNET) += dnet.o
+obj-$(CONFIG_PILOT4_NET_TULIP) += pilot_tulip/
 obj-$(CONFIG_NET_VENDOR_DEC) += dec/
 obj-$(CONFIG_NET_VENDOR_DLINK) += dlink/
 obj-$(CONFIG_NET_VENDOR_EMULEX) += emulex/
