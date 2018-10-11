@@ -247,6 +247,45 @@ config MTD_CFI_FLAGADM
 	  Mapping for the Flaga digital module. If you don't have one, ignore
 	  this setting.
 
+config MTD_PILOT_SPI_MAP
+	  tristate "Map driver for Emulex PILOT4-Orion ASIC boards"
+	  default y
+	  select MTD_PARTITIONS
+	  help
+	  Map driver for Emulex PILOT4-Orion ASIC boards SPI
+
+config MAX_BOOT_SPI_BANKS
+	  int "Number of BootSPI banks to scan"
+	  depends on MTD_PILOT_SPI_MAP
+	  default 3
+	  help
+	  If multiple banks are supported then provide the number of banks
+	  to scan. Should not be greater than 3.
+
+config MAX_BKUP_SPI_BANKS
+	  int "Number of BackupSPI banks to scan"
+	  depends on MTD_PILOT_SPI_MAP
+	  default 3
+	  help
+	  If multiple banks are supported then provide the number of banks
+	  to scan. Should not be greater than 3.
+
+config MAX_HOST_SPI_BANKS
+	  int "Number of HostSPI banks to scan"
+	  depends on MTD_PILOT_SPI_MAP
+	  default 0
+	  help
+	  If multiple banks are supported then provide the number of banks
+	  to scan. Should not be greater than 3.
+
+config SFDP
+	  bool "SFDP support"
+	  depends on MTD_PILOT_SPI_MAP
+	  default n
+	  help
+	  Enable this if the device supports SFDP. Otherwise the device
+	  would be marked as unsupported and will remain unusable.
+
 config MTD_SOLUTIONENGINE
 	tristate "CFI Flash device mapped on Hitachi SolutionEngine"
 	depends on SOLUTION_ENGINE && MTD_CFI && MTD_REDBOOT_PARTS

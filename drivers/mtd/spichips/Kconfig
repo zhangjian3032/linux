@@ -1,0 +1,40 @@
+# drivers/mtd/chips/Kconfig
+# $Id: Kconfig,v 1.18 2005/11/07 11:14:22 gleixner Exp $
+
+menu "SPI Flash chip drivers"
+	depends on MTD!=n
+
+config MTD_SPI
+	bool "Enable MTD support on SPI devices"
+	depends on MTD
+	help
+	  Select this if you want to access SPI flash devices via MTD
+
+config MTD_SPI_INTEL_S33
+	bool "Intel S33 SPI devices Support"
+	depends on MTD_SPI && !SFDP
+	help
+	  Select this if you want to use Intel S33 SPI devices
+
+config MTD_SPI_AT
+	bool "Atmel SPI devices Support"
+	depends on MTD_SPI && !SFDP
+	help
+	  Select this if you want to use Atmel SPI devices
+
+config MTD_PILOT_AVL
+	bool "Devices supported by Pilot4"
+	depends on MTD_SPI
+	help
+	  Select this if you want to use SPI devices supported in Pilot4 SDK
+
+
+config MTD_PILOT4_SPI
+	bool "Pilot-4 SOC SPI Controller"
+	depends on MTD_SPI && MTD_PILOT_SPI_MAP
+	help 
+	   If you are using SPI device on Pilot-4 SOC, select Y
+	  
+
+
+endmenu
