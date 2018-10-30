@@ -54,6 +54,34 @@ extern int add_mtd_partitions(struct mtd_info *master,
 extern int del_mtd_partitions(struct mtd_info *master);
 
 static struct mtd_partition pilot4_mtd_flash_partitions[] ={
+#if 1
+	{
+		.name =         "u-boot",
+		.size =         0x00060000,     /* hopefully u-boot will stay 128k + 128*/
+		.offset =       0,
+	},
+	{
+		.name =         "u-boot-env",
+		.size =         0x00020000,     /* BootSPI SDRR Aread */
+		.offset =       MTDPART_OFS_APPEND,
+	},
+	{
+		.name =         "Kernel",
+		.size =         0x00440000,     /* BootSPI Kernel aread */
+		.offset =       MTDPART_OFS_APPEND,
+	},
+	{
+		.name =         "rofs",
+		.size =         0x1740000,     /* BootSPI Ramdisk size */
+		.offset =       MTDPART_OFS_APPEND,
+	},
+	{
+		.name =         "rwfs",
+		.size =         0x00400000,     /* BootSPI Ramdisk size */
+		.offset =       MTDPART_OFS_APPEND,
+	},
+
+#else
 // BootSPI-CS0
   {
     .name =         "BootLoader",
@@ -123,6 +151,7 @@ static struct mtd_partition pilot4_mtd_flash_partitions[] ={
     .size =         MTDPART_SIZ_FULL,
     .offset =       MTDPART_OFS_APPEND,
   },
+#endif
 };
 
 unsigned long INITAL_PARITION_IN_BSPI_CS0 = 6;
@@ -356,9 +385,16 @@ init_pilot4_spi_map_flash(void)
 		printk("ERROR: %s: flash concat failed\n", __FUNCTION__);
 		return -ENXIO;
 	}
-
+#if 0
 	return add_mtd_partitions(concat_mtd,pilot4_mtd_flash_partitions,
 			(partition_count)); //After adding SDRR area
+#else
+	/* Create MTD devices for each partition. */
+        mtd_device_register(concat_mtd, pilot4_mtd_flash_partitions, (partition_count));
+	return 0;
+#endif
+
+			
 }
 
 static void __exit 
@@ -367,7 +403,11 @@ cleanup_pilot4_spi_map_flash(void)
 	unsigned long bank;
 	if (bankcount > 1)
 	{
+#if 0
 		del_mtd_partitions(concat_mtd);
+#else
+		mtd_device_unregister(concat_mtd);
+#endif
 		map_destroy(concat_mtd);
 		concat_mtd = NULL;
 
