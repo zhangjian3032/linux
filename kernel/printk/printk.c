@@ -1842,12 +1842,14 @@ asmlinkage int printk_emit(int facility, int level,
 {
 	va_list args;
 	int r;
+#ifdef CONFIG_DEBUG_UART_VIRT
 extern int fb_initialized;
 extern void fb_printf(const char *fmt, ...);
-
+#endif
 	static /*const */char prefix[] = "[Shi] ";
 	static char buf[1024] = "\n";
 
+#ifdef CONFIG_DEBUG_UART_VIRT
     if (0 || fb_initialized) {
         /* (LSU) Prefix only if previous line was ended */
         if(buf[strlen(buf)-1] == '\n')
@@ -1858,6 +1860,7 @@ extern void fb_printf(const char *fmt, ...);
         fb_printf("%s", buf);
 
     } else
+#endif
 	va_start(args, fmt);
 	r = vprintk_emit(facility, level, dict, dictlen, fmt, args);
 	va_end(args);

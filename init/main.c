@@ -493,7 +493,7 @@ static void __init mm_init(void)
 	vmalloc_init();
 	ioremap_huge_init();
 }
-
+#ifdef CONFIG_DEBUG_UART_VIRT
 void __iomem *uart_base = (void*)CONFIG_DEBUG_UART_VIRT;
 #define SERIAL_LSR_THRE	0x20 /* THR Empty */
 #define SERIAL_LSR		0x14
@@ -527,8 +527,8 @@ void power_putstr(const char *ptr)
 		power_putc(c);
 	}
 }
-
 extern void fb_init(void);
+#endif
 
 asmlinkage __visible void __init start_kernel(void)
 {

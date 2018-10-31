@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/tty.h>
-
+#ifdef CONFIG_DEBUG_UART_VIRT
 extern void power_putstr(const char *ptr);
 void fb_printf(const char *fmt, ...)
 {
@@ -35,4 +35,4 @@ void fb_init(void)
 {
     fb_initialized = 1;
 }
-
+#endif
