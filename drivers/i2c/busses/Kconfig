@@ -360,6 +360,16 @@ config I2C_ASPEED
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-aspeed.
 
+config I2C_PILOT
+	tristate "Pilot4 I2C Controller"
+	depends on ARCH_PILOT || COMPILE_TEST
+	help
+	  If you say yes to this option, support will be included for the
+	  Pilot4 I2C controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-pilot.
+
 config I2C_AT91
 	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
 	depends on ARCH_AT91
