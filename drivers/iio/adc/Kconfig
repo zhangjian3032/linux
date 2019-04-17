@@ -141,6 +141,16 @@ config ASPEED_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called aspeed_adc.
 
+config PILOT_ADC
+	tristate "Aspeed Pilot ADC"
+	depends on ARCH_PILOT || COMPILE_TEST
+	help
+	  If you say yes here you get support for the ADC included in Aspeed
+	  Pilot BMC SoCs.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called pilot_adc.
+
 config AT91_ADC
 	tristate "Atmel AT91 ADC"
 	depends on ARCH_AT91
