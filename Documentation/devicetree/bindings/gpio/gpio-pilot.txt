@@ -1,0 +1,108 @@
+PILOT GPIO controller Device Tree Bindings
+-------------------------------------------
+gpio-controller device node :
+
+                pilot_gpio_ctrl: pilot_gpio@40423000 {
+                        compatible = "aspeed,pilot-gpio";
+                        reg = <0x40420000 0x1000>;
+                        gpio-controller;
+                        #gpio-cells = <2>;
+                        gpio-ranges = <&pincontroller 0 0 186>;
+                        interrupt-controller;
+                        #interrupt-cells = <2>;
+                        interrupts = <0 8 4>;
+                        status = "disabled";
+
+                };
+
+- compatible            :  "aspeed,pilot-gpio"
+
+- #gpio-cells           : Should be two
+                          - First cell is the GPIO line number
+                          - Second cell is used to specify optional
+                            parameters (unused)
+
+-gpio-ranges            : total 186 pins --->  gpio number 0 to 185
+- reg                   : Address and length of the register set for the device
+
+- gpio-controller       : Marks the device node as a GPIO controller.
+
+- interrupts            : Interrupt specifier (see interrupt bindings for
+                          details)
+- interrupt-controller  : Mark the GPIO controller as an interrupt-controller
+
+
+Bindings for Client driver nodes :
+--------------------------------------------
+sample DT node for client driver which uses GPIO_29_4:
+
+sample-gpio-pin{
+                compatible = "gpio-test-module";
+                gpios = <&pilot_gpio_ctrl  140 GPIO_ACTIVE_LOW>;
+                interrupt-parent = <&pilot_gpio_ctrl>;
+                interrupts = <140 IRQ_TYPE_EDGE_RISING>;
+                debounce-interval = <PILOT_DEBOUNCE_16MS>;
+            };
+
+sample DT node for client driver which uses GPIO_23:			
+tempsensor-gpio-pin{
+                compatible = "temp-sensor";
+                gpios = <&pilot_gpio_ctrl  23 GPIO_ACTIVE_HIGH>;
+                interrupt-parent = <&pilot_gpio_ctrl>;
+                interrupts = <23 IRQ_TYPE_EDGE_FALLING>;
+                debounce-interval = <PILOT_DEBOUNCE_8MS>;
+            };
+
+
+1) gpios = < phandle_of_gpio-controllernode , gpionumber , flags>
+
+example:
+gpios = <&pilot_gpio_ctrl 14  GPIO_ACTIVE_LOW>;  ----> GPIO_14
+gpios = <&pilot_gpio_ctrl 34  GPIO_ACTIVE_HIGH>; -----> GPIO_29_2
+
+gpio-number:
+there are 45 ports 
+Each gpio port has 8 pins:
+gpios in port0 to port3 are designated as  GPIO_0 - GPIO_32 in data sheet.
+These are not multiplexed with any other functionality.
+
+gpios in port16 to port29 are designated as (GPIO_16_0,GPIO_16_1,....GPIO_29_4,GPIO_29_5) in datasheet.
+These are multiplexed with other pin functionalities.
+
+gpios in port40 to port45 are designated as (GPIO_30_0 ,GPIO_30_1,....GPIO_45_2,GPIO_45_3) in datasheet.
+these are multiplexed with other pin functionalities.
+
+(port4 to port15) , (port30 to port39) - are serialGPIO ports and are not supported by  "drivers/gpio/gpio-pilot.c"
+
+gpio numbers  assigned by  the gpio-driver: "drivers/gpio/gpio-pilot.c" to these gpios are as below:
+port0 to port3 ==> gpio0 to gpio31
+port16 to port29(29_0 to 29_5)==> gpio32 to gpio141
+port40 to port45(45_0 to 45_3) ==> gpio142 to gpio185
+
+these numbers can also be looked up at "drivers/pinctrl/pilot/pilot4_pinctrl_drv.c"
+pin numbers in pilot4_pinctrl_drv.c are Ensured to be same as gpionumbers of pins.
+
+2) to  specify irq number and Interrupt type in DT node:
+
+	interrupt-parent = <&pilot_gpio_ctrl>;
+	interrupts = < 184  IRQ_TYPE_EDGE_RISING>; ---> interrupt on GPIO_45_2
+
+	
+interrupt number is same as gpio number.
+Interrupt types supported :
+ IRQ_TYPE_EDGE_RISING,
+IRQ_TYPE_EDGE_FALLING,
+IRQ_TYPE_LEVEL_HIGH,
+IRQ_TYPE_LEVEL_LOW
+
+3)  debounce-interval = <debounce-period>
+example:
+		debounce-interval = <PILOT_DEBOUNCE_16MS>;
+
+vaild debounce period can be found in include/dt-bindings/gpio/pilot-gpio.h
+
+
+reference:
+- Documentation/devicetree/bindings/gpio/gpio.txt
+- Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+
