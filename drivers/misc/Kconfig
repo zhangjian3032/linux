@@ -508,6 +508,21 @@ config ASPEED_LPC_MBOX
 	  Expose the ASPEED LPC MBOX registers found on Aspeed SOCs (AST2400
 	  and AST2500) to userspace.
 
+config PILOT_LPC_SNOOP
+	tristate "Aspeed Pilot HOST LPC snoop support"
+	depends on (ARCH_PILOT || COMPILE_TEST) && REGMAP && MFD_SYSCON
+	help
+	  Provides a driver to control the LPC snoop interface which
+	  allows the BMC to listen on and save the data written by
+	  the host to an arbitrary LPC I/O port.
+
+config PILOT_LPC_MBOX
+	tristate "Aspeed Pilot LPC Mailbox Controller"
+	depends on (ARCH_PILOT || COMPILE_TEST) && REGMAP && MFD_SYSCON
+	---help---
+	  Expose the ASPEED LPC MBOX registers found on Aspeed SOCs (PILOT)
+	  to userspace.
+
 config PCI_ENDPOINT_TEST
 	depends on PCI
 	select CRC32
