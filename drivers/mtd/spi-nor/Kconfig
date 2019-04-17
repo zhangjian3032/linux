@@ -39,6 +39,14 @@ config SPI_ASPEED_SMC
 	  and support for the SPI flash memory controller (SPI) for
 	  the host firmware. The implementation only supports SPI NOR.
 
+config SPI_PILOT_SPI
+	tristate "Pilot SPI controllers"
+	depends on ARCH_PILOT || COMPILE_TEST
+	depends on HAS_IOMEM && OF
+	help
+	  This enables support for the SPI controller for the Aspeed's pilot
+	  SOC.
+
 config SPI_ATMEL_QUADSPI
 	tristate "Atmel Quad SPI Controller"
 	depends on ARCH_AT91 || (ARM && COMPILE_TEST && !ARCH_EBSA110)
