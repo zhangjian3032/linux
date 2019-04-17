@@ -4449,7 +4449,7 @@ static int aspeed_pilot4_pinctrl_probe(struct platform_device *pdev){
 
 
 static const struct of_device_id aspeed_pilot4_pinctrl_of_match[] = {
-        { .compatible = "aspeed,pilot-pinctrl" },
+        { .compatible = "aspeed,pilot-pinctrl", },
         { /* sentinel */ }
 };
 
