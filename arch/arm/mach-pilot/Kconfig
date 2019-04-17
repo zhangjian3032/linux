@@ -1,0 +1,17 @@
+config ARCH_PILOT
+	bool "Aspeed Pilot Architecture"
+	depends on ARCH_MULTI_V7
+	select PINCTRL
+	select PINCTRL_PILOT
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_GIC
+	select HAVE_ARM_TWD if SMP
+	select HAVE_ARM_SCU if SMP
+	select ARM_ERRATA_794072
+	select ARM_ERRATA_720789
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_764369 if SMP
+	select MFD_SYSCON
+	help
+	  Support for the Aspeed's Pilot4 iBMC soc.
+

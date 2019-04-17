@@ -702,7 +702,7 @@ config ARM_THUMBEE
 
 config ARM_VIRT_EXT
 	bool
-	default y if CPU_V7
+	default y if CPU_V7  && !ARCH_PILOT
 	help
 	  Enable the kernel to make use of the ARM Virtualization
 	  Extensions to install hypervisors without run-time firmware

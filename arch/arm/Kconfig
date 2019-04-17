@@ -798,6 +798,8 @@ source "arch/arm/mach-oxnas/Kconfig"
 
 source "arch/arm/mach-picoxcell/Kconfig"
 
+source "arch/arm/mach-pilot/Kconfig"
+
 source "arch/arm/mach-prima2/Kconfig"
 
 source "arch/arm/mach-pxa/Kconfig"
@@ -1474,6 +1476,7 @@ config ARCH_NR_GPIO
 	default 352 if ARCH_VT8500
 	default 288 if ARCH_ROCKCHIP
 	default 264 if MACH_H4700
+	default 186 if ARCH_PILOT
 	default 0
 	help
 	  Maximum number of GPIOs in the system.
