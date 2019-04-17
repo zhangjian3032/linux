@@ -1,0 +1,357 @@
+&pincontroller {
+        GPIO_0:GPIO_0 {
+                groups = "gpio_0_grp";
+                function = "GPIO_0";
+		drive-strength = <CURR_DRV_6MA>;
+		bias-pull-up;
+        };
+
+        GPIO_1:GPIO_1 {
+                groups = "gpio_1_grp";
+                function = "GPIO_1";
+		drive-strength = <CURR_DRV_6MA>;
+		bias-pull-pin-default;
+        };
+
+        GPIO_2:GPIO_2 {
+                groups = "gpio_2_grp";
+                function = "GPIO_2";
+        };
+
+        GPIO_26_7:GPIO_26_7 {
+                groups = "gpio_port26_7_grp";
+                function = "GPIO_26_7";
+		drive-strength = "VG_DRV_1_8V_36_77_OHM";
+		bias-pull-pin-default;
+        };
+
+        RGMII_REFCLK:RGMII_REFCLK {
+                groups = "gpio_port26_7_grp";
+                function = "RGMII_REFCLK";
+        };
+	UART0_RXD:UART0_RXD {
+		groups = "uart0_rxd_grp";
+		function = "UART0_RXD";
+		drive-strength = <CURR_DRV_6MA>;
+		bias-pull-up;
+	};
+	UART0_TXD:UART0_TXD {
+		groups = "uart0_txd_grp";
+		function = "UART0_TXD";
+		drive-strength = <CURR_DRV_6MA>;
+		bias-pull-pin-default;
+	};
+
+	MAC0_REF_CLK:MAC0_REF_CLK {
+		groups = "mac0_ref_clk_grp";
+		function = "MAC0_REF_CLK";
+	};
+	MAC0_RX_CLK: MAC0_RX_CLK {
+		groups = "mac0_ref_clk_grp";
+		function = "MAC0_RX_CLK";
+	};
+	MAC0_RX_DV:MAC0_RX_DV {
+		groups = "mac0_rx_dv_grp";
+		function = "MAC0_RX_DV";
+	};
+	MAC0_RX_CTL:MAC0_RX_CTL {
+		groups = "mac0_rx_dv_grp";
+		function = "MAC0_RX_CTL";
+	};
+	MAC0_RX_ER:MAC0_RX_ER {
+		groups = "mac0_rx_er_grp";
+		function = "MAC0_RX_ER";	
+	};
+	MAC0_TX_CLK:MAC0_TX_CLK {
+		groups = "mac0_rx_er_grp";
+		function = "MAC0_TX_CLK";
+	};
+	MAC0_RXD_0:MAC0_RXD_0 {
+		groups = "mac0_rxd_0_grp";
+		function = "MAC0_RXD_0";
+
+	};
+	MAC0_RXD_1:MAC0_RXD_1 {
+		groups = "mac0_rxd_1_grp";
+		function = "MAC0_RXD_1";
+		drive-strength = "VG_DRV_1_8V_36_77_OHM";
+		bias-pull-pin-default;
+	};
+	MAC0_RXD_2:MAC0_RXD_2 {
+		groups = "mac0_rxd_2_grp";
+		function = "MAC0_RXD_2";
+	};
+	MAC0_RXD_3:MAC0_RXD_3 {
+		groups = "mac0_rxd_3_grp";
+		function = "MAC0_RXD_3";
+	};
+	MAC0_TX_EN:MAC0_TX_EN {
+		groups = "mac0_tx_en_grp";
+		function = "MAC0_TX_EN";
+	};
+	MAC0_TX_CTRL:MAC0_TX_CTRL {
+		groups = "mac0_tx_en_grp";
+		function = "MAC0_TX_CTRL";
+	};
+	MAC0_TXD_0:MAC0_TXD_0 {
+		groups = "mac0_txd_0_grp";
+		function = "MAC0_TXD_0";
+	};
+	MAC0_TXD_1:MAC0_TXD_1 {
+		groups = "mac0_txd_1_grp";
+		function = "MAC0_TXD_1";
+	};
+	MAC0_TXD_2:MAC0_TXD_2 {
+		groups = "mac0_txd_2_grp";
+		function = "MAC0_TXD_2";
+	};
+	MAC0_TXD_3:MAC0_TXD_3 {
+		groups = "mac0_txd_3_grp";
+		function = "MAC0_TXD_3";
+	};
+	MAC_MD_IO:MAC_MD_IO {
+		groups = "mac_md_io_grp";
+		function = "MAC_MD_IO";
+	};
+	MAC_MDC:MAC_MDC {
+		groups = "mac_mdc_grp";
+		function = "MAC_MDC";
+	};
+
+	MAC1_REF_CLK:MAC1_REF_CLK {
+		groups = "mac1_ref_clk_grp";
+		function = "MAC1_REF_CLK";
+	};
+	MAC1_RX_CLK:MAC1_RX_CLK {
+		groups = "mac1_ref_clk_grp";
+		function = "MAC1_RX_CLK";
+	};
+	MAC1_RX_DV:MAC1_RX_DV {
+		groups = "mac1_rx_dv_grp";
+		function = "MAC1_RX_DV";
+	};
+	MAC1_RX_CTL:MAC1_RX_CTL {
+		groups = "mac1_rx_dv_grp";
+		function = "MAC1_RX_CTL";
+	};
+	MAC1_RX_ER:MAC1_RX_ER {
+		groups = "mac1_rx_er_grp";
+		function = "MAC1_RX_ER";	
+	};
+	MAC1_TX_CLK:MAC1_TX_CLK {
+		groups = "mac1_rx_er_grp";
+		function = "MAC1_TX_CLK";
+	};
+	MAC1_RXD_0:MAC1_RXD_0 {
+		groups = "mac1_rxd_0_grp";
+		function = "MAC1_RXD_0";
+	};
+	MAC1_RXD_1:MAC1_RXD_1 {
+		groups = "mac1_rxd_1_grp";
+		function = "MAC1_RXD_1";
+	};
+	MAC1_RXD_2:MAC1_RXD_2 {
+		groups = "mac1_rxd_2_grp";
+		function = "MAC1_RXD_2";
+	};
+	MAC1_RXD_3:MAC1_RXD_3 {
+		groups = "mac1_rxd_3_grp";
+		function = "MAC1_RXD_3";
+	};
+	MAC1_TX_EN:MAC1_TX_EN {
+		groups = "mac1_tx_en_grp";
+		function = "MAC1_TX_EN";
+	};
+	MAC1_TX_CTL:MAC1_TX_CTL {
+		groups = "mac1_tx_en_grp";
+		function = "MAC1_TX_CTL";
+	};
+	MAC1_TXD_0:MAC1_TXD_0 {
+		groups = "mac1_txd_0_grp";
+		function = "MAC1_TXD_0";
+	};
+	MAC1_TXD_1:MAC1_TXD_1 {
+		groups = "mac1_txd_1_grp";
+		function = "MAC1_TXD_1";
+	};
+	MAC1_TXD_2:MAC1_TXD_2 {
+		groups = "mac1_txd_2_grp";
+		function = "MAC1_TXD_2";
+	};
+	MAC1_TXD_3:MAC1_TXD_3 {
+		groups = "mac1_txd_3_grp";
+		function = "MAC1_TXD_3";
+	};
+
+	BMC_BOOT_SPI_CLK:BMC_BOOT_SPI_CLK {
+		groups = "bmc_boot_spi_clk_grp";
+		function = "BMC_BOOT_SPI_CLK";
+	};
+
+	BMC_BOOT_SPI_CS0_N:BMC_BOOT_SPI_CS0_N {
+		groups = "bmc_boot_spi_cs0_n_grp";
+		function = "BMC_BOOT_SPI_CS0_N";
+	};
+
+	BMC_BOOT_SPI_DI:BMC_BOOT_SPI_DI {
+		groups = "bmc_boot_spi_di_grp";
+		function = "BMC_BOOT_SPI_DI";
+	};
+
+	BMC_BOOT_SPI_DO:BMC_BOOT_SPI_DO {
+		groups = "bmc_boot_spi_do_grp";
+		function = "BMC_BOOT_SPI_DO";
+	};
+
+	BMC_BOOT_SPI_DQ2:BMC_BOOT_SPI_DQ2 {
+		groups = "bmc_boot_spi_dq2_grp";
+		function = "BMC_BOOT_SPI_DQ2";
+	};
+
+	BMC_BOOT_SPI_DQ3:BMC_BOOT_SPI_DQ3 {
+		groups = "bmc_boot_spi_dq3_grp";
+		function = "BMC_BOOT_SPI_DQ3";
+	};
+
+	BMC_BOOT_SPI_CS2_N:BMC_BOOT_SPI_CS2_N {
+		groups = "bmc_boot_spi_cs2_n_grp";
+		function = "BMC_BOOT_SPI_CS2_N";
+	};
+
+	BMC_BOOT_SPI_CS1_N:BMC_BOOT_SPI_CS1_N {
+		groups = "bmc_boot_spi_cs1n_grp";
+		function = "BMC_BOOT_SPI_CS1_N";
+	};
+
+	BMC_BOOT_SPI_ABR:BMC_BOOT_SPI_ABR {
+		groups = "bmc_boot_spi_abr_grp";
+		function = "BMC_BOOT_SPI_ABR";
+	};
+
+	BMC_BOOT_SPI_WP_N:BMC_BOOT_SPI_WP_N {
+		groups = "bmc_boot_spi_wp_n_grp";
+		function = "BMC_BOOT_SPI_WP_N";
+	};
+	BMC_SPI_CLK:BMC_SPI_CLK {
+		groups = "bmc_spi_clk_grp";
+		function = "BMC_SPI_CLK";
+	};
+
+	BMC_SPI_CS0_N:BMC_SPI_CS0_N {
+		groups = "bmc_spi_cs0_n_grp";
+		function = "BMC_SPI_CS0_N";
+	};
+
+
+	BMC_SPI_DI:BMC_SPI_DI {
+		groups = "bmc_spi_di_grp";
+		function = "BMC_SPI_DI";
+	};
+
+	BMC_SPI_DO:BMC_SPI_DO {
+		groups = "bmc_spi_do_grp";
+		function = "BMC_SPI_DO";
+	};
+
+	BMC_SPI_DQ2:BMC_SPI_DQ2 {
+		groups = "bmc_spi_dq2_grp";
+		function = "BMC_SPI_DQ2";
+	};
+
+
+	BMC_SPI_DQ3:BMC_SPI_DQ3 {
+		groups = "bmc_spi_dq3_grp";
+		function = "BMC_SPI_DQ3";
+	};
+
+	BMC_SPI_CS2_N:BMC_SPI_CS2_N {
+		groups = "bmc_spi_cs2_n_grp";
+		function = "BMC_SPI_CS2_N";
+	};
+
+	BMC_SPI_CS1_N:BMC_SPI_CS1_N {
+		groups = "bmc_spi_cs1_n_grp";
+		function = "BMC_SPI_CS1_N";
+		
+	};
+	SIO_LAD_0:SIO_LAD_0 {
+		groups = "sio_lad_0_grp";
+		function = "SIO_LAD_0";
+	};
+
+	SIO_LAD_1:SIO_LAD_1 {
+		groups = "sio_lad_1_grp";
+		function = "SIO_LAD_1";
+	};
+
+	SIO_LAD_2:SIO_LAD_2 {   
+		groups = "sio_lad_2_grp";
+		function = "SIO_LAD_2";   
+	};
+
+	SIO_LAD_3:SIO_LAD_3 {
+		groups = "sio_lad_3_grp";
+		function = "SIO_LAD_3";
+	};
+
+	SIO_LCLK:SIO_LCLK {   
+		groups = "sio_lclk_grp";
+		function = "SIO_LCLK";
+	};
+
+	SIO_LRESET_N:SIO_LRESET_N {    
+		groups = "sio_lreset_grp";
+		function = "SIO_LRESET_N";
+	};
+
+	SIO_LFRAME_N:SIO_LFRAME_N {
+		groups = "sio_lframe_n_grp";
+		function = "SIO_LFRAME_N";
+	};
+
+
+	SIO_SMI_N:SIO_SMI_N {
+		groups = "sio_smi_n_grp";
+		function = "SIO_SMI_N";
+	};
+
+	SIO_ONCTL_N:SIO_ONCTL_N {
+		groups = "sio_onctl_n_grp";
+		function = "SIO_ONCTL_N";
+	};
+
+	SIO_PWRBTIN_N:SIO_PWRBTIN_N {
+		groups = "sio_pwrbtin_n_grp";
+		function = "SIO_PWRBTIN_N";
+	};
+
+	SIO_PWRBTOUT_N:SIO_PWRBTOUT_N {
+		groups = "sio_pwrbtout_n_grp";
+		function = "SIO_PWRBTOUT_N";
+	};
+
+	SIO_PWRREQ_N:SIO_PWRREQ_N {
+		groups = "sio_pwrreq_n_grp";
+		function = "SIO_PWRREQ_N";
+	};
+
+	SIO_SCI_N:SIO_SCI_N {
+		groups = "sio_sci_n_grp";
+		function = "SIO_SCI_N";
+	};
+
+	SIO_LDRQ_O:SIO_LDRQ_O {
+		groups = "sio_sci_n_grp";
+		function = "SIO_LDRQ_O";
+	};
+
+	SIO_SLPS3_N:SIO_SLPS3_N{
+		groups = "sio_slps3_n_grp";
+		function = "SIO_SLPS3_N";
+	};
+	SIO_SLPS5_N:SIO_SLPS5_N {
+		groups = "sio_slps5_n_grp";
+		function = "SIO_SLPS5_N";
+	};
+
+};

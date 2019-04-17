@@ -1,0 +1,139 @@
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2018 Aspeed Technology Inc
+// Shivah Shankar <shivahshankar.shankarnarayanrao@aspeedtech.com>
+
+/dts-v1/;
+#include "skeleton.dtsi"
+#include "pilot4.dtsi"
+/ {
+	memory {
+		device_type = "memory";
+		reg = <0x88000000 0X17F00000>; 
+	};
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &lpc_sp1;
+                serial2 = &lpc_sp2;
+	        i2c0 = &i2c0;
+                i2c1 = &i2c1;
+                i2c2 = &i2c2;
+                i2c3 = &i2c3;
+                i2c4 = &i2c4;
+                i2c5 = &i2c5;
+                i2c6 = &i2c6;
+                i2c7 = &i2c7;
+                i2c8 = &i2c8;
+                i2c9 = &i2c9;
+		pwmtach = &pwmtach;
+	};
+	chosen {
+                bootargs = "console=ttyS0,115200n8 mem=383M earlyprintk";
+                stdout-path = "serial0:115200n8";
+        };
+/*
+	chosen {
+		bootargs = "console=ttyS0,115200n8 root=/dev/ram0 rw initrd=0x86000000,32M mem=480M earlyprintk";
+                stdout-path = "serial0:115200n8";
+	};
+*/
+
+};
+
+&bootspi {
+        status = "okay";
+        flash@0 {
+                status = "okay";
+                spi-max-frequency = <50000000>;
+#include "openbmc-flash-layout.dtsi"
+        };
+};
+
+&uart0{
+status = "okay";
+};
+&lpc_sp1{
+status = "okay";
+};
+&lpc_sp2{
+status = "okay";
+};
+&eth0{
+status = "okay";
+};
+&eth1{
+status = "okay";
+};
+&watchdog1{
+status = "okay";
+};
+&watchdog2{
+status = "okay";
+};
+&watchdog3{
+status = "okay";
+};
+&pincontroller{
+status = "okay";
+};
+
+&pilot_gpio_ctrl{
+status = "okay";
+};
+&i2c0{
+        status = "okay";
+};
+&i2c1{
+        status = "okay";
+};
+&i2c2{
+        status = "okay";
+};
+&i2c3{
+        status = "okay";
+};
+&i2c4{
+        status = "okay";
+};
+&i2c5{
+        status = "okay";
+};
+&i2c6{
+        status = "okay";
+};
+&i2c7{
+        status = "okay";
+};
+&i2c8{
+        status = "okay";
+};
+&i2c9{
+        status = "okay";
+};
+&pwmtach{
+        status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&BMC_PWM_0>,<&BMC_PWM_1>,<&BMC_PWM_2>,<&BMC_PWM_3>,<&BMC_PWM_4>
+			,<&BMC_PWM_7>,<&BMC_PWM_6>,<&BMC_PWM_5>,
+	<&BMC_FAN_TACH_0>,<&BMC_FAN_TACH_1>,<&BMC_FAN_TACH_2>,<&BMC_FAN_TACH_3>
+		,<&BMC_FAN_TACH_4>,<&BMC_FAN_TACH_5>,<&BMC_FAN_TACH_6>,<&BMC_FAN_TACH_7>
+		,<&BMC_FAN_TACH_8>,<&BMC_FAN_TACH_9>,<&BMC_FAN_TACH_10>,<&BMC_FAN_TACH_11>
+		,<&BMC_FAN_TACH_12>,<&BMC_FAN_TACH_13>,<&BMC_FAN_TACH_14>,<&BMC_FAN_TACH_15>;
+
+       fan@0 {
+                compatible = "fan-tach-ch";
+                reg = <0x01>;
+                aspeed,fan-tach-ch = /bits/ 8 <0x00>;
+                aspeed,pwm-clk-divider = <8330000>;
+                aspeed,pwm-prescaler = <0>;
+        };
+
+        led@0 {
+                compatible = "pwm-stand-alone";
+                reg = <0x00>;
+                aspeed,pwm-clk-divider = <200000>;
+                aspeed,pwm-prescaler = <126>;
+        };
+	
+};
+

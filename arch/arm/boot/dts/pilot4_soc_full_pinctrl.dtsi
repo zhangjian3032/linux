@@ -1,0 +1,2321 @@
+&pincontroller {
+
+        GPIO_0:GPIO_0 {
+                groups = "gpio_0_grp";
+                function = "GPIO_0";
+		drive-strength = <CURR_DRV_6MA>;
+		bias-pull-up;
+        };
+
+        GPIO_1:GPIO_1 {
+                groups = "gpio_1_grp";
+                function = "GPIO_1";
+		drive-strength = <CURR_DRV_6MA>;
+		bias-pull-pin-default;
+        };
+
+        GPIO_2:GPIO_2 {
+                groups = "gpio_2_grp";
+                function = "GPIO_2";
+        };
+
+        GPIO_3:GPIO_3 {
+                groups = "gpio_3_grp";
+                function = "GPIO_3";
+        };
+
+        GPIO_4:GPIO_4 {
+                groups = "gpio_4_grp";
+                function = "GPIO_4";
+        };
+
+        GPIO_5:GPIO_5 {
+                groups = "gpio_5_grp";
+                function = "GPIO_5";
+        };
+
+        GPIO_6:GPIO_6 {
+                groups = "gpio_6_grp";
+                function = "GPIO_6";
+        };
+
+        GPIO_7:GPIO_7 {
+                groups = "gpio_7_grp";
+                function = "GPIO_7";
+        };
+
+        GPIO_8:GPIO_8 {
+                groups = "gpio_8_grp";
+                function = "GPIO_8";
+        };
+
+        GPIO_9:GPIO_9 {
+                groups = "gpio_9_grp";
+                function = "GPIO_9";
+        };
+
+        GPIO_10:GPIO_10 {
+                groups = "gpio_10_grp";
+                function = "GPIO_10";
+        };
+
+        GPIO_11:GPIO_11 {
+                groups = "gpio_11_grp";
+                function = "GPIO_11";
+        };
+
+        GPIO_12:GPIO_12 {
+                groups = "gpio_12_grp";
+                function = "GPIO_12";
+        };
+
+        GPIO_13:GPIO_13 {
+                groups = "gpio_13_grp";
+                function = "GPIO_13";
+        };
+
+        GPIO_14:GPIO_14 {
+                groups = "gpio_14_grp";
+                function = "GPIO_14";
+        };
+
+        GPIO_15:GPIO_15 {
+                groups = "gpio_15_grp";
+                function = "GPIO_15";
+        };
+
+        GPIO_16:GPIO_16 {
+                groups = "gpio_16_grp";
+                function = "GPIO_16";
+        };
+
+        GPIO_17:GPIO_17 {
+                groups = "gpio_17_grp";
+                function = "GPIO_17";
+        };
+
+        GPIO_18:GPIO_18 {
+                groups = "gpio_18_grp";
+                function = "GPIO_18";
+        };
+
+        GPIO_19:GPIO_19 {
+                groups = "gpio_19_grp";
+                function = "GPIO_19";
+        };
+
+        GPIO_20:GPIO_20 {
+                groups = "gpio_20_grp";
+                function = "GPIO_20";
+        };
+
+        GPIO_21:GPIO_21 {
+                groups = "gpio_21_grp";
+                function = "GPIO_21";
+        };
+
+        GPIO_22:GPIO_22 {
+                groups = "gpio_22_grp";
+                function = "GPIO_22";
+        };
+
+        GPIO_23:GPIO_23 {
+                groups = "gpio_23_grp";
+                function = "GPIO_23";
+        };
+
+        GPIO_24:GPIO_24 {
+                groups = "gpio_24_grp";
+                function = "GPIO_24";
+        };
+
+        GPIO_25:GPIO_25 {
+                groups = "gpio_25_grp";
+                function = "GPIO_25";
+        };
+
+        GPIO_26:GPIO_26 {
+                groups = "gpio_26_grp";
+                function = "GPIO_26";
+        };
+
+        GPIO_27:GPIO_27 {
+                groups = "gpio_27_grp";
+                function = "GPIO_27";
+        };
+
+        GPIO_28:GPIO_28 {
+                groups = "gpio_28_grp";
+                function = "GPIO_28";
+        };
+
+        GPIO_29:GPIO_29 {
+                groups = "gpio_29_grp";
+                function = "GPIO_29";
+        };
+
+        GPIO_30:GPIO_30 {
+                groups = "gpio_30_grp";
+                function = "GPIO_30";
+        };
+
+        GPIO_31:GPIO_31 {
+                groups = "gpio_31_grp";
+                function = "GPIO_31";
+        };
+
+	UART4_RXD:UART4_RXD {
+                groups = "gpio_30_grp";
+                function = "UART4_RXD";
+	};
+
+	UART4_TXD:UART4_TXD {
+                groups = "gpio_31_grp";
+                function = "UART4_TXD";
+	};
+
+        GPIO_26_7:GPIO_26_7 {
+                groups = "gpio_port26_7_grp";
+                function = "GPIO_26_7";
+		drive-strength = "VG_DRV_1_8V_36_77_OHM";
+		bias-pull-pin-default;
+
+        };
+
+        RGMII_REFCLK:RGMII_REFCLK {
+                groups = "gpio_port26_7_grp";
+                function = "RGMII_REFCLK";
+        };
+
+	UART0_CTS_N:UART0_CTS_N {
+		groups = "uart0_cts_n_grp";
+		function = "UART0_CTS_N";
+	};
+	UART0_DCD_N:UART0_DCD_N {
+		groups = "uart0_dcd_n_grp";
+		function = "UART0_DCD_N";
+	};
+	UART0_DSR_N:UART0_DSR_N {
+		groups = "uart0_dsr_n_grp";
+		function= "UART0_DSR_N";
+	};
+	UART0_DTR_N:UART0_DTR_N {
+		groups = "uart0_dtr_n_grp";
+		function = "UART0_DTR_N";
+	};
+	UART0_RI_N:UART0_RI_N {
+		groups = "uart0_ri_n_grp";
+		function = "UART0_RI_N";
+	};
+	UART0_RTS_N:UART0_RTS_N {
+		groups = "uart0_rts_n_grp";
+		function = "UART0_RTS_N";
+	};
+
+	UART0_RXD:UART0_RXD {
+		groups = "uart0_rxd_grp";
+		function = "UART0_RXD";
+		drive-strength = <CURR_DRV_6MA>;
+		bias-pull-up;
+	};
+	UART0_TXD:UART0_TXD {
+		groups = "uart0_txd_grp";
+		function = "UART0_TXD";
+		drive-strength = <CURR_DRV_6MA>;
+		bias-pull-pin-default;
+	};
+	UART1_CTS_N:UART1_CTS_N {	
+		groups = "uart1_cts_n_grp";
+		function = "UART1_CTS_N";
+	};
+	GPIO_22_0:GPIO_22_0 {
+		groups = "uart1_cts_n_grp";
+		function = "GPIO_22_0";
+	};
+	UART1_DCD_N:UART1_DCD_N {
+		groups = "uart1_dcd_n_grp";
+		function = "UART1_DCD_N";
+	};
+	GPIO_22_1:GPIO_22_1 {
+		groups = "uart1_dcd_n_grp";
+		function = "GPIO_22_1";
+	};
+	UART1_DSR_N:UART1_DSR_N {
+		groups = "uart1_dsr_n_grp";
+		function = "UART1_DSR_N";
+	};
+	GPIO_22_2:GPIO_22_2 {
+		groups = "uart1_dsr_n_grp";
+		function = "GPIO_22_2";
+	};
+	UART1_DTR_N:UART1_DTR_N {
+		groups = "uart1_dtr_n_grp";
+		function = "UART1_DTR_N";
+	};
+	GPIO_22_5:GPIO_22_5 {	
+		groups = "uart1_dtr_n_grp";
+		function = "GPIO_22_5";
+	};
+	UART1_RI_N:UART1_RI_N {	
+		groups = "uart1_ri_n_grp";
+		function = "UART1_RI_N";
+	};
+	GPIO_22_3:GPIO_22_3 {
+		groups = "uart1_ri_n_grp";
+		function = "GPIO_22_3";
+	};
+	UART1_RTS_N:UART1_RTS_N {
+		groups = "uart1_rts_grp";
+		function = "UART1_RTS_N";
+	};
+	GPIO_22_6:GPIO_22_6 {
+		groups = "uart1_rts_grp";
+		function = "GPIO_22_6";
+	};
+	UART1_RXD:UART1_RXD {
+		groups = "uart1_rxd_grp";
+		function = "UART1_RXD";
+	};
+	GPIO_22_4:GPIO_22_4 {
+		groups = "uart1_rxd_grp";
+		function = "GPIO_22_4";
+	};
+	UART1_TXD:UART1_TXD {
+		groups = "uart1_txd_grp";
+		function = "UART1_TXD";
+	};
+	GPIO_22_7:GPIO_22_7 {
+		groups = "uart1_txd_grp";
+		function = "GPIO_22_7";
+	};
+	MAC0_REF_CLK:MAC0_REF_CLK {
+		groups = "mac0_ref_clk_grp";
+		function = "MAC0_REF_CLK";
+	};
+	MAC0_RX_CLK: MAC0_RX_CLK {
+		groups = "mac0_ref_clk_grp";
+		function = "MAC0_RX_CLK";
+	};
+	MAC0_RX_DV:MAC0_RX_DV {
+		groups = "mac0_rx_dv_grp";
+		function = "MAC0_RX_DV";
+	};
+	MAC0_RX_CTL:MAC0_RX_CTL {
+		groups = "mac0_rx_dv_grp";
+		function = "MAC0_RX_CTL";
+	};
+	MAC0_RX_ER:MAC0_RX_ER {
+		groups = "mac0_rx_er_grp";
+		function = "MAC0_RX_ER";	
+	};
+	MAC0_TX_CLK:MAC0_TX_CLK {
+		groups = "mac0_rx_er_grp";
+		function = "MAC0_TX_CLK";
+	};
+	MAC0_RXD_0:MAC0_RXD_0 {
+		groups = "mac0_rxd_0_grp";
+		function = "MAC0_RXD_0";
+
+	};
+	MAC0_RXD_1:MAC0_RXD_1 {
+		groups = "mac0_rxd_1_grp";
+		function = "MAC0_RXD_1";
+		drive-strength = "VG_DRV_1_8V_36_77_OHM";
+		bias-pull-pin-default;
+	};
+	MAC0_RXD_2:MAC0_RXD_2 {
+		groups = "mac0_rxd_2_grp";
+		function = "MAC0_RXD_2";
+	};
+	MAC0_RXD_3:MAC0_RXD_3 {
+		groups = "mac0_rxd_3_grp";
+		function = "MAC0_RXD_3";
+	};
+	MAC0_TX_EN:MAC0_TX_EN {
+		groups = "mac0_tx_en_grp";
+		function = "MAC0_TX_EN";
+	};
+	MAC0_TX_CTRL:MAC0_TX_CTRL {
+		groups = "mac0_tx_en_grp";
+		function = "MAC0_TX_CTRL";
+	};
+	MAC0_TXD_0:MAC0_TXD_0 {
+		groups = "mac0_txd_0_grp";
+		function = "MAC0_TXD_0";
+	};
+	MAC0_TXD_1:MAC0_TXD_1 {
+		groups = "mac0_txd_1_grp";
+		function = "MAC0_TXD_1";
+	};
+	MAC0_TXD_2:MAC0_TXD_2 {
+		groups = "mac0_txd_2_grp";
+		function = "MAC0_TXD_2";
+	};
+	MAC0_TXD_3:MAC0_TXD_3 {
+		groups = "mac0_txd_3_grp";
+		function = "MAC0_TXD_3";
+	};
+	MAC_MD_IO:MAC_MD_IO {
+		groups = "mac_md_io_grp";
+		function = "MAC_MD_IO";
+	};
+	GPIO_18_0:GPIO_18_0 {
+		groups = "mac_md_io_grp";
+		function = "GPIO_18_0";
+	};
+	MAC_MDC:MAC_MDC {
+		groups = "mac_mdc_grp";
+		function = "MAC_MDC";
+	};
+	GPIO_18_1:GPIO_18_1 {
+		groups = "mac_mdc_grp";
+		function = "GPIO_18_1";
+	};
+	MAC1_REF_CLK:MAC1_REF_CLK {
+		groups = "mac1_ref_clk_grp";
+		function = "MAC1_REF_CLK";
+	};
+	MAC1_RX_CLK:MAC1_RX_CLK {
+		groups = "mac1_ref_clk_grp";
+		function = "MAC1_RX_CLK";
+	};
+	GPIO_17_7:GPIO_17_7{
+		groups = "mac1_ref_clk_grp";
+		function = "GPIO_17_7";
+	};
+	MAC1_RX_DV:MAC1_RX_DV {
+		groups = "mac1_rx_dv_grp";
+		function = "MAC1_RX_DV";
+	};
+	MAC1_RX_CTL:MAC1_RX_CTL {
+		groups = "mac1_rx_dv_grp";
+		function = "MAC1_RX_CTL";
+	};
+	GPIO_17_5:GPIO_17_5{
+		groups = "mac1_rx_dv_grp";
+		function = "GPIO_17_5";
+	};
+	MAC1_RX_ER:MAC1_RX_ER {
+		groups = "mac1_rx_er_grp";
+		function = "MAC1_RX_ER";	
+	};
+	MAC1_TX_CLK:MAC1_TX_CLK {
+		groups = "mac1_rx_er_grp";
+		function = "MAC1_TX_CLK";
+	};
+	GPIO_17_6:GPIO_17_6{
+		groups = "mac1_rx_er_grp";
+		function = "GPIO_17_6";
+	};
+	MAC1_RXD_0:MAC1_RXD_0 {
+		groups = "mac1_rxd_0_grp";
+		function = "MAC1_RXD_0";
+	};
+	GPIO_17_3:GPIO_17_3{
+		groups = "mac1_rxd_0_grp";
+		function = "GPIO_17_3";
+	};
+	MAC1_RXD_1:MAC1_RXD_1 {
+		groups = "mac1_rxd_1_grp";
+		function = "MAC1_RXD_1";
+	};
+	GPIO_17_4:GPIO_17_4{
+		groups = "mac1_rxd_1_grp";
+		function = "GPIO_17_4";
+	};
+	MAC1_RXD_2:MAC1_RXD_2 {
+		groups = "mac1_rxd_2_grp";
+		function = "MAC1_RXD_2";
+	};
+	GPIO_18_4:GPIO_18_4{
+		groups = "mac1_rxd_2_grp";
+		function = "GPIO_18_4";
+	};
+	MAC1_RXD_3:MAC1_RXD_3 {
+		groups = "mac1_rxd_3_grp";
+		function = "MAC1_RXD_3";
+	};
+	GPIO_18_5:GPIO_18_5{
+		groups = "mac1_rxd_3_grp";
+		function = "GPIO_18_5";
+	};
+	MAC1_TX_EN:MAC1_TX_EN {
+		groups = "mac1_tx_en_grp";
+		function = "MAC1_TX_EN";
+	};
+	MAC1_TX_CTL:MAC1_TX_CTL {
+		groups = "mac1_tx_en_grp";
+		function = "MAC1_TX_CTL";
+	};
+	GPIO_17_2:GPIO_17_2{
+		groups = "mac1_tx_en_grp";
+		function = "GPIO_17_2";
+	};
+	MAC1_TXD_0:MAC1_TXD_0 {
+		groups = "mac1_txd_0_grp";
+		function = "MAC1_TXD_0";
+	};
+	GPIO_17_0:GPIO_17_0{
+		groups = "mac1_txd_0_grp";
+		function = "GPIO_17_0";
+	};
+	MAC1_TXD_1:MAC1_TXD_1 {
+		groups = "mac1_txd_1_grp";
+		function = "MAC1_TXD_1";
+	};
+	GPIO_17_1:GPIO_17_1{
+		groups = "mac1_txd_1_grp";
+		function = "GPIO_17_1";
+	};
+	MAC1_TXD_2:MAC1_TXD_2 {
+		groups = "mac1_txd_2_grp";
+		function = "MAC1_TXD_2";
+	};
+	GPIO_18_2:GPIO_18_2{
+		groups = "mac1_txd_2_grp";
+		function = "GPIO_18_2";
+	};
+	MAC1_TXD_3:MAC1_TXD_3 {
+		groups = "mac1_txd_3_grp";
+		function = "MAC1_TXD_3";
+	};
+	GPIO_18_3:GPIO_18_3{
+		groups = "mac1_txd_3_grp";
+		function = "GPIO_18_3";
+	};
+	UART2_RXD:UART2_RXD {
+		groups = "uart2_rxd_grp";
+		function = "UART2_RXD";
+	};
+	UART2_TXD:UART2_TXD {
+		groups = "uart2_txd_grp";
+		function = "UART2_TXD";
+	};
+	SD_CLK:SD_CLK {
+		groups = "sd_clk_grp";
+		function = "SD_CLK";
+	};
+	GPIO_16_2:GPIO_16_2 {
+		groups = "sd_clk_grp";
+		function = "GPIO_16_2";
+	};
+	SD_CMD:SD_CMD {
+		groups = "sd_cmd_grp";
+		function = "SD_CMD";
+	};
+	GPIO_16_1:GPIO_16_1 {
+		groups = "sd_cmd_grp";
+		function = "GPIO_16_1";
+	};
+	SD_DATA_0:SD_DATA_0 {
+		groups = "sd_data_0_grp";
+		function = "SD_DATA_0";
+	};
+	GPIO_16_4:GPIO_16_4 {
+		groups = "sd_data_0_grp";
+		function = "GPIO_16_4";
+	};
+	SD_DATA_1:SD_DATA_1 {
+		groups = "sd_data_1_grp";
+		function = "SD_DATA_1";
+	};
+	GPIO_16_5:GPIO_16_5 {
+		groups = "sd_data_1_grp";
+		function = "GPIO_16_5";
+	};
+	SD_DATA_2:SD_DATA_2 {
+		groups = "sd_data_2_grp";
+		function = "SD_DATA_2";
+	};
+	GPIO_16_6:GPIO_16_6 {
+		groups = "sd_data_2_grp";
+		function = "GPIO_16_6";
+	};
+	SD_DATA_3:SD_DATA_3 {
+		groups = "sd_data_3_grp";
+		function = "SD_DATA_3";
+	};
+
+	GPIO_16_7:GPIO_16_7 {
+		groups = "sd_data_3_grp";
+		function = "GPIO_16_7";
+	};
+
+	SD_CD:SD_CD {
+		groups = "sd_cd_grp";
+		function = "SD_CD";
+	};
+
+	GPIO_16_2:GPIO_16_2 {
+		groups = "sd_cd_grp";
+		function = "GPIO_16_2";
+	};
+
+	SD_WP:SD_WP {
+		groups = "sd_wp_grp";
+		function = "SD_WP";
+	};
+
+	GPIO_16_3:GPIO_16_3 {
+		groups = "sd_wp_grp";
+		function = "GPIO_16_3";
+	};
+
+	SD1_CLK:SD1_CLK {
+		groups = "sd1_clk_grp";
+		function = "SD1_CLK";
+	};
+
+	GPIO_20_0:GPIO_20_0{
+		groups = "sd_1clk_grp";
+		function = "GPIO_20_0";
+	};
+
+	SD1_CMD:SD1_CMD {
+		groups = "sd1_cmd_grp";
+		function = "SD1_CMD";
+	};
+
+	GPIO_21_1:GPIO_21_1 {
+		groups = "sd1_cmd_grp";
+		function = "GPIO_21_1";
+	};
+
+	SD1_DATA_0:SD1_DATA_0 {
+		groups = "sd1_data_0_grp";
+		function = "SD1_DATA_0";
+	};
+
+	GPIO_21_4:GPIO_21_4 {
+		groups = "sd1_data_0_grp";
+		function = "GPIO_21_4";
+	};
+
+	SD1_DATA_1:SD1_DATA_1 {
+		groups = "sd1_data_1_grp";
+		function = "SD1_DATA_1";
+	};
+
+	GPIO_21_5:GPIO_21_5 {
+		groups = "sd1_data_1_grp";
+		function = "GPIO_21_5";
+	};
+
+	SD1_DATA_2:SD1_DATA_2 {
+		groups = "sd1_data_2_grp";
+		function = "SD1_DATA_2";
+	};
+
+	GPIO_21_6:GPIO_21_6 {
+		groups = "sd1_data_2_grp";
+		function = "GPIO_21_6";
+	};
+
+	SD1_DATA_3:SD1_DATA_3 {
+		groups = "sd1_data_3_grp";
+		function = "SD1_DATA_3";
+	};
+
+	GPIO_21_7:GPIO_21_7 {
+		groups = "sd1_data_3_grp";
+		function = "GPIO_21_7";
+	};
+
+	SD1_CD:SD1_CD {
+		groups = "sd1_cd_grp";
+		function = "SD1_CD";
+	};
+
+	GPIO_21_2:GPIO_21_2 {
+		groups = "sd1_cd_grp";
+		function = "GPIO_21_2";
+	};
+
+	SD1_WP:SD1_WP {
+		groups = "sd1_wp_grp";
+		function = "SD1_WP";
+	};
+
+	GPIO_21_3:GPIO_21_3 {
+		groups = "sd1_wp_grp";
+		function = "GPIO_21_3";
+	};
+
+	EMMC_CLK:EMMC_CLK {
+		groups = "emmc_clk_grp";
+		function = "EMMC_CLK";
+	};
+
+	GPIO_23_0:GPIO_23_0 {
+		groups = "emmc_clk_grp";
+		function = "GPIO_23_0";   
+	};
+
+	EMMC_CMD:EMMC_CMD {
+		groups = "emmc_cmd_grp";
+		function = "EMMC_CMD";   
+	};
+
+	GPIO_23_1:GPIO_23_1 {
+		groups = "emmc_cmd_grp";
+		function = "GPIO_23_1";   
+	};
+
+	EMMC_DATA_0:EMMC_DATA_0 {
+		groups = "emmc_data_0_grp";
+		function = "EMMC_DATA_0";
+	};
+
+	GPIO_23_2:GPIO_23_2 {
+		groups = "emmc_data_0_grp";
+		function = "GPIO_23_2";
+	};
+
+	EMMC_DATA_1:EMMC_DATA_1 {
+		groups = "emmc_data_1_grp";
+		function = "EMMC_DATA_1";
+	};
+
+	GPIO_23_3:GPIO_23_3 {
+		groups = "emmc_data_1_grp";
+		function = "GPIO_23_3";
+	};
+
+	EMMC_DATA_2:EMMC_DATA_2 {
+		groups = "emmc_data_2_grp";
+		function = "EMMC_DATA_2";
+	};
+
+	GPIO_23_4:GPIO_23_4 {
+		groups = "emmc_data_2_grp";
+		function = "GPIO_23_4";
+	};
+
+	EMMC_DATA_3:EMMC_DATA_3 {
+		groups = "emmc_data_3_grp";
+		function = "EMMC_DATA_3";
+	};
+
+	GPIO_23_5:GPIO_23_5 {
+		groups = "emmc_data_3_grp";
+		function = "GPIO_23_5";
+	};
+
+	EMMC_DATA_4:EMMC_DATA_4 {
+		groups = "emmc_data_4_grp";
+		function = "EMMC_DATA_4";
+	};
+
+	GPIO_23_6:GPIO_23_6 {
+		groups = "emmc_data_4_grp";
+		function = "GPIO_23_6";
+	};
+
+	EMMC_DATA_5:EMMC_DATA_5 {
+		groups = "emmc_data_5_grp";
+		function = "EMMC_DATA_5";
+	};
+
+	GPIO_23_7:GPIO_23_7 {
+		groups = "emmc_data_5_grp";
+		function = "GPIO_23_7";
+	};
+
+	EMMC_DATA_6:EMMC_DATA_6 {
+		groups = "emmc_data_6_grp";
+		function = "EMMC_DATA_6";
+	};
+
+	GPIO_29_0:GPIO_29_0 {
+		groups = "emmc_data_6_grp";
+		function = "GPIO_29_0";
+	};
+
+	EMMC_DATA_7:EMMC_DATA_7 {
+		groups = "emmc_data_7_grp";
+		function = "EMMC_DATA_7";
+	};
+
+	GPIO_29_1:GPIO_29_1 {
+		groups = "emmc_data_7_grp";
+		function = "GPIO_29_1";
+	};
+
+	SDA_0:SDA_0 {
+		groups = "sda_0_grp";
+		function = "SDA_0";
+	};
+
+	GPIO_27_1:GPIO_27_1 {
+		groups = "sda_0_grp";
+		function = "GPIO_27_1";
+	};
+
+	SDA_1:SDA_1 {
+		groups = "sda_1_grp";
+		function = "SDA_1";
+	};
+
+	GPIO_27_3:GPIO_27_3 {
+		groups = "sda_1_grp";
+		function = "GPIO_27_3";
+	};
+
+	SDA_2:SDA_2 {
+		groups = "sda_2_grp";
+		function = "SDA_2";
+	};
+
+	GPIO_27_5:GPIO_27_5 {
+		groups = "sda_2_grp";
+		function = "GPIO_27_5";
+	};
+
+	SDA_3:SDA_3 {
+		groups = "sda_3_grp";
+		function = "SDA_3";
+	};
+
+	GPIO_27_7:GPIO_27_7 {
+		groups = "sda_3_grp";
+		function = "GPIO_27_7";
+	};
+
+	SDA_4:SDA_4 {
+		groups = "sda_4_grp";
+		function = "SDA_4";
+	};
+
+	GPIO_28_1:GPIO_28_1 {
+		groups = "sda_4_grp";
+		function = "GPIO_28_1";
+	};
+
+	SDA_5:SDA_5 {
+		groups = "sda_5_grp";
+		function = "SDA_5";
+	};
+
+	GPIO_28_3:GPIO_28_3 {
+		groups = "sda_5_grp";
+		function = "GPIO_28_3";
+	};
+
+	SDA_6:SDA_6 {
+		groups = "sda_6_grp";
+		function = "SDA_6";
+	};
+
+	GPIO_28_5:GPIO_28_5 {
+		groups = "sda_6_grp";
+		function = "GPIO_28_5";
+	};
+
+	SDA_7:SDA_7 {
+		groups = "sda_7_grp";
+		function = "SDA_7";
+	};
+
+	GPIO_28_7:GPIO_28_7 {
+		groups = "sda_7_grp";
+		function = "GPIO_28_7";
+	};
+
+	SDA_8:SDA_8 {
+		groups = "sda_8_grp";
+		function = "SDA_8";
+	};
+
+	GPIO_29_3:GPIO_29_3 {
+		groups = "sda_8_grp";
+		function = "GPIO_29_3";
+	};
+
+	SDA_9:SDA_9 {
+		groups = "sda_9_grp";
+		function = "SDA_9";
+	};
+
+	GPIO_29_5:GPIO_29_5 {
+		groups = "sda_9_grp";
+		function = "GPIO_29_5";
+	};
+
+	SDC_0:SDC_0 {
+		groups = "sdc_0_grp";
+		function = "SDC_0";
+	};
+
+	GPIO_27_0:GPIO_27_0 {
+		groups = "sdc_0_grp";
+		function = "GPIO_27_0";
+	};
+
+	SDC_1:SDC_1 {
+		groups = "sdc_1_grp";
+		function = "SDC_1";
+	};
+
+	GPIO_27_2:GPIO_27_2 {
+		groups = "sdc_1_grp";
+		function = "GPIO_27_2";
+	};
+
+	SDC_2:SDC_2 {
+		groups = "sdc_2_grp";
+		function = "SDC_2";
+	};
+
+	GPIO_27_4:GPIO_27_4 {
+		groups = "sdc_2_grp";
+		function = "GPIO_27_4";
+	};
+
+	SDC_3:SDC_3 {
+		groups = "sdc_3_grp";
+		function = "SDC_3";
+	};
+
+	GPIO_27_6:GPIO_27_6 {
+		groups = "sdc_3_grp";
+		function = "GPIO_27_6";
+	};
+
+	SDC_4:SDC_4 {
+		groups = "sdc_4_grp";
+		function = "SDC_4";
+	};
+
+	GPIO_28_0:GPIO_28_0 {
+		groups = "sdc_4_grp";
+		function = "GPIO_28_0";
+	};
+
+	SDC_5:SDC_5 {
+		groups = "sdc_5_grp";
+		function = "SDC_5";
+
+	};
+
+	GPIO_28_2:GPIO_28_2 {
+		groups = "sdc_5_grp";
+		function = "GPIO_28_2";
+	};
+
+	SDC_6:SDC_6 {
+		groups = "sdc_6_grp";
+		function = "SDC_6";
+		
+	};
+
+	GPIO_28_4:GPIO_28_4 {
+		groups = "sdc_6_grp";
+		function = "GPIO_28_4";
+	};
+
+	SDC_7:SDC_7 {
+		groups = "sdc_7_grp";
+		function = "SDC_7";
+	};
+
+	GPIO_28_6:GPIO_28_6 {
+		groups = "sdc_7_grp";
+		function = "GPIO_28_6";
+	};
+
+	SDC_8:SDC_8 {
+		groups = "sdc_8_grp";
+		function = "SDC_8";
+	};
+
+	GPIO_29_2:GPIO_29_2 {
+		groups = "sdc_8_grp";
+		function = "GPIO_29_2";
+	};
+
+	SDC_9:SDC_9 {
+		groups = "sdc_9_grp";
+		function = "SDC_9";
+	};
+
+	GPIO_29_4:GPIO_29_4 {
+		groups = "sdc_9_grp";
+		function = "GPIO_29_4";
+	};
+
+	BMC_PWM_0:BMC_PWM_0 {
+		groups = "bmc_pwm_0_grp";
+		function = "BMC_PWM_0";
+	};
+
+	GPIO_40_0:GPIO_40_0 {
+		groups = "bmc_pwm_0_grp";
+		function = "GPIO_40_0";
+	};
+
+	BMC_PWM_1:BMC_PWM_1 {
+		groups = "bmc_pwm_1_grp";
+		function = "BMC_PWM_1";
+	};
+
+	GPIO_40_1:GPIO_40_1 {
+		groups = "bmc_pwm_1_grp";
+		function = "GPIO_40_1";
+	};
+
+	BMC_PWM_2:BMC_PWM_2 {
+		groups = "bmc_pwm_2_grp";
+		function = "BMC_PWM_2";
+	};
+
+	UART2_DTR_N:UART2_DTR_N {
+		groups = "bmc_pwm_2_grp";
+		function = "UART2_DTR_N";
+	};
+
+	GPIO_40_2:GPIO_40_2 {
+		groups = "bmc_pwm_2_grp";
+		function = "GPIO_40_2";
+	};
+
+	BMC_PWM_3:BMC_PWM_3 {
+		groups = "bmc_pwm_3_grp";
+		function = "BMC_PWM_3";
+	};
+
+	UART2_RTS_N:UART2_RTS_N {
+		groups = "bmc_pwm_3_grp";
+		function = "UART2_RTS_N";
+	};
+
+	GPIO_40_3:GPIO_40_3 {
+		groups = "bmc_pwm_3_grp";
+		function = "GPIO_40_3";
+	};
+
+	BMC_PWM_4:BMC_PWM_4{
+		groups = "bmc_pwm_4_grp";
+		function = "BMC_PWM_4";
+	};
+
+	GPIO_40_4:GPIO_40_4 {
+		groups = "bmc_pwm_4_grp";
+		function = "GPIO_40_4";
+	};
+
+	BMC_PWM_5:BMC_PWM_5 {
+		groups = "bmc_pwm_5_grp";
+		function = "BMC_PWM_5";
+	};
+
+	GPIO_40_5:GPIO_40_5 {
+		groups = "bmc_pwm_5_grp";
+		function = "GPIO_40_5";
+	};
+
+	BMC_PWM_6:BMC_PWM_6 {
+		groups = "bmc_pwm_6_grp";
+		function = "BMC_PWM_6";
+	};
+
+	GPIO_40_6:GPIO_40_6 {
+		groups = "bmc_pwm_6_grp";
+		function = "GPIO_40_6";
+	};
+
+	BMC_PWM_7:BMC_PWM_7 {
+		groups = "bmc_pwm_7_grp";
+		function = "BMC_PWM_7";
+	};
+
+	GPIO_40_7:GPIO_40_7 {
+		groups = "bmc_pwm_7_grp";
+		function = "GPIO_40_7";
+	};
+
+	BMC_FAN_TACH_0:BMC_FAN_TACH_0 {
+		groups = "bmc_fan_tach_0_grp";
+		function = "BMC_FAN_TACH_0";
+	};
+
+	GPIO_41_0:GPIO_41_0 {
+		groups = "bmc_fan_tach_0_grp";
+		function = "GPIO_41_0";
+	};
+
+	BMC_FAN_TACH_1:BMC_FAN_TACH_1 {
+		groups = "bmc_fan_tach_1_grp";
+		function = "BMC_FAN_TACH_1";
+	};
+
+	GPIO_41_1:GPIO_41_1 {
+		groups = "bmc_fan_tach_1_grp";
+		function = "GPIO_41_1";
+	};
+
+	BMC_FAN_TACH_2:BMC_FAN_TACH_2 {
+		groups = "bmc_fan_tach_2_grp";
+		function = "BMC_FAN_TACH_2";
+	};
+
+	GPIO_41_2:GPIO_41_2 {
+		groups = "bmc_fan_tach_2_grp";
+		function = "GPIO_41_2";
+	};
+
+	BMC_FAN_TACH_3:BMC_FAN_TACH_3 {
+		groups = "bmc_fan_tach_3_grp";
+		function = "BMC_FAN_TACH_3";
+	};
+
+	GPIO_41_3:GPIO_41_3 {
+		groups = "bmc_fan_tach_3_grp";
+		function = "GPIO_41_3";
+	};
+
+	BMC_FAN_TACH_4:BMC_FAN_TACH_4 {
+		groups = "bmc_fan_tach_4_grp";
+		function = "BMC_FAN_TACH_4";
+	};
+
+	UART2_CTS_N:UART2_CTS_N {
+		groups = "bmc_fan_tach_4_grp";
+		function = "UART2_CTS_N";
+	};
+
+	GPIO_41_4:GPIO_41_4 {
+		groups = "bmc_fan_tach_4_grp";
+		function = "GPIO_41_4";
+	};
+
+	BMC_FAN_TACH_5:BMC_FAN_TACH_5 {
+		groups = "bmc_fan_tach_5_grp";
+		function = "BMC_FAN_TACH_5";
+	};
+
+	UART2_DCD_N:UART2_DCD_N {
+		groups = "bmc_fan_tach_5_grp";
+		function = "UART2_DCD_N";
+	};
+
+	GPIO_41_5:GPIO_41_5 {
+		groups = "bmc_fan_tach_5_grp";
+		function = "GPIO_41_5";
+	};
+
+	BMC_FAN_TACH_6:BMC_FAN_TACH_6 {
+		groups = "bmc_fan_tach_6_grp";
+		function = "BMC_FAN_TACH_6";
+	};
+
+	UART2_DSR_N:UART2_DSR_N {
+		groups = "bmc_fan_tach_6_grp";
+		function = "UART2_DSR_N";
+	};
+
+	GPIO_41_6:GPIO_41_6 {
+		groups = "bmc_fan_tach_6_grp";
+		function = "GPIO_41_6";
+	};
+
+	BMC_FAN_TACH_7:BMC_FAN_TACH_7 {
+		groups = "bmc_fan_tach_7_grp";
+		function = "BMC_FAN_TACH_7";
+	};
+
+	UART2_RI_N:UART2_RI_N {
+		groups = "bmc_fan_tach_7_grp";
+		function = "UART2_RI_N";
+	};
+
+	GPIO_41_7:GPIO_41_7 {
+		groups = "bmc_fan_tach_7_grp";
+		function = "GPIO_41_7";
+	};
+
+	BMC_FAN_TACH_8:BMC_FAN_TACH_8 {
+		groups = "bmc_fan_tach_8_grp";
+		function = "BMC_FAN_TACH_8";
+	};
+
+	GPIO_42_0:GPIO_42_0 {
+		groups = "bmc_fan_tach_8_grp";
+		function = "GPIO_42_0";
+	};
+
+	BMC_FAN_TACH_9:BMC_FAN_TACH_9 {
+		groups = "bmc_fan_tach_9_grp";
+		function = "BMC_FAN_TACH_9";
+	};
+
+	GPIO_42_1:GPIO_42_1 {
+		groups = "bmc_fan_tach_9_grp";
+		function = "GPIO_42_1";
+	};
+
+	BMC_FAN_TACH_10:BMC_FAN_TACH_10 {
+		groups = "bmc_fan_tach_10_grp";
+		function = "BMC_FAN_TACH_10";
+	};
+
+	GPIO_42_2:GPIO_42_2 {
+		groups = "bmc_fan_tach_10_grp";
+		function = "GPIO_42_2";
+	};
+
+	BMC_FAN_TACH_11:BMC_FAN_TACH_11 {	
+		groups = "bmc_fan_tach_11_grp";
+		function = "BMC_FAN_TACH_11";
+	};
+
+	GPIO_42_3:GPIO_42_3 {
+		groups = "bmc_fan_tach_11_grp";
+		function = "GPIO_42_3";
+	};
+
+	BMC_FAN_TACH_12:BMC_FAN_TACH_12 {
+		groups = "bmc_fan_tach_12_grp";
+		function = "BMC_FAN_TACH_12";
+	};
+
+	GPIO_42_4:GPIO_42_4 {
+		groups = "bmc_fan_tach_12_grp";
+		function = "GPIO_42_4";
+	};
+
+	BMC_FAN_TACH_13:BMC_FAN_TACH_13 {
+		groups = "bmc_fan_tach_13_grp";
+		function = "BMC_FAN_TACH_13";
+	};
+
+	GPIO_42_5:GPIO_42_5 {
+		groups = "bmc_fan_tach_13_grp";
+		function = "GPIO_42_5";
+	};
+
+	BMC_FAN_TACH_14:BMC_FAN_TACH_14 {
+		groups = "bmc_fan_tach_14_grp";
+		function = "BMC_FAN_TACH_14";
+	};
+
+	GPIO_42_6:GPIO_42_6 {
+		groups = "bmc_fan_tach_14_grp";
+		function = "GPIO_42_6";
+	};
+
+	BMC_FAN_TACH_15:BMC_FAN_TACH_15 {
+		groups = "bmc_fan_tach_15_grp";
+		function = "BMC_FAN_TACH_15";
+	};
+
+	GPIO_42_7:GPIO_42_7 {
+		groups = "bmc_fan_tach_15_grp";
+		function = "GPIO_42_7";
+	};
+
+	NAND_ALE:NAND_ALE {
+		groups = "nand_ale_grp";
+		function = "NAND_ALE";
+	};
+
+	GPIO_19_6:GPIO_19_6 { 
+		groups = "nand_ale_grp";
+		function = "GPIO_19_6";
+	};
+
+	NAND_CE_0:NAND_CE_0 { 
+		groups = "nand_ce_0_grp";
+		function = "NAND_CE_0";
+	};
+
+	GPIO_19_4:GPIO_19_4 {
+		groups = "nand_ce_0_grp";
+		function = "GPIO_19_4";
+	};
+
+	NAND_CE_1:NAND_CE_1 {
+		groups = "nand_ce_1_grp";
+		function = "NAND_CE_1";
+	};
+
+	GPIO_18_6:GPIO_18_6 {
+		groups = "nand_ce_1_grp";
+		function = "GPIO_18_6";
+	};
+
+	NAND_CE_2:NAND_CE_2 {
+		groups = "nand_ce_2_grp";
+		function = "NAND_CE_2";
+	};
+
+	GPIO_18_7:GPIO_18_7 {
+		groups = "nand_ce_2_grp";
+		function = "GPIO_18_7";
+	};
+
+	NAND_CLE:NAND_CLE {
+		groups = "nand_cle_grp";
+		function = "NAND_CLE";
+	};
+
+	GPIO_19_0:GPIO_19_0 { 
+		groups = "nand_cle_grp";
+		function = "GPIO_19_0";
+	};
+
+	NAND_CLK:NAND_CLK { 
+		groups = "nand_clk_grp";
+		function = "NAND_CLK";
+	};
+
+	GPIO_19_5:GPIO_19_5 { 
+		groups = "nand_clk_grp";
+		function = "GPIO_19_5";
+	};
+
+	NAND_DQ_0:NAND_DQ_0 { 
+		groups = "nand_dq_0_grp";
+		function = "NAND_DQ_0";
+	};
+
+	GPIO_20_0:GPIO_20_0 {
+		groups = "nand_dq_0_grp";
+		function = "GPIO_20_0";
+	};
+
+	NAND_DQ_1:NAND_DQ_1 {
+		groups = "nand_dq_1_grp";
+		function = "NAND_DQ_1";
+	};
+
+	GPIO_20_1:GPIO_20_1 {
+		groups = "nand_dq_1_grp";
+		function = "GPIO_20_1";
+	};
+
+	NAND_DQ_2:NAND_DQ_2 {
+		groups = "nand_dq_2_grp";
+		function = "NAND_DQ_2";
+	};
+
+	GPIO_20_2:GPIO_20_2 {
+		groups = "nand_dq_2_grp";
+		function = "GPIO_20_2";
+	};
+
+	NAND_DQ_3:NAND_DQ_3 {
+		groups = "nand_dq_3_grp";
+		function = "NAND_DQ_3";
+	};
+
+	GPIO_20_3:GPIO_20_3 {
+		groups = "nand_dq_3_grp";
+		function = "GPIO_20_3";
+	};
+
+	NAND_DQ_4:NAND_DQ_4 {
+		groups = "nand_dq_4_grp";
+		function = "NAND_DQ_4";
+	};
+
+	GPIO_20_4:GPIO_20_4 {
+		groups = "nand_dq_4_grp";
+		function = "GPIO_20_4";
+	};
+
+	NAND_DQ_5:NAND_DQ_5 {
+		groups = "nand_dq_5_grp";
+		function = "NAND_DQ_5";
+	};
+
+	GPIO_20_5:GPIO_20_5 {
+		groups = "nand_dq_5_grp";
+		function = "GPIO_20_5";
+	};
+
+	NAND_DQ_6:NAND_DQ_6 {
+		groups = "nand_dq_6_grp";
+		function = "NAND_DQ_6";
+	};
+
+	GPIO_20_6:GPIO_20_6 {
+		groups = "nand_dq_6_grp";
+		function = "GPIO_20_6";
+	};
+
+	NAND_DQ_7:NAND_DQ_7 {
+		groups = "nand_dq_7_grp";
+		function = "NAND_DQ_7";
+	};
+
+	GPIO_20_7:GPIO_20_7 {
+		groups = "nand_dq_7_grp";
+		function = "GPIO_20_7";
+	};
+
+	NAND_DQS:NAND_DQS {
+		groups = "nand_dqs_grp";
+		function = "NAND_DQS";
+	};
+
+	GPIO_19_7:GPIO_19_7 { 
+		groups = "nand_dqs_grp";
+		function = "GPIO_19_7";
+	};
+
+	NAND_RB_N:NAND_RB_N {
+		groups = "nand_rb_n_grp";
+		function = "NAND_RB_N";
+	};
+
+	GPIO_19_3:GPIO_19_3 {
+		groups = "nand_rb_n_grp";
+		function = "GPIO_19_3";
+	};
+
+	NAND_WP_N:NAND_WP_N {
+		groups = "nand_wp_n_grp";
+		function = "NAND_WP_N";
+	};
+
+	GPIO_19_2:GPIO_19_2 {
+		groups = "nand_wp_n_grp";
+		function = "GPIO_19_2";
+	};
+
+	NAND_WR_N:NAND_WR_N {
+		groups = "nand_wr_n_grp";
+		function = "NAND_WR_N";
+	};
+
+	GPIO_19_1:GPIO_19_1 {
+		groups = "nand_wr_n_grp";
+		function = "GPIO_19_1";
+	};
+
+	ADC_AGND:ADC_AGND {
+		groups = "adc_agnd_grp";
+		function = "ADC_AGND";
+	};
+
+	ADC_AVDD:ADC_AVDD {  
+		groups = "adc_avdd_grp";
+		function = "ADC_AVDD";
+	};
+
+	ADC_AVREFM:ADC_AVREFM {  
+		groups = "adc_avrefm_grp";
+		function = "ADC_AVREFM";
+	};
+
+	ADC_AVREFP:ADC_AVREFP {
+		groups = "adc_avrefp_grp";
+		function = "ADC_AVREFP";
+	};
+
+	AVIN_0:AVIN_0 {
+		groups = "avin_0_grp";
+		function = "AVIN_0";
+	};
+
+	AVIN_1:AVIN_1 {    
+		groups = "avin_1_grp";
+		function = "AVIN_1";
+	};
+
+	AVIN_2:AVIN_2 {    
+		groups = "avin_2_grp";
+		function = "AVIN_2";
+	};
+
+	AVIN_3:AVIN_3 {    
+		groups = "avin_3_grp";
+		function = "AVIN_3";
+	};
+
+	AVIN_4:AVIN_4 {    
+		groups = "avin_4_grp";
+		function = "AVIN_4";
+	};
+
+	AVIN_5:AVIN_5 {    
+		groups = "avin_5_grp";
+		function = "AVIN_5";
+	};
+
+	AVIN_6:AVIN_6 {    
+		groups = "avin_6_grp";
+		function = "AVIN_6";
+	};
+
+	AVIN_BAT_7:AVIN_BAT_7 {    
+		groups = "avin_bat_7_grp";
+		function = "AVIN_BAT_7";
+	};
+
+	DAC:DAC {
+		groups = "dac_grp";
+		function = "DAC";
+	};
+
+	DAC_AV33R:DAC_AV33R {       
+		groups = "dac_av33r_grp";
+		function = "DAC_AV33R";
+	};
+
+	DAC_AV33G:DAC_AV33G { 
+		groups = "dac_av33g_grp";
+		function = "DAC_AV33G";
+	}; 
+
+	DAC_AV33B:DAC_AV33B {
+		groups = "dac_av33b_grp";
+		function = "DAC_AV33B";
+	};
+
+	DAC_AG33R:DAC_AG33R {
+		groups = "dac_ag33r_grp";
+		function = "DAC_AG33R";
+	};
+
+	DAC_AG33G:DAC_AG33G {
+		groups = "dac_ag33g_grp";
+		function = "DAC_AG33G";
+	};
+
+	DAC_AG33B:DAC_AG33B {
+		groups = "dac_ag33b_grp";
+		function = "DAC_AG33B";
+	};
+
+	DAC_IOB:DAC_IOB {
+		groups = "dac_iob_grp";
+		function = "DAC_IOB";
+	};
+
+	DAC_IOG:DAC_IOG {  
+		groups = "dac_iog_grp";
+		function = "DAC_IOG";
+	};
+
+	DAC_IOR:DAC_IOR {  
+		groups = "dac_ior_grp";
+		function = "DAC_IOR";
+	};
+
+	DAC_RESET:DAC_RESET {  
+		groups = "dac_reset_grp";
+		function = "DAC_RESET";
+	};
+
+	DAC_VREF:DAC_VREF {
+		groups = "dac_vref_grp";
+		function = "DAC_VREF";
+	};
+
+	DAC_IOB_B:DAC_IOB_B { 
+		groups = "dac_iob_b_grp";
+		function = "DAC_IOB_B";
+	};
+
+	DAC_IOG_B:DAC_IOG_B {
+		groups = "dac_iog_b_grp";
+		function = "DAC_IOG_B";
+	};
+
+	DAC_IOR_B:DAC_IOR_B {
+		groups = "dac_ior_b_grp";
+		function = "DAC_IOR_B";
+	};
+
+	GFX_DDC_SDA:GFX_DDC_SDA {
+		groups = "gfx_ddc_sda_grp";
+		function = "GFX_DDC_SDA";
+	};
+
+	GFX_DDC_SDC:GFX_DDC_SDC {  
+		groups = "gfx_ddc_sdc_grp";
+		function = "GFX_DDC_SDC";
+	};
+
+	GFX_DDC_SDA_1:GFX_DDC_SDA_1 {  
+		groups = "gfx_ddc_sda_1_grp";
+		function = "GFX_DDC_SDA_1";
+	};
+	GFX_DDC_SDC_1:GFX_DDC_SDC_1 {
+		groups = "gfx_ddc_sdc_1_grp";
+		function = "GFX_DDC_SDC_1";
+	};
+
+	GFX_HSYNC:GFX_HSYNC {
+		groups = "gfx_hsync_grp";
+		function = "GFX_HSYNC";
+	};
+
+	GFX_VSYNC:GFX_VSYNC {    
+		groups = "gfx_vsync_grp";
+		function = "GFX_VSYNC";
+	};
+
+	JTAG_TDI:JTAG_TDI {
+		groups = "jtag_tdi_grp";
+		function = "JTAG_TDI";
+	};
+
+	JTAG_TDO:JTAG_TDO {  
+		groups = "jtag_tdo_grp";
+		function = "JTAG_TDO";
+	};
+
+	JTAG_TCK:JTAG_TCK {
+		groups = "jtag_tck_grp";
+		function = "JTAG_TCK";
+	};
+
+	JTAG_TRSTN: JTAG_TRSTN {  
+		groups = "jtag_trstn_grp";
+		function = "JTAG_TRSTN";
+	};
+
+	JTAG_TMS:JTAG_TMS {
+		groups = "jtag_tms_grp";
+		function = "JTAG_TMS";
+		bias-pull-up;
+	};
+
+	M_JTAG_TDI:M_JTAG_TDI {
+ 		groups = "m_jtag_tdi_grp";
+		function = "M_JTAG_TDI";
+	};
+
+	M_JTAG_TDO:M_JTAG_TDO {  
+ 		groups = "m_jtag_tdo_grp";
+		function = "M_JTAG_TDO";
+	};
+
+	M_JTAG_TCK:M_JTAG_TCK {  
+ 		groups = "m_jtag_tck_grp";
+		function = "M_JTAG_TCK";
+	};
+
+	M_JTAG_TRSTN:M_JTAG_TRSTN {  
+ 		groups = "m_jtag_trstn_grp";
+		function = "M_JTAG_TRSTN";
+	};
+
+	M_JTAG_TMS:M_JTAG_TMS {
+ 		groups = "m_jtag_tms_grp";
+		function = "M_JTAG_TMS";
+	};
+
+	PECI_VTT:PECI_VTT {
+		groups = "peci_vit_grp";
+		function = "PECI_VTT";
+	};
+
+	PECI:PECI {
+		groups = "peci_grp";
+		function = "PECI";
+	};
+
+	PASSTHRUIN0:PASSTHRUIN0 {
+		groups = "passthruin0_grp";
+		function = "PASSTHRUIN0";
+	};
+
+	GPIO_25_1:GPIO_25_1 {  
+		groups = "passthruin0_grp";
+		function = "GPIO_25_1";
+	};
+
+	PASSTHRUIN1:PASSTHRUIN1 {  
+		groups = "passthruin1_grp";
+		function = "PASSTHRUIN1";
+	};
+
+	GPIO_25_3:GPIO_25_3 {
+		groups = "passthruin1_grp";
+		function = "GPIO_25_3";
+	};
+
+	PASSTHRUIN2:PASSTHRUIN2 {
+		groups = "passthruin2_grp";
+		function = "PASSTHRUIN2";
+	};
+
+	GPIO_25_5:GPIO_25_5 {
+		groups = "passthruin2_grp";
+		function = "GPIO_25_5";
+	};
+
+	PASSTHRUOUT0:PASSTHRUOUT0 {
+		groups = "passthruout_0_grp";
+		function = "PASSTHRUOUT0";
+	};
+
+	GPIO_25_0:GPIO_25_0 {
+		groups = "passthruout_0_grp";
+		function = "GPIO_25_0";
+	};
+
+	PASSTHRUOUT1:PASSTHRUOUT1 {
+		groups = "passthruout_1_grp";
+		function = "PASSTHRUOUT1";
+	};
+
+	GPIO_25_2:GPIO_25_2 {
+		groups = "passthruout_1_grp";
+		function = "GPIO_25_2";
+	};
+
+	PASSTHRUOUT2:PASSTHRUOUT2 {
+		groups = "passthruout_2_grp";
+		function = "PASSTHRUOUT2";
+	};
+
+	GPIO_25_4:GPIO_25_4 {
+		groups = "passthruout_2_grp";
+		function = "GPIO_25_4";
+	};
+
+	SIO_LAD_0:SIO_LAD_0 {
+		groups = "sio_lad_0_grp";
+		function = "SIO_LAD_0";
+	};
+
+	SIO_LAD_1:SIO_LAD_1 {
+		groups = "sio_lad_1_grp";
+		function = "SIO_LAD_1";
+	};
+
+	SIO_LAD_2:SIO_LAD_2 {   
+		groups = "sio_lad_2_grp";
+		function = "SIO_LAD_2";   
+	};
+
+	SIO_LAD_3:SIO_LAD_3 {
+		groups = "sio_lad_3_grp";
+		function = "SIO_LAD_3";
+	};
+
+	SIO_LCLK:SIO_LCLK {   
+		groups = "sio_lclk_grp";
+		function = "SIO_LCLK";
+	};
+
+	SIO_LRESET_N:SIO_LRESET_N {    
+		groups = "sio_lreset_grp";
+		function = "SIO_LRESET_N";
+	};
+
+	SIO_LFRAME_N:SIO_LFRAME_N {
+		groups = "sio_lframe_n_grp";
+		function = "SIO_LFRAME_N";
+	};
+
+	eSPI_CS_N:eSPI_CS_N {
+		groups = "sio_lframe_n_grp";
+		function = "eSPI_CS_N";
+	};
+
+	GPIO_26_6:GPIO_26_6 {
+		groups = "sio_lframe_n_grp";
+		function = "GPIO_26_6";
+	};
+
+	SIO_SERIRQ:SIO_SERIRQ {
+		groups = "sio_serirq_grp";
+		function = "SIO_SERIRQ";
+	};
+
+	eSPI_ALERT_I:eSPI_ALERT_I {
+		groups = "sio_serirq_grp";
+		function = "eSPI_ALERT_I"; 
+	};
+
+	GPIO_26_5:GPIO_26_5 {
+		groups = "sio_serirq_grp";
+		function = "GPIO_26_5"; 
+	};
+
+	SIO_SMI_N:SIO_SMI_N {
+		groups = "sio_smi_n_grp";
+		function = "SIO_SMI_N";
+	};
+
+	GPIO_26_2:GPIO_26_2 {
+		groups = "sio_smi_n_grp";
+		function = "GPIO_26_2";
+	};
+
+	SIO_ONCTL_N:SIO_ONCTL_N {
+		groups = "sio_onctl_n_grp";
+		function = "SIO_ONCTL_N";
+	};
+
+	GPIO_26_0:GPIO_26_0 {
+		groups = "sio_onctl_n_grp";
+		function = "GPIO_26_0";
+	};
+
+	SIO_PWRBTIN_N:SIO_PWRBTIN_N {
+		groups = "sio_pwrbtin_n_grp";
+		function = "SIO_PWRBTIN_N";
+	};
+
+	GPIO_25_6:GPIO_25_6 {
+		groups = "sio_pwrbtin_n_grp";
+		function = "GPIO_25_6";
+	};
+
+	SIO_PWRBTOUT_N:SIO_PWRBTOUT_N {
+		groups = "sio_pwrbtout_n_grp";
+		function = "SIO_PWRBTOUT_N";
+	};
+
+	GPIO_25_7:GPIO_25_7 {
+		groups = "sio_pwrbtout_n_grp";
+		function = "GPIO_25_7";
+	};
+
+	SIO_PWRREQ_N:SIO_PWRREQ_N {
+		groups = "sio_pwrreq_n_grp";
+		function = "SIO_PWRREQ_N";
+	};
+
+	GPIO_26_1:GPIO_26_1 {
+		groups = "sio_pwrreq_n_grp";
+		function = "GPIO_26_1";
+	};
+
+	SIO_SCI_N:SIO_SCI_N {
+		groups = "sio_sci_n_grp";
+		function = "SIO_SCI_N";
+	};
+
+	SIO_LDRQ_O:SIO_LDRQ_O {
+		groups = "sio_sci_n_grp";
+		function = "SIO_LDRQ_O";
+	};
+
+	SIO_SLPS3_N:SIO_SLPS3_N{
+		groups = "sio_slps3_n_grp";
+		function = "SIO_SLPS3_N";
+	};
+
+	GPIO_26_3:GPIO_26_3 {
+		groups = "sio_slps3_n_grp";
+		function = "GPIO_26_3";
+	};
+
+	SIO_SLPS5_N:SIO_SLPS5_N {
+		groups = "sio_slps5_n_grp";
+		function = "SIO_SLPS5_N";
+	};
+
+	GPIO_26_4:GPIO_26_4 {
+		groups = "sio_slps5_n_grp";
+		function = "GPIO_26_4";
+	};
+
+	UART3_RXD:UART3_RXD {
+		groups = "uart3_rxd_grp";
+		function = "UART3_RXD";
+	};
+
+	GPIO_43_5:GPIO_43_5 {
+		groups = "uart3_rxd_grp";
+		function = "GPIO_43_5";
+	};
+
+	UART3_TXD:UART3_TXD {
+		groups = "uart3_txd_grp";
+		function = "UART3_TXD";
+	};
+
+	GPIO_43_6:GPIO_43_6 {
+		groups = "uart3_txd_grp";
+		function = "GPIO_43_6";
+	};
+
+	ICMB_TX_EN:ICMB_TX_EN {
+		groups = "icmb_tx_en_grp";
+		function = "ICMB_TX_EN";
+	};
+
+	GPIO_43_7:GPIO_43_7 {
+		groups = "icmb_tx_en_grp";	
+		function = "GPIO_43_7";
+	};
+
+	PCIE_CLKN:PCIE_CLKN {	
+		groups = "pcie_clkn_grp";
+		function = "PCIE_CLKN";
+	};
+
+	PCIE_CLKP:PCIE_CLKP {
+		groups = "pcie_clkp_grp";
+		function = "PCIE_CLKP";
+	};
+
+	PCIE_RX_N:PCIE_RX_N {
+		groups = "pcie_rx_n_grp";
+		function = "PCIE_RX_N";
+	};
+
+	PCIE_RX_P:PCIE_RX_P {
+		groups = "pcie_rx_p_grp";
+		function = "PCIE_RX_P";
+	};
+
+	PCIE_TX_N:PCIE_TX_N{
+		groups = "pcie_tx_n_grp";
+		function = "PCIE_TX_N";
+	};
+
+	PCIE_VSSD4:PCIE_VSSD4 {
+		groups = "pcie_vssd4_grp";
+		function = "PCIE_VSSD4";
+	};
+
+	PCIE_VSSD3:PCIE_VSSD3 {
+		groups = "pcie_vssd3_grp";
+		function = "PCIE_VSSD3";
+	};
+
+	PCIE_VSSD2:PCIE_VSSD2 {
+		groups = "pcie_vssd2_grp";
+		function = "PCIE_VSSD2";
+	};
+
+	PCIE_VSSD3:PCIE_VSSD3 {
+		groups = "pcie_vssd1_grp";
+		function = "PCIE_VSSD3";
+	};
+
+	PCIE_VSSD0:PCIE_VSSD0 {
+		groups = "pcie_vssd0_grp";
+		function = "PCIE_VSSD0";
+	};
+
+	PCIE_VSSA0:PCIE_VSSA0 {
+		groups = "pcie_vssa0_grp";
+		function = "PCIE_VSSA0";
+	};
+
+	PCIE_VDDD2:PCIE_VDDD2 {
+		groups = "pcie_vddd2_grp";
+		function = "PCIE_VDDD2";
+	};
+
+	PCIE_VDDD1:PCIE_VDDD1 {
+		groups = "pcie_vddd1_grp";
+		function = "PCIE_VDDD1";
+	};
+
+	PCIE_VDDD0:PCIE_VDDD0 {
+		groups = "pcie_vddd0_grp";
+		function = "PCIE_VDDD0";
+	};
+
+	PCIE_VDDA0:PCIE_VDDA0 {
+		groups = "pcie_vdda0_grp";
+		function = "PCIE_VDDA0";
+	};
+
+	PCIE_RC_CLKN:PCIE_RC_CLKN {
+		groups = "pcie_rc_clkn_grp";
+		function = "PCIE_RC_CLKN";
+	};
+
+	PCIE_RC_CLKP:PCIE_RC_CLKP {
+		groups = "pcie_rc_clkp_grp";
+		function = "PCIE_RC_CLKP";
+	};
+
+	PCIE_RC_RIDN0:PCIE_RC_RIDN0 {
+		groups = "pcie_rc_ridn0_grp";
+		function = "PCIE_RC_RIDN0";
+	};
+
+	PCIE_RC_RIDP0:PCIE_RC_RIDP0 {
+		groups = "pcie_rc_ridp0_grp";
+		function = "PCIE_RC_RIDP0";
+	};
+
+	PCIE_RC_TODN0:PCIE_RC_TODN0 {
+		groups = "pcie_rc_todn0_grp";
+		function = "PCIE_RC_TODN0";
+	};
+
+	PCIE_RC_TODP0:PCIE_RC_TODP0 {
+		groups = "pcie_rc_todp0_grp";
+		function = "PCIE_RC_TODP0";
+	};
+
+	PCIE_RC_VSSD4:PCIE_RC_VSSD4 {
+		groups = "pcie_rc_vssd4_grp";
+		function = "PCIE_RC_VSSD4";
+	};
+
+	PCIE_RC_VSSD3:PCIE_RC_VSSD3 {
+		groups = "pcie_rc_vssd3_grp";
+		function = "PCIE_RC_VSSD3";
+	};
+
+	PCIE_RC_VSSD2:PCIE_RC_VSSD2 {
+		groups = "pcie_rc_vssd2_grp";
+		function = "PCIE_RC_VSSD2";
+	};
+
+	PCIE_RC_VSSD1:PCIE_RC_VSSD1 {
+		groups = "pcie_rc_vssd1_grp";
+		function = "PCIE_RC_VSSD1";
+	};
+
+	PCIE_RC_VSSD0:PCIE_RC_VSSD0 {
+		groups = "pcie_rc_vssd0_grp";
+		function = "PCIE_RC_VSSD0";
+	};
+
+	PCIE_RC_VSSA0:PCIE_RC_VSSA0 {
+		groups = "pcie_rc_vssa0_grp";
+		function = "PCIE_RC_VSSA0";
+	};
+
+	PCIE_RC_VDDD2:PCIE_RC_VDDD2 {
+		groups = "pcie_rc_vddd2_grp";
+		function = "PCIE_RC_VDDD2";
+	};
+
+	PCIE_RC_VDDD1:PCIE_RC_VDDD1 {
+		groups = "pcie_rc_vddd1_grp";
+		function = "PCIE_RC_VDDD1";
+	};
+
+	PCIE_RC_VDDD0:PCIE_RC_VDDD0 {
+		groups = "pcie_rc_vddd0_grp";
+		function = "PCIE_RC_VDDD0";
+	};
+
+	PCIE_RC_VDDA0:PCIE_RC_VDDA0 {
+		groups = "pcie_rc_vdda0_grp";
+		function = "PCIE_RC_VDDA0";
+	};
+
+	USB_DP1:USB_DP1 {
+		groups = "usb_dp1_grp";
+		function = "USB_DP1";
+	};
+
+	USB_DM1:USB_DM1 {
+		groups = "usb_dm1_grp";
+		function = "USB_DM1";
+	};
+
+	USB_DP2:USB_DP2 {
+		groups = "usb_dp2_grp";
+		function = "USB_DP2";
+	};
+
+	USB_DM2:USB_DM2 {
+		groups = "usb_dm2_grp";
+		function = "USB_DM2";
+	};
+
+	USB_RREF:USB_RREF {
+		groups = "usb_rref_grp";
+		function = "USB_RREF";
+	};
+
+	USB_AVDD:USB_AVDD {
+		groups = "usb_avdd_grp";
+		function = "USB_AVDD";
+	};
+
+	USB_VD331:USB_VD331 {
+		groups = "usb_vd331_grp";
+		function = "USB_VD331";
+	};
+
+	USB_VD332:USB_VD332 {
+		groups = "usb_vd332_grp";
+		function = "USB_VD332";
+	};
+
+	USB_GND0:USB_GND0 {
+		groups = "usb_gnd0_grp";
+		function = "USB_GND0";
+	};
+
+	USB_GND1:USB_GND1 {
+		groups = "usb_gnd1_grp";
+		function = "USB_GND1";
+	};
+
+	USB_GND2:USB_GND2 {
+		groups = "usb_gnd2_grp";
+		function = "USB_GND2";
+	};
+
+	USB_GND3:USB_GND3 {
+		groups = "usb_gnd3_grp";
+		function = "USB_GND3";
+	};
+
+	USB_GND4:USB_GND4 {
+		groups = "usb_gnd4_grp";
+		function = "USB_GND4";
+	};
+
+	USB_CLK:USB_CLK {
+		groups = "usb_clk_grp";
+		function = "USB_CLK";
+	};
+
+	VDDPWR_GD:VDDPWR_GD {
+		groups = "vddpwr_gd_grp";
+		function = "VDDPWR_GD";
+	};
+
+	VSBPWR_GD:VSBPWR_GD {
+		groups = "vsbpwr_gd_grp";
+		function = "VSBPWR_GD";
+	};
+
+	NMI:NMI {
+		groups = "nmi_grp";
+		function = "NMI";
+	};
+
+	BMC_CPU_RESET:BMC_CPU_RESET {
+		groups = "bmc_cpu_reset_grp";
+		function = "BMC_CPU_RESET";
+	};
+
+	SSP_CPU_RESET:SSP_CPU_RESET {
+		groups = "ssp_cpu_reset_grp";
+		function = "SSP_CPU_RESET";
+	};
+
+	SPI_BOOT_NOTIFY_N:SPI_BOOT_NOTIFY_N {
+		groups = "spi_boot_notify_n_grp";
+		function = "SPI_BOOT_NOTIFY_N";
+	};
+
+	PCIE_RC_RESET_N:PCIE_RC_RESET_N {
+		groups = "pcie_rc_reset_n_grp";
+		function = "PCIE_RC_RESET_N";
+	};
+
+	CRYSTALOSC:CRYSTALOSC {
+		groups = "crystalosc_grp";
+		function = "CRYSTALOSC";
+	};
+
+	XT1_1:XT1_1 {
+		groups = "xt1_1_grp";
+		function = "XT1_1";
+	};
+
+	XT2_1:XT2_1 {
+		groups = "xt2_1_grp";
+		function = "XT2_1";
+	};
+
+	SIO_HOST_SPI_CLK:SIO_HOST_SPI_CLK {
+		groups = "sio_host_spi_clk";
+		function = "SIO_HOST_SPI_CLK";
+	};
+
+	SIO_HOST_SPI_CS_N:SIO_HOST_SPI_CS_N {
+		groups = "sio_host_spi_cs_n_grp";
+		function = "SIO_HOST_SPI_CS_N";
+	};
+
+	SIO_HOST_SPI_CS1_N:SIO_HOST_SPI_CS1_N {
+		groups = "sio_host_spi_cs1_n_grp";
+		function = "SIO_HOST_SPI_CS1_N";
+	};
+
+	SIO_HOST_SPI_DI: SIO_HOST_SPI_DI {
+		groups = "sio_host_spi_di_grp";
+		function = "SIO_HOST_SPI_DI";
+	};
+
+	SIO_HOST_SPI_DO:SIO_HOST_SPI_DO {
+		groups = "sio_host_spi_do_grp";
+		function = "SIO_HOST_SPI_DO";
+	};
+
+	SIO_HOST_SPI_DQ2:SIO_HOST_SPI_DQ2 {
+		groups = "sio_host_spi_dq2_grp";
+		function = "SIO_HOST_SPI_DQ2";
+	};
+
+	SIO_HOST_SPI_DQ3:SIO_HOST_SPI_DQ3 {
+		groups = "sio_host_spi_dq3_grp";
+		function = "SIO_HOST_SPI_DQ3";
+	};
+
+	SIO_HOST_SPI_ABR:SIO_HOST_SPI_ABR {
+		groups = "sio_host_spi_abr_grp";
+		function = "SIO_HOST_SPI_ABR";
+	};
+
+	GPIO_45_2:GPIO_45_2 {
+		groups = "sio_host_spi_abr_grp";
+		function = "GPIO_45_2";
+	};
+
+	SIO_HOST_SPI_WP_N:SIO_HOST_SPI_WP_N {
+		groups = "sio_host_spi_wp_n_grp";
+		function = "SIO_HOST_SPI_WP_N";
+	};
+
+	GPIO_45_3:GPIO_45_3{
+		groups = "sio_host_spi_wp_n_grp";
+		function = "GPIO_45_3";
+	};
+
+	BMC_BOOT_SPI_CLK:BMC_BOOT_SPI_CLK {
+		groups = "bmc_boot_spi_clk_grp";
+		function = "BMC_BOOT_SPI_CLK";
+	};
+
+	BMC_BOOT_SPI_CS0_N:BMC_BOOT_SPI_CS0_N {
+		groups = "bmc_boot_spi_cs0_n_grp";
+		function = "BMC_BOOT_SPI_CS0_N";
+	};
+
+	BMC_BOOT_SPI_DI:BMC_BOOT_SPI_DI {
+		groups = "bmc_boot_spi_di_grp";
+		function = "BMC_BOOT_SPI_DI";
+	};
+
+	BMC_BOOT_SPI_DO:BMC_BOOT_SPI_DO {
+		groups = "bmc_boot_spi_do_grp";
+		function = "BMC_BOOT_SPI_DO";
+	};
+
+	BMC_BOOT_SPI_DQ2:BMC_BOOT_SPI_DQ2 {
+		groups = "bmc_boot_spi_dq2_grp";
+		function = "BMC_BOOT_SPI_DQ2";
+	};
+
+	BMC_BOOT_SPI_DQ3:BMC_BOOT_SPI_DQ3 {
+		groups = "bmc_boot_spi_dq3_grp";
+		function = "BMC_BOOT_SPI_DQ3";
+	};
+
+	BMC_BOOT_SPI_CS2_N:BMC_BOOT_SPI_CS2_N {
+		groups = "bmc_boot_spi_cs2_n_grp";
+		function = "BMC_BOOT_SPI_CS2_N";
+	};
+
+	BMC_BOOT_SPI_CS1_N:BMC_BOOT_SPI_CS1_N {
+		groups = "bmc_boot_spi_cs1n_grp";
+		function = "BMC_BOOT_SPI_CS1_N";
+	};
+
+	BMC_BOOT_SPI_ABR:BMC_BOOT_SPI_ABR {
+		groups = "bmc_boot_spi_abr_grp";
+		function = "BMC_BOOT_SPI_ABR";
+	};
+
+	GPIO_45_0:GPIO_45_0{
+		groups = "bmc_boot_spi_abr_grp";
+		function = "GPIO_45_0";
+	};
+
+	BMC_BOOT_SPI_WP_N:BMC_BOOT_SPI_WP_N {
+		groups = "bmc_boot_spi_wp_n_grp";
+		function = "BMC_BOOT_SPI_WP_N";
+	};
+
+	GPIO_45_1:GPIO_45_1{
+		groups = "bmc_boot_spi_wp_n_grp";
+		function = "GPIO_45_1";
+	};
+
+	BMC_SPI_CLK:BMC_SPI_CLK {
+		groups = "bmc_spi_clk_grp";
+		function = "BMC_SPI_CLK";
+	};
+
+	GPIO_44_0:GPIO_44_0 {
+		groups = "bmc_spi_clk_grp";
+		function = "GPIO_44_0";
+	};
+
+	BMC_SPI_CS0_N:BMC_SPI_CS0_N {
+		groups = "bmc_spi_cs0_n_grp";
+		function = "BMC_SPI_CS0_N";
+	};
+
+	GPIO_44_1:GPIO_44_1 {
+		groups = "bmc_spi_cs0_n_grp";
+		function = "GPIO_44_1";
+	};
+
+	BMC_SPI_DI:BMC_SPI_DI {
+		groups = "bmc_spi_di_grp";
+		function = "BMC_SPI_DI";
+	};
+
+	GPIO_44_2:GPIO_44_2 {
+		groups = "bmc_spi_di_grp";
+		function = "GPIO_44_2";
+	};
+
+	BMC_SPI_DO:BMC_SPI_DO {
+		groups = "bmc_spi_do_grp";
+		function = "BMC_SPI_DO";
+	};
+
+	GPIO_44_3:GPIO_44_3{
+		groups = "bmc_spi_do_grp";
+		function = "GPIO_44_3";
+	};
+
+	BMC_SPI_DQ2:BMC_SPI_DQ2 {
+		groups = "bmc_spi_dq2_grp";
+		function = "BMC_SPI_DQ2";
+	};
+
+	GPIO_44_4:GPIO_44_4 {
+		groups = "bmc_spi_dq2_grp";
+		function = "GPIO_44_4";
+	};
+
+	BMC_SPI_DQ3:BMC_SPI_DQ3 {
+		groups = "bmc_spi_dq3_grp";
+		function = "BMC_SPI_DQ3";
+	};
+
+	GPIO_44_5:GPIO_44_5 {
+		groups = "bmc_spi_dq3_grp";
+		function = "GPIO_44_5";
+	};
+
+	BMC_SPI_CS2_N:BMC_SPI_CS2_N {
+		groups = "bmc_spi_cs2_n_grp";
+		function = "BMC_SPI_CS2_N";
+	};
+
+	GPIO_44_6:GPIO_44_6 {
+		groups = "bmc_spi_cs2_n_grp";
+		function = "GPIO_44_6";
+	};
+
+	BMC_SPI_CS1_N:BMC_SPI_CS1_N {
+		groups = "bmc_spi_cs1_n_grp";
+		function = "BMC_SPI_CS1_N";
+		
+	};
+
+	GPIO_44_7:GPIO_44_7 {
+		groups = "bmc_spi_cs1_n_grp";
+		function = "GPIO_44_7";
+	};
+};

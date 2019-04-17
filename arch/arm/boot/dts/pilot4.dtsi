@@ -1,0 +1,430 @@
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2018 Aspeed Technology Inc 
+// Shivah Shankar <shivahshankar.shankarnarayanrao@aspeedtech.com>
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/pinctrl/pilot-pinctl.h>
+#include <dt-bindings/gpio/pilot-gpio.h>
+#include <dt-bindings/gpio/gpio.h>
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "aspeed,pilot";
+	aliases{
+		serial0 = &uart0;
+                serial1 = &lpc_sp1;
+                serial2 = &lpc_sp2;
+                i2c0 = &i2c0;
+                i2c1 = &i2c1;
+                i2c2 = &i2c2;
+                i2c3 = &i2c3;
+                i2c4 = &i2c4;
+                i2c5 = &i2c5;
+                i2c6 = &i2c6;
+                i2c7 = &i2c7;
+                i2c8 = &i2c8;
+                i2c9 = &i2c9;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-method = "aspeed,pilot-smp";
+
+		cpu@0 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <0>;
+			clock-frequency = <500000000>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <1>;
+			clock-frequency = <500000000>;
+		};
+	};
+
+	smp-memram@40100D00{
+                compatible = "aspeed,pilot-secboot-reg";
+                reg = <0x40100D00 0x10>;
+        };
+
+        refclk: internalclk{
+                compatible = "fixed-clock";
+                #clock-cells = <0>;
+                clock-frequency = <500000000>;
+        };
+
+
+	pclk: pclk{
+			compatible = "aspeed,pilot-clks";
+			#clock-cells = <0>;
+			clocks = <&refclk>;
+	};
+
+	amba: amba {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupt-parent = <&gic>;
+		ranges;
+                
+		gic: intc@40461000 {
+			 interrupt-controller;
+			 compatible = "arm,cortex-a9-gic";
+			  #interrupt-cells = <3>;
+			  reg = < 0x40461000 0x1000 >,
+					< 0x40460100 0x0100 >;
+		};
+		scu: scu@0x40460000{
+			compatible = "arm,cortex-a9-scu";
+			reg = <0x40460000 0x1000>;
+		};
+		local-timer@40460600 {
+			   compatible = "arm,cortex-a9-twd-timer";
+			   reg = <0x40460600 0x20>;
+			   interrupts = <1 13 0xf01>;
+			   interrupt-parent = <&gic>;
+			   clocks = <&pclk>;
+		};
+                global_timer: timer@40460200 {
+                        compatible = "arm,cortex-a9-global-timer";
+                        reg = <0x40460200 0x20>;
+                        interrupts = <1 11 0x301>;
+                        interrupt-parent = <&gic>;
+                        clocks = <&pclk>;
+                };
+
+		timer: timer@40411000 {
+			  compatible = "aspeed,pilot-timer";
+			  reg = <0x40411000  0x1000>;
+			  interrupt-parent = <&gic>;
+			  interrupts = <0 11 4>;
+		};
+
+		timer3: timer3@40411000 {
+			  compatible = "pilot,timer3-cpu-reset";
+			  reg = <0x40411000  0x1000>;
+			  interrupt-parent = <&gic>;
+			  interrupts = <0 54 4>;
+		};
+		uart0: serial@40430000 {
+			compatible = "ns16550a";
+		   	reg = <0x40430000 0x1000>;
+		   	reg-shift = <2>;
+		   	reg-io-width = <4>;
+		   	interrupts = <0 14 4>;
+			serial = <1>;
+		   	interrupt-parent = <&gic>;
+		   	clock-frequency = <1843200>;
+		   /*clock-frequency = <50000000>;*/
+		   /* when highspeed-uart=1, clock-frequency should be set to 50000000 */
+		   	highspeed-uart = <0>;
+			no-loopback-test;
+			pinctrl-names = "default";
+			pinctrl-0 = <&UART0_TXD>,<&UART0_RXD>;
+		};
+		adc: adc@40414000{
+			compatible = "aspeed,pilot-adc";
+			reg = <0x40414000 0x80>;
+			#io-channel-cells = <1>;
+			status = "okay";
+		};
+		watchdog1: watchdog-1@40100880 {
+			compatible = "aspeed,pilot-wdt-1";
+			reg = <0x40100880 0x10>;
+			timeout-sec = <120>;
+			pretimeout-sec = <20>;
+			status = "disabled";
+		};
+		watchdog2: watchdog-2@40100890 {
+			compatible = "aspeed,pilot-wdt-2";
+			reg = <0x40100890 0x10>;
+			timeout-sec = <120>;
+			pretimeout-sec = <20>;
+			status = "disabled";
+		};
+		watchdog3: watchdog-3@401008A0 {
+			compatible = "aspeed,pilot-wdt-3";
+			reg = <0x401008A0 0x10>;
+			timeout-sec = <120>;
+			pretimeout-sec = <20>;
+			status = "disabled";
+		};
+                syscon: syscon@40100100 {
+                        compatible = "aspeed,pilot-sysctrl", "syscon";
+                        reg = <0x40100100 0x1000>;
+                };
+		eth0: eth0@40500000 {
+			compatible = "pilot,eth-0";
+			syscon = <&syscon>;
+		        reg = <0x40500000 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 0 4>;
+			local-mac-address = [00 16 88 01 01 45];
+			status = "okay";
+		};
+		eth1: eth1@40600000 {
+			compatible = "pilot,eth-1";
+			syscon = <&syscon>;
+		        reg = <0x40600000 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 1 4>;
+			local-mac-address = [00 16 88 01 01 46];
+			status = "okay";
+		};
+		lpc_sp1: vuart@40415000{
+			compatible = "aspeed,pilot-vuart";
+			syscon = <&syscon>;
+			reg = <0x40415000 0x1000>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			interrupts = <0 50 4>;
+			interrupt-parent = <&gic>;
+			clock-frequency = <1843200>;
+			clocks = <&pclk>;
+			serial = <2>;
+			no-loopback-test;
+			status = "disabled";
+		};
+		lpc_sp2: vuart@40416000{
+			compatible = "aspeed,pilot-vuart";
+			syscon = <&syscon>;
+			reg = <0x40416000 0x1000>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			interrupts = <0 51 4>;
+			interrupt-parent = <&gic>;
+			clock-frequency = <1843200>;
+			clocks = <&pclk>;
+			serial = <3>;
+			no-loopback-test;
+			status = "disabled";
+		};
+		bootspi: flash-controller@40200000 {
+			compatible = "aspeed,pilot-bootspi";
+			syscon = <&syscon>;
+			reg = < 0x40200000 0x200
+				0x00000000 0xFC00000 >;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			flash@0 {
+				reg = < 0 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				status = "disabled";
+			};
+		};
+		pwmtach: pilot_pwmtachdev1@40413000 {
+			compatible = "aspeed,pilot-pwm-tacho";
+			syscon = <&syscon>;
+			reg = <0x40413000 0x1000>;
+			pwm-source-freq = <50000000>;
+			status = "disabled";
+		};
+		pincontroller: pincontroller@40100900{
+                        compatible = "aspeed,pilot-pinctrl";
+			syscon = <&syscon>;
+			/* system level and clock control,  toplevel pin control , top level pad control , gpio */
+                        /*reg = <0x40100100 0x10>,<0x40100900 0x34>,<0x40100B00 0xfe>;*/
+                };
+                pilot_gpio_ctrl: pilot_gpio@40423000 {
+                        compatible = "aspeed,pilot-gpio";
+                        reg = <0x40420000 0x1000>;
+			gpio-controller;
+			#gpio-cells = <5>;
+			gpio-ranges = <&pincontroller 0 0 186>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+                        interrupts = <0 8 4>;
+			status = "disabled";
+
+                };
+
+		i2c: i2c@40433000 {
+                        compatible = "simple-bus";
+                        #address-cells = <1>;
+                        #size-cells = <1>;
+                        ranges;
+		};
+                lpcsyscon: lpcsyscon@40426000 {
+                        /*compatible = "syscon";*/
+                        compatible = "aspeed,pilot-syscon";
+                        reg = <0x40425000 0x2000>;
+                };
+		kcs1:kcs@0{
+			compatible = "aspeed,pilot-kcs-bmc";
+			/*syscon-lpc = <&lpcsyscon>;*/
+			interrupt-parent = <&gic>;
+			interrupts = <0 10 4>, <0 49 4>, <0 48 4>;
+			kcs_chan = <1>;
+			status = "okay";
+		};
+		kcs2:kcs@1{
+			compatible = "aspeed,pilot-kcs-bmc";
+			/*syscon-lpc = <&lpcsyscon>;*/
+			interrupt-parent = <&gic>;
+			interrupts = <0 10 4>, <0 49 4>, <0 48 4>;
+			kcs_chan = <2>;
+			status = "okay";
+		};
+		kcs3:kcs@2{
+			compatible = "aspeed,pilot-kcs-bmc";
+			/*syscon-lpc = <&lpcsyscon>;*/
+			interrupt-parent = <&gic>;
+			interrupts = <0 10 4>, <0 49 4>, <0 48 4>;
+			kcs_chan = <3>;
+			status = "okay";
+		};
+		bt: bt@0 {
+			compatible = "aspeed,pilot-ibt-bmc";
+			/*syscon-lpc = <&lpcsyscon>;*/
+			interrupt-parent = <&gic>;
+			interrupts = <0 10 4>, <0 49 4>, <0 48 4>;
+			status = "okay";
+		};
+		mbox: mbox@0 {
+			compatible = "aspeed,pilot-mbox";
+			/*syscon-lpc = <&lpcsyscon>;*/
+			interrupt-parent = <&gic>;
+			interrupts = <0 10 4>, <0 49 4>, <0 48 4>;
+			status = "okay";
+		};
+		lpcsnoop: port-snoop@40426500 {
+			compatible = "aspeed,pilot-lpc-snoop";
+			/*syscon-lpc = <&lpcsyscon>;*/
+			interrupt-parent = <&gic>;
+			interrupts = <0 48 4>, <0 49 4>;
+			status = "okay";
+		};
+	};
+};
+
+&i2c{
+        i2c0: i2c-bus0@40433000 {
+                compatible = "aspeed,pilot-i2c-0";
+                syscon = <&syscon>;
+                reg = <0x40433000 0x1000>;
+                clocks = <&pclk>;
+                bus-frequency = <50000000>;
+                interrupts = <0 17 4>;
+                interrupt-parent = <&gic>;
+                status = "disabled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&SDA_0>,<&SDC_0>;
+        };
+        i2c1: i2c-bus1@40434000 {
+                compatible = "aspeed,pilot-i2c-1";
+                syscon = <&syscon>;
+                reg = <0x40434000 0x1000>;
+                clocks = <&pclk>;
+                bus-frequency = <50000000>;
+                interrupts = <0 18 4>;
+                interrupt-parent = <&gic>;
+                status = "disabled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&SDA_1>,<&SDC_1>;
+        };
+        i2c2: i2c-bus2@40435000 {
+                compatible = "aspeed,pilot-i2c-2";
+                syscon = <&syscon>;
+                reg = <0x40435000 0x1000>;
+                clocks = <&pclk>;
+                bus-frequency = <50000000>;
+                interrupts = <0 19 4>;
+                interrupt-parent = <&gic>;
+                status = "disabled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&SDA_2>,<&SDC_2>;
+        };
+        i2c3: i2c-bus3@40436000 {
+                compatible = "aspeed,pilot-i2c-3";
+                syscon = <&syscon>;
+                reg = <0x40436000 0x1000>;
+                clocks = <&pclk>;
+                bus-frequency = <50000000>;
+                interrupts = <0 20 4>;
+                interrupt-parent = <&gic>;
+                status = "disabled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&SDA_3>,<&SDC_3>;
+        };
+        i2c4: i2c-bus4@40437000 {
+                compatible = "aspeed,pilot-i2c-4";
+                syscon = <&syscon>;
+                reg = <0x40437000 0x1000>;
+                clocks = <&pclk>;
+                bus-frequency = <50000000>;
+                interrupts = <0 21 4>;
+                interrupt-parent = <&gic>;
+                status = "disabled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&SDA_4>,<&SDC_4>;
+        };
+        i2c5: i2c-bus5@40438000 {
+                compatible = "aspeed,pilot-i2c-5";
+                syscon = <&syscon>;
+                reg = <0x40438000 0x1000>;
+                clocks = <&pclk>;
+                bus-frequency = <100000000>;
+                interrupts = <0 22 4>;
+                interrupt-parent = <&gic>;
+                status = "disabled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&SDA_5>,<&SDC_5>;
+        };
+        i2c6: i2c-bus6@40439000 {
+                compatible = "aspeed,pilot-i2c-6";
+                syscon = <&syscon>;
+                reg = <0x40439000 0x1000>;
+                clocks = <&pclk>;
+                bus-frequency = <100000000>;
+                interrupts = <0 24 4>;
+                interrupt-parent = <&gic>;
+                status = "disabled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&SDA_6>,<&SDC_6>;
+        };
+        i2c7: i2c-bus7@4043A000 {
+                compatible = "aspeed,pilot-i2c-7";
+                syscon = <&syscon>;
+                reg = <0x4043A000 0x1000>;
+                clocks = <&pclk>;
+                bus-frequency = <100000000>;
+                interrupts = <0 25 4>;
+                interrupt-parent = <&gic>;
+                status = "disabled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&SDA_7>,<&SDC_7>;
+        };
+        i2c8: i2c-bus8@4043C000 {
+                compatible = "aspeed,pilot-i2c-8";
+                syscon = <&syscon>;
+                reg = <0x4043C000 0x1000>;
+                clocks = <&pclk>;
+                bus-frequency = <100000000>;
+                interrupts = <0 26 4>;
+                interrupt-parent = <&gic>;
+                status = "disabled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&SDA_8>,<&SDC_8>;
+        };
+        i2c9: i2c-bus9@4043D000 {
+                compatible = "aspeed,pilot-i2c-9";
+                syscon = <&syscon>;
+                reg = <0x4043D000 0x1000>;
+                clocks = <&pclk>;
+                bus-frequency = <50000000>;
+                interrupts = <0 27 4>;
+                interrupt-parent = <&gic>;
+                status = "disabled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&SDA_9>,<&SDC_9>;
+        };
+
+};
+
+#include "pilot4_soc_full_pinctrl.dtsi"
