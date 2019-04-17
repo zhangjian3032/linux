@@ -52,6 +52,7 @@ obj-$(CONFIG_X86)		+= intel/
 obj-y				+= mvebu/
 obj-y				+= nomadik/
 obj-$(CONFIG_ARCH_NPCM7XX)	+= nuvoton/
+obj-$(CONFIG_ARCH_PILOT)        += pilot/
 obj-$(CONFIG_PINCTRL_PXA)	+= pxa/
 obj-$(CONFIG_ARCH_QCOM)		+= qcom/
 obj-$(CONFIG_PINCTRL_SAMSUNG)	+= samsung/

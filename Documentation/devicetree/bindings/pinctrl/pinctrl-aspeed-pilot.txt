@@ -1,0 +1,142 @@
+=========================
+Aspeed Pilot Pin Controller
+===========================  
+
+directory for pilot pincontrol : drivers/pinctrl/pilot/
+pilot4_pinctrl_drv.c : pin details of the soc (details of mux functions, configurations)
+aspeed_pilot_pinctrl.c : definitions of callbacks required by pincontrol core.
+
+arch/arm/boot/dts/pilot4.dtsi  :  DT node definitions
+include/dt-bindings/pinctrl/pilot-pinctl.h  -- Arguments to the pinconfig properties are defined here.
+
+
+===================
+pincontroller node:
+===================
+                pincontroller: pincontroller@40100900{
+                        compatible = "aspeed,pilot-pinctrl";
+                        /* system level and clock control,  toplevel pin control , top level pad control , gpio */
+                        reg = <0x40100100 0x10>,<0x40100900 0x34>,<0x40100B00 0xfe>;
+                };
+
+============================
+pinmux and pinconf subnodes :
+============================
+
+The required properties of pinmux child nodes are:
+- function: the mux function to select
+
+Required properties of pinconf child nodes are:
+- groups: the group which has the config details of pin
+
+
+Optional properties of pinconf child nodes are:
+- bias-pull-pin-default	: use pin-default pull state
+- bias-pull-up		: pull up the pin
+- bias-pull-down	: pull down the pin
+- drive-strength        : sink or source at most X mA
+- input-schmitt-enable	: enable schmitt-trigger mode
+
+
+===================================================
+pinmux and pinconf subnodes of pincontroller node:
+===================================================
+each subnode has function and groups properties.
+The values of these two properties point to entries
+in  the mux table and config table  respectively.
+ 
+based on pad type of pin, optional config properties are added in config node.
+padtype1:
+	  bias-pull-down / bias-pull-up / bias-pull-pin-default
+	  drive-strength 
+padtype2:
+	bias-pull-pin-default/ bias-pull-down /bias-pull-up
+	drive-strength
+	input-schmitt-enable
+padtype3:
+	bias-pull-down/bias-pull-up/bias-pull-pin-default
+
+refer to pilot data sheet( section: TOP LEVEL PAD CONTROL) for more information.
+
+Arguments to the drive-strength property are defined in 
+include/dt-bindings/pinctrl/pilot-pinctl.h 
+
+&pincontroller {
+
+
+        UART0_CTS_N:UART0_CTS_N {
+                groups = "uart0_cts_n_grp";
+                function = "UART0_CTS_N";
+        };
+        UART0_DCD_N:UART0_DCD_N {
+                groups = "uart0_dcd_n_grp";
+                function = "UART0_DCD_N";
+                bias-pull-up;
+                drive-strength = <CURR_DRV_6MA>;
+        };
+
+. . .
+
+
+};
+
+Individual Device nodes can include phandles of these subnodes 
+using pinctrl-property.
+so whenever a new device is registered corresponding pins are configured by pincontrol driver.
+
+
+===========
+Examples:
+============
+
+
+
+sample subnode of pinmux-controller node:
+
+
+       	 MAC0_TX_CLK:MAC0_TX_CLK {
+                groups = "mac0_rx_er_grp";
+                function = "MAC0_TX_CLK";
+                drive-strength = <VG_DRV_2_5V_39_84_OHM>;
+                input-schmitt-enable;
+                bias-pull-down;
+	};
+
+	UART0_TXD:UART0_TXD {
+		groups = "uart0_txd_grp";
+                function = "UART0_TXD";
+       	        drive-strength = <CURR_DRV_12MA>;
+	};
+
+
+	UART0_RXD:UART0_RXD {
+               	groups = "uart0_rxd_grp";
+                function = "UART0_RXD";
+       	        bias-pull-up;
+        };
+	
+===========================================
+example device node with pinctrl-property:
+===========================================
+               uart0: serial@40430000 {
+                        compatible = "ns16550a";
+                        reg = <0x40430000 0x1000>;
+                        reg-shift = <2>;
+                        reg-io-width = <4>;
+                        interrupts = <0 14 4>;
+                        interrupt-parent = <&gic>;
+                        clock-frequency = <1843200>;
+                        highspeed-uart = <0>;
+                        no-loopback-test;
+                        pinctrl-names = "default";
+                        pinctrl-0 = <&UART0_TXD>,<&UART0_RXD>,<&UART0_DCD_N>,<&UART0_DSR_N>,
+				 	      <&UART0_DTR_N>,<&UART0_RI_N>,<&UART0_RTS_N>;
+
+
+                };
+
+
+reference documents:
+=======================
+Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt	
+Documentation/pinctrl.txt

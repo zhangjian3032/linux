@@ -1,0 +1,10 @@
+config PINCTRL_ASPEED_PILOT
+        bool "Aspeed pilot pincontrol"
+	depends on (ARCH_PILOT || COMPILE_TEST) && OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select REGMAP_MMIO
+        help
+          Say Y here to enable pin controller support for Aspeed's pilot 
+          SoCs. GPIO is provided by a separate GPIO driver.
