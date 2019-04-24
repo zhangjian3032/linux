@@ -89,7 +89,7 @@ unsigned int enable_disable_pwm_control(unsigned char pwm_num,
 		struct aspeed_pwm_tacho_data *priv, unsigned char enable_disable)
 {
 	uint32_t ui_offset;
-	uint8_t CfgVal = 0;
+	uint32_t CfgVal = 0;
 	uint8_t CfgMask = 0;
 	uint8_t PrevVal = 0;
 
@@ -101,10 +101,10 @@ unsigned int enable_disable_pwm_control(unsigned char pwm_num,
 	}
 
 	/* Read pwm cfg regsiter */
+	regmap_read(priv->regmap, ui_offset,&CfgVal);
 #ifdef DEBUG
 	printk("I HAVE ADDED:enable_disable_pwm_control: CFGval %x\n", CfgVal);
 #endif
-	regmap_read(priv->regmap, ui_offset,(unsigned int *)&CfgVal);
 
 	switch(pwm_num)
 	{
@@ -196,7 +196,7 @@ unsigned int enable_disable_ft_control(unsigned char ft_num,
 		struct aspeed_pwm_tacho_data *priv, unsigned char enable_disable)
 {
 	uint32_t ui_offset;
-	volatile uint8_t CfgVal = 0;
+	uint32_t CfgVal = 0;
 	uint8_t CfgMask = 0;
 	uint8_t PrevVal = 0;
 
@@ -208,7 +208,7 @@ unsigned int enable_disable_ft_control(unsigned char ft_num,
 	}
 
 	/* Read FT cfg regsiter */
-	regmap_read(priv->regmap, ui_offset, (unsigned int *)&CfgVal);
+	regmap_read(priv->regmap, ui_offset, &CfgVal);
 
 	switch(ft_num)
 	{
@@ -368,8 +368,8 @@ int pilot_ii_gettachvalue (struct aspeed_pwm_tacho_data *priv , unsigned int ft_
 	uint32_t ui_FMCSR0OFF_offset;
 	uint32_t ui_FMSPR0OFF_offset;
 	int tachnumber = ft_num;
-	volatile uint8_t CurrentSpeed = 0;
-	volatile uint8_t CurrentCtrlStatVal = 0;
+	uint32_t CurrentSpeed = 0;
+	uint32_t CurrentCtrlStatVal = 0;
 	unsigned int retries = 10;
 	unsigned int rpmvalue;
 	if (tachnumber >= FANTACH_OFFSET_WRAP) {
@@ -386,7 +386,7 @@ int pilot_ii_gettachvalue (struct aspeed_pwm_tacho_data *priv , unsigned int ft_
 	while(retries)
 	{
 		/* Read the current Control/Status register value */
-		regmap_read(priv->regmap, ui_FMCSR0OFF_offset, (unsigned int *)&CurrentCtrlStatVal);
+		regmap_read(priv->regmap, ui_FMCSR0OFF_offset, &CurrentCtrlStatVal);
 		if(CurrentCtrlStatVal & PILOT_FAN_SPEED_READY)
 			break;
 		else if(CurrentCtrlStatVal & PILOT_FAN_ERROR)
@@ -414,7 +414,7 @@ int pilot_ii_gettachvalue (struct aspeed_pwm_tacho_data *priv , unsigned int ft_
 	}
 
 	printk("got it. FMCSR = 0x%02X\n",CurrentCtrlStatVal);
-	regmap_read(priv->regmap, ui_FMSPR0OFF_offset, (unsigned int *)&CurrentSpeed);
+	regmap_read(priv->regmap, ui_FMSPR0OFF_offset, &CurrentSpeed);
 	rpmvalue = (60 * TACH_CLK_FREQ)/CurrentSpeed;
 	printk("FMSPR = %d, RPM = %d\n",CurrentSpeed, rpmvalue);
 	return rpmvalue;
