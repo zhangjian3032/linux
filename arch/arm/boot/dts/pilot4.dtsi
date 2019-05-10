@@ -24,6 +24,7 @@
                 i2c7 = &i2c7;
                 i2c8 = &i2c8;
                 i2c9 = &i2c9;
+		peci0 = &peci0;
 	};
 
 	cpus {
@@ -109,6 +110,12 @@
 			  reg = <0x40411000  0x1000>;
 			  interrupt-parent = <&gic>;
 			  interrupts = <0 54 4>;
+		};
+		peci: bus@40418000{
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x40418000 0x100>;
 		};
 		uart0: serial@40430000 {
 			compatible = "ns16550a";
@@ -426,5 +433,29 @@
         };
 
 };
+
+&peci {
+        peci0: peci-bus@0 {
+                compatible = "aspeed,pilot-peci";
+                reg = <0x40418000 0x100>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+                interrupts = <0 63 4>;
+                interrupt-parent = <&gic>;
+/*
+                clocks = <&syscon ASPEED_CLK_GATE_REFCLK>;
+                resets = <&syscon ASPEED_RESET_PECI>;
+*/
+		pinctrl-names = "default";
+		pinctrl-0 = <&PECI_VTT>,<&PECI>;
+                clock-frequency = <24000000>;
+                msg-timing = <1>;
+                addr-timing = <1>;
+                rd-sampling-point = <8>;
+                cmd-timeout-ms = <1000>;
+                /*status = "disabled";*/
+        };
+};
+
 
 #include "pilot4_soc_full_pinctrl.dtsi"
