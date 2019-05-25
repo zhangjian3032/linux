@@ -39,6 +39,9 @@
 #include <net/ip.h>
 #include <net/ncsi.h>
 
+#include <linux/of_mdio.h>
+#include <linux/of_net.h>
+
 #include "ftgmac100.h"
 
 #define DRV_NAME	"ftgmac100"
@@ -63,63 +66,6 @@
 #define FTGMAC_100MHZ		100000000
 #define FTGMAC_25MHZ		25000000
 
-struct ftgmac100 {
-	/* Registers */
-	struct resource *res;
-	void __iomem *base;
-
-	/* Rx ring */
-	unsigned int rx_q_entries;
-	struct ftgmac100_rxdes *rxdes;
-	dma_addr_t rxdes_dma;
-	struct sk_buff **rx_skbs;
-	unsigned int rx_pointer;
-	u32 rxdes0_edorr_mask;
-
-	/* Tx ring */
-	unsigned int tx_q_entries;
-	struct ftgmac100_txdes *txdes;
-	dma_addr_t txdes_dma;
-	struct sk_buff **tx_skbs;
-	unsigned int tx_clean_pointer;
-	unsigned int tx_pointer;
-	u32 txdes0_edotr_mask;
-
-	/* Used to signal the reset task of ring change request */
-	unsigned int new_rx_q_entries;
-	unsigned int new_tx_q_entries;
-
-	/* Scratch page to use when rx skb alloc fails */
-	void *rx_scratch;
-	dma_addr_t rx_scratch_dma;
-
-	/* Component structures */
-	struct net_device *netdev;
-	struct device *dev;
-	struct ncsi_dev *ndev;
-	struct napi_struct napi;
-	struct work_struct reset_task;
-	struct mii_bus *mii_bus;
-	struct clk *clk;
-
-	/* Link management */
-	int cur_speed;
-	int cur_duplex;
-	bool use_ncsi;
-
-	/* Multicast filter settings */
-	u32 maht0;
-	u32 maht1;
-
-	/* Flow control settings */
-	bool tx_pause;
-	bool rx_pause;
-	bool aneg_pause;
-
-	/* Misc */
-	bool need_mac_restart;
-	bool is_aspeed;
-};
 
 static int ftgmac100_reset_mac(struct ftgmac100 *priv, u32 maccr)
 {
@@ -1084,78 +1030,6 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv, phy_interface_t intf)
 
 	return 0;
 }
-
-static int ftgmac100_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
-{
-	struct net_device *netdev = bus->priv;
-	struct ftgmac100 *priv = netdev_priv(netdev);
-	unsigned int phycr;
-	int i;
-
-	phycr = ioread32(priv->base + FTGMAC100_OFFSET_PHYCR);
-
-	/* preserve MDC cycle threshold */
-	phycr &= FTGMAC100_PHYCR_MDC_CYCTHR_MASK;
-
-	phycr |= FTGMAC100_PHYCR_PHYAD(phy_addr) |
-		 FTGMAC100_PHYCR_REGAD(regnum) |
-		 FTGMAC100_PHYCR_MIIRD;
-
-	iowrite32(phycr, priv->base + FTGMAC100_OFFSET_PHYCR);
-
-	for (i = 0; i < 10; i++) {
-		phycr = ioread32(priv->base + FTGMAC100_OFFSET_PHYCR);
-
-		if ((phycr & FTGMAC100_PHYCR_MIIRD) == 0) {
-			int data;
-
-			data = ioread32(priv->base + FTGMAC100_OFFSET_PHYDATA);
-			return FTGMAC100_PHYDATA_MIIRDATA(data);
-		}
-
-		udelay(100);
-	}
-
-	netdev_err(netdev, "mdio read timed out\n");
-	return -EIO;
-}
-
-static int ftgmac100_mdiobus_write(struct mii_bus *bus, int phy_addr,
-				   int regnum, u16 value)
-{
-	struct net_device *netdev = bus->priv;
-	struct ftgmac100 *priv = netdev_priv(netdev);
-	unsigned int phycr;
-	int data;
-	int i;
-
-	phycr = ioread32(priv->base + FTGMAC100_OFFSET_PHYCR);
-
-	/* preserve MDC cycle threshold */
-	phycr &= FTGMAC100_PHYCR_MDC_CYCTHR_MASK;
-
-	phycr |= FTGMAC100_PHYCR_PHYAD(phy_addr) |
-		 FTGMAC100_PHYCR_REGAD(regnum) |
-		 FTGMAC100_PHYCR_MIIWR;
-
-	data = FTGMAC100_PHYDATA_MIIWDATA(value);
-
-	iowrite32(data, priv->base + FTGMAC100_OFFSET_PHYDATA);
-	iowrite32(phycr, priv->base + FTGMAC100_OFFSET_PHYCR);
-
-	for (i = 0; i < 10; i++) {
-		phycr = ioread32(priv->base + FTGMAC100_OFFSET_PHYCR);
-
-		if ((phycr & FTGMAC100_PHYCR_MIIWR) == 0)
-			return 0;
-
-		udelay(100);
-	}
-
-	netdev_err(netdev, "mdio write timed out\n");
-	return -EIO;
-}
-
 static void ftgmac100_get_drvinfo(struct net_device *netdev,
 				  struct ethtool_drvinfo *info)
 {
@@ -1625,20 +1499,19 @@ static int ftgmac100_setup_mdio(struct net_device *netdev)
 	int phy_intf = PHY_INTERFACE_MODE_RGMII;
 	struct device_node *np = pdev->dev.of_node;
 	int i, err = 0;
-	u32 reg;
 
 	/* initialize mdio bus */
 	priv->mii_bus = mdiobus_alloc();
 	if (!priv->mii_bus)
 		return -EIO;
-
+#if 0
 	if (priv->is_aspeed) {
 		/* This driver supports the old MDIO interface */
 		reg = ioread32(priv->base + FTGMAC100_OFFSET_REVR);
 		reg &= ~FTGMAC100_REVR_NEW_MDIO_INTERFACE;
 		iowrite32(reg, priv->base + FTGMAC100_OFFSET_REVR);
-	}
-
+	};
+#endif
 	/* Get PHY mode from device-tree */
 	if (np) {
 		/* Default to RGMII. It's a gigabit part after all */
@@ -1677,8 +1550,23 @@ static int ftgmac100_setup_mdio(struct net_device *netdev)
 		 pdev->name, pdev->id);
 	priv->mii_bus->parent = priv->dev;
 	priv->mii_bus->priv = priv->netdev;
+#if 0
 	priv->mii_bus->read = ftgmac100_mdiobus_read;
 	priv->mii_bus->write = ftgmac100_mdiobus_write;
+#else
+	priv->mii_bus->priv = priv->mdio_base;//priv->netdev;
+	if(priv->aspeed_version == 6) {
+
+		priv->mii_bus->read = aspeed_g6_mdiobus_read;
+		priv->mii_bus->write = aspeed_g6_mdiobus_write;
+	} else if (priv->aspeed_version == 0) {
+		priv->mii_bus->read = ftgmac100_mdiobus_read;
+		priv->mii_bus->write = ftgmac100_mdiobus_write;		
+	} else {
+		priv->mii_bus->read = aspeed_g5_mdiobus_read;
+		priv->mii_bus->write = aspeed_g5_mdiobus_write;		
+	}
+#endif
 
 	for (i = 0; i < PHY_MAX_ADDR; i++)
 		priv->mii_bus->irq[i] = PHY_POLL;
@@ -1747,7 +1635,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	int irq;
 	struct net_device *netdev;
 	struct ftgmac100 *priv;
-	struct device_node *np;
+	struct device_node *np = pdev->dev.of_node;
 	int err = 0;
 
 	if (!pdev)
@@ -1783,6 +1671,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	INIT_WORK(&priv->reset_task, ftgmac100_reset_task);
 
 	/* map io memory */
+#if 0	
 	priv->res = request_mem_region(res->start, resource_size(res),
 				       dev_name(&pdev->dev));
 	if (!priv->res) {
@@ -1790,12 +1679,28 @@ static int ftgmac100_probe(struct platform_device *pdev)
 		err = -ENOMEM;
 		goto err_req_mem;
 	}
+#endif
 
-	priv->base = ioremap(res->start, resource_size(res));
+	priv->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!priv->base) {
 		dev_err(&pdev->dev, "Failed to ioremap ethernet registers\n");
 		err = -EIO;
-		goto err_ioremap;
+		goto err_req_mem;
+	}
+	
+	if(of_device_is_compatible(np, "aspeed,ast2600-mac")) {
+		priv->aspeed_version = 6;
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		if (!res)
+			return -ENXIO;
+		priv->mdio_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	} else if (of_device_is_compatible(np, "aspeed,ast2400-mac") || 
+		of_device_is_compatible(np, "aspeed,ast2500-mac")) {
+		priv->aspeed_version = 1;
+		priv->mdio_base = priv->base + 0x60;		
+	} else {
+		priv->aspeed_version = 0;
+		priv->mdio_base = priv->base + 0x60;
 	}
 
 	netdev->irq = irq;
@@ -1810,7 +1715,8 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 	np = pdev->dev.of_node;
 	if (np && (of_device_is_compatible(np, "aspeed,ast2400-mac") ||
-		   of_device_is_compatible(np, "aspeed,ast2500-mac"))) {
+		   of_device_is_compatible(np, "aspeed,ast2500-mac") || 
+		   of_device_is_compatible(np, "aspeed,ast2600-mac"))) {
 		priv->rxdes0_edorr_mask = BIT(30);
 		priv->txdes0_edotr_mask = BIT(30);
 		priv->is_aspeed = true;
@@ -1875,8 +1781,6 @@ err_register_netdev:
 	ftgmac100_destroy_mdio(netdev);
 err_setup_mdio:
 	iounmap(priv->base);
-err_ioremap:
-	release_resource(priv->res);
 err_req_mem:
 	free_netdev(netdev);
 err_alloc_etherdev:
@@ -1903,7 +1807,7 @@ static int ftgmac100_remove(struct platform_device *pdev)
 	ftgmac100_destroy_mdio(netdev);
 
 	iounmap(priv->base);
-	release_resource(priv->res);
+//	release_resource(priv->res);
 
 	netif_napi_del(&priv->napi);
 	free_netdev(netdev);
