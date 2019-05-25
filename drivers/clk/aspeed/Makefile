@@ -4,3 +4,4 @@
 #
 
 obj-y	+= clk-aspeed.o
+obj-y   += clk-g6-aspeed.o
