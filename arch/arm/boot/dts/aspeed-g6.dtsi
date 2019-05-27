@@ -466,6 +466,63 @@
 				resets = <&syscon ASPEED_RESET_VIDEO>;
 			};
 
+			sdhci: sdhci@1e740000 {
+				#interrupt-cells = <1>;
+				compatible = "aspeed,aspeed-sdhci-irq", "simple-mfd";
+				reg = <0x1e740000 0x1000>;
+				interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				clocks = <&syscon ASPEED_CLK_GATE_SDCLK>, <&syscon ASPEED_CLK_GATE_SDEXTCLK>;
+				clock-names = "ctrlclk", "extclk";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1e740000 0x1000>;
+
+				sdhci_slot0: sdhci_slot0@100 {
+					compatible = "aspeed,sdhci-ast2500";
+					reg = <0x100 0x100>;
+					interrupts = <0>;
+					interrupt-parent = <&sdhci>;
+					sdhci,auto-cmd12;
+					clocks = <&syscon ASPEED_CLK_SDIO>;
+					power-gpio = <&gpio0 ASPEED_GPIO(V, 0) GPIO_ACTIVE_LOW>;
+					power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 1) GPIO_ACTIVE_LOW>;
+				};
+
+				sdhci_slot1: sdhci_slot1@200 {
+					compatible = "aspeed,sdhci-ast2500";
+					reg = <0x200 0x100>;
+					interrupts = <1>;
+					interrupt-parent = <&sdhci>;
+					sdhci,auto-cmd12;
+					clocks = <&syscon ASPEED_CLK_SDIO>;
+					power-gpio = <&gpio0 ASPEED_GPIO(V, 2) GPIO_ACTIVE_LOW>;
+                                        power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 3) GPIO_ACTIVE_LOW>;
+				};
+
+			};
+
+			emmc: emmc@1e750000 {
+				#interrupt-cells = <1>;
+				compatible = "aspeed,aspeed-emmc-irq", "simple-mfd";
+				reg = <0x1e750000 0x1000>;
+				interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				clocks = <&syscon ASPEED_CLK_GATE_EMMCCLK>, <&syscon ASPEED_CLK_GATE_EMMCEXTCLK>;
+				clock-names = "ctrlclk", "extclk";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1e750000 0x1000>;
+
+				emmc_slot0: emmc_slot0@100 {
+					compatible = "aspeed,emmc-ast2600";
+					reg = <0x100 0x100>;
+					interrupts = <0>;
+					interrupt-parent = <&emmc>;
+					clocks = <&syscon ASPEED_CLK_EMMC>;
+				};
+
+			};
 
 			gpio0: gpio@1e780000 {
 				#gpio-cells = <2>;
