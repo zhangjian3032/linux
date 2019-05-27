@@ -324,11 +324,17 @@ static const struct aspeed_lpc_snoop_model_data ast2500_model_data = {
 	.has_hicrb_ensnp = 1,
 };
 
+static const struct aspeed_lpc_snoop_model_data ast2600_model_data = {
+	.has_hicrb_ensnp = 1,
+};
+
 static const struct of_device_id aspeed_lpc_snoop_match[] = {
 	{ .compatible = "aspeed,ast2400-lpc-snoop",
 	  .data = &ast2400_model_data },
 	{ .compatible = "aspeed,ast2500-lpc-snoop",
 	  .data = &ast2500_model_data },
+	{ .compatible = "aspeed,ast2600-lpc-snoop",
+	  .data = &ast2600_model_data },
 	{ },
 };
 
