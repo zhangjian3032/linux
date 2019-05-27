@@ -371,6 +371,24 @@
 					compatible = "aspeed,bmc-misc";
 				};
 
+				scu_ic0: interrupt-controller@0 {
+					#interrupt-cells = <1>;
+					compatible = "aspeed,ast2600-scu-ic";
+					reg = <0x560 0x10>;
+					interrupt-parent = <&gic>;
+					interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-controller;
+				};
+
+				scu_ic1: interrupt-controller@1 {
+					#interrupt-cells = <1>;
+					compatible = "aspeed,ast2600-scu-ic";
+					reg = <0x570 0x10>;
+					interrupt-parent = <&gic>;
+					interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-controller;
+				};
+
 			};
 
 			smp-memram@0 {
