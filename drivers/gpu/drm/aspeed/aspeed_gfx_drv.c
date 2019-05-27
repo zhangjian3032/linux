@@ -69,8 +69,13 @@ static void aspeed_gfx_setup_mode_config(struct drm_device *drm)
 
 	drm->mode_config.min_width = 0;
 	drm->mode_config.min_height = 0;
+#ifdef CONFIG_MACHINE_ASPEED_G6
+	drm->mode_config.max_width = 1024;
+	drm->mode_config.max_height = 768;
+#else
 	drm->mode_config.max_width = 800;
 	drm->mode_config.max_height = 600;
+#endif
 	drm->mode_config.funcs = &aspeed_gfx_mode_config_funcs;
 }
 
@@ -110,7 +115,7 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	priv->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2500-scu");
+	priv->scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
 	if (IS_ERR(priv->scu)) {
 		dev_err(&pdev->dev, "failed to find SCU regmap\n");
 		return PTR_ERR(priv->scu);
@@ -212,6 +217,7 @@ static struct drm_driver aspeed_gfx_driver = {
 
 static const struct of_device_id aspeed_gfx_match[] = {
 	{ .compatible = "aspeed,ast2500-gfx" },
+	{ .compatible = "aspeed,ast2600-gfx" },	
 	{ }
 };
 

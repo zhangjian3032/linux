@@ -314,6 +314,7 @@ static int aspeed_mbox_remove(struct platform_device *pdev)
 static const struct of_device_id aspeed_mbox_match[] = {
 	{ .compatible = "aspeed,ast2400-mbox" },
 	{ .compatible = "aspeed,ast2500-mbox" },
+	{ .compatible = "aspeed,ast2600-mbox" },
 	{ },
 };
 

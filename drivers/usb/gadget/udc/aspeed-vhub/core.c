@@ -136,7 +136,9 @@ static irqreturn_t ast_vhub_irq(int irq, void *data)
 		     VHUB_IRQ_DEVICE2 |
 		     VHUB_IRQ_DEVICE3 |
 		     VHUB_IRQ_DEVICE4 |
-		     VHUB_IRQ_DEVICE5)) {
+		     VHUB_IRQ_DEVICE5 |
+		     VHUB_IRQ_DEVICE6 |
+		     VHUB_IRQ_DEVICE7)) {
 		if (istat & VHUB_IRQ_DEVICE1)
 			ast_vhub_dev_irq(&vhub->ports[0].dev);
 		if (istat & VHUB_IRQ_DEVICE2)
@@ -147,6 +149,11 @@ static irqreturn_t ast_vhub_irq(int irq, void *data)
 			ast_vhub_dev_irq(&vhub->ports[3].dev);
 		if (istat & VHUB_IRQ_DEVICE5)
 			ast_vhub_dev_irq(&vhub->ports[4].dev);
+		if (istat & VHUB_IRQ_DEVICE6)
+			ast_vhub_dev_irq(&vhub->ports[5].dev);
+		if (istat & VHUB_IRQ_DEVICE7)
+			ast_vhub_dev_irq(&vhub->ports[6].dev);
+		
 	}
 
 	/* Handle top-level vHub EP0 interrupts */
@@ -405,6 +412,9 @@ static const struct of_device_id ast_vhub_dt_ids[] = {
 	},
 	{
 		.compatible = "aspeed,ast2500-usb-vhub",
+	},
+	{
+		.compatible = "aspeed,ast2600-usb-vhub",
 	},
 	{ }
 };
