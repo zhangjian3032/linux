@@ -761,6 +761,7 @@
 				reg = <0x1e790000 0x20>;
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART6CLK>;
 				no-loopback-test;
 				status = "disabled";
 			};
@@ -770,6 +771,7 @@
 				reg = <0x1e790100 0x20>;
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART7CLK>;
 				no-loopback-test;
 				status = "disabled";
 			};
@@ -779,6 +781,7 @@
 				reg = <0x1e790200 0x20>;
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART8CLK>;
 				no-loopback-test;
 				status = "disabled";
 			};
@@ -788,6 +791,7 @@
 				reg = <0x1e790300 0x20>;
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART9CLK>;
 				no-loopback-test;
 				status = "disabled";
 			};
@@ -797,6 +801,7 @@
 				reg = <0x1e790400 0x20>;
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART10CLK>;
 				no-loopback-test;
 				status = "disabled";
 			};
@@ -806,6 +811,7 @@
 				reg = <0x1e790400 0x20>;
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART11CLK>;
 				no-loopback-test;
 				status = "disabled";
 			};
@@ -815,6 +821,7 @@
 				reg = <0x1e790600 0x20>;
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART12CLK>;
 				no-loopback-test;
 				status = "disabled";
 			};
@@ -824,6 +831,7 @@
 				reg = <0x1e790700 0x20>;
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART13CLK>;
 				no-loopback-test;
 				status = "disabled";
 			};
