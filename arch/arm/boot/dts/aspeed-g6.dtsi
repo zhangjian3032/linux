@@ -415,6 +415,13 @@
 				memory-region = <&gfx_memory>;
                         };
 
+			xdma: xdma@1e6e7000 {
+				compatible = "aspeed,ast2600-xdma";
+				reg = <0x1e6e7000 0x80>;
+				interrupts-extended = <&gic GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
+				resets = <&syscon ASPEED_RESET_XDMA>;
+			};
+
 			adc0: adc@1e6e9000 {
 				compatible = "aspeed,ast2600-adc";
 				reg = <0x1e6e9000 0x100>;
