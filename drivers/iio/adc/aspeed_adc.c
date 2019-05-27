@@ -34,6 +34,12 @@
 #define ASPEED_REG_CLOCK_CONTROL	0x0C
 #define ASPEED_REG_MAX			0xC0
 
+//ast2600
+#define REF_VLOTAGE_2500mV 		0
+#define REF_VLOTAGE_1200mV 		(1 << 6)
+#define REF_VLOTAGE_1550mV 		(2 << 6)
+#define REF_VLOTAGE_900mV 		(3 << 6)
+
 #define ASPEED_OPERATION_MODE_POWER_DOWN	(0x0 << 1)
 #define ASPEED_OPERATION_MODE_STANDBY		(0x1 << 1)
 #define ASPEED_OPERATION_MODE_NORMAL		(0x7 << 1)
@@ -49,8 +55,10 @@ struct aspeed_adc_model_data {
 	const char *model_name;
 	unsigned int min_sampling_rate;	// Hz
 	unsigned int max_sampling_rate;	// Hz
-	unsigned int vref_voltage;	// mV
+	u32 vref_voltage;	// mV
 	bool wait_init_sequence;
+	struct iio_chan_spec const	*channels;
+	int num_channels;
 };
 
 struct aspeed_adc_data {
@@ -89,6 +97,17 @@ static const struct iio_chan_spec aspeed_adc_iio_channels[] = {
 	ASPEED_CHAN(13, 0x2A),
 	ASPEED_CHAN(14, 0x2C),
 	ASPEED_CHAN(15, 0x2E),
+};
+
+static const struct iio_chan_spec ast2600_adc_iio_channels[] = {
+	ASPEED_CHAN(0, 0x10),
+	ASPEED_CHAN(1, 0x12),
+	ASPEED_CHAN(2, 0x14),
+	ASPEED_CHAN(3, 0x16),
+	ASPEED_CHAN(4, 0x18),
+	ASPEED_CHAN(5, 0x1A),
+	ASPEED_CHAN(6, 0x1C),
+	ASPEED_CHAN(7, 0x1E),
 };
 
 static int aspeed_adc_read_raw(struct iio_dev *indio_dev,
@@ -180,6 +199,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	struct resource *res;
 	const char *clk_parent_name;
 	int ret;
+	u32 eng_ctrl = 0;
 	u32 adc_engine_control_reg_val;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*data));
@@ -230,10 +250,27 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 
 	model_data = of_device_get_match_data(&pdev->dev);
 
+	if (of_property_read_u32(pdev->dev.of_node, "ref_voltage", (u32 *)&model_data->vref_voltage) == 0) {
+		printk(KERN_INFO "aspeed_adc: ref_voltage %x\n", model_data->vref_voltage);
+		if (model_data->vref_voltage == 2500)
+			eng_ctrl = REF_VLOTAGE_2500mV;
+		else if (model_data->vref_voltage == 1200)
+			eng_ctrl = REF_VLOTAGE_1200mV;
+		else if ((model_data->vref_voltage >= 1550) && (model_data->vref_voltage <= 2700))
+			eng_ctrl = REF_VLOTAGE_1550mV;
+		else if ((model_data->vref_voltage >= 900) && (model_data->vref_voltage <= 1650))
+			eng_ctrl = REF_VLOTAGE_900mV;
+		else {
+			printk("error ref voltage %d \n", model_data->vref_voltage);
+			eng_ctrl = 0;
+		}
+	} else
+		eng_ctrl = 0;
+
 	if (model_data->wait_init_sequence) {
 		/* Enable engine in normal mode. */
-		writel(ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE,
-		       data->base + ASPEED_REG_ENGINE_CONTROL);
+		eng_ctrl |= ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE;
+		writel(eng_ctrl, data->base + ASPEED_REG_ENGINE_CONTROL);
 
 		/* Wait for initial sequence complete. */
 		ret = readl_poll_timeout(data->base + ASPEED_REG_ENGINE_CONTROL,
@@ -261,8 +298,8 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &aspeed_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = aspeed_adc_iio_channels;
-	indio_dev->num_channels = ARRAY_SIZE(aspeed_adc_iio_channels);
+	indio_dev->channels = model_data->channels;
+	indio_dev->num_channels = model_data->num_channels;
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
@@ -305,6 +342,8 @@ static const struct aspeed_adc_model_data ast2400_model_data = {
 	.vref_voltage = 2500, // mV
 	.min_sampling_rate = 10000,
 	.max_sampling_rate = 500000,
+	.channels = aspeed_adc_iio_channels,
+	.num_channels = 16,
 };
 
 static const struct aspeed_adc_model_data ast2500_model_data = {
@@ -313,11 +352,24 @@ static const struct aspeed_adc_model_data ast2500_model_data = {
 	.min_sampling_rate = 1,
 	.max_sampling_rate = 1000000,
 	.wait_init_sequence = true,
+	.channels = aspeed_adc_iio_channels,
+	.num_channels = 16,
+};
+
+static const struct aspeed_adc_model_data ast2600_model_data = {
+	.model_name = "ast2500-adc",
+	.vref_voltage = 1800, // mV --> can be 1.2v or 2.5 or ext 1.55~2.7v, 0.9v ~1.65v
+	.min_sampling_rate = 1,
+	.max_sampling_rate = 1000000,
+	.wait_init_sequence = true,
+	.channels = ast2600_adc_iio_channels,
+	.num_channels = 8,
 };
 
 static const struct of_device_id aspeed_adc_matches[] = {
 	{ .compatible = "aspeed,ast2400-adc", .data = &ast2400_model_data },
 	{ .compatible = "aspeed,ast2500-adc", .data = &ast2500_model_data },
+	{ .compatible = "aspeed,ast2600-adc", .data = &ast2600_model_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, aspeed_adc_matches);
