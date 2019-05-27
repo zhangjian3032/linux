@@ -308,6 +308,7 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 	struct aspeed_vuart *vuart;
 	struct device_node *np;
 	struct resource *res;
+	u32 port_address, sirq;
 	u32 clk, prop;
 	int rc;
 
@@ -401,6 +402,31 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 
 	vuart->line = rc;
+	aspeed_vuart_set_enabled(vuart, false);
+
+	if (of_property_read_u32(np, "serial_irq", &sirq) == 0) {
+		writel((readl(vuart->regs + ASPEED_VUART_GCRB) &
+			~ASPEED_VUART_GCRB_HOST_SIRQ_MASK) |
+		       (sirq << ASPEED_VUART_GCRB_HOST_SIRQ_SHIFT) | 0x3,
+		       vuart->regs + ASPEED_VUART_GCRB);
+		printk("serial irq %d, ", sirq);
+	} else {
+		writel((readl(vuart->regs + ASPEED_VUART_GCRB) &
+			~ASPEED_VUART_GCRB_HOST_SIRQ_MASK) |
+		       (4 << ASPEED_VUART_GCRB_HOST_SIRQ_SHIFT) | 0x3,
+		       vuart->regs + ASPEED_VUART_GCRB);
+		printk("default serial irq 4, ");
+	}
+
+	if (of_property_read_u32(np, "port_address", &port_address) == 0) {
+		writel((port_address >> 8) & 0xff, vuart->regs + ASPEED_VUART_ADDRH);
+		writel((port_address >> 0) & 0xff, vuart->regs + ASPEED_VUART_ADDRL);
+		printk("port address %x\n", port_address);
+	} else {
+		writel((0x3f8 >> 8) & 0xff, vuart->regs + ASPEED_VUART_ADDRH);
+		writel((0x3f8 >> 0) & 0xff, vuart->regs + ASPEED_VUART_ADDRL);
+		printk("default port address 0x3f8\n");
+	}
 
 	aspeed_vuart_set_enabled(vuart, true);
 	aspeed_vuart_set_host_tx_discard(vuart, true);
@@ -432,6 +458,7 @@ static int aspeed_vuart_remove(struct platform_device *pdev)
 static const struct of_device_id aspeed_vuart_table[] = {
 	{ .compatible = "aspeed,ast2400-vuart" },
 	{ .compatible = "aspeed,ast2500-vuart" },
+	{ .compatible = "aspeed,ast2600-vuart" },
 	{ },
 };
 
