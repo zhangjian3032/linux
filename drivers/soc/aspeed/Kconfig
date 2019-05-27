@@ -8,4 +8,31 @@ config ASPEED_BMC_MISC
 	  Say yes to expose VGA and LPC scratch registers, and other
 	  miscellaneous control interfaces specific to the ASPEED BMC SoCs
 
+config ASPEED_ESPI
+	tristate "ASPEED eSPI"
+
+config AST_VIDEO
+	tristate "ASPEED Video Engine driver"
+	default n
+	help
+	  Driver for AST Video Engine
+
+config ASPEED_JTAG
+	tristate "ASPEED JTAG Controller"
+	default n
+	help
+	  Driver for JTAG Controller
+
+config ASPEED_MCTP
+	tristate "ASPEED MCTP Driver"
+	default n
+	help
+	  Driver for MCTP
+
+config ASPEED_XDMA
+	tristate "ASPEED XDMA Driver"
+	default n
+	help
+	  Driver for XDMA
+
 endmenu

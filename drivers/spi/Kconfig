@@ -56,6 +56,12 @@ config SPI_MEM
 
 comment "SPI Master Controller Drivers"
 
+config SPI_FMC
+	tristate "Aspeed FMC SPI Controller"
+	depends on ARCH_ASPEED
+	help
+	  This selects a driver for the AST FMC SPI Controller
+
 config SPI_ALTERA
 	tristate "Altera SPI Controller"
 	help
