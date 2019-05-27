@@ -10,7 +10,11 @@
 
 static int aspeed_gfx_get_modes(struct drm_connector *connector)
 {
+#ifdef CONFIG_MACHINE_ASPEED_G6
+	return drm_add_modes_noedid(connector, 1024, 768);
+#else
 	return drm_add_modes_noedid(connector, 800, 600);
+#endif
 }
 
 static const struct
