@@ -678,7 +678,7 @@ static const struct of_device_id aspeed_g6_clk_dt_ids[] = {
 static struct platform_driver aspeed_g6_clk_driver = {
 	.probe  = aspeed_g6_clk_probe,
 	.driver = {
-		.name = "aspeed-clk",
+		.name = "aspeed-g6-clk",
 		.of_match_table = aspeed_g6_clk_dt_ids,
 		.suppress_bind_attrs = true,
 	},
