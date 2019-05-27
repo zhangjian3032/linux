@@ -502,23 +502,21 @@ static void aspeed_set_pwm_channel_enable(struct regmap *regmap, u8 pwm_channel,
 static void aspeed_set_fan_tach_ch_enable(struct aspeed_pwm_tachometer_data *priv, u8 fan_tach_ch,
 					  bool enable)
 {
-	u32 i = 0;
+	u32 i = 0, j;
 	u32 divide_val = 0;
 	u32 reg_value = 0;
-	
+
 	if(enable) {
 		//4 ^ n
 		//check pwm clk and to change techo devide 25KZ
 		for(i = 0; i < 12; i++) {
-			while (i != 0)
-			{
+			divide_val = 1;
+		 	for(j = 1; j <= i; j++)
 				divide_val *= 4;
-				--i;
-			}		
+//			printk("i : %d , priv->clk_freq/divide_val %d ",i, priv->clk_freq/divide_val);
 			if((priv->clk_freq/divide_val) < 250000)
 				break;
 		}
-
 		i--;
 		divide_val = ((1 << i) * (1 << i));
 //		printk("techo divide_val %d , i %x max techo clk %d \n", divide_val, i, priv->clk_freq / divide_val);
@@ -915,7 +913,7 @@ static int aspeed_pwm_create_fan(struct device *dev,
 	ret = of_property_read_u32(child, "reg", &pwm_channel);
 	if (ret)
 		return ret;
-	
+
 	aspeed_create_pwm_channel(priv, (u8)pwm_channel);
 
 	ret = of_property_count_u8_elems(child, "cooling-levels");
@@ -966,7 +964,7 @@ static int aspeed_pwm_tachometer_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-	
+
 	priv->pwm_channel = default_pwm_params;	
 	priv->techo_channel = default_techo_params;
 	priv->regmap = devm_regmap_init(dev, NULL, (__force void *)regs,
