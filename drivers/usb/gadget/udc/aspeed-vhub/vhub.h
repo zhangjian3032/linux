@@ -51,6 +51,8 @@
 #define VHUB_IRQ_USB_CMD_DEADLOCK		(1 << 18)
 #define VHUB_IRQ_EP_POOL_NAK			(1 << 17)
 #define VHUB_IRQ_EP_POOL_ACK_STALL		(1 << 16)
+#define VHUB_IRQ_DEVICE7			(1 << 15)
+#define VHUB_IRQ_DEVICE6			(1 << 14)
 #define VHUB_IRQ_DEVICE5			(1 << 13)
 #define VHUB_IRQ_DEVICE4			(1 << 12)
 #define VHUB_IRQ_DEVICE3			(1 << 11)
@@ -209,9 +211,13 @@
  * Data structures and misc definitions *
  *                                      *
  ****************************************/
-
+#ifdef CONFIG_MACH_ASPEED_G6
+#define AST_VHUB_NUM_GEN_EPs	21	/* Generic non-0 EPs */
+#define AST_VHUB_NUM_PORTS	7	/* vHub ports */
+#else
 #define AST_VHUB_NUM_GEN_EPs	15	/* Generic non-0 EPs */
 #define AST_VHUB_NUM_PORTS	5	/* vHub ports */
+#endif
 #define AST_VHUB_EP0_MAX_PACKET	64	/* EP0's max packet size */
 #define AST_VHUB_EPn_MAX_PACKET	1024	/* Generic EPs max packet size */
 #define AST_VHUB_DESCS_COUNT	256	/* Use 256 descriptor mode (valid
