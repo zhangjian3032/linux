@@ -56,6 +56,7 @@ struct aspeed_gpio_config {
  */
 struct aspeed_gpio {
 	struct gpio_chip chip;
+	struct irq_chip aspeed_gpio_irqchip;
 	spinlock_t lock;
 	void __iomem *base;
 	int irq;
@@ -685,14 +686,6 @@ static void aspeed_gpio_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(ic, desc);
 }
 
-static struct irq_chip aspeed_gpio_irqchip = {
-	.name		= "aspeed-gpio",
-	.irq_ack	= aspeed_gpio_irq_ack,
-	.irq_mask	= aspeed_gpio_irq_mask,
-	.irq_unmask	= aspeed_gpio_irq_unmask,
-	.irq_set_type	= aspeed_gpio_set_type,
-};
-
 static void set_irq_valid_mask(struct aspeed_gpio *gpio)
 {
 	const struct aspeed_bank_props *props = gpio->config->props;
@@ -728,14 +721,14 @@ static int aspeed_gpio_setup_irqs(struct aspeed_gpio *gpio,
 
 	set_irq_valid_mask(gpio);
 
-	rc = gpiochip_irqchip_add(&gpio->chip, &aspeed_gpio_irqchip,
+	rc = gpiochip_irqchip_add(&gpio->chip, &gpio->aspeed_gpio_irqchip,
 			0, handle_bad_irq, IRQ_TYPE_NONE);
 	if (rc) {
 		dev_info(&pdev->dev, "Could not add irqchip\n");
 		return rc;
 	}
 
-	gpiochip_set_chained_irqchip(&gpio->chip, &aspeed_gpio_irqchip,
+	gpiochip_set_chained_irqchip(&gpio->chip, &gpio->aspeed_gpio_irqchip,
 				     gpio->irq, aspeed_gpio_irq_handler);
 
 	return 0;
@@ -1145,9 +1138,22 @@ static const struct aspeed_gpio_config ast2500_config =
 	/* 232 for simplicity, actual number is 228 (4-GPIO hole in GPIOAB) */
 	{ .nr_gpios = 232, .props = ast2500_bank_props, };
 
+static const struct aspeed_bank_props ast2600_bank_props[] = {
+	/*     input	  output   */
+	{ 5, 0xffffffff, 0x0000ffff }, /* U/V/W/X */
+	{ 6, 0x0000ffff, 0x0000ffff }, /* Y/Z */
+	{ },
+};
+
+static const struct aspeed_gpio_config ast2600_config =
+	/* 208 for simplicity */
+	{ .nr_gpios = 208, .props = ast2600_bank_props, };
+
+
 static const struct of_device_id aspeed_gpio_of_table[] = {
 	{ .compatible = "aspeed,ast2400-gpio", .data = &ast2400_config, },
 	{ .compatible = "aspeed,ast2500-gpio", .data = &ast2500_config, },
+	{ .compatible = "aspeed,ast2600-gpio", .data = &ast2600_config, },
 	{}
 };
 MODULE_DEVICE_TABLE(of, aspeed_gpio_of_table);
@@ -1196,6 +1202,12 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	gpio->chip.label = dev_name(&pdev->dev);
 	gpio->chip.base = -1;
 	gpio->chip.irq.need_valid_mask = true;
+
+	gpio->aspeed_gpio_irqchip.name = pdev->name;
+	gpio->aspeed_gpio_irqchip.irq_ack = aspeed_gpio_irq_ack;
+	gpio->aspeed_gpio_irqchip.irq_mask	= aspeed_gpio_irq_mask;
+	gpio->aspeed_gpio_irqchip.irq_unmask = aspeed_gpio_irq_unmask,
+	gpio->aspeed_gpio_irqchip.irq_set_type	= aspeed_gpio_set_type;
 
 	/* Allocate a cache of the output registers */
 	banks = gpio->config->nr_gpios >> 5;
