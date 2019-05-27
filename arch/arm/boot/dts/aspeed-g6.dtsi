@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/clock/aspeed-clock.h>
+#include <dt-bindings/clock/aspeed-g6-clock.h>
 #include <dt-bindings/gpio/aspeed-gpio.h>
 #include <dt-bindings/interrupt-controller/aspeed-scu-irq.h>
 
@@ -441,6 +441,18 @@
 				#io-channel-cells = <1>;
 			};
 #endif
+
+			video: video@1e700000 {
+				compatible = "aspeed,ast2600-video";
+				/* 184MB : 40MB*/
+				reg = <0x1e700000 0x300>;
+				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+				memory-region = <&video_memory>;
+				clocks = <&syscon ASPEED_CLK_GATE_ECLK>, <&syscon ASPEED_CLK_GATE_VCLK>;
+				clock-names = "eclk", "vclk";
+				resets = <&syscon ASPEED_RESET_VIDEO>;
+			};
+
 
 			gpio0: gpio@1e780000 {
 				#gpio-cells = <2>;
