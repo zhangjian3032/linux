@@ -981,7 +981,6 @@ static u32 aspeed_i2c_get_clk_reg_val(struct device *dev,
 			clk_low--;
 	}
 
-
 	return ((clk_high << ASPEED_I2CD_TIME_SCL_HIGH_SHIFT)
 		& ASPEED_I2CD_TIME_SCL_HIGH_MASK)
 			| ((clk_low << ASPEED_I2CD_TIME_SCL_LOW_SHIFT)
@@ -1046,7 +1045,7 @@ static int aspeed_i2c_init(struct aspeed_i2c_bus *bus,
 	else
 		fun_ctrl_reg |= ASPEED_I2CD_MULTI_MASTER_DIS;
 
-	if (of_property_read_bool(pdev->dev.of_node, "dma-enable")) {
+	if (of_property_read_bool(pdev->dev.of_node, "dma-mode")) {
 		bus->dma_buf = dma_alloc_coherent(bus->dev, ASPEED_I2CD_DMA_MAX_SIZE,
 						      &bus->dma_addr, GFP_KERNEL);
 		bus->dma_enable = 1;
