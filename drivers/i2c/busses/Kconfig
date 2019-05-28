@@ -361,10 +361,11 @@ config I2C_ALTERA
 	  will be called i2c-altera.
 
 choice
-	prompt "Aspeed I2C"
+	bool "Aspeed I2C"
 	default I2C_NEW_ASPEED if MACH_ASPEED_G6
 	default I2C_ASPEED if MACH_ASPEED_G5
 	depends on ARCH_ASPEED
+	optional
 
 config I2C_NEW_ASPEED
 	bool "Aspeed New I2C Controller"
