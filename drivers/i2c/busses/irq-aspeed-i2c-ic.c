@@ -22,6 +22,8 @@
 #include <linux/io.h>
 #include <linux/reset.h>
 #include <linux/delay.h>
+#include <linux/clk-provider.h>
+
 
 #define ASPEED_I2CG_ISR				0x00
 #define ASPEED_I2CG_SLAVE_ISR		0x04	/* ast2600 */
@@ -134,31 +136,72 @@ static const struct irq_domain_ops aspeed_i2c_ic_irq_domain_ops = {
 	.map = aspeed_i2c_ic_map_irq_domain,
 };
 
-static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long	base_clk)
-{
-	u32 clk_divider = 0;
-	unsigned long target_clk_table[4] = {
-		1000000,	//1M
-		4000000,	//4M
-		10000000,	//10M
-		35000000,	//35M
-	};
-	int i, j;
-	
-	/* assign 4 base clock 
-	 * base clk1 : 1M for 1KHz
-	 * base clk2 : 4M for 400KHz	 
-	 * base clk3 : 10M for 1MHz  
-	 * base clk4 : 35M for 3.4MHz	 
-	*/
+struct aspeed_i2c_base_clk {
+	const char	*name;
+	unsigned long	base_freq;
+};
 
-	for(j = 0; j < 3; i++) {
+/* assign 4 base clock 
+ * base clk1 : 1M for 1KHz
+ * base clk2 : 4M for 400KHz	 
+ * base clk3 : 10M for 1MHz  
+ * base clk4 : 35M for 3.4MHz	 
+*/
+
+#define BASE_CLK_COUNT 4
+
+static const struct aspeed_i2c_base_clk i2c_base_clk[BASE_CLK_COUNT] = {
+	/* name	target_freq */
+	{  "base_clk0",	1000000 },	//1M
+	{  "base_clk1",	4000000 },	//4M
+	{  "base_clk2",	10000000 },	//10M
+	{  "base_clk3",	35000000 },	//35M
+};
+
+
+
+static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long	base_clk, struct device_node *node)
+{
+	struct clk_hw_onecell_data *onecell;
+	struct clk_hw *hw;
+	int err;
+	u32 clk_divider = 0;
+	int i, j;
+	unsigned long base_freq;
+
+
+	onecell = kzalloc(sizeof(*onecell) + (BASE_CLK_COUNT * sizeof(struct clk_hw *)), GFP_KERNEL);
+	if (!onecell) {
+		pr_err("allocate clk_hw \n");		
+		return 0;
+	}
+
+	onecell->num = BASE_CLK_COUNT;
+
+	printk("base_clk %ld \n", base_clk);
+	for(j = 0; j < BASE_CLK_COUNT; j++) {
+		printk("target clk : %ld \n", i2c_base_clk[j].base_freq);		
 		for(i = 0; i < 0xff; i++) {
-			if((base_clk * ((2 + i) / 2)) >= target_clk_table[j])
+			base_freq = (base_clk * 2) / (2 + i);
+			if(base_freq <= i2c_base_clk[j].base_freq) {
 				break;
+			}
 		}
+		printk("base clk [%d] : %ld \n", j, base_freq);
+		hw = clk_hw_register_fixed_rate(NULL, i2c_base_clk[j].name, NULL, 0, base_freq);
+		if (IS_ERR(hw)) {
+			pr_err("failed to register input clock: %ld\n", PTR_ERR(hw));
+			break;
+		}
+		onecell->hws[j] = hw;
 		clk_divider &= (i << (8 * j));
 	}
+
+	err = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, onecell);
+	if (err) {
+		pr_err("failed to add i2c base clk provider: %d\n", err);
+	}
+	
 	return clk_divider;
 }
 
@@ -211,19 +254,17 @@ static int aspeed_i2c_ic_probe(struct platform_device *pdev)
 	if (of_device_is_compatible(node, "aspeed,ast2600-i2c-global")) {
 		/* only support in ast-g6 platform */
 		if (of_property_read_bool(pdev->dev.of_node, "new-mode")) {
-//			struct clk *parent_clk;
-//			unsigned long	parent_clk_frequency;
-//			u32 clk_divider;
+			struct clk *parent_clk;
+			unsigned long	parent_clk_frequency;
+			u32 clk_divider;
 			writel(ASPEED_I2CG_SLAVE_PKT_NAK | ASPEED_I2CG_CTRL_NEW_REG, i2c_ic->base + ASPEED_I2CG_CTRL);
-#if 0
 			parent_clk = devm_clk_get(&pdev->dev, NULL);
 			if (IS_ERR(parent_clk))
 				return PTR_ERR(parent_clk);
 			parent_clk_frequency = clk_get_rate(parent_clk);
 			printk("parent_clk_frequency %ld \n", parent_clk_frequency);
-			clk_divider = aspeed_i2c_ic_get_new_clk_divider(parent_clk_frequency);
+			clk_divider = aspeed_i2c_ic_get_new_clk_divider(parent_clk_frequency, node);
 			writel(clk_divider, i2c_ic->base + ASPEED_I2CG_CLK_DIV_CTRL);
-#endif
 		}
 	} else if(of_device_is_compatible(node, "aspeed,ast2500-i2c-ic")) {		
 		writel(ASPEED_I2CG_SRAM_BUFFER_ENABLE, i2c_ic->base + ASPEED_I2CG_CTRL);
