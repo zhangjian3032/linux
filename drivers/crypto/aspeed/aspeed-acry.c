@@ -220,9 +220,8 @@ static int aspeed_acry_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int aspeed_acry_suspend(struct device *dev)
+static int aspeed_acry_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 
 	/*
 	 * We only support standby mode. All we have to do is gate the clock to
@@ -233,9 +232,8 @@ static int aspeed_acry_suspend(struct device *dev)
 	return 0;
 }
 
-static int aspeed_acry_resume(struct device *dev)
+static int aspeed_acry_resume(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	return 0;
 }
 
