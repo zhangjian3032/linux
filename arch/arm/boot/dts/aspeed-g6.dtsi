@@ -926,7 +926,7 @@
 		clocks = <&syscon ASPEED_CLK_APB>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
-		dma-enable;
+		dma-mode;
 	};
 
 	i2c1: i2c@100 {
