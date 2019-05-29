@@ -269,9 +269,8 @@ static int aspeed_hace_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int aspeed_hace_suspend(struct device *dev)
+static int aspeed_hace_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct aspeed_hace_dev *hace_dev = platform_get_drvdata(pdev);
 
 	/*
@@ -284,9 +283,8 @@ static int aspeed_hace_suspend(struct device *dev)
 	return 0;
 }
 
-static int aspeed_hace_resume(struct device *dev)
+static int aspeed_hace_resume(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct aspeed_hace_dev *hace_dev = platform_get_drvdata(pdev);
 	return 0;
 //	return clk_enable(hace_dev->clk);

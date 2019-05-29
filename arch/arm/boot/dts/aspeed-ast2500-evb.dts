@@ -97,6 +97,10 @@
 	};
 };
 
+&hace {
+	status = "okay";
+};
+
 /*
  * Enable port A as device (via the virtual hub) and port B as
  * host by default on the eval board. This can be easily changed
