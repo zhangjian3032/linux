@@ -396,6 +396,11 @@
 				reg = <0x1e6e2180 0x40>;
 			};
 
+			reboot@0 {
+				compatible = "aspeed,ast2600-reboot", "syscon";
+				reg = <0x1e785000 0x40>;
+			};
+
 			jtag: jtag@1e6e4100 {
 				compatible = "aspeed,ast2600-jtag";
 				reg= <0x1e6e4000 0x20>;
