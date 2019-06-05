@@ -1,0 +1,35 @@
+/dts-v1/;
+
+#include "aspeed-g6.dtsi"
+
+/ {
+	model = "AST2600 EVB";
+	compatible = "aspeed,ast2600";
+
+	aliases {
+		serial4 = &uart5;
+	};
+
+	chosen {
+		bootargs = "console=ttyS4,115200n8 root=/dev/ram rw init=/linuxrc";
+	};
+
+	memory@80000000 {
+		reg = <0x80000000 0x40000000>;
+	};
+
+};
+
+&spi0 {
+        status = "okay";
+        flash: m25p80@0 {
+                compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
+                reg = <0x0>;
+                #address-cells = <0x1>;
+                #size-cells = <0x1>;
+                spi-max-frequency = <50000000>;
+                m25p,fast-read;
+#include "openbmc-flash-layout.dtsi"
+        };
+};
+
