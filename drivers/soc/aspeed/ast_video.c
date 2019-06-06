@@ -3120,7 +3120,7 @@ static int ast_video_probe(struct platform_device *pdev)
 			return PTR_ERR(ast_video->scu);
 		}
 	} else if (ast_video->config->version == 5) {
-		ast_video->gfx = syscon_regmap_lookup_by_compatible("aspeed,ast-g5-gfx");
+		ast_video->gfx = syscon_regmap_lookup_by_compatible("aspeed,ast2500-gfx");
 		if (IS_ERR(ast_video->gfx)) {
 			dev_err(&pdev->dev, "failed to find 2500 GFX regmap\n");
 			return PTR_ERR(ast_video->gfx);
