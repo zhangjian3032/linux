@@ -368,12 +368,12 @@ static void aspeed_jtag_run_test_idle(struct aspeed_jtag_info *aspeed_jtag, stru
 
 	} else {
 		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_SW);  //dis sw mode
-		mdelay(1);
+		mdelay(2);
 		if (runtest->reset)
 			aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN | JTAG_FORCE_TMS, ASPEED_JTAG_CTRL);	// x TMS high + 1 TMS low
 		else
 			aspeed_jtag_write(aspeed_jtag, JTAG_GO_IDLE, ASPEED_JTAG_IDLE);
-		mdelay(1);
+		mdelay(2);
 		aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO, ASPEED_JTAG_SW);
 		aspeed_jtag->sts = 0;
 	}
@@ -535,7 +535,7 @@ static int aspeed_jtag_sir_xfer(struct aspeed_jtag_info *aspeed_jtag, struct sir
 
 	memset(aspeed_jtag->tdi, 0, aspeed_jtag->config->jtag_buff_len * 2);
 
-	if (copy_from_user(aspeed_jtag->tdi, sir->tdi, sir->length/8))
+	if (copy_from_user(aspeed_jtag->tdi, sir->tdi, (sir->length + 7) / 8))
 		return -EFAULT;
 
 	if (sir->mode) {
@@ -545,7 +545,7 @@ static int aspeed_jtag_sir_xfer(struct aspeed_jtag_info *aspeed_jtag, struct sir
 	}
 	aspeed_jtag->sts = sir->endir;
 
-	if (copy_to_user(sir->tdo, aspeed_jtag->tdo, sir->length/8))
+	if (copy_to_user(sir->tdo, aspeed_jtag->tdo,(sir->length + 7) / 8))
 		return -EFAULT;
 
 	return 0;
@@ -630,7 +630,7 @@ static void aspeed_hw_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 			tmp_idx = shift_bits / 32;
 			for(i = 0; i < tmp_idx; i++) {
 				if (sdr->direct)
-					aspeed_jtag_write(aspeed_jtag, aspeed_jtag->tdo[index + i], ASPEED_JTAG_INST);
+					aspeed_jtag_write(aspeed_jtag, aspeed_jtag->tdo[index + i], ASPEED_JTAG_DATA);
 				else
 					aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_DATA);
 			}
@@ -655,7 +655,7 @@ static void aspeed_hw_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 			if(shift_bits % 32) tmp_idx += 1;
 			for(i = 0; i < tmp_idx; i++) {
 				if (sdr->direct)
-					aspeed_jtag_write(aspeed_jtag, aspeed_jtag->tdo[index + i], ASPEED_JTAG_INST);
+					aspeed_jtag_write(aspeed_jtag, aspeed_jtag->tdo[index + i], ASPEED_JTAG_DATA);
 				else
 					aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_DATA);				
 			}
@@ -718,11 +718,11 @@ static void aspeed_hw_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 	}
 
 #if 0
-	mdelay(1);
+	mdelay(2);
 	aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO, ASPEED_JTAG_SW);
 #else
 	if(!sdr->enddr) {
-		mdelay(1);
+		mdelay(2);
 		aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO, ASPEED_JTAG_SW);
 	}
 #endif
@@ -736,7 +736,7 @@ static int aspeed_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct sdr
 
 	memset(aspeed_jtag->tdi, 0, aspeed_jtag->config->jtag_buff_len * 2);
 
-	if (copy_from_user(aspeed_jtag->tdo, sdr->tdio, sdr->length/8)) 
+	if (copy_from_user(aspeed_jtag->tdo, sdr->tdio, (sdr->length + 7) / 8))
 		return -EFAULT;
 
 	if (sdr->mode) {
@@ -747,7 +747,7 @@ static int aspeed_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct sdr
 
 	aspeed_jtag->sts = sdr->enddr;
 
-	if (copy_to_user(sdr->tdio, aspeed_jtag->tdo, sdr->length/8))	
+	if (copy_to_user(sdr->tdio, aspeed_jtag->tdo, (sdr->length + 7) / 8))
 		return -EFAULT;
 	
 	return 0;
@@ -815,6 +815,8 @@ static long jtag_ioctl(struct file *file, unsigned int cmd,
 	struct io_xfer io;
 	struct trst_reset trst_pin;
 	struct runtest_idle run_idle;
+	struct sir_xfer sir;
+	struct sdr_xfer sdr;
 	int ret = 0;
 
 	switch (cmd) {
@@ -835,10 +837,23 @@ static long jtag_ioctl(struct file *file, unsigned int cmd,
 			aspeed_jtag_run_test_idle(aspeed_jtag, &run_idle);
 		break;
 	case ASPEED_JTAG_IOCSIR:
-		ret = aspeed_jtag_sir_xfer(aspeed_jtag, argp);		
+		if (copy_from_user(&sir, argp, sizeof(struct sir_xfer)))
+			return -EFAULT;
+		if (sir.length > 1024)
+			return -EINVAL;
+		ret = aspeed_jtag_sir_xfer(aspeed_jtag, &sir);	
+		if (copy_to_user(argp, &sir,sizeof(struct sir_xfer)))
+			return -EFAULT;
+
 		break;
 	case ASPEED_JTAG_IOCSDR:
-		ret = aspeed_jtag_sdr_xfer(aspeed_jtag, argp);
+		if (copy_from_user(&sdr, argp, sizeof(struct sdr_xfer)))
+			return -EFAULT;
+		if (sdr.length > 1024)
+			return -EFAULT;
+		ret = aspeed_jtag_sdr_xfer(aspeed_jtag, &sdr);
+		if (copy_to_user(argp, &sdr,sizeof(struct sdr_xfer)))
+			return -EFAULT;
 		break;
 	case ASPEED_JTAG_IOWRITE:
 		if (copy_from_user(&io, argp, sizeof(struct io_xfer))) {
@@ -1122,8 +1137,8 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 	JTAG_DBUG("aspeed_jtag->clkin %d \n", aspeed_jtag->clkin);
 	aspeed_jtag->config = (struct aspeed_jtag_config *)jtag_dev_id->data;
 
-	aspeed_jtag->tdi = kmalloc(aspeed_jtag->config->jtag_buff_len * 2, GFP_KERNEL);
-	aspeed_jtag->tdo = aspeed_jtag->tdi + aspeed_jtag->config->jtag_buff_len;
+	aspeed_jtag->tdi = kmalloc(1024 * 2, GFP_KERNEL);
+	aspeed_jtag->tdo = aspeed_jtag->tdi + 1024;
 
 	JTAG_DBUG("buffer addr : tdi %x tdo %x \n", (u32)aspeed_jtag->tdi, (u32)aspeed_jtag->tdo);
 	//scu init
