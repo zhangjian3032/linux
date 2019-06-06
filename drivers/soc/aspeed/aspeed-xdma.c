@@ -710,20 +710,24 @@ static long xdma_ioctl(struct file *file, unsigned int cmd,
 	int ret = 0;
 	struct miscdevice *c = file->private_data;
 	struct aspeed_xdma_info *aspeed_xdma = dev_get_drvdata(c->this_device);
-	void  *argp = (void *)arg;
+	struct aspeed_xdma_xfer xdma_xfer;
+	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
 	case ASPEED_XDMA_IOCXFER:
 		XDMA_DBUG("ASPEED_XDMA_IOCXFER \n");
+
+		if (copy_from_user(&xdma_xfer, argp, sizeof(struct aspeed_xdma_xfer)))
+			return -EFAULT;
 		switch (aspeed_xdma->xdma_version) {
 		case 5:
-			aspeed_g5_xdma_xfer(aspeed_xdma, argp);
+			aspeed_g5_xdma_xfer(aspeed_xdma, &xdma_xfer);
 			break;
 		case 6:
-			aspeed_g6_xdma_xfer(aspeed_xdma, argp);
+			aspeed_g6_xdma_xfer(aspeed_xdma, &xdma_xfer);
 			break;
 		default:
-			aspeed_xdma_xfer(aspeed_xdma, argp);
+			aspeed_xdma_xfer(aspeed_xdma, &xdma_xfer);
 			break;
 		}
 		break;
