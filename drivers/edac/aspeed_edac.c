@@ -377,11 +377,11 @@ static int aspeed_probe(struct platform_device *pdev)
 		return PTR_ERR(aspeed_regmap);
 
 	/* bail out if ECC mode is not configured */
-	regmap_read(aspeed_regmap, ASPEED_MCR_CONF, &reg04);
-	if (!(reg04 & ASPEED_MCR_CONF_ECC)) {
-		dev_err(&pdev->dev, "ECC mode is not configured in u-boot\n");
-		return -EPERM;
-	}
+	// regmap_read(aspeed_regmap, ASPEED_MCR_CONF, &reg04);
+	// if (!(reg04 & ASPEED_MCR_CONF_ECC)) {
+	// 	dev_err(&pdev->dev, "ECC mode is not configured in u-boot\n");
+	// 	return -EPERM;
+	// }
 
 	edac_op_state = EDAC_OPSTATE_INT;
 
