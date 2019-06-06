@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 #include <dt-bindings/clock/aspeed-clock.h>
-
+#include <dt-bindings/interrupt-controller/aspeed-scu-irq.h>
 / {
 	model = "Aspeed BMC";
 	compatible = "aspeed,ast2500";
@@ -135,7 +135,7 @@
 		};
 
 		vic: interrupt-controller@1e6c0080 {
-			compatible = "aspeed,ast2400-vic";
+			compatible = "aspeed,ast2500-vic";
 			interrupt-controller;
 			#interrupt-cells = <1>;
 			valid-sources = <0xfefff7ff 0x0807ffff>;
@@ -217,8 +217,9 @@
 			syscon: syscon@1e6e2000 {
 				compatible = "aspeed,ast2500-scu", "syscon", "simple-mfd";
 				reg = <0x1e6e2000 0x1a8>;
+				ranges = <0 0x1e6e2000 0x1a8>;
 				#address-cells = <1>;
-				#size-cells = <0>;
+				#size-cells = <1>;
 				#clock-cells = <1>;
 				#reset-cells = <1>;
 
@@ -235,6 +236,14 @@
 				p2a: p2a-control {
 					compatible = "aspeed,ast2500-p2a-ctrl";
 					status = "disabled";
+				};
+
+				scu_ic: interrupt-controller@0 {
+					#interrupt-cells = <1>;
+					compatible = "aspeed,ast2500-scu-ic";
+					reg = <0x18 0x04>;
+					interrupts = <21>;
+					interrupt-controller;
 				};
 			};
 
@@ -272,7 +281,7 @@
 				#io-channel-cells = <1>;
 				status = "disabled";
 			};
-
+#if 0
 			video: video@1e700000 {
 				compatible = "aspeed,ast2500-video-engine";
 				reg = <0x1e700000 0x1000>;
@@ -282,6 +291,19 @@
 				interrupts = <7>;
 				status = "disabled";
 			};
+#else
+			video: video@1e700000 {
+                                compatible = "aspeed,ast2500-video";
+                                /* 184MB : 40MB*/
+                                reg = <0x1e700000 0x300>;
+                                clocks = <&syscon ASPEED_CLK_GATE_VCLK>, 
+					 <&syscon ASPEED_CLK_GATE_ECLK>;
+                                clock-names = "eclk", "vclk";
+                                interrupts = <7>;
+                                resets = <&syscon ASPEED_RESET_VIDEO>;
+				status = "disabled";
+                        };
+#endif
 
 			sram: sram@1e720000 {
 				compatible = "mmio-sram";
@@ -519,6 +541,67 @@
 				#size-cells = <1>;
 				ranges = <0 0x1e78a000 0x1000>;
 			};
+
+			sdhci: sdhci@1e740000 {
+				#interrupt-cells = <1>;
+				compatible = "aspeed,aspeed-sdhci-irq", "simple-mfd";
+				reg = <0x1e740000 0x1000>;
+				interrupts = <26>;
+				interrupt-controller;
+				clocks = <&syscon ASPEED_CLK_GATE_SDCLK>, <&syscon ASPEED_CLK_GATE_SDEXTCLK>;
+				clock-names = "ctrlclk", "extclk";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1e740000 0x1000>;
+
+				sdhci_slot0: sdhci_slot0@100 {
+					compatible = "aspeed,sdhci-ast2500";
+					reg = <0x100 0x100>;
+					interrupts = <0>;
+					interrupt-parent = <&sdhci>;
+					sdhci,auto-cmd12;
+					clocks = <&syscon ASPEED_CLK_SDIO>;
+					status = "disabled";
+				};
+
+				sdhci_slot1: sdhci_slot1@200 {
+					compatible = "aspeed,sdhci-ast2500";
+					reg = <0x200 0x100>;
+					interrupts = <1>;
+					interrupt-parent = <&sdhci>;
+					sdhci,auto-cmd12;
+					clocks = <&syscon ASPEED_CLK_SDIO>;
+					status = "disabled";
+				};
+
+			};
+
+			jtag: jtag@1e6e4000 {
+                                compatible = "aspeed,ast2500-jtag";
+                                reg= <0x1e6e4000 0x20>;
+                                interrupts = <43>;
+                                clocks = <&syscon ASPEED_CLK_APB>;
+                                resets = <&syscon ASPEED_RESET_JTAG_MASTER>;
+                                reset-names = "jtag";
+				status = "disabled";
+                        };
+
+			xdma: xdma@1e6e7000 {
+                                compatible = "aspeed,ast2500-xdma";
+                                reg = <0x1e6e7000 0x80 0x1e6ed0c4 0x04>;
+                                interrupts-extended = <&vic 6>, <&scu_ic ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
+                                resets = <&syscon ASPEED_RESET_XDMA>;
+				status = "disabled";
+                        };
+
+			mctp: mctp@1e6e8000 {
+                                compatible = "aspeed,ast2500-mctp";
+                                reg = <0x1e6e8000 0x30 0x1e6ed0c4 0x04>;
+				interrupts-extended = <&vic 42>, <&scu_ic ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
+                                resets = <&syscon ASPEED_RESET_MCTP>;
+				status = "disabled";
+                        };
+
 		};
 	};
 };
@@ -545,6 +628,7 @@
 	i2c_ic: interrupt-controller@0 {
 		#interrupt-cells = <1>;
 		compatible = "aspeed,ast2500-i2c-ic";
+		resets = <&syscon ASPEED_RESET_I2C>;
 		reg = <0x0 0x40>;
 		interrupts = <12>;
 		interrupt-controller;
