@@ -106,6 +106,8 @@
 #define JTAG_CTRL_TRSTn_HIGH	BIT(31)
 #define JTAG_GO_IDLE			BIT(0)
 
+#define BUFFER_LEN			1024
+
 /******************************************************************************/
 typedef enum jtag_xfer_mode {
 	HW_MODE = 0,
@@ -533,7 +535,7 @@ static int aspeed_jtag_sir_xfer(struct aspeed_jtag_info *aspeed_jtag, struct sir
 {
 	JTAG_DBUG("%s mode, ENDIR : %d, len : %d \n", sir->mode ? "SW" : "HW", sir->endir, sir->length);
 
-	memset(aspeed_jtag->tdi, 0, aspeed_jtag->config->jtag_buff_len * 2);
+	memset(aspeed_jtag->tdi, 0, BUFFER_LEN * 2);
 
 	if (copy_from_user(aspeed_jtag->tdi, sir->tdi, (sir->length + 7) / 8))
 		return -EFAULT;
@@ -734,7 +736,7 @@ static int aspeed_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct sdr
 
 	JTAG_DBUG("%s mode, len : %d \n", sdr->mode ? "SW" : "HW", sdr->length);
 
-	memset(aspeed_jtag->tdi, 0, aspeed_jtag->config->jtag_buff_len * 2);
+	memset(aspeed_jtag->tdi, 0, BUFFER_LEN * 2);
 
 	if (copy_from_user(aspeed_jtag->tdo, sdr->tdio, (sdr->length + 7) / 8))
 		return -EFAULT;
@@ -1137,8 +1139,8 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 	JTAG_DBUG("aspeed_jtag->clkin %d \n", aspeed_jtag->clkin);
 	aspeed_jtag->config = (struct aspeed_jtag_config *)jtag_dev_id->data;
 
-	aspeed_jtag->tdi = kmalloc(1024 * 2, GFP_KERNEL);
-	aspeed_jtag->tdo = aspeed_jtag->tdi + 1024;
+	aspeed_jtag->tdi = kmalloc(BUFFER_LEN * 2, GFP_KERNEL);
+	aspeed_jtag->tdo = aspeed_jtag->tdi + (BUFFER_LEN / sizeof(u32));
 
 	JTAG_DBUG("buffer addr : tdi %x tdo %x \n", (u32)aspeed_jtag->tdi, (u32)aspeed_jtag->tdo);
 	//scu init
