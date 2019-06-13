@@ -396,6 +396,11 @@
 				reg = <0x1e6e2180 0x40>;
 			};
 
+			reboot@0 {
+				compatible = "aspeed,ast2600-reboot", "syscon";
+				reg = <0x1e785000 0x40>;
+			};
+
 			jtag: jtag@1e6e4100 {
 				compatible = "aspeed,ast2600-jtag";
 				reg= <0x1e6e4000 0x20>;
@@ -487,6 +492,7 @@
 					clocks = <&syscon ASPEED_CLK_SDIO>;
 					power-gpio = <&gpio0 ASPEED_GPIO(V, 0) GPIO_ACTIVE_LOW>;
 					power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 1) GPIO_ACTIVE_LOW>;
+					status = "disabled";
 				};
 
 				sdhci_slot1: sdhci_slot1@200 {
@@ -498,6 +504,7 @@
 					clocks = <&syscon ASPEED_CLK_SDIO>;
 					power-gpio = <&gpio0 ASPEED_GPIO(V, 2) GPIO_ACTIVE_LOW>;
                                         power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 3) GPIO_ACTIVE_LOW>;
+					status = "disabled";
 				};
 
 			};
@@ -520,6 +527,7 @@
 					interrupts = <0>;
 					interrupt-parent = <&emmc>;
 					clocks = <&syscon ASPEED_CLK_EMMC>;
+					status = "disabled";
 				};
 
 			};

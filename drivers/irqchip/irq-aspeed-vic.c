@@ -176,27 +176,27 @@ static int avic_set_type(struct irq_data *d, unsigned int type)
 		writel(readl(vic->base + AVIC_INT_SENSE + sidx * 4) & ~sbit,
 		       vic->base + AVIC_INT_SENSE + sidx * 4);
 		writel(sbit, vic->base + AVIC_INT_EVENT + sidx * 4);
-		irq_set_handler(d->hwirq, handle_edge_irq);
+		irq_set_handler(d->irq, handle_edge_irq);
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
 		writel(readl(vic->base + AVIC_INT_SENSE + sidx * 4) & ~sbit,
 		       vic->base + AVIC_INT_SENSE + sidx * 4);
 		writel(readl(vic->base + AVIC_INT_EVENT + sidx * 4) & ~sbit,
 		       vic->base + AVIC_INT_EVENT + sidx * 4);
-		irq_set_handler(d->hwirq, handle_edge_irq);
+		irq_set_handler(d->irq, handle_edge_irq);
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
 		writel(readl(vic->base + AVIC_INT_SENSE + sidx * 4) & ~sbit,
 		       vic->base + AVIC_INT_SENSE + sidx * 4);
 		writel(readl(vic->base + AVIC_INT_DUAL_EDGE + sidx * 4) & ~sbit,
 		       vic->base + AVIC_INT_DUAL_EDGE + sidx * 4);
-		irq_set_handler(d->hwirq, handle_edge_irq);
+		irq_set_handler(d->irq, handle_edge_irq);
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 		writel(readl(vic->base + AVIC_INT_SENSE + sidx * 4) | sbit,
 		       vic->base + AVIC_INT_SENSE + sidx * 4);
 		writel(sbit, vic->base + AVIC_INT_EVENT + sidx * 4);
-		irq_set_handler(d->hwirq, handle_level_irq);
+		irq_set_handler(d->irq, handle_level_irq);
 		break;
 	default:
 		pr_err("No such irq type %d", type);
