@@ -98,34 +98,34 @@ static const struct regmap_config pilot_peci_regmap_config = {
 	.fast_io = true,
 };
 
+#if Debug
 static void pilot_dump_peci_regs(struct pilot_peci *priv)
 {
 	volatile unsigned int val;
-#if 0
 	regmap_read(priv->regmap, PILOT_PECICTL, &val);
-	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECICTL, val);
+	printk("Reg 0x%x val is 0x%x\n", PILOT_PECICTL, val);
 	regmap_read(priv->regmap, PILOT_PECISTS, &val);
-	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECISTS, val);
+	 ("Reg 0x%x val is 0x%x\n", PILOT_PECISTS, val);
 	regmap_read(priv->regmap, PILOT_PECIOPTRATE, &val);
-	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIOPTRATE, val);
+	printk("Reg 0x%x val is 0x%x\n", PILOT_PECIOPTRATE, val);
 	regmap_read(priv->regmap, PILOT_PECIPTRS, &val);
-	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIPTRS, val);
+	printk("Reg 0x%x val is 0x%x\n", PILOT_PECIPTRS, val);
 	regmap_read(priv->regmap, PILOT_PECIHWFCS, &val);
-	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIHWFCS, val);
+	printk("Reg 0x%x val is 0x%x\n", PILOT_PECIHWFCS, val);
 	regmap_read(priv->regmap, PILOT_PECIRXOFF, &val);
-	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIRXOFF, val);
+	printk("Reg 0x%x val is 0x%x\n", PILOT_PECIRXOFF, val);
 	regmap_read(priv->regmap, PILOT_PECIBITBANG, &val);
-	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIBITBANG, val);
+	printk("Reg 0x%x val is 0x%x\n", PILOT_PECIBITBANG, val);
 	regmap_read(priv->regmap, PILOT_PECIPULFLTR, &val);
-	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIPULFLTR, val);
+	printk("Reg 0x%x val is 0x%x\n", PILOT_PECIPULFLTR, val);
 	regmap_read(priv->regmap, PILOT_PECIPOLLCTRL, &val);
-	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIPOLLCTRL, val);
+	printk("Reg 0x%x val is 0x%x\n", PILOT_PECIPOLLCTRL, val);
 	regmap_read(priv->regmap, PILOT_PECIPOLLINFO, &val);
-	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIPOLLINFO, val);
+	printk("Reg 0x%x val is 0x%x\n", PILOT_PECIPOLLINFO, val);
 	regmap_read(priv->regmap, PILOT_PECIPOLLDLY, &val);
-	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIPOLLDLY, val);
-#endif
+	printk("Reg 0x%x val is 0x%x\n", PILOT_PECIPOLLDLY, val);
 }
+#endif
 static void pilot_reset_peci(struct pilot_peci *priv)
 {
         unsigned long flags;
@@ -133,6 +133,9 @@ static void pilot_reset_peci(struct pilot_peci *priv)
         int i  = 0, j = 0;
 	bool change;
         /*unsigned int start_addr = (SE_PECI_VA_BASE+0x20);*/
+#if Debug
+	printk("Entered %s \n", __func__);
+#endif
         local_irq_save(flags);
 #if 0
         peci_ctrl = *((volatile unsigned long *)(SE_PECI_VA_BASE+PECICTL_REG));
@@ -190,9 +193,11 @@ static void pilot_reset_peci(struct pilot_peci *priv)
         *((volatile unsigned long *)(SE_PECI_VA_BASE + PECIPULFLTR)) = 0x00000003;
         *((volatile unsigned long *)(SE_PECI_VA_BASE + PECI_POLLINFO_REG)) = 0x0000FF00;
 	*/
+#if Debug
 	pilot_dump_peci_regs(priv);
-        local_irq_restore(flags);
-        return;
+#endif
+	local_irq_restore(flags);
+	return;
 }
 
 static irqreturn_t pilot_peci_irq_handler(int irq, void *arg)
@@ -201,7 +206,9 @@ static irqreturn_t pilot_peci_irq_handler(int irq, void *arg)
 	u32 status_ack = 0;
 	u32 status;
 	bool change;
-
+#if Debug
+	printk("Entered %s \n", __func__);
+#endif
 	/* First clear the interrupt*/
 	regmap_update_bits_base(priv->regmap, PILOT_PECISTS,
                    PILOT_PECI_CMD_DONE, PILOT_PECI_CMD_DONE,
@@ -213,23 +220,37 @@ static irqreturn_t pilot_peci_irq_handler(int irq, void *arg)
 		goto still_busy;
 	}
 	status |= PILOT_PECI_CMD_DONE;
-
+#if Debug
+	printk("Entered %s status is %x\n", __func__, status);
+#endif
 	if (status & PILOT_PECI_CMD_DONE) {
+#if Debug
+		printk("Entered %s PILOT_PECI_CMD_DONE\n", __func__);
+#endif
 		dev_dbg(priv->dev, "PILOT_PECI_CMD_DONE\n");
 		status_ack |= PILOT_PECI_CMD_DONE;
 		priv->status = PILOT_PECI_CMD_DONE;
 		complete(&priv->xfer_complete);
 	}
 	if (status & PILOT_POLL_DONE) {
+#if Debug
+		printk("Entered %s PILOT_POLL_DONE\n", __func__);
+#endif
 		dev_dbg(priv->dev, "PILOT_POLL_DONE\n");
 		status_ack |= PILOT_POLL_DONE;
 	}
 	if (status & PILOT_POLL_ON) {
 		dev_dbg(priv->dev, "PILOT_POLL_ON\n");
+#if Debug
+		printk("Entered %s PILOT_POLL_ON\n", __func__);
+#endif
 		status_ack |= PILOT_POLL_ON;
 	}
 	if (status & PILOT_ABORT_FCS) {
 		dev_dbg(priv->dev, "PILOT_ABORT_FCS\n");
+#if Debug
+		printk("Entered %s PILOT_ABORT_FCS\n", __func__);
+#endif
 		status_ack |= PILOT_ABORT_FCS;
 	}
 
@@ -246,7 +267,9 @@ static int pilot_peci_init_ctrl(struct pilot_peci *priv)
 	u32 msg_timing, addr_timing, rd_sampling_point;
 	u32 clk_freq, clk_divisor, clk_div_val = 0;
 	int ret;
-	
+#if Debug
+	printk("Entered %s \n", __func__);
+#endif
 	pilot_reset_peci(priv);
 	ret = of_property_read_u32(priv->adapter->dev.of_node, "cmd-timeout-ms",
 				   &priv->cmd_timeout_ms);
@@ -349,20 +372,30 @@ static void pilot_write_txq(struct pilot_peci *priv, u8 addr, u8 tx_len, u8 rx_l
         unsigned long tx0;
         int i, j;
         int curr_tx_pos = PILOT_PECI_TXRX_Q0;
-
+#if Debug
+	printk("Entered %s \n", __func__);
+#endif
         /* Fill the initial params */
         tx0 = (rx_len << 16) | (tx_len << 8) | addr;
         if (tx_len >= 1)
                 tx0 |= (data[0] << 24);
+        //*((volatile unsigned long *)(SE_PECI_VA_BASE+PECITXQ_REG(0))) = tx0;
 	regmap_write(priv->regmap, curr_tx_pos, tx0);
 	if (tx_len > 1)
 	{
+		/* We already used the data[0](Command) and TXQ(0) */
+		/*TxQ = ((unsigned char *)(SE_PECI_VA_BASE+PECITXQ_REG(1)));
+                for(i=1;i<tx_len;i++)
+                        TxQ[i-1] = data[i];*/
+
                 tx_len -=1; /* calc. the remaining tx bytes */
                 i = 1;
                 j = 1;
                 while (tx_len)
                 {
 			curr_tx_pos +=4;
+			//*((volatile unsigned long *)(SE_PECI_VA_BASE+PECITXQ_REG(i))) = *((volatile unsigned long *)&data[j]);
+			//regmap_write(priv->regmap, curr_tx_pos, *((volatile u32 *) &data[j]));
 			regmap_write(priv->regmap, curr_tx_pos, le32_to_cpup((__le32 *)&data[j]));
                         if ( tx_len>4)
                         {
@@ -395,8 +428,10 @@ static int pilot_peci_xfer(struct peci_adapter *adapter,
 	u8 temp_bytes[4 + msg->tx_len +  msg->rx_len];
 	u8 tlen = 4 + msg->tx_len + msg->rx_len;
         int curr_rx_pos = PILOT_PECI_TXRX_Q0;
-
+#if Debug
+	printk("Entered %s \n", __func__);
 	pilot_dump_peci_regs(priv);
+#endif
 	pilot_reset_peci(priv);
 	//First check if the previous commands have completed
 	//and the controller is in Idle state
@@ -409,7 +444,7 @@ static int pilot_peci_xfer(struct peci_adapter *adapter,
                                 (PILOT_BIT00_MSK),
 				(PILOT_BIT00_MSK),
 				&change, false, true);
-	
+	//return aspeed_peci_xfer_native(priv, msg);
 	//Set the Interrupt enable bit and the FCS Error Enable bit	
 	regmap_update_bits_base(priv->regmap, PILOT_PECICTL,
                                 (PILOT_BIT02_MSK | PILOT_BIT10_MSK),
@@ -421,7 +456,11 @@ static int pilot_peci_xfer(struct peci_adapter *adapter,
 
 	//Set the optimum rate
 	regmap_write(priv->regmap, PILOT_PECIOPTRATE, 0x500);
-
+#if Debug
+	for(x=0; x< msg->tx_len; x++){
+		printk("Tx data %d is %x\n", x, msg->tx_buf[x]);
+	}
+#endif
 	//Write to the tx queue
 	pilot_write_txq(priv, msg->addr, msg->tx_len, msg->rx_len, msg->tx_buf);
 
@@ -441,7 +480,9 @@ static int pilot_peci_xfer(struct peci_adapter *adapter,
 	//Wait for command to complete
 	err = wait_for_completion_interruptible_timeout(&priv->xfer_complete,
 							timeout);
-
+#if Debug
+	printk("After complete \n");
+#endif
 	spin_lock_irqsave(&priv->lock, flags);
 
 	if(priv->status != PILOT_PECI_CMD_DONE){
@@ -454,15 +495,36 @@ static int pilot_peci_xfer(struct peci_adapter *adapter,
 			goto err_irqrestore;
 		}
 	}
+#if Debug
+	printk("Tlen is %d\n", tlen);
+	printk("Rx bytes to skip is %d\n", rx_bytes_to_skip);
+	printk("Rxlen is %d\n",  msg->rx_len);
+#endif
 	while(i < tlen){
 		regmap_read(priv->regmap, curr_rx_pos,
 				((volatile u32*)(&temp_bytes[i])));
+		/*regmap_write(priv->regmap, curr_rx_pos, le32_to_cpup((__le32 *)(&temp_bytes[i])));*/
 		i +=4;
 		curr_rx_pos +=4;
+#if Debug
+		printk("reading \n");
+#endif
 	}
+#if Debug
+	printk("Cur Rx ptr is 0x%x\n",  curr_rx_pos);
+#endif
+	/*memcpy(msg->rx_buf, &temp_bytes[rx_bytes_to_skip - 1], msg->rx_len);*/
 	memcpy(msg->rx_buf, &temp_bytes[rx_bytes_to_skip], msg->rx_len);
+#if Debug
+	printk("After memcpy is \n");
+	for(x=0; x< tlen; x++){
+		printk("Temp data %d is %x\n", x, temp_bytes[x]);
+	}
+#endif
 err_irqrestore:
+#if Debug
 	pilot_dump_peci_regs(priv);
+#endif
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return rc;
 }
@@ -476,6 +538,7 @@ static int pilot_peci_probe(struct platform_device *pdev)
 	u32 sts;
 	int ret;
 
+	printk("Entered %s \n", __func__);
 	adapter = peci_alloc_adapter(&pdev->dev, sizeof(*priv));
 	if (!adapter)
 		return -ENOMEM;
