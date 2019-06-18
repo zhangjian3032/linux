@@ -97,6 +97,35 @@ static const struct regmap_config pilot_peci_regmap_config = {
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 	.fast_io = true,
 };
+
+static void pilot_dump_peci_regs(struct pilot_peci *priv)
+{
+	volatile unsigned int val;
+#if 0
+	regmap_read(priv->regmap, PILOT_PECICTL, &val);
+	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECICTL, val);
+	regmap_read(priv->regmap, PILOT_PECISTS, &val);
+	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECISTS, val);
+	regmap_read(priv->regmap, PILOT_PECIOPTRATE, &val);
+	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIOPTRATE, val);
+	regmap_read(priv->regmap, PILOT_PECIPTRS, &val);
+	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIPTRS, val);
+	regmap_read(priv->regmap, PILOT_PECIHWFCS, &val);
+	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIHWFCS, val);
+	regmap_read(priv->regmap, PILOT_PECIRXOFF, &val);
+	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIRXOFF, val);
+	regmap_read(priv->regmap, PILOT_PECIBITBANG, &val);
+	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIBITBANG, val);
+	regmap_read(priv->regmap, PILOT_PECIPULFLTR, &val);
+	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIPULFLTR, val);
+	regmap_read(priv->regmap, PILOT_PECIPOLLCTRL, &val);
+	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIPOLLCTRL, val);
+	regmap_read(priv->regmap, PILOT_PECIPOLLINFO, &val);
+	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIPOLLINFO, val);
+	regmap_read(priv->regmap, PILOT_PECIPOLLDLY, &val);
+	dev_dbg(priv->dev, "Reg 0x%x val is 0x%x\n", PILOT_PECIPOLLDLY, val);
+#endif
+}
 static void pilot_reset_peci(struct pilot_peci *priv)
 {
         unsigned long flags;
@@ -161,6 +190,7 @@ static void pilot_reset_peci(struct pilot_peci *priv)
         *((volatile unsigned long *)(SE_PECI_VA_BASE + PECIPULFLTR)) = 0x00000003;
         *((volatile unsigned long *)(SE_PECI_VA_BASE + PECI_POLLINFO_REG)) = 0x0000FF00;
 	*/
+	pilot_dump_peci_regs(priv);
         local_irq_restore(flags);
         return;
 }
@@ -172,8 +202,17 @@ static irqreturn_t pilot_peci_irq_handler(int irq, void *arg)
 	u32 status;
 	bool change;
 
+	/* First clear the interrupt*/
+	regmap_update_bits_base(priv->regmap, PILOT_PECISTS,
+                   PILOT_PECI_CMD_DONE, PILOT_PECI_CMD_DONE,
+                   &change, false, true);
 	spin_lock(&priv->lock);
 	regmap_read(priv->regmap, PILOT_PECISTS, &status);
+	if((status & 0x1) == 0x1)
+	{
+		goto still_busy;
+	}
+	status |= PILOT_PECI_CMD_DONE;
 
 	if (status & PILOT_PECI_CMD_DONE) {
 		dev_dbg(priv->dev, "PILOT_PECI_CMD_DONE\n");
@@ -197,6 +236,7 @@ static irqreturn_t pilot_peci_irq_handler(int irq, void *arg)
 	regmap_update_bits_base(priv->regmap, PILOT_PECISTS,
                    status_ack, status_ack,
                    &change, false, true);
+still_busy:
 	spin_unlock(&priv->lock);
 	return IRQ_HANDLED;
 }
@@ -208,7 +248,7 @@ static int pilot_peci_init_ctrl(struct pilot_peci *priv)
 	int ret;
 	
 	pilot_reset_peci(priv);
-	ret = of_property_read_u32(priv->dev->of_node, "cmd-timeout-ms",
+	ret = of_property_read_u32(priv->adapter->dev.of_node, "cmd-timeout-ms",
 				   &priv->cmd_timeout_ms);
 	if (ret || priv->cmd_timeout_ms > PECI_CMD_TIMEOUT_MS_MAX ||
 	    priv->cmd_timeout_ms == 0) {
@@ -314,23 +354,16 @@ static void pilot_write_txq(struct pilot_peci *priv, u8 addr, u8 tx_len, u8 rx_l
         tx0 = (rx_len << 16) | (tx_len << 8) | addr;
         if (tx_len >= 1)
                 tx0 |= (data[0] << 24);
-        //*((volatile unsigned long *)(SE_PECI_VA_BASE+PECITXQ_REG(0))) = tx0;
 	regmap_write(priv->regmap, curr_tx_pos, tx0);
 	if (tx_len > 1)
 	{
-		/* We already used the data[0](Command) and TXQ(0) */
-		/*TxQ = ((unsigned char *)(SE_PECI_VA_BASE+PECITXQ_REG(1)));
-                for(i=1;i<tx_len;i++)
-                        TxQ[i-1] = data[i];*/
-
                 tx_len -=1; /* calc. the remaining tx bytes */
                 i = 1;
                 j = 1;
                 while (tx_len)
                 {
 			curr_tx_pos +=4;
-			//*((volatile unsigned long *)(SE_PECI_VA_BASE+PECITXQ_REG(i))) = *((volatile unsigned long *)&data[j]);
-			regmap_write(priv->regmap, curr_tx_pos, *((volatile u32 *) &data[j]));
+			regmap_write(priv->regmap, curr_tx_pos, le32_to_cpup((__le32 *)&data[j]));
                         if ( tx_len>4)
                         {
                                 i++;
@@ -354,14 +387,17 @@ static int pilot_peci_xfer(struct peci_adapter *adapter,
 	struct pilot_peci *priv = peci_get_adapdata(adapter);
 	u32 cmd_sts, flags;
 	int i=0; 
+	int x=0; 
 	int rc;
 	long err, timeout = msecs_to_jiffies(priv->cmd_timeout_ms);
 	bool change;
 	u8 rx_offset, rx_bytes_to_skip;
-	u8 temp_bytes[3 + msg->tx_len];
-	u8 tlen = 3 + msg->tx_len + msg->rx_len;
+	u8 temp_bytes[4 + msg->tx_len +  msg->rx_len];
+	u8 tlen = 4 + msg->tx_len + msg->rx_len;
         int curr_rx_pos = PILOT_PECI_TXRX_Q0;
 
+	pilot_dump_peci_regs(priv);
+	pilot_reset_peci(priv);
 	//First check if the previous commands have completed
 	//and the controller is in Idle state
 	rc = regmap_read_poll_timeout(priv->regmap, PILOT_PECISTS, cmd_sts,
@@ -369,7 +405,11 @@ static int pilot_peci_xfer(struct peci_adapter *adapter,
 				      PECI_IDLE_CHECK_INTERVAL_USEC,
 				      PECI_IDLE_CHECK_TIMEOUT_USEC);
 	
-	//return aspeed_peci_xfer_native(priv, msg);
+	regmap_update_bits_base(priv->regmap, PILOT_PECICTL,
+                                (PILOT_BIT00_MSK),
+				(PILOT_BIT00_MSK),
+				&change, false, true);
+	
 	//Set the Interrupt enable bit and the FCS Error Enable bit	
 	regmap_update_bits_base(priv->regmap, PILOT_PECICTL,
                                 (PILOT_BIT02_MSK | PILOT_BIT10_MSK),
@@ -386,9 +426,9 @@ static int pilot_peci_xfer(struct peci_adapter *adapter,
 	pilot_write_txq(priv, msg->addr, msg->tx_len, msg->rx_len, msg->tx_buf);
 
 	//Since the tx will feedback to rx as the queue is same
-	//ignore the tx data and the first 3 bytes which contains
+	//ignore the tx data and the first 4 bytes which contains
 	//address, tx_len and rx_len
-	rx_bytes_to_skip = rx_offset = 3 +  msg->tx_len;
+	rx_bytes_to_skip = rx_offset = 4 +  msg->tx_len;
 	regmap_write(priv->regmap, PILOT_PECIRXOFF,
 			(rx_bytes_to_skip | (rx_offset << 8)));
 
@@ -401,6 +441,7 @@ static int pilot_peci_xfer(struct peci_adapter *adapter,
 	//Wait for command to complete
 	err = wait_for_completion_interruptible_timeout(&priv->xfer_complete,
 							timeout);
+
 	spin_lock_irqsave(&priv->lock, flags);
 
 	if(priv->status != PILOT_PECI_CMD_DONE){
@@ -413,15 +454,15 @@ static int pilot_peci_xfer(struct peci_adapter *adapter,
 			goto err_irqrestore;
 		}
 	}
-	while(tlen){
+	while(i < tlen){
 		regmap_read(priv->regmap, curr_rx_pos,
-				(volatile u32*)&temp_bytes[i]);
+				((volatile u32*)(&temp_bytes[i])));
 		i +=4;
 		curr_rx_pos +=4;
 	}
-	memcpy(msg->rx_buf, &temp_bytes[rx_bytes_to_skip - 1], msg->rx_len);
-
+	memcpy(msg->rx_buf, &temp_bytes[rx_bytes_to_skip], msg->rx_len);
 err_irqrestore:
+	pilot_dump_peci_regs(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return rc;
 }
