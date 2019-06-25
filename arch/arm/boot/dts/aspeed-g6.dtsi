@@ -415,7 +415,7 @@
 				reg = <0x1e6e6000 0x1000>;
 				reg-io-width = <4>;
 				clocks = <&syscon ASPEED_CLK_GATE_D1CLK>;
-				resets = <&syscon ASPEED_RESET_CRT1>;
+				resets = <&syscon ASPEED_RESET_CRT>;
 				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 				memory-region = <&gfx_memory>;
                         };
@@ -424,14 +424,14 @@
 				compatible = "aspeed,ast2600-xdma";
 				reg = <0x1e6e7000 0x80>;
 				interrupts-extended = <&gic GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
-				resets = <&syscon ASPEED_RESET_XDMA>;
+				resets = <&syscon ASPEED_RESET_DEV_XDMA>;
 			};
 
 			mctp: mctp@1e6e8000 {
 				compatible = "aspeed,ast2600-mctp";
 				reg = <0x1e6e8000 0x30 0x1e6ed0c4 0x04>;
 	 			interrupts-extended = <&gic GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
-				resets = <&syscon ASPEED_RESET_MCTP>;
+				resets = <&syscon ASPEED_RESET_DEV_MCTP>;
 			};
 
 			adc0: adc@1e6e9000 {
@@ -457,7 +457,7 @@
 				compatible = "aspeed,ast2600-espi";
 				reg = <0x1e6ee000 0x200>;
 				interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>, <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
-				resets = <&syscon ASPEED_RESET_ESPI>;
+				resets = <&syscon ASPEED_RESET_LPC_ESPI>;
 			};
 
 			video: video@1e700000 {

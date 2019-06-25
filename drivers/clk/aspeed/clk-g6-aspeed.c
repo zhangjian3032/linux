@@ -137,30 +137,48 @@ static const struct clk_div_table ast2600_div_table[] = {
 	{ 0 }
 };
 
+//for hpll/dpll/epll/mpll
 static struct clk_hw *aspeed_ast2600_calc_pll(const char *name, u32 val)
 {
-#if 0
 	unsigned int mult, div;
 
-	if (val & AST2400_HPLL_BYPASS_EN) {
+	if (val & BIT(24)) {
 		/* Pass through mode */
 		mult = div = 1;
 	} else {
-		/* F = 24Mhz * (2-OD) * [(N + 2) / (D + 1)] */
-		u32 n = (val >> 5) & 0x3f;
-		u32 od = (val >> 4) & 0x1;
-		u32 d = val & 0xf;
+		/* F = 25Mhz * [(M + 1) / (N + 1)] / (p + 1) */
+		u32 p = (val >> 19) & 0x7;
+		u32 n = (val >> 13) & 0x3f;
+		u32 m = val & 0x1fff;
 
-		mult = (2 - od) * (n + 2);
-		div = d + 1;
+		mult = (m + 1) * (n + 1);
+		div = (p + 1);
 	}
 	return clk_hw_register_fixed_factor(NULL, name, "clkin", 0,
 			mult, div);
-#else
-	//TODO
-#endif	
 };
 
+//for apll
+static struct clk_hw *aspeed_ast2600_calc_apll(const char *name, u32 val)
+{
+	unsigned int mult, div;
+
+	if (val & BIT(20)) {
+		/* Pass through mode */
+		mult = div = 1;
+	} else {
+		/* F = 25Mhz * (2-od) * [(m + 2) / (n + 1)] */
+		u32 m = (val >> 5) & 0x3f;
+		u32 od = (val >> 4) & 0x1;
+		u32 n = val & 0xf;
+
+		mult = (2 - od) * (m + 2);
+		div = n + 1;
+	}
+	return clk_hw_register_fixed_factor(NULL, name, "clkin", 0,
+			mult, div);
+
+};
 
 struct aspeed_g6_clk_soc_data {
 	const struct clk_div_table *div_table;
@@ -175,9 +193,8 @@ static const struct aspeed_clk_soc_data ast2600_data = {
 	.mac_div_table = ast2600_mac_div_table,
 	.eclk_div_table = ast2600_eclk_div_table,	
 	.calc_pll = aspeed_ast2600_calc_pll,
+	.calc_apll = aspeed_ast2600_calc_apll,
 };
-
-
 
 static int aspeed_g6_clk_is_enabled(struct clk_hw *hw)
 {
@@ -340,86 +357,26 @@ static const struct clk_ops aspeed_g6_clk_gate_ops = {
 	.is_enabled = aspeed_g6_clk_is_enabled,
 };
 
-static const u8 aspeed_g6_resets[] = {
-	/* SCU40 resets */
-//	[ASPEED_RESET_GRAPHIC] = 26, ???
-	[ASPEED_RESET_XDMA]	= 25,
-	[ASPEED_RESET_MCTP]	= 24,
-	[ASPEED_RESET_P2X]	= 31,	
-//	reserved bit 23	
-	[ASPEED_RESET_JTAG_MASTER] = 22,
-//	reserved bit 21
-//	reserved bit 20	
-//	reserved bit 19	
-	[ASPEED_RESET_MIC]	= 18,
-//	reserved bit 17
-	[ASPEED_RESET_SDHCI]	= ASPEED_RESET2_OFFSET + 24,
-	[ASPEED_RESET_UHCI]	= 15,
-	[ASPEED_RESET_EHCI_P1]	= 14,
-	[ASPEED_RESET_CRT]		= 13,
-	[ASPEED_RESET_MAC2]	= 12,
-	[ASPEED_RESET_MAC1]	= 11,
-//	reserved bit 10	
-//	reserved bit 9 
-//	[ASPEED_RESET_PCI_VGA]	= 8,	???
-	[ASPEED_RESET_2D]	= 7,
-	[ASPEED_RESET_VIDEO]	= 6,
-//	reserved bit 5
-	[ASPEED_RESET_HACE]	= 4,
-	[ASPEED_RESET_EHCI_P2]	= 3,
-//	reserved bit 2
-	[ASPEED_RESET_AHB]	=  1,	
-	[ASPEED_RESET_SRAM_CTRL]	=  0,
-
-	/*
-	 * SCU50 resets start at an offset to separate them from
-	 */
-//	[ASPEED_RESET_PCIE_DIR] = 21,
-//	[ASPEED_RESET_PCIE] 	= 20,
-	
-	[ASPEED_RESET_ADC]	= ASPEED_RESET2_OFFSET + 23,
-//	[ASPEED_RESET_JTAG_MASTER2fs] = ASPEED_RESET2_OFFSET + 22,
-//	[ASPEED_RESET_MAC4]	= ASPEED_RESET2_OFFSET + 21,
-//	[ASPEED_RESET_MAC3]	= ASPEED_RESET2_OFFSET + 20,
-//	reserved bit 6	
-	[ASPEED_RESET_PWM]	= ASPEED_RESET2_OFFSET + 5,	 
-	[ASPEED_RESET_PECI] = ASPEED_RESET2_OFFSET + 4,	
-//	[ASPEED_RESET_MII] = ASPEED_RESET2_OFFSET + 3,
-	[ASPEED_RESET_I2C]	= ASPEED_RESET2_OFFSET + 2,	
-//	reserved bit 1
-	[ASPEED_RESET_LPC]	= ASPEED_RESET2_OFFSET + 0,	
-	[ASPEED_RESET_ESPI]	= ASPEED_RESET2_OFFSET + 0,
-	[ASPEED_RESET_EMMC]	= 16,
-};
 static int aspeed_g6_reset_deassert(struct reset_controller_dev *rcdev,
 				 unsigned long id)
 {
 	struct aspeed_reset *ar = to_aspeed_reset(rcdev);
-	u32 reg = ASPEED_G6_RESET_CTRL;
-	u32 bit = aspeed_g6_resets[id];
 
-	if (bit >= ASPEED_RESET2_OFFSET) {
-		bit -= ASPEED_RESET2_OFFSET;
-		reg = ASPEED_G6_RESET_CTRL2;
-	}
-
-	reg += 0x04;
-	return regmap_update_bits(ar->map, reg, BIT(bit), BIT(bit));
+	if(id >= 32) 
+		return regmap_write(ar->map, ASPEED_G6_RESET_CTRL2 + 0x04, BIT(id - 32));
+	else
+		return regmap_write(ar->map, ASPEED_G6_RESET_CTRL + 0x04, BIT(id));
 }
 
 static int aspeed_g6_reset_assert(struct reset_controller_dev *rcdev,
 			       unsigned long id)
 {
 	struct aspeed_reset *ar = to_aspeed_reset(rcdev);
-	u32 reg = ASPEED_G6_RESET_CTRL;
-	u32 bit = aspeed_g6_resets[id];
 
-	if (bit >= ASPEED_RESET2_OFFSET) {
-		bit -= ASPEED_RESET2_OFFSET;
-		reg = ASPEED_G6_RESET_CTRL2;
-	}
-
-	return regmap_update_bits(ar->map, reg, BIT(bit), BIT(bit));
+	if(id >= 32) 
+		return regmap_write(ar->map, ASPEED_G6_RESET_CTRL2, BIT(id - 32));
+	else
+		return regmap_write(ar->map, ASPEED_G6_RESET_CTRL, BIT(id));
 }
 
 static int aspeed_g6_reset_status(struct reset_controller_dev *rcdev,
@@ -427,11 +384,10 @@ static int aspeed_g6_reset_status(struct reset_controller_dev *rcdev,
 {
 	struct aspeed_reset *ar = to_aspeed_reset(rcdev);
 	u32 reg = ASPEED_G6_RESET_CTRL;
-	u32 bit = aspeed_g6_resets[id];
 	int ret, val;
 
-	if (bit >= ASPEED_RESET2_OFFSET) {
-		bit -= ASPEED_RESET2_OFFSET;
+	if (id >= 32) {
+		id -= 32;
 		reg = ASPEED_G6_RESET_CTRL2;
 	}
 
@@ -439,7 +395,7 @@ static int aspeed_g6_reset_status(struct reset_controller_dev *rcdev,
 	if (ret)
 		return ret;
 
-	return !!(val & BIT(bit));
+	return !!(val & BIT(id));
 }
 
 static const struct reset_control_ops aspeed_g6_reset_ops = {
@@ -508,7 +464,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	ar->map = map;
 
 	ar->rcdev.owner = THIS_MODULE;
-	ar->rcdev.nr_resets = ARRAY_SIZE(aspeed_g6_resets);
+	ar->rcdev.nr_resets = 64;
 	ar->rcdev.ops = &aspeed_g6_reset_ops;
 	ar->rcdev.of_node = dev->of_node;
 
@@ -773,13 +729,6 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 	 * access is not going to fail and we skip error checks from
 	 * this point.
 	 */
-#if 0	 
-	ret = regmap_read(map, ASPEED_STRAP, &val);
-	if (ret) {
-		pr_err("failed to read strapping register\n");
-		return;
-	}
-#endif
 	aspeed_ast2600_cc(map);	
 	aspeed_g6_clk_data->num = ASPEED_G6_NUM_CLKS;
 	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, aspeed_g6_clk_data);
