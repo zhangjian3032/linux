@@ -1,6 +1,6 @@
-config ARCH_PILOT
+config CPU_PILOT
 	bool "Aspeed Pilot Architecture"
-	depends on ARCH_MULTI_V7
+	select CPU_V7
 	select PINCTRL
 	select PINCTRL_PILOT
 	select ARCH_REQUIRE_GPIOLIB

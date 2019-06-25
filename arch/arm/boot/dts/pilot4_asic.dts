@@ -8,7 +8,7 @@
 / {
 	memory {
 		device_type = "memory";
-		reg = <0x88000000 0X17F00000>; 
+		reg = <0x81000000 0X1EA00000>; 
 	};
 
 	aliases {
@@ -28,7 +28,7 @@
 		pwmtach = &pwmtach;
 	};
 	chosen {
-                bootargs = "console=ttyS0,115200n8 mem=383M earlyprintk";
+                bootargs = "console=ttyS0,115200n8 mem=490M earlyprintk";
                 stdout-path = "serial0:115200n8";
         };
 /*

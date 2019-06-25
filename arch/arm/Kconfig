@@ -286,6 +286,7 @@ config PHYS_OFFSET
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
 	default 0x20000000 if ARCH_S5PV210
 	default 0xc0000000 if ARCH_SA1100
+	default 0x81000000 if ARCH_PILOT
 	help
 	  Please provide the physical address corresponding to the
 	  location of main memory in your system.
@@ -339,6 +340,23 @@ config ARCH_MULTIPLATFORM
 	select PCI_DOMAINS if PCI
 	select SPARSE_IRQ
 	select USE_OF
+
+config ARCH_PILOT
+	bool "Pilot selected"
+	depends on MMU
+	select ARM_HAS_SG_CHAIN
+	select ARM_PATCH_PHYS_VIRT
+	select CPU_PILOT
+	select TIMER_OF
+	select COMMON_CLK
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_MULTI_HANDLER
+	select MIGHT_HAVE_PCI
+	select PCI_DOMAINS if PCI
+	select SPARSE_IRQ
+	select USE_OF
+	select HAVE_SMP
+	select MIGHT_HAVE_CACHE_L2X0
 
 config ARM_SINGLE_ARMV7M
 	bool "ARMv7-M based platforms (Cortex-M0/M3/M4)"
