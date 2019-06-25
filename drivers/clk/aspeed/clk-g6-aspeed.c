@@ -15,9 +15,7 @@
 #include <dt-bindings/clock/aspeed-g6-clock.h>
 #include "clk-aspeed.h"
 
-#define ASPEED_G6_NUM_CLKS		49
 
-#define ASPEED_RESET2_OFFSET	32
 #define ASPEED_CLK2_OFFSET		32
 #define ASPEED_G6_RESET_CTRL		0x40
 #define ASPEED_G6_RESET_CTRL2		0x50
@@ -45,20 +43,34 @@ static void __iomem *scu_g6_base;
 
 
 static const struct aspeed_gate_data aspeed_g6_gates[] = {
-	/*				 			  clk rst   name			parent	flags */
-	[ASPEED_CLK_GATE_ECLK] 			= {  1, -1, 					"eclk-gate",	"eclk",	0 }, /* Video Engine */
-	[ASPEED_CLK_GATE_GCLK] 			= {  2,  ASPEED_RESET_2D,		"gclk-gate",	NULL,	0 }, /* 2D engine */
-	[ASPEED_CLK_GATE_MCLK] 			= {  0, -1, 					"mclk-gate",	"mpll",	CLK_IS_CRITICAL }, /* SDRAM */
-	[ASPEED_CLK_GATE_VCLK] 			= {  3,  ASPEED_RESET_VIDEO,	"vclk-gate",	NULL,	0 }, /* Video Capture */
-	[ASPEED_CLK_GATE_BCLK] 			= {  4,  ASPEED_RESET_PCI_VGA,	"bclk-gate",	"bclk",	CLK_IS_CRITICAL }, /* PCIe/PCI */
-	[ASPEED_CLK_GATE_DCLK] 			= {  5, -1, 					"dclk-gate",	NULL,	CLK_IS_CRITICAL }, /* DAC */
-	[ASPEED_CLK_GATE_REFCLK] 		= {  6, -1, 					"refclk-gate",	"clkin", CLK_IS_CRITICAL },
+	/*				 			  		clk rst   					name			parent	flags */
+	[ASPEED_CLK_GATE_MCLK] 			= {  0, -1, 					"mclk-gate",	"mpll",	CLK_IS_CRITICAL }, 	/* SDRAM */
+	[ASPEED_CLK_GATE_ECLK] 			= {  1, -1, 					"eclk-gate",	"eclk",	0 }, 				/* Video Engine */
+	[ASPEED_CLK_GATE_GCLK] 			= {  2,  ASPEED_RESET_2D,		"gclk-gate",	NULL,	0 }, 				/* 2D engine */
+	//vclk parent - dclk/d1clk/hclk/mclk
+	[ASPEED_CLK_GATE_VCLK] 			= {  3,  ASPEED_RESET_VIDEO,	"vclk-gate",	NULL,	0 }, 				/* Video Capture */
+	[ASPEED_CLK_GATE_BCLK] 			= {  4,  ASPEED_RESET_PCI_VGA,	"bclk-gate",	"bclk",	CLK_IS_CRITICAL }, 	/* PCIe/PCI */
+	//from dpll
+	[ASPEED_CLK_GATE_DCLK] 			= {  5, -1, 					"dclk-gate",	NULL,	CLK_IS_CRITICAL }, 	/* DAC */
+	
+	[ASPEED_CLK_GATE_REF0CLK] 		= {  6, -1, 					"ref0clk-gate",	"clkin", CLK_IS_CRITICAL },
+	[ASPEED_CLK_GATE_REF1CLK] 		= {  34, -1, 					"ref1clk-gate",	"clkin", CLK_IS_CRITICAL },	
+
+
+
+	//from dpll/epll/40mhz usb p1 phy/gpioc6/dp phy pll
+	[ASPEED_CLK_GATE_D1CLK] 		= { 10,  ASPEED_RESET_CRT, 		"d1clk-gate",	NULL,	0 }, 				/* GFX CRT */
+
+
+
+
+
 	[ASPEED_CLK_GATE_USBPORT2CLK] 	= {  7,  ASPEED_RESET_EHCI_P2, 	"usb-port2-gate",	NULL,	0 }, /* USB2.0 Host port 2 */
 	
 	[ASPEED_CLK_GATE_LCLK] 			= {  ASPEED_CLK2_OFFSET + 0,  ASPEED_RESET_LPC_ESPI, "lclk-gate",		NULL,	CLK_IS_CRITICAL }, /* LPC */
 	
 	[ASPEED_CLK_GATE_USBUHCICLK] 	= {  9,  ASPEED_RESET_UHCI, 	"usb-uhci-gate",	NULL,	0 }, /* USB1.1 (requires port 2 enabled) */
-	[ASPEED_CLK_GATE_D1CLK] 		= { 10,  ASPEED_RESET_CRT, 		"d1clk-gate",		NULL,	0 }, /* GFX CRT */
+
 	[ASPEED_CLK_GATE_YCLK] 			= { 13,  ASPEED_RESET_HACE, 	"yclk-gate",		NULL,	0 }, /* HAC */
 	[ASPEED_CLK_GATE_USBPORT1CLK] 	= { 14,  ASPEED_RESET_EHCI_P1, 	"usb-port1-gate",	NULL,	0 }, /* USB2 hub/USB2 host port 1/USB1.1 dev */
 
@@ -432,6 +444,23 @@ static struct clk_hw *aspeed_g6_clk_hw_register_gate(struct device *dev,
 	return hw;
 }
 
+static const char * const vclk_parent_names[] = {
+	"dpll",
+	"d1pll",
+	"hclk",
+	"mclk",
+};
+
+static const char * const d1clk_parent_names[] = {
+	"dpll",
+	"epll",
+#if 0	
+	"usb_p1_phy_clk",	//40mhz usb20 p1 phy
+	"gpioc6_input_clk",	//gpioc6
+	"dp_phy_pll",	//dp phy pll
+#endif	
+};
+
 static int aspeed_g6_clk_probe(struct platform_device *pdev)
 {
 	const struct aspeed_clk_soc_data *soc_data;
@@ -441,6 +470,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	struct clk_hw *hw;
 	u32 val, rate;
 	int i, ret;
+	printk("aspeed_g6_clk_probe =--\n");
 
 	map = syscon_node_to_regmap(dev->of_node);
 	if (IS_ERR(map)) {
@@ -448,11 +478,14 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(map);
 	}
 
+	printk("aspeed_g6_clk_probe =--1 \n");
+
 	ar = devm_kzalloc(dev, sizeof(*ar), GFP_KERNEL);
 	if (!ar)
 		return -ENOMEM;
 
 	ar->map = map;
+	printk("aspeed_g6_clk_probe =--2 \n");
 
 	ar->rcdev.owner = THIS_MODULE;
 	ar->rcdev.nr_resets = 64;
@@ -464,6 +497,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		dev_err(dev, "could not register reset controller\n");
 		return ret;
 	}
+	printk("aspeed_g6_clk_probe =--3 \n");
 
 	/* SoC generations share common layouts but have different divisors */
 	soc_data = of_device_get_match_data(dev);
@@ -471,6 +505,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		dev_err(dev, "no match data for platform\n");
 		return -EINVAL;
 	}
+	printk("aspeed_g6_clk_probe =--4 \n");
 
 	/* UART clock div13 setting */
 	regmap_read(map, ASPEED_G6_MISC_CTRL, &val);
@@ -486,6 +521,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 
 	/* UART6~13 clock div13 setting */
 	regmap_read(map, 0x80, &val);
+	printk("aspeed_g6_clk_probe =--5 \n");
 
 	if (val & BIT(31))
 		rate = 24000000 / 13;
@@ -497,15 +533,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_UARTX] = hw;
 
-	/*
-	 * Memory controller (M-PLL) PLL. This clock is configured by the
-	 * bootloader, and is exposed to Linux as a read-only clock rate.
-	 */
-	regmap_read(map, ASPEED_MPLL_PARAM, &val);
-	hw = soc_data->calc_pll("mpll", val);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_MPLL] =	hw;
+	printk("aspeed_g6_clk_probe =--6 \n");
 
 	/* EMMC clock divider (TODO: There's a gate too) */
 #if 0	
@@ -535,6 +563,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		
 #endif
 
+	printk("aspeed_g6_clk_probe =--7 \n");
 
 	/* MAC AHB bus clock divider */
 	hw = clk_hw_register_divider_table(dev, "mac", "hpll", 0,
@@ -544,6 +573,8 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_MAC] = hw;
+
+	printk("aspeed_g6_clk_probe =--8 \n");
 
 //	ast_scu_write((ast_scu_read(AST_SCU_CLK_SEL) & ~(SCU_ECLK_SOURCE_MASK | SCU_CLK_VIDEO_SLOW_EN)) | SCU_ECLK_SOURCE(2), AST_SCU_CLK_SEL);
 
@@ -556,31 +587,40 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_LHCLK] = hw;
 
+	printk("aspeed_g6_clk_probe =--9 \n");
+
+	//bclk -check
 	/* P-Bus (BCLK) clock divider */
 	hw = clk_hw_register_divider_table(dev, "bclk", "hpll", 0,
-			scu_g6_base + ASPEED_G6_CLK_SELECTION2, 0, 2, 0,
+			scu_g6_base + 0x300, 20, 0x7, 0,
 			soc_data->div_table,
 			&aspeed_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_BCLK] = hw;
 
-	/* Fixed 24MHz clock */
-	hw = clk_hw_register_fixed_rate(NULL, "fixed-24m", "clkin",
-					0, 24000000);
+	//vclk - check 
+	/* Video Capture clock selection */
+	hw = clk_hw_register_mux(dev, "vclk", vclk_parent_names,
+			ARRAY_SIZE(vclk_parent_names), 0,
+			scu_g6_base + 0x304, 12, 0x3, 0,
+			&aspeed_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_24M] = hw;
+	aspeed_g6_clk_data->hws[ASPEED_CLK_VCLK] = hw;
 
-	/* Video Engine clock divider */
+	//eclk -check
+	/* Video Engine clock divider */ 
 	hw = clk_hw_register_divider_table(dev, "eclk", NULL, 0,
-			scu_g6_base + ASPEED_G6_CLK_SELECTION, 28, 3, 0,
+			scu_g6_base + 0x300, 28, 3, 0,
 			soc_data->eclk_div_table,
 			&aspeed_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_ECLK] = hw;
 	
+
+	printk("aspeed_g6_clk_probe =--11 \n");	
 	/*
 	 * TODO: There are a number of clocks that not included in this driver
 	 * as more information is required:
@@ -614,6 +654,8 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		aspeed_g6_clk_data->hws[i] = hw;
 	}
 
+	printk("aspeed_g6_clk_probe =--=---=----------------------- end \n");
+
 	return 0;
 };
 
@@ -633,56 +675,95 @@ static struct platform_driver aspeed_g6_clk_driver = {
 
 static int __init aspeed_g6_clk_init(void)
 {
+	printk("aspeed_g6_clk_init =--\n");
+
 	return platform_driver_register(&aspeed_g6_clk_driver);
 }
 core_initcall(aspeed_g6_clk_init);
 
+#define ASPEED_HPLL_PARAM	0x200
+
+static u32 ast2600_a0_axi_ahb_div_table[] = {
+	2, 2, 3, 5,
+};
+
+static u32 ast2600_a1_axi_ahb_div_table[] = {
+	4, 6, 2, 4,
+};
+
 static void __init aspeed_ast2600_cc(struct regmap *map)
 {
 	struct clk_hw *hw;
-	u32 val, freq, div;
+	u32 val, freq, div, chip_id, axi_div, ahb_div;
 
 	freq = 25000000;
 
 	hw = clk_hw_register_fixed_rate(NULL, "clkin", NULL, 0, freq);
 	pr_debug("clkin @%u MHz\n", freq / 1000000);
 
-#if 1//def CONFIG_ASPEED_FPGA
 	/*
 	 * High-speed PLL clock derived from the crystal. This the CPU clock,
 	 * and we assume that it is enabled
 	 */
+#if 1	 
 	hw = clk_hw_register_fixed_rate(NULL, "hpll", NULL, 0, freq * 2);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_HPLL] = hw;
+
+	hw = clk_hw_register_fixed_rate(NULL, "mpll", NULL, 0, freq);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_MPLL] = hw;
+
+	hw = clk_hw_register_fixed_rate(NULL, "dpll", NULL, 0, freq);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_DPLL] = hw;
+
+	hw = clk_hw_register_fixed_rate(NULL, "epll", NULL, 0, freq);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_EPLL] = hw;
+
+	hw = clk_hw_register_fixed_rate(NULL, "apll", NULL, 0, freq);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_APLL] = hw;
 
 	hw = clk_hw_register_fixed_rate(NULL, "ahb", NULL, 0, freq);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_AHB] = hw;
 
 	hw = clk_hw_register_fixed_rate(NULL, "apb", NULL, 0, freq);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_APB] = hw;
-
+	
 #else
-	/*
-	 * High-speed PLL clock derived from the crystal. This the CPU clock,
-	 * and we assume that it is enabled
-	 */
-//	regmap_read(map, ASPEED_HPLL_PARAM, &val);
-//	aspeed_g6_clk_data->hws[ASPEED_CLK_HPLL] = aspeed_ast2600_calc_pll("hpll", val);
+	regmap_read(map, ASPEED_HPLL_PARAM, &val);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_HPLL] = aspeed_ast2600_calc_pll("hpll", val);
 
-	/* Strap bits 11:9 define the AXI/AHB clock frequency ratio (aka HCLK)*/
-	regmap_read(map, ASPEED_STRAP, &val);
-	val = (val >> 9) & 0x7;
-	WARN(val == 0, "strapping is zero: cannot determine ahb clock");
-	div = 2 * (val + 1);
-	hw = clk_hw_register_fixed_factor(NULL, "ahb", "hpll", 0, 1, div);
+	regmap_read(map, ASPEED_HPLL_PARAM, &val);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_MPLL] = aspeed_ast2600_calc_pll("mpll", val);
+
+	regmap_read(map, ASPEED_HPLL_PARAM, &val);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_DPLL] = aspeed_ast2600_calc_pll("dpll", val);
+
+	regmap_read(map, ASPEED_HPLL_PARAM, &val);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_EPLL] = aspeed_ast2600_calc_pll("epll", val);
+
+	regmap_read(map, ASPEED_HPLL_PARAM, &val);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_APLL] = aspeed_ast2600_calc_pll("apll", val);
+
+	/* Strap bits 12:11 define the AXI/AHB clock frequency ratio (aka HCLK)*/
+	regmap_read(map, 0x500, &val);
+	if (val & BIT(16))
+		axi_div = 1;
+	else
+		axi_div = 2;
+	
+	regmap_read(map, 0x04, &chip_id);
+	if (chip_id & BIT(16))
+		ahb_div = ast2600_a1_axi_ahb_div_table[(val >> 11) & 0x3];
+	else
+		ahb_div = ast2600_a0_axi_ahb_div_table[(val >> 11) & 0x3];
+
+	hw = clk_hw_register_fixed_factor(NULL, "ahb", "hpll", 0, 1, axi_div * ahb_div);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_AHB] = hw;
 
-	/* APB clock clock selection register SCU08 (aka PCLK) */
 	regmap_read(map, ASPEED_G6_CLK_SELECTION, &val);
 	val = (val >> 23) & 0x7;
 	div = 4 * (val + 1);
 	hw = clk_hw_register_fixed_factor(NULL, "apb", "hpll", 0, 1, div);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_APB] = hw;
+	aspeed_g6_clk_data->hws[ASPEED_CLK_APB] = hw;	
 #endif
 };
 
@@ -692,7 +773,7 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 	u32 val;
 	int ret;
 	int i;
-
+printk("aspeed_g6_cc_init =--\n");
 	scu_g6_base = of_iomap(np, 0);
 	if (!scu_g6_base)
 		return;
@@ -725,5 +806,7 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, aspeed_g6_clk_data);
 	if (ret)
 		pr_err("failed to add DT provider: %d\n", ret);
+
+printk("aspeed_g6_cc_init =-- =============== end\n");	
 };
 CLK_OF_DECLARE_DRIVER(aspeed_cc_g6, "aspeed,ast2600-scu", aspeed_g6_cc_init);

@@ -53,14 +53,14 @@
 		#size-cells = <0>;
 		enable-method = "aspeed,ast2600-smp";
 
-		cpu@0 {
+		CPU0: cpu@0 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <0>;
 			clock-frequency = <48000000>;
 		};
 
-		cpu@1 {
+		CPU1: cpu@1 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <1>;
@@ -1133,7 +1133,7 @@
                 #address-cells = <1>;
                 #size-cells = <0>;
 		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
-                clocks = <&syscon ASPEED_CLK_GATE_REFCLK>;
+                clocks = <&syscon ASPEED_CLK_GATE_REF0CLK>;
                 resets = <&syscon ASPEED_RESET_PECI>;
                 clock-frequency = <24000000>;
                 msg-timing = <1>;
