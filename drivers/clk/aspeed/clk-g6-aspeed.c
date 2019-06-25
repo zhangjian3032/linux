@@ -52,46 +52,56 @@ static const struct aspeed_gate_data aspeed_g6_gates[] = {
 	[ASPEED_CLK_GATE_BCLK] 			= {  4,  ASPEED_RESET_PCI_VGA,	"bclk-gate",	"bclk",	CLK_IS_CRITICAL }, 	/* PCIe/PCI */
 	//from dpll
 	[ASPEED_CLK_GATE_DCLK] 			= {  5, -1, 					"dclk-gate",	NULL,	CLK_IS_CRITICAL }, 	/* DAC */
-	
 	[ASPEED_CLK_GATE_REF0CLK] 		= {  6, -1, 					"ref0clk-gate",	"clkin", CLK_IS_CRITICAL },
 	[ASPEED_CLK_GATE_REF1CLK] 		= {  34, -1, 					"ref1clk-gate",	"clkin", CLK_IS_CRITICAL },	
-
-
-
+	[ASPEED_CLK_GATE_USBPORT2CLK] 	= {  7,  ASPEED_RESET_EHCI_P2, 	"usb-port2-gate",	NULL,	0 }, 			/* USB2.0 Host port 2 */
+	[ASPEED_CLK_GATE_USBUHCICLK] 	= {  9,  ASPEED_RESET_UHCI, 	"usb-uhci-gate",	NULL,	0 }, 			/* USB1.1 (requires port 2 enabled) */
 	//from dpll/epll/40mhz usb p1 phy/gpioc6/dp phy pll
-	[ASPEED_CLK_GATE_D1CLK] 		= { 10,  ASPEED_RESET_CRT, 		"d1clk-gate",	NULL,	0 }, 				/* GFX CRT */
+	[ASPEED_CLK_GATE_D1CLK] 		= { 10,  ASPEED_RESET_CRT, 		"d1clk-gate",	"d1clk",	0 }, 			/* GFX CRT */
+	//reserved 11/12
+	[ASPEED_CLK_GATE_YCLK] 			= { 13,  ASPEED_RESET_HACE, 	"yclk-gate",		NULL,	0 }, 			/* HAC */
+	[ASPEED_CLK_GATE_USBPORT1CLK] 	= { 14,  ASPEED_RESET_EHCI_P1, 	"usb-port1-gate",	NULL,	0 }, 			/* USB2 hub/USB2 host port 1/USB1.1 dev */
+	[ASPEED_CLK_GATE_UART5CLK] 		= { 15, -1, 					"uart5clk-gate",	"uart",	0 }, 			/* UART5 */
+	//reserved 16/19
+	[ASPEED_CLK_GATE_MAC1CLK] 		= { 20,  ASPEED_RESET_MAC1, 	"mac1clk-gate",		"mac",	0 }, 			/* MAC1 */
+	[ASPEED_CLK_GATE_MAC2CLK] 		= { 21,  ASPEED_RESET_MAC2, 	"mac2clk-gate",		"mac",	0 }, 			/* MAC2 */
 
 
 
 
 
-	[ASPEED_CLK_GATE_USBPORT2CLK] 	= {  7,  ASPEED_RESET_EHCI_P2, 	"usb-port2-gate",	NULL,	0 }, /* USB2.0 Host port 2 */
+
+	[ASPEED_CLK_GATE_SDCLK] 		= { ASPEED_CLK2_OFFSET + 4, ASPEED_RESET_SD, "sdclk-gate",		NULL,	0 }, /* SDIO/SD */
+	[ASPEED_CLK_GATE_SDEXTCLK] 		= { 31, -1, 					"sdextclk-gate",	"sdio",	0 }, /* For card clk scu310*/
+
+
+
+
+
+
+
+
+
 	
 	[ASPEED_CLK_GATE_LCLK] 			= {  ASPEED_CLK2_OFFSET + 0,  ASPEED_RESET_LPC_ESPI, "lclk-gate",		NULL,	CLK_IS_CRITICAL }, /* LPC */
 	
-	[ASPEED_CLK_GATE_USBUHCICLK] 	= {  9,  ASPEED_RESET_UHCI, 	"usb-uhci-gate",	NULL,	0 }, /* USB1.1 (requires port 2 enabled) */
 
-	[ASPEED_CLK_GATE_YCLK] 			= { 13,  ASPEED_RESET_HACE, 	"yclk-gate",		NULL,	0 }, /* HAC */
-	[ASPEED_CLK_GATE_USBPORT1CLK] 	= { 14,  ASPEED_RESET_EHCI_P1, 	"usb-port1-gate",	NULL,	0 }, /* USB2 hub/USB2 host port 1/USB1.1 dev */
+
 
 	[ASPEED_CLK_GATE_UART1CLK] 		= { ASPEED_CLK2_OFFSET + 16, -1, "uart1clk-gate",	"uart",	0 }, /* UART1 */
 	[ASPEED_CLK_GATE_UART2CLK] 		= { ASPEED_CLK2_OFFSET + 17, -1, "uart2clk-gate",	"uart",	0 }, /* UART2 */
 
-	[ASPEED_CLK_GATE_UART5CLK] 		= { 15, -1, 					"uart5clk-gate",	"uart",	0 }, /* UART5 */
+
 	[ASPEED_CLK_GATE_ESPICLK] 		= { ASPEED_CLK2_OFFSET + 1, -1, "espiclk-gate",	NULL,	CLK_IS_CRITICAL }, /* eSPI */
 	
-	[ASPEED_CLK_GATE_MAC1CLK] 		= { 20,  ASPEED_RESET_MAC1, 	"mac1clk-gate",		"mac",	0 }, /* MAC1 */
-	[ASPEED_CLK_GATE_MAC2CLK] 		= { 21,  ASPEED_RESET_MAC2, 	"mac2clk-gate",		"mac",	0 }, /* MAC2 */
 	[ASPEED_CLK_GATE_RSACLK] 		= { 24,  ASPEED_RESET_HACE, 	"rsaclk-gate",		NULL,	0 }, /* HAC */
 	
 	[ASPEED_CLK_GATE_UART3CLK] 		= { ASPEED_CLK2_OFFSET + 18, -1, "uart3clk-gate",	"uart",	0 }, /* UART3 */
 	[ASPEED_CLK_GATE_UART4CLK] 		= { ASPEED_CLK2_OFFSET + 19, -1, "uart4clk-gate",	"uart",	0 }, /* UART4 */
 	
-	[ASPEED_CLK_GATE_SDCLK] 		= { ASPEED_CLK2_OFFSET + 4, ASPEED_RESET_SD, "sdclk-gate",		NULL,	0 }, /* SDIO/SD */
 	
 	[ASPEED_CLK_GATE_LHCCLK] 		= { ASPEED_CLK2_OFFSET + 5, -1, "lhclk-gate",		"lhclk", 0 }, /* LPC master/LPC+ */
 	
-	[ASPEED_CLK_GATE_SDEXTCLK] 		= { 31, -1, 					"sdextclk-gate",	"sdio",	0 }, /* For card clk scu310*/
 	
 	[ASPEED_CLK_GATE_EMMCCLK] 		= { 30,  ASPEED_RESET_EMMC, 	"emmcclk-gate",		NULL,	0 }, /* For card clk */
 	[ASPEED_CLK_GATE_EMMCEXTCLK] 	= { 27, -1, 					"emmcextclk-gate",	"emmc",	0 }, /* For card clk scu300*/
@@ -507,6 +517,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	}
 	printk("aspeed_g6_clk_probe =--4 \n");
 
+	//uart 1-5 check
 	/* UART clock div13 setting */
 	regmap_read(map, ASPEED_G6_MISC_CTRL, &val);
 	if (val & UART_DIV13_EN)
@@ -518,6 +529,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_UART] = hw;
+	
 
 	/* UART6~13 clock div13 setting */
 	regmap_read(map, 0x80, &val);
@@ -588,6 +600,16 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	aspeed_g6_clk_data->hws[ASPEED_CLK_LHCLK] = hw;
 
 	printk("aspeed_g6_clk_probe =--9 \n");
+
+	//d1clk - check 
+	/* SoC Display clock selection */
+	hw = clk_hw_register_mux(dev, "d1clk", d1clk_parent_names,
+			ARRAY_SIZE(d1clk_parent_names), 0,
+			scu_g6_base + 0x300, 8, 0x7, 0,
+			&aspeed_clk_lock);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_D1CLK] = hw;
 
 	//bclk -check
 	/* P-Bus (BCLK) clock divider */
