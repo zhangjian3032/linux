@@ -53,67 +53,63 @@ static const struct aspeed_gate_data aspeed_g6_gates[] = {
 	//from dpll
 	[ASPEED_CLK_GATE_DCLK] 			= {  5, -1, 					"dclk-gate",	NULL,	CLK_IS_CRITICAL }, 	/* DAC */
 	[ASPEED_CLK_GATE_REF0CLK] 		= {  6, -1, 					"ref0clk-gate",	"clkin", CLK_IS_CRITICAL },
-	[ASPEED_CLK_GATE_REF1CLK] 		= {  34, -1, 					"ref1clk-gate",	"clkin", CLK_IS_CRITICAL },	
+
 	[ASPEED_CLK_GATE_USBPORT2CLK] 	= {  7,  ASPEED_RESET_EHCI_P2, 	"usb-port2-gate",	NULL,	0 }, 			/* USB2.0 Host port 2 */
 	[ASPEED_CLK_GATE_USBUHCICLK] 	= {  9,  ASPEED_RESET_UHCI, 	"usb-uhci-gate",	NULL,	0 }, 			/* USB1.1 (requires port 2 enabled) */
 	//from dpll/epll/40mhz usb p1 phy/gpioc6/dp phy pll
 	[ASPEED_CLK_GATE_D1CLK] 		= { 10,  ASPEED_RESET_CRT, 		"d1clk-gate",	"d1clk",	0 }, 			/* GFX CRT */
 	//reserved 11/12
-	[ASPEED_CLK_GATE_YCLK] 			= { 13,  ASPEED_RESET_HACE, 	"yclk-gate",		NULL,	0 }, 			/* HAC */
+	[ASPEED_CLK_GATE_YCLK] 			= { 13,  ASPEED_RESET_HACE, 	"yclk-gate",	NULL,	0 }, 				/* HAC */
 	[ASPEED_CLK_GATE_USBPORT1CLK] 	= { 14,  ASPEED_RESET_EHCI_P1, 	"usb-port1-gate",	NULL,	0 }, 			/* USB2 hub/USB2 host port 1/USB1.1 dev */
-	[ASPEED_CLK_GATE_UART5CLK] 		= { 15, -1, 					"uart5clk-gate",	"uart",	0 }, 			/* UART5 */
+	[ASPEED_CLK_GATE_UART5CLK] 		= { 15, -1, 					"uart5clk-gate", "uart",	0 }, 			/* UART5 */
 	//reserved 16/19
-	[ASPEED_CLK_GATE_MAC1CLK] 		= { 20,  ASPEED_RESET_MAC1, 	"mac1clk-gate",		"mac",	0 }, 			/* MAC1 */
-	[ASPEED_CLK_GATE_MAC2CLK] 		= { 21,  ASPEED_RESET_MAC2, 	"mac2clk-gate",		"mac",	0 }, 			/* MAC2 */
-
-
-
-
-
-
-	[ASPEED_CLK_GATE_SDCLK] 		= { ASPEED_CLK2_OFFSET + 4, ASPEED_RESET_SD, "sdclk-gate",		NULL,	0 }, /* SDIO/SD */
-	[ASPEED_CLK_GATE_SDEXTCLK] 		= { 31, -1, 					"sdextclk-gate",	"sdio",	0 }, /* For card clk scu310*/
-
-
-
-
-
-
-
-
-
-	
-	[ASPEED_CLK_GATE_LCLK] 			= {  ASPEED_CLK2_OFFSET + 0,  ASPEED_RESET_LPC_ESPI, "lclk-gate",		NULL,	CLK_IS_CRITICAL }, /* LPC */
-	
-
-
-
-	[ASPEED_CLK_GATE_UART1CLK] 		= { ASPEED_CLK2_OFFSET + 16, -1, "uart1clk-gate",	"uart",	0 }, /* UART1 */
-	[ASPEED_CLK_GATE_UART2CLK] 		= { ASPEED_CLK2_OFFSET + 17, -1, "uart2clk-gate",	"uart",	0 }, /* UART2 */
-
-
-	[ASPEED_CLK_GATE_ESPICLK] 		= { ASPEED_CLK2_OFFSET + 1, -1, "espiclk-gate",	NULL,	CLK_IS_CRITICAL }, /* eSPI */
-	
-	[ASPEED_CLK_GATE_RSACLK] 		= { 24,  ASPEED_RESET_HACE, 	"rsaclk-gate",		NULL,	0 }, /* HAC */
-	
-	[ASPEED_CLK_GATE_UART3CLK] 		= { ASPEED_CLK2_OFFSET + 18, -1, "uart3clk-gate",	"uart",	0 }, /* UART3 */
-	[ASPEED_CLK_GATE_UART4CLK] 		= { ASPEED_CLK2_OFFSET + 19, -1, "uart4clk-gate",	"uart",	0 }, /* UART4 */
-	
-	
-	[ASPEED_CLK_GATE_LHCCLK] 		= { ASPEED_CLK2_OFFSET + 5, -1, "lhclk-gate",		"lhclk", 0 }, /* LPC master/LPC+ */
-	
-	
+	[ASPEED_CLK_GATE_MAC1CLK] 		= { 20,  ASPEED_RESET_MAC1, 	"mac1clk-gate",	"mac12",	0 }, 			/* MAC1 */
+	[ASPEED_CLK_GATE_MAC2CLK] 		= { 21,  ASPEED_RESET_MAC2, 	"mac2clk-gate",	"mac12",	0 }, 			/* MAC2 */
+	//reserved 22/23
+	[ASPEED_CLK_GATE_RSACLK] 		= { 24,  ASPEED_RESET_HACE, 	"rsaclk-gate",	NULL,	0 }, 				/* HAC */
+	[ASPEED_CLK_GATE_RVASCLK] 		= { 25,  ASPEED_RESET_RVAS, 	"rvasclk-gate",	NULL,	0 }, 				/* RVAS */
+	//reserved 26
+	[ASPEED_CLK_GATE_EMMCEXTCLK] 	= { 27, -1, 					"emmcextclk-gate",	"emmc",	0 }, 			/* EMMC */
+	//reserved 28/29/30
 	[ASPEED_CLK_GATE_EMMCCLK] 		= { 30,  ASPEED_RESET_EMMC, 	"emmcclk-gate",		NULL,	0 }, /* For card clk */
-	[ASPEED_CLK_GATE_EMMCEXTCLK] 	= { 27, -1, 					"emmcextclk-gate",	"emmc",	0 }, /* For card clk scu300*/
+	
+	//SCU90
+	[ASPEED_CLK_GATE_LCLK] 			= { 32,  ASPEED_RESET_LPC_ESPI, "lclk-gate",	NULL,	CLK_IS_CRITICAL }, 	/* LPC */
+	[ASPEED_CLK_GATE_ESPICLK] 		= { 33, -1, 					"espiclk-gate",	NULL,	CLK_IS_CRITICAL }, 	/* eSPI */
+	[ASPEED_CLK_GATE_REF1CLK] 		= { 34, -1, 					"ref1clk-gate",	"clkin", CLK_IS_CRITICAL },	
+	//reserved 35
+	[ASPEED_CLK_GATE_SDCLK] 		= { 36,  ASPEED_RESET_SD, 		"sdclk-gate",	NULL,	0 }, 				/* SDIO/SD */
+	[ASPEED_CLK_GATE_LHCCLK] 		= { 37, -1, 					"lhclk-gate",	"lhclk", 0 }, 				/* LPC master/LPC+ */
+	//reserved 38 rsa no ues anymore
+	//reserved 39
+	[ASPEED_CLK_GATE_I3C0CLK] 		= { 40,  ASPEED_RESET_I3C0, 	"i3c0clk-gate",	NULL,	0 }, 				/* I3C0 */
+	[ASPEED_CLK_GATE_I3C1CLK] 		= { 41,  ASPEED_RESET_I3C1, 	"i3c1clk-gate",	NULL,	0 }, 				/* I3C1 */
+	[ASPEED_CLK_GATE_I3C2CLK] 		= { 42,  ASPEED_RESET_I3C2, 	"i3c2clk-gate",	NULL,	0 }, 				/* I3C2 */
+	[ASPEED_CLK_GATE_I3C3CLK] 		= { 43,  ASPEED_RESET_I3C3, 	"i3c3clk-gate",	NULL,	0 }, 				/* I3C3 */
+	[ASPEED_CLK_GATE_I3C4CLK] 		= { 44,  ASPEED_RESET_I3C4, 	"i3c4clk-gate",	NULL,	0 }, 				/* I3C4 */
+	[ASPEED_CLK_GATE_I3C5CLK] 		= { 45,  ASPEED_RESET_I3C5, 	"i3c5clk-gate",	NULL,	0 }, 				/* I3C5 */
+	[ASPEED_CLK_GATE_I3C6CLK] 		= { 46,  ASPEED_RESET_I3C6, 	"i3c6clk-gate",	NULL,	0 }, 				/* I3C6 */
+	[ASPEED_CLK_GATE_I3C7CLK] 		= { 47,  ASPEED_RESET_I3C7, 	"i3c7clk-gate",	NULL,	0 }, 				/* I3C7 */
+	[ASPEED_CLK_GATE_UART1CLK] 		= { 48, -1, 					"uart1clk-gate",	"uart",		0 }, /* UART1 */
+	[ASPEED_CLK_GATE_UART2CLK] 		= { 49, -1, 					"uart2clk-gate",	"uart",		0 }, /* UART2 */
+	[ASPEED_CLK_GATE_UART3CLK] 		= { 50, -1, 					"uart3clk-gate",	"uart",		0 }, /* UART3 */
+	[ASPEED_CLK_GATE_UART4CLK] 		= { 51, -1, 					"uart4clk-gate",	"uart",		0 }, /* UART4 */
+	[ASPEED_CLK_GATE_MAC3CLK] 		= { 52,  ASPEED_RESET_MAC3, 	"mac3clk-gate",		"mac34",	0 }, 			/* MAC3 */
+	[ASPEED_CLK_GATE_MAC4CLK] 		= { 53,  ASPEED_RESET_MAC4, 	"mac4clk-gate",		"mac34",	0 }, 			/* MAC4 */
+	[ASPEED_CLK_GATE_UART6CLK] 		= { 54, -1, 					"uart6clk-gate",	"uartx",	0 }, /* UART6 */
+	[ASPEED_CLK_GATE_UART7CLK] 		= { 55, -1, 					"uart7clk-gate",	"uartx",	0 }, /* UART7 */
+	[ASPEED_CLK_GATE_UART8CLK] 		= { 56, -1, 					"uart8clk-gate",	"uartx",	0 }, /* UART8 */
+	[ASPEED_CLK_GATE_UART9CLK] 		= { 57, -1, 					"uart9clk-gate",	"uartx",	0 }, /* UART9 */
+	[ASPEED_CLK_GATE_UART10CLK] 	= { 58, -1, 					"uart10clk-gate",	"uartx",	0 }, /* UART10 */
+	[ASPEED_CLK_GATE_UART11CLK] 	= { 59, -1, 					"uart11clk-gate",	"uartx",	0 }, /* UART11 */
+	[ASPEED_CLK_GATE_UART12CLK] 	= { 60, -1, 					"uart12clk-gate",	"uartx",	0 }, /* UART12 */
+	[ASPEED_CLK_GATE_UART13CLK] 	= { 61, -1, 					"uart13clk-gate",	"uartx",	0 }, /* UART13 */
+	[ASPEED_CLK_GATE_FSICLK] 		= { 62, ASPEED_RESET_FSI, 		"fsiclk-gate",	NULL,	0 }, 		/* fsi */
 
-	[ASPEED_CLK_GATE_UART6CLK] 		= { 22, -1, 					"uart6clk-gate",	"uartx",	0 }, /* UART6 */
-	[ASPEED_CLK_GATE_UART7CLK] 		= { 23, -1, 					"uart7clk-gate",	"uartx",	0 }, /* UART7 */
-	[ASPEED_CLK_GATE_UART8CLK] 		= { 24, -1, 					"uart8clk-gate",	"uartx",	0 }, /* UART8 */
-	[ASPEED_CLK_GATE_UART9CLK] 		= { 25, -1, 					"uart9clk-gate",	"uartx",	0 }, /* UART9 */
-	[ASPEED_CLK_GATE_UART10CLK] 	= { 26, -1, 					"uart10clk-gate",	"uartx",	0 }, /* UART10 */
-	[ASPEED_CLK_GATE_UART11CLK] 	= { 27, -1, 					"uart11clk-gate",	"uartx",	0 }, /* UART11 */
-	[ASPEED_CLK_GATE_UART12CLK] 	= { 28, -1, 					"uart12clk-gate",	"uartx",	0 }, /* UART12 */
-	[ASPEED_CLK_GATE_UART13CLK] 	= { 29, -1, 					"uart13clk-gate",	"uartx",	0 }, /* UART13 */
+	[ASPEED_CLK_GATE_SDEXTCLK] 		= { 63, -1, 					"sdextclk-gate",	"sdio",	0 }, /* For card clk scu310*/
+
+
+
 };
 
 static const char * const eclk_parent_names[] = {
@@ -480,7 +476,6 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	struct clk_hw *hw;
 	u32 val, rate;
 	int i, ret;
-	printk("aspeed_g6_clk_probe =--\n");
 
 	map = syscon_node_to_regmap(dev->of_node);
 	if (IS_ERR(map)) {
@@ -488,14 +483,11 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(map);
 	}
 
-	printk("aspeed_g6_clk_probe =--1 \n");
-
 	ar = devm_kzalloc(dev, sizeof(*ar), GFP_KERNEL);
 	if (!ar)
 		return -ENOMEM;
 
 	ar->map = map;
-	printk("aspeed_g6_clk_probe =--2 \n");
 
 	ar->rcdev.owner = THIS_MODULE;
 	ar->rcdev.nr_resets = 64;
@@ -507,7 +499,6 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		dev_err(dev, "could not register reset controller\n");
 		return ret;
 	}
-	printk("aspeed_g6_clk_probe =--3 \n");
 
 	/* SoC generations share common layouts but have different divisors */
 	soc_data = of_device_get_match_data(dev);
@@ -515,7 +506,6 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		dev_err(dev, "no match data for platform\n");
 		return -EINVAL;
 	}
-	printk("aspeed_g6_clk_probe =--4 \n");
 
 	//uart 1-5 check
 	/* UART clock div13 setting */
@@ -533,7 +523,6 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 
 	/* UART6~13 clock div13 setting */
 	regmap_read(map, 0x80, &val);
-	printk("aspeed_g6_clk_probe =--5 \n");
 
 	if (val & BIT(31))
 		rate = 24000000 / 13;
@@ -544,8 +533,6 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_UARTX] = hw;
-
-	printk("aspeed_g6_clk_probe =--6 \n");
 
 	/* EMMC clock divider (TODO: There's a gate too) */
 #if 0	
@@ -575,18 +562,26 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		
 #endif
 
-	printk("aspeed_g6_clk_probe =--7 \n");
-
+	//mac12 clk - check
 	/* MAC AHB bus clock divider */
-	hw = clk_hw_register_divider_table(dev, "mac", "hpll", 0,
-			scu_g6_base + ASPEED_G6_CLK_SELECTION, 16, 3, 0,
+	hw = clk_hw_register_divider_table(dev, "mac12", "hpll", 0,
+			scu_g6_base + 0x300, 16, 3, 0,
 			soc_data->mac_div_table,
 			&aspeed_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_MAC] = hw;
+	aspeed_g6_clk_data->hws[ASPEED_CLK_MAC12] = hw;
 
-	printk("aspeed_g6_clk_probe =--8 \n");
+	//mac34 clk - check
+	/* MAC AHB bus clock divider */
+	hw = clk_hw_register_divider_table(dev, "mac34", "hpll", 0,
+			scu_g6_base + 0x310, 24, 3, 0,
+			soc_data->mac_div_table,
+			&aspeed_clk_lock);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_MAC34] = hw;
+
 
 //	ast_scu_write((ast_scu_read(AST_SCU_CLK_SEL) & ~(SCU_ECLK_SOURCE_MASK | SCU_CLK_VIDEO_SLOW_EN)) | SCU_ECLK_SOURCE(2), AST_SCU_CLK_SEL);
 
@@ -599,13 +594,11 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_LHCLK] = hw;
 
-	printk("aspeed_g6_clk_probe =--9 \n");
-
 	//d1clk - check 
 	/* SoC Display clock selection */
 	hw = clk_hw_register_mux(dev, "d1clk", d1clk_parent_names,
 			ARRAY_SIZE(d1clk_parent_names), 0,
-			scu_g6_base + 0x300, 8, 0x7, 0,
+			scu_g6_base + 0x300, 8, 3, 0,
 			&aspeed_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
@@ -614,7 +607,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	//bclk -check
 	/* P-Bus (BCLK) clock divider */
 	hw = clk_hw_register_divider_table(dev, "bclk", "hpll", 0,
-			scu_g6_base + 0x300, 20, 0x7, 0,
+			scu_g6_base + 0x300, 20, 3, 0,
 			soc_data->div_table,
 			&aspeed_clk_lock);
 	if (IS_ERR(hw))
@@ -625,7 +618,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	/* Video Capture clock selection */
 	hw = clk_hw_register_mux(dev, "vclk", vclk_parent_names,
 			ARRAY_SIZE(vclk_parent_names), 0,
-			scu_g6_base + 0x304, 12, 0x3, 0,
+			scu_g6_base + 0x304, 12, 3, 0,
 			&aspeed_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
@@ -641,8 +634,6 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_ECLK] = hw;
 	
-
-	printk("aspeed_g6_clk_probe =--11 \n");	
 	/*
 	 * TODO: There are a number of clocks that not included in this driver
 	 * as more information is required:
@@ -676,8 +667,6 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		aspeed_g6_clk_data->hws[i] = hw;
 	}
 
-	printk("aspeed_g6_clk_probe =--=---=----------------------- end \n");
-
 	return 0;
 };
 
@@ -697,8 +686,6 @@ static struct platform_driver aspeed_g6_clk_driver = {
 
 static int __init aspeed_g6_clk_init(void)
 {
-	printk("aspeed_g6_clk_init =--\n");
-
 	return platform_driver_register(&aspeed_g6_clk_driver);
 }
 core_initcall(aspeed_g6_clk_init);
@@ -795,7 +782,7 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 	u32 val;
 	int ret;
 	int i;
-printk("aspeed_g6_cc_init =--\n");
+
 	scu_g6_base = of_iomap(np, 0);
 	if (!scu_g6_base)
 		return;
@@ -829,6 +816,5 @@ printk("aspeed_g6_cc_init =--\n");
 	if (ret)
 		pr_err("failed to add DT provider: %d\n", ret);
 
-printk("aspeed_g6_cc_init =-- =============== end\n");	
 };
 CLK_OF_DECLARE_DRIVER(aspeed_cc_g6, "aspeed,ast2600-scu", aspeed_g6_cc_init);
