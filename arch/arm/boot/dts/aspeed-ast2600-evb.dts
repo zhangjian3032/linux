@@ -61,20 +61,14 @@
 };
 
 &sdhci_slot0{
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_sd1_default>;
 	status = "okay";
 };
 
 &sdhci_slot1{
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_sd2_default>;
 	status = "okay";
 };
 
 &emmc_slot0{
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_emmc_default>;
 	status = "okay";
 };
 
