@@ -264,6 +264,33 @@
 #define SCUAC           0xAC /* Multi-function Pin Control #10 */
 #define HW_STRAP2       0xD0 /* Strapping */
 
+/* AST2600 Pin Control Register */
+#define SCU400		0x400 /* Multi-function Pin Control #1 */
+#define SCU404		0X404 /* Multi-function Pin Control #2 */
+#define SCU40C		0X40C /* Multi-function Pin Control #3 */
+#define SCU410		0X410 /* Multi-function Pin Control #4 */
+#define SCU414		0X414 /* Multi-function Pin Control #5 */
+#define SCU418		0X418 /* Multi-function Pin Control #6 */
+#define SCU41C		0X41C /* Multi-function Pin Control #7 */
+#define SCU430		0X430 /* Multi-function Pin Control #8 */
+#define SCU434		0X434 /* Multi-function Pin Control #9 */
+#define SCU438		0X438 /* Multi-function Pin Control #10 */
+#define SCU440		0X440 /* Multi-function Pin Control #12 */
+#define SCU444		0X444 /* Multi-function Pin Control #13 */
+#define SCU450		0X450 /* Multi-function Pin Control #14 */
+#define SCU454		0X454 /* Multi-function Pin Control #15 */
+#define SCU458		0X458 /* Multi-function Pin Control #16 */
+#define SCU4B0		0X4B0 /* Multi-function Pin Control #17 */
+#define SCU4B4		0X4B4 /* Multi-function Pin Control #18 */
+#define SCU4B8		0X4B8 /* Multi-function Pin Control #19 */
+#define SCU4BC		0X4BC /* Multi-function Pin Control #20 */
+#define SCU4D4		0X4D4 /* Multi-function Pin Control #22 */
+#define SCU4D8		0X4D8 /* Multi-function Pin Control #23 */
+#define SCU690		0X690 /* Multi-function Pin Control #24 */
+#define SCU694		0X694 /* Multi-function Pin Control #25 */
+#define SCU500		0X500 /* AST2600 Hardware Strap1 */
+#define SCU510		0X510 /* AST2600 Hardware Strap2 */
+
  /**
   * A signal descriptor, which describes the register, bits and the
   * enable/disable values that should be compared or written.
@@ -467,6 +494,14 @@ struct aspeed_pin_desc {
 	SIG_EXPR_LIST_DECL_SINGLE(other, other); \
 	MS_PIN_DECL_(pin, \
 			SIG_EXPR_LIST_PTR(high), \
+			SIG_EXPR_LIST_PTR(low), \
+			SIG_EXPR_LIST_PTR(other))
+
+#define TS_PIN_DECL(pin, other, high, medium, low) \
+	SIG_EXPR_LIST_DECL_SINGLE(other, other); \
+	MS_PIN_DECL_(pin, \
+			SIG_EXPR_LIST_PTR(high), \
+			SIG_EXPR_LIST_PTR(medium), \
 			SIG_EXPR_LIST_PTR(low), \
 			SIG_EXPR_LIST_PTR(other))
 

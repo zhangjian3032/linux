@@ -367,6 +367,10 @@
 				#reset-cells = <1>;
 				ranges = <0 0x1e6e2000 0x1000>;
 
+				pinctrl: pinctrl {
+					compatible = "aspeed,g6-pinctrl";
+				};
+
 				vga_scratch: scratch {
 					compatible = "aspeed,bmc-misc";
 				};
@@ -1141,4 +1145,1051 @@
                 rd-sampling-point = <8>;
                 cmd-timeout-ms = <1000>;
         };
+};
+
+&pinctrl {
+	pinctrl_acpi_default: acpi_default {
+		function = "ACPI";
+		groups = "ACPI";
+	};
+
+	pinctrl_bmcint_default: bmcint_default {
+		function = "BMCINT";
+		groups = "BMCINT";
+	};
+
+	pinctrl_emmc_default: emmc_default {
+		function = "EMMC";
+		groups = "EMMC";
+	};
+
+	pinctrl_espi_default: espi_default {
+		function = "ESPI";
+		groups = "ESPI";
+	};
+
+	pinctrl_fwspi_default: fwspi_default {
+		function = "FWSPI";
+		groups = "FWSPI";
+	};
+
+	pinctrl_gpit0_default: gpit0_default {
+		function = "GPIT0";
+		groups = "GPIT0";
+	};
+
+	pinctrl_gpit1_default: gpit1_default {
+		function = "GPIT1";
+		groups = "GPIT1";
+	};
+
+	pinctrl_gpit2_default: gpit2_default {
+		function = "GPIT2";
+		groups = "GPIT2";
+	};
+
+	pinctrl_gpit3_default: gpit3_default {
+		function = "GPIT3";
+		groups = "GPIT3";
+	};
+
+	pinctrl_gpit4_default: gpit4_default {
+		function = "GPIT4";
+		groups = "GPIT4";
+	};
+
+	pinctrl_gpit5_default: gpit5_default {
+		function = "GPIT5";
+		groups = "GPIT5";
+	};
+
+	pinctrl_gpit6_default: gpit6_default {
+		function = "GPIT6";
+		groups = "GPIT6";
+	};
+
+	pinctrl_gpit7_default: gpit7_default {
+		function = "GPIT7";
+		groups = "GPIT7";
+	};
+
+	pinctrl_gpiu0_default: gpiu0_default {
+		function = "GPIU0";
+		groups = "GPIU0";
+	};
+
+	pinctrl_gpiu1_default: gpiu1_default {
+		function = "GPIU1";
+		groups = "GPIU1";
+	};
+
+	pinctrl_gpiu2_default: gpiu2_default {
+		function = "GPIU2";
+		groups = "GPIU2";
+	};
+
+	pinctrl_gpiu3_default: gpiu3_default {
+		function = "GPIU3";
+		groups = "GPIU3";
+	};
+
+	pinctrl_gpiu4_default: gpiu4_default {
+		function = "GPIU4";
+		groups = "GPIU4";
+	};
+
+	pinctrl_gpiu5_default: gpiu5_default {
+		function = "GPIU5";
+		groups = "GPIU5";
+	};
+
+	pinctrl_gpiu6_default: gpiu6_default {
+		function = "GPIU6";
+		groups = "GPIU6";
+	};
+
+	pinctrl_gpiu7_default: gpiu7_default {
+		function = "GPIU7";
+		groups = "GPIU7";
+	};
+
+	pinctrl_hvi3c5_default: hvi3c5_default {
+		function = "HVI3C5";
+		groups = "HVI3C5";
+	};
+
+	pinctrl_hvi3c6_default: hvi3c6_default {
+		function = "HVI3C6";
+		groups = "HVI3C6";
+	};
+
+	pinctrl_hvi3c7_default: hvi3c7_default {
+		function = "HVI3C7";
+		groups = "HVI3C7";
+	};
+
+	pinctrl_hvi3c8_default: hvi3c8_default {
+		function = "HVI3C8";
+		groups = "HVI3C8";
+	};
+
+	pinctrl_i2c1_default: i2c1_default {
+		function = "I2C1";
+		groups = "I2C1";
+	};
+
+	pinctrl_i2c10_default: i2c10_default {
+		function = "I2C10";
+		groups = "I2C10";
+	};
+
+	pinctrl_i2c11_default: i2c11_default {
+		function = "I2C11";
+		groups = "I2C11";
+	};
+
+	pinctrl_i2c12_default: i2c12_default {
+		function = "I2C12";
+		groups = "I2C12";
+	};
+
+	pinctrl_i2c13_default: i2c13_default {
+		function = "I2C13";
+		groups = "I2C13";
+	};
+
+	pinctrl_i2c14_default: i2c14_default {
+		function = "I2C14";
+		groups = "I2C14";
+	};
+
+	pinctrl_i2c15_default: i2c15_default {
+		function = "I2C15";
+		groups = "I2C15";
+	};
+
+	pinctrl_i2c16_default: i2c16_default {
+		function = "I2C16";
+		groups = "I2C16";
+	};
+
+	pinctrl_i2c2_default: i2c2_default {
+		function = "I2C2";
+		groups = "I2C2";
+	};
+
+	pinctrl_i2c3_default: i2c3_default {
+		function = "I2C3";
+		groups = "I2C3";
+	};
+
+	pinctrl_i2c4_default: i2c4_default {
+		function = "I2C4";
+		groups = "I2C4";
+	};
+
+	pinctrl_i2c5_default: i2c5_default {
+		function = "I2C5";
+		groups = "I2C5";
+	};
+
+	pinctrl_i2c6_default: i2c6_default {
+		function = "I2C6";
+		groups = "I2C6";
+	};
+
+	pinctrl_i2c7_default: i2c7_default {
+		function = "I2C7";
+		groups = "I2C7";
+	};
+
+	pinctrl_i2c8_default: i2c8_default {
+		function = "I2C8";
+		groups = "I2C8";
+	};
+
+	pinctrl_i2c9_default: i2c9_default {
+		function = "I2C9";
+		groups = "I2C9";
+	};
+
+	pinctrl_jtagm_default: jtagm_default {
+		function = "JTAGM";
+		groups = "JTAGM";
+	};
+
+	pinctrl_lad0_default: lad0_default {
+		function = "LAD0";
+		groups = "LAD0";
+	};
+
+	pinctrl_lad1_default: lad1_default {
+		function = "LAD1";
+		groups = "LAD1";
+	};
+
+	pinctrl_lad2_default: lad2_default {
+		function = "LAD2";
+		groups = "LAD2";
+	};
+
+	pinctrl_lad3_default: lad3_default {
+		function = "LAD3";
+		groups = "LAD3";
+	};
+
+	pinctrl_lclk_default: lclk_default {
+		function = "LCLK";
+		groups = "LCLK";
+	};
+
+	pinctrl_lframe_default: lframe_default {
+		function = "LFRAME";
+		groups = "LFRAME";
+	};
+
+	pinctrl_lhpd_default: lhpd_default {
+		function = "LHPD";
+		groups = "LHPD";
+	};
+
+	pinctrl_lpchc_default: lpchc_default {
+		function = "LPCHC";
+		groups = "LPCHC";
+	};
+
+	pinctrl_lpcpd_default: lpcpd_default {
+		function = "LPCPD";
+		groups = "LPCPD";
+	};
+
+	pinctrl_lpcpme_default: lpcpme_default {
+		function = "LPCPME";
+		groups = "LPCPME";
+	};
+
+	pinctrl_lpcrst_default: lpcrst_default {
+		function = "LPCRST";
+		groups = "LPCRST";
+	};
+
+	pinctrl_lpcsmi_default: lpcsmi_default {
+		function = "LPCSMI";
+		groups = "LPCSMI";
+	};
+
+	pinctrl_lsirq_default: lsirq_default {
+		function = "LSIRQ";
+		groups = "LSIRQ";
+	};
+
+	pinctrl_mac1link_default: mac1link_default {
+		function = "MAC1LINK";
+		groups = "MAC1LINK";
+	};
+
+	pinctrl_mac2link_default: mac2link_default {
+		function = "MAC2LINK";
+		groups = "MAC2LINK";
+	};
+
+	pinctrl_mac3link_default: mac3link_default {
+		function = "MAC3LINK";
+		groups = "MAC3LINK";
+	};
+
+	pinctrl_mac4link_default: mac4link_default {
+		function = "MAC4LINK";
+		groups = "MAC4LINK";
+	};
+
+	pinctrl_mdio1_default: mdio1_default {
+		function = "MDIO1";
+		groups = "MDIO1";
+	};
+
+	pinctrl_mdio2_default: mdio2_default {
+		function = "MDIO2";
+		groups = "MDIO2";
+	};
+
+	pinctrl_mdio3_default: mdio3_default {
+		function = "MDIO3";
+		groups = "MDIO3";
+	};
+
+	pinctrl_mdio4_default: mdio4_default {
+		function = "MDIO4";
+		groups = "MDIO4";
+	};
+
+	pinctrl_ncts1_default: ncts1_default {
+		function = "NCTS1";
+		groups = "NCTS1";
+	};
+
+	pinctrl_ncts2_default: ncts2_default {
+		function = "NCTS2";
+		groups = "NCTS2";
+	};
+
+	pinctrl_ncts3_default: ncts3_default {
+		function = "NCTS3";
+		groups = "NCTS3";
+	};
+
+	pinctrl_ncts4_default: ncts4_default {
+		function = "NCTS4";
+		groups = "NCTS4";
+	};
+
+	pinctrl_ndcd1_default: ndcd1_default {
+		function = "NDCD1";
+		groups = "NDCD1";
+	};
+
+	pinctrl_ndcd2_default: ndcd2_default {
+		function = "NDCD2";
+		groups = "NDCD2";
+	};
+
+	pinctrl_ndcd3_default: ndcd3_default {
+		function = "NDCD3";
+		groups = "NDCD3";
+	};
+
+	pinctrl_ndcd4_default: ndcd4_default {
+		function = "NDCD4";
+		groups = "NDCD4";
+	};
+
+	pinctrl_ndsr1_default: ndsr1_default {
+		function = "NDSR1";
+		groups = "NDSR1";
+	};
+
+	pinctrl_ndsr2_default: ndsr2_default {
+		function = "NDSR2";
+		groups = "NDSR2";
+	};
+
+	pinctrl_ndsr3_default: ndsr3_default {
+		function = "NDSR3";
+		groups = "NDSR3";
+	};
+
+	pinctrl_ndsr4_default: ndsr4_default {
+		function = "NDSR4";
+		groups = "NDSR4";
+	};
+
+	pinctrl_ndtr1_default: ndtr1_default {
+		function = "NDTR1";
+		groups = "NDTR1";
+	};
+
+	pinctrl_ndtr2_default: ndtr2_default {
+		function = "NDTR2";
+		groups = "NDTR2";
+	};
+
+	pinctrl_ndtr3_default: ndtr3_default {
+		function = "NDTR3";
+		groups = "NDTR3";
+	};
+
+	pinctrl_ndtr4_default: ndtr4_default {
+		function = "NDTR4";
+		groups = "NDTR4";
+	};
+
+	pinctrl_nri1_default: nri1_default {
+		function = "NRI1";
+		groups = "NRI1";
+	};
+
+	pinctrl_nri2_default: nri2_default {
+		function = "NRI2";
+		groups = "NRI2";
+	};
+
+	pinctrl_nri3_default: nri3_default {
+		function = "NRI3";
+		groups = "NRI3";
+	};
+
+	pinctrl_nri4_default: nri4_default {
+		function = "NRI4";
+		groups = "NRI4";
+	};
+
+	pinctrl_nrts1_default: nrts1_default {
+		function = "NRTS1";
+		groups = "NRTS1";
+	};
+
+	pinctrl_nrts2_default: nrts2_default {
+		function = "NRTS2";
+		groups = "NRTS2";
+	};
+
+	pinctrl_nrts3_default: nrts3_default {
+		function = "NRTS3";
+		groups = "NRTS3";
+	};
+
+	pinctrl_nrts4_default: nrts4_default {
+		function = "NRTS4";
+		groups = "NRTS4";
+	};
+
+	pinctrl_oscclk_default: oscclk_default {
+		function = "OSCCLK";
+		groups = "OSCCLK";
+	};
+
+	pinctrl_pewake_default: pewake_default {
+		function = "PEWAKE";
+		groups = "PEWAKE";
+	};
+
+	pinctrl_pwm0_default: pwm0_default {
+		function = "PWM0";
+		groups = "PWM0";
+	};
+
+	pinctrl_pwm1_default: pwm1_default {
+		function = "PWM1";
+		groups = "PWM1";
+	};
+
+	pinctrl_pwm10_aa23_default: pwm10_aa23_default {
+		function = "PWM10_AA23";
+		groups = "PWM10_AA23";
+	};
+
+	pinctrl_pwm10_d23_default: pwm10_d23_default {
+		function = "PWM10_D23";
+		groups = "PWM10_D23";
+	};
+
+	pinctrl_pwm11_aa24_default: pwm11_aa24_default {
+		function = "PWM11_AA24";
+		groups = "PWM11_AA24";
+	};
+
+	pinctrl_pwm11_c23_default: pwm11_c23_default {
+		function = "PWM11_C23";
+		groups = "PWM11_C23";
+	};
+
+	pinctrl_pwm12_c22_default: pwm12_c22_default {
+		function = "PWM12_C22";
+		groups = "PWM12_C22";
+	};
+
+	pinctrl_pwm12_w23_default: pwm12_w23_default {
+		function = "PWM12_W23";
+		groups = "PWM12_W23";
+	};
+
+	pinctrl_pwm13_a25_default: pwm13_a25_default {
+		function = "PWM13_A25";
+		groups = "PWM13_A25";
+	};
+
+	pinctrl_pwm13_ab23_default: pwm13_ab23_default {
+		function = "PWM13_AB23";
+		groups = "PWM13_AB23";
+	};
+
+	pinctrl_pwm14_a24_default: pwm14_a24_default {
+		function = "PWM14_A24";
+		groups = "PWM14_A24";
+	};
+
+	pinctrl_pwm14_ab24_default: pwm14_ab24_default {
+		function = "PWM14_AB24";
+		groups = "PWM14_AB24";
+	};
+
+	pinctrl_pwm15_a23_default: pwm15_a23_default {
+		function = "PWM15_A23";
+		groups = "PWM15_A23";
+	};
+
+	pinctrl_pwm15_y23_default: pwm15_y23_default {
+		function = "PWM15_Y23";
+		groups = "PWM15_Y23";
+	};
+
+	pinctrl_pwm2_default: pwm2_default {
+		function = "PWM2";
+		groups = "PWM2";
+	};
+
+	pinctrl_pwm3_default: pwm3_default {
+		function = "PWM3";
+		groups = "PWM3";
+	};
+
+	pinctrl_pwm4_default: pwm4_default {
+		function = "PWM4";
+		groups = "PWM4";
+	};
+
+	pinctrl_pwm5_default: pwm5_default {
+		function = "PWM5";
+		groups = "PWM5";
+	};
+
+	pinctrl_pwm6_default: pwm6_default {
+		function = "PWM6";
+		groups = "PWM6";
+	};
+
+	pinctrl_pwm7_default: pwm7_default {
+		function = "PWM7";
+		groups = "PWM7";
+	};
+
+	pinctrl_pwm8_ab22_default: pwm8_ab22_default {
+		function = "PWM8_AB22";
+		groups = "PWM8_AB22";
+	};
+
+	pinctrl_pwm8_d22_default: pwm8_d22_default {
+		function = "PWM8_D22";
+		groups = "PWM8_D22";
+	};
+
+	pinctrl_pwm9_e22_default: pwm9_e22_default {
+		function = "PWM9_E22";
+		groups = "PWM9_E22";
+	};
+
+	pinctrl_pwm9_w24_default: pwm9_w24_default {
+		function = "PWM9_W24";
+		groups = "PWM9_W24";
+	};
+
+	pinctrl_rgmii1_default: rgmii1_default {
+		function = "RGMII1";
+		groups = "RGMII1";
+	};
+
+	pinctrl_rgmii2_default: rgmii2_default {
+		function = "RGMII2";
+		groups = "RGMII2";
+	};
+
+	pinctrl_rgmii3_default: rgmii3_default {
+		function = "RGMII3";
+		groups = "RGMII3";
+	};
+
+	pinctrl_rgmii4_default: rgmii4_default {
+		function = "RGMII4";
+		groups = "RGMII4";
+	};
+
+	pinctrl_rmii1_default: rmii1_default {
+		function = "RMII1";
+		groups = "RMII1";
+	};
+
+	pinctrl_rmii2_default: rmii2_default {
+		function = "RMII2";
+		groups = "RMII2";
+	};
+
+	pinctrl_rmii3_default: rmii3_default {
+		function = "RMII3";
+		groups = "RMII3";
+	};
+
+	pinctrl_rmii4_default: rmii4_default {
+		function = "RMII4";
+		groups = "RMII4";
+	};
+
+	pinctrl_rxd1_default: rxd1_default {
+		function = "RXD1";
+		groups = "RXD1";
+	};
+
+	pinctrl_rxd10_default: rxd10_default {
+		function = "RXD10";
+		groups = "RXD10";
+	};
+
+	pinctrl_rxd11_default: rxd11_default {
+		function = "RXD11";
+		groups = "RXD11";
+	};
+
+	pinctrl_rxd12_a16_default: rxd12_a16_default {
+		function = "RXD12_A16";
+		groups = "RXD12_A16";
+	};
+
+	pinctrl_rxd12_ab10_default: rxd12_ab10_default {
+		function = "RXD12_AB10";
+		groups = "RXD12_AB10";
+	};
+
+	pinctrl_rxd13_af10_default: rxd13_af10_default {
+		function = "RXD13_AF10";
+		groups = "RXD13_AF10";
+	};
+
+	pinctrl_rxd13_d16_default: rxd13_d16_default {
+		function = "RXD13_D16";
+		groups = "RXD13_D16";
+	};
+
+	pinctrl_rxd2_default: rxd2_default {
+		function = "RXD2";
+		groups = "RXD2";
+	};
+
+	pinctrl_rxd3_default: rxd3_default {
+		function = "RXD3";
+		groups = "RXD3";
+	};
+
+	pinctrl_rxd4_default: rxd4_default {
+		function = "RXD4";
+		groups = "RXD4";
+	};
+
+	pinctrl_rxd6_default: rxd6_default {
+		function = "RXD6";
+		groups = "RXD6";
+	};
+
+	pinctrl_rxd7_default: rxd7_default {
+		function = "RXD7";
+		groups = "RXD7";
+	};
+
+	pinctrl_rxd8_default: rxd8_default {
+		function = "RXD8";
+		groups = "RXD8";
+	};
+
+	pinctrl_rxd9_default: rxd9_default {
+		function = "RXD9";
+		groups = "RXD9";
+	};
+
+	pinctrl_salt1_default: salt1_default {
+		function = "SALT1";
+		groups = "SALT1";
+	};
+
+	pinctrl_salt10_aa17_default: salt10_aa17_default {
+		function = "SALT10_AA17";
+		groups = "SALT10_AA17";
+	};
+
+	pinctrl_salt10_b22_default: salt10_b22_default {
+		function = "SALT10_B22";
+		groups = "SALT10_B22";
+	};
+
+	pinctrl_salt11_ab17_default: salt11_ab17_default {
+		function = "SALT11_AB17";
+		groups = "SALT11_AB17";
+	};
+
+	pinctrl_salt11_c21_default: salt11_c21_default {
+		function = "SALT11_C21";
+		groups = "SALT11_C21";
+	};
+
+	pinctrl_salt12_a22_default: salt12_a22_default {
+		function = "SALT12_A22";
+		groups = "SALT12_A22";
+	};
+
+	pinctrl_salt12_ae16_default: salt12_ae16_default {
+		function = "SALT12_AE16";
+		groups = "SALT12_AE16";
+	};
+
+	pinctrl_salt13_a21_default: salt13_a21_default {
+		function = "SALT13_A21";
+		groups = "SALT13_A21";
+	};
+
+	pinctrl_salt13_ac16_default: salt13_ac16_default {
+		function = "SALT13_AC16";
+		groups = "SALT13_AC16";
+	};
+
+	pinctrl_salt14_aa16_default: salt14_aa16_default {
+		function = "SALT14_AA16";
+		groups = "SALT14_AA16";
+	};
+
+	pinctrl_salt14_e20_default: salt14_e20_default {
+		function = "SALT14_E20";
+		groups = "SALT14_E20";
+	};
+
+	pinctrl_salt15_ad16_default: salt15_ad16_default {
+		function = "SALT15_AD16";
+		groups = "SALT15_AD16";
+	};
+
+	pinctrl_salt15_d21_default: salt15_d21_default {
+		function = "SALT15_D21";
+		groups = "SALT15_D21";
+	};
+
+	pinctrl_salt16_ac17_default: salt16_ac17_default {
+		function = "SALT16_AC17";
+		groups = "SALT16_AC17";
+	};
+
+	pinctrl_salt16_b21_default: salt16_b21_default {
+		function = "SALT16_B21";
+		groups = "SALT16_B21";
+	};
+
+	pinctrl_salt2_default: salt2_default {
+		function = "SALT2";
+		groups = "SALT2";
+	};
+
+	pinctrl_salt3_default: salt3_default {
+		function = "SALT3";
+		groups = "SALT3";
+	};
+
+	pinctrl_salt4_default: salt4_default {
+		function = "SALT4";
+		groups = "SALT4";
+	};
+
+	pinctrl_salt5_default: salt5_default {
+		function = "SALT5";
+		groups = "SALT5";
+	};
+
+	pinctrl_salt6_default: salt6_default {
+		function = "SALT6";
+		groups = "SALT6";
+	};
+
+	pinctrl_salt7_default: salt7_default {
+		function = "SALT7";
+		groups = "SALT7";
+	};
+
+	pinctrl_salt8_default: salt8_default {
+		function = "SALT8";
+		groups = "SALT8";
+	};
+
+	pinctrl_salt9_ab16_default: salt9_ab16_default {
+		function = "SALT9_AB16";
+		groups = "SALT9_AB16";
+	};
+
+	pinctrl_salt9_e21_default: salt9_e21_default {
+		function = "SALT9_E21";
+		groups = "SALT9_E21";
+	};
+
+	pinctrl_sd1_default: sd1_default {
+		function = "SD1";
+		groups = "SD1";
+	};
+
+	pinctrl_sd2_default: sd2_default {
+		function = "SD2";
+		groups = "SD2";
+	};
+
+	pinctrl_sgpm1_default: sgpm1_default {
+		function = "SGPM1";
+		groups = "SGPM1";
+	};
+
+	pinctrl_sgps1_default: sgps1_default {
+		function = "SGPS1";
+		groups = "SGPS1";
+	};
+
+	pinctrl_spi1_default: spi1_default {
+		function = "SPI1";
+		groups = "SPI1";
+	};
+
+	pinctrl_spi2_default: spi2_default {
+		function = "SPI2";
+		groups = "SPI2";
+	};
+
+	pinctrl_spi2cs0_default: spi2cs0_default {
+		function = "SPI2CS0";
+		groups = "SPI2CS0";
+	};
+
+	pinctrl_spi2cs1_default: spi2cs1_default {
+		function = "SPI2CS1";
+		groups = "SPI2CS1";
+	};
+
+	pinctrl_spi2cs2_default: spi2cs2_default {
+		function = "SPI2CS2";
+		groups = "SPI2CS2";
+	};
+
+	pinctrl_tach0_default: tach0_default {
+		function = "TACH0";
+		groups = "TACH0";
+	};
+
+	pinctrl_tach1_default: tach1_default {
+		function = "TACH1";
+		groups = "TACH1";
+	};
+
+	pinctrl_tach10_default: tach10_default {
+		function = "TACH10";
+		groups = "TACH10";
+	};
+
+	pinctrl_tach11_default: tach11_default {
+		function = "TACH11";
+		groups = "TACH11";
+	};
+
+	pinctrl_tach12_default: tach12_default {
+		function = "TACH12";
+		groups = "TACH12";
+	};
+
+	pinctrl_tach13_default: tach13_default {
+		function = "TACH13";
+		groups = "TACH13";
+	};
+
+	pinctrl_tach14_default: tach14_default {
+		function = "TACH14";
+		groups = "TACH14";
+	};
+
+	pinctrl_tach15_default: tach15_default {
+		function = "TACH15";
+		groups = "TACH15";
+	};
+
+	pinctrl_tach2_default: tach2_default {
+		function = "TACH2";
+		groups = "TACH2";
+	};
+
+	pinctrl_tach3_default: tach3_default {
+		function = "TACH3";
+		groups = "TACH3";
+	};
+
+	pinctrl_tach4_default: tach4_default {
+		function = "TACH4";
+		groups = "TACH4";
+	};
+
+	pinctrl_tach5_default: tach5_default {
+		function = "TACH5";
+		groups = "TACH5";
+	};
+
+	pinctrl_tach6_default: tach6_default {
+		function = "TACH6";
+		groups = "TACH6";
+	};
+
+	pinctrl_tach7_default: tach7_default {
+		function = "TACH7";
+		groups = "TACH7";
+	};
+
+	pinctrl_tach8_default: tach8_default {
+		function = "TACH8";
+		groups = "TACH8";
+	};
+
+	pinctrl_tach9_default: tach9_default {
+		function = "TACH9";
+		groups = "TACH9";
+	};
+
+	pinctrl_thru0_default: thru0_default {
+		function = "THRU0";
+		groups = "THRU0";
+	};
+
+	pinctrl_thru1_default: thru1_default {
+		function = "THRU1";
+		groups = "THRU1";
+	};
+
+	pinctrl_thru2_default: thru2_default {
+		function = "THRU2";
+		groups = "THRU2";
+	};
+
+	pinctrl_thru3_default: thru3_default {
+		function = "THRU3";
+		groups = "THRU3";
+	};
+
+	pinctrl_txd1_default: txd1_default {
+		function = "TXD1";
+		groups = "TXD1";
+	};
+
+	pinctrl_txd10_default: txd10_default {
+		function = "TXD10";
+		groups = "TXD10";
+	};
+
+	pinctrl_txd11_default: txd11_default {
+		function = "TXD11";
+		groups = "TXD11";
+	};
+
+	pinctrl_txd12_af9_default: txd12_af9_default {
+		function = "TXD12_AF9";
+		groups = "TXD12_AF9";
+	};
+
+	pinctrl_txd12_d17_default: txd12_d17_default {
+		function = "TXD12_D17";
+		groups = "TXD12_D17";
+	};
+
+	pinctrl_txd13_ad11_default: txd13_ad11_default {
+		function = "TXD13_AD11";
+		groups = "TXD13_AD11";
+	};
+
+	pinctrl_txd13_e17_default: txd13_e17_default {
+		function = "TXD13_E17";
+		groups = "TXD13_E17";
+	};
+
+	pinctrl_txd2_default: txd2_default {
+		function = "TXD2";
+		groups = "TXD2";
+	};
+
+	pinctrl_txd3_default: txd3_default {
+		function = "TXD3";
+		groups = "TXD3";
+	};
+
+	pinctrl_txd4_default: txd4_default {
+		function = "TXD4";
+		groups = "TXD4";
+	};
+
+	pinctrl_txd6_default: txd6_default {
+		function = "TXD6";
+		groups = "TXD6";
+	};
+
+	pinctrl_txd7_default: txd7_default {
+		function = "TXD7";
+		groups = "TXD7";
+	};
+
+	pinctrl_txd8_default: txd8_default {
+		function = "TXD8";
+		groups = "TXD8";
+	};
+
+	pinctrl_txd9_default: txd9_default {
+		function = "TXD9";
+		groups = "TXD9";
+	};
+
+	pinctrl_vgabiosrom_default: vgabiosrom_default {
+		function = "VGABIOSROM";
+		groups = "VGABIOSROM";
+	};
+
+	pinctrl_vgahs_default: vgahs_default {
+		function = "VGAHS";
+		groups = "VGAHS";
+	};
+
+	pinctrl_vgavs_default: vgavs_default {
+		function = "VGAVS";
+		groups = "VGAVS";
+	};
+
+	pinctrl_wdtrst1_default: wdtrst1_default {
+		function = "WDTRST1";
+		groups = "WDTRST1";
+	};
+
+	pinctrl_wdtrst2_default: wdtrst2_default {
+		function = "WDTRST2";
+		groups = "WDTRST2";
+	};
+
+	pinctrl_wdtrst3_default: wdtrst3_default {
+		function = "WDTRST3";
+		groups = "WDTRST3";
+	};
+
+	pinctrl_wdtrst4_default: wdtrst4_default {
+		function = "WDTRST4";
+		groups = "WDTRST4";
+	};
 };
