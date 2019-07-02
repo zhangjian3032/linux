@@ -417,6 +417,7 @@ static inline const struct aspeed_pin_config *find_pinconf_config(
  * @param: pinconf configuration parameter
  * @arg: The supported argument for @param, or -1 if any value is supported
  * @val: The register value to write to configure @arg for @param
+ * @mask: The mask to select the bits of interest in register
  *
  * The map is to be used in conjunction with the configuration array supplied
  * by the driver implementation.
@@ -425,6 +426,7 @@ struct aspeed_pin_config_map {
 	enum pin_config_param param;
 	s32 arg;
 	u32 val;
+	u32 mask;
 };
 
 enum aspeed_pin_config_map_type { MAP_TYPE_ARG, MAP_TYPE_VAL };
@@ -435,11 +437,15 @@ enum aspeed_pin_config_map_type { MAP_TYPE_ARG, MAP_TYPE_VAL };
  * 2. Uses 8mA or 16mA drive strengths
  */
 static const struct aspeed_pin_config_map pin_config_map[] = {
-	{ PIN_CONFIG_BIAS_PULL_DOWN,  0, 1 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, -1, 0 },
-	{ PIN_CONFIG_BIAS_DISABLE,   -1, 1 },
-	{ PIN_CONFIG_DRIVE_STRENGTH,  8, 0 },
-	{ PIN_CONFIG_DRIVE_STRENGTH, 16, 1 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN,  0, 1 , 1},
+	{ PIN_CONFIG_BIAS_PULL_DOWN, -1, 0 , 1},
+	{ PIN_CONFIG_BIAS_PULL_UP,    0, 1 , 1},
+	{ PIN_CONFIG_BIAS_PULL_UP,   -1, 0 , 1},
+	{ PIN_CONFIG_BIAS_DISABLE,   -1, 1 , 1},
+	{ PIN_CONFIG_DRIVE_STRENGTH,  4, 0 , 3},
+	{ PIN_CONFIG_DRIVE_STRENGTH,  8, 1 , 3},
+	{ PIN_CONFIG_DRIVE_STRENGTH, 12, 2 , 3},
+	{ PIN_CONFIG_DRIVE_STRENGTH, 16, 3 , 3},
 };
 
 static const struct aspeed_pin_config_map *find_pinconf_map(
@@ -520,12 +526,12 @@ int aspeed_pin_config_set(struct pinctrl_dev *pctldev, unsigned int offset,
 	int rc = 0;
 
 	pdata = pinctrl_dev_get_drvdata(pctldev);
-
+	printk("aspeed_pin_config_set");
 	for (i = 0; i < num_configs; i++) {
 		const struct aspeed_pin_config_map *pmap;
 		const struct aspeed_pin_config *pconf;
 		enum pin_config_param param;
-		unsigned int val;
+		unsigned int val, mask;
 		u32 arg;
 
 		param = pinconf_to_config_param(configs[i]);
@@ -541,9 +547,10 @@ int aspeed_pin_config_set(struct pinctrl_dev *pctldev, unsigned int offset,
 			return -EINVAL;
 
 		val = pmap->val << pconf->bit;
+		mask = pmap->mask << pconf->bit;
 
 		rc = regmap_update_bits(pdata->scu, pconf->reg,
-					BIT(pconf->bit), val);
+					mask, val);
 
 		if (rc < 0)
 			return rc;
