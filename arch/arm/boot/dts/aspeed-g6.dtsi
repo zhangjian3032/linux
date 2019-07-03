@@ -371,6 +371,10 @@
 					compatible = "aspeed,bmc-misc";
 				};
 
+				pinctrl: pinctrl {
+					compatible = "aspeed,g6-pinctrl";
+				};
+
 				scu_ic0: interrupt-controller@0 {
 					#interrupt-cells = <1>;
 					compatible = "aspeed,ast2600-scu-ic";
@@ -538,9 +542,7 @@
 				compatible = "aspeed,ast2600-gpio";
 				reg = <0x1e780000 0x800>;
 				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
-#if 0
-				gpio-ranges = <&pinctrl 0 0 208>;
-#endif
+				gpio-ranges = <&pinctrl 0 0 248>;
 				clocks = <&syscon ASPEED_CLK_APB>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
@@ -552,9 +554,7 @@
 				compatible = "aspeed,ast2600-gpio";
 				reg = <0x1e780800 0x800>;
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
-#if 0
-				gpio-ranges = <&pinctrl 0 0 208>;
-#endif
+				gpio-ranges = <&pinctrl 0 0 248>;
 				clocks = <&syscon ASPEED_CLK_APB>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
