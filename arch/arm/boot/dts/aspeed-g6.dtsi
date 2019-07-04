@@ -53,18 +53,16 @@
 		#size-cells = <0>;
 		enable-method = "aspeed,ast2600-smp";
 
-		cpu@0 {
+		CPU0: cpu@0 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <0>;
-			clock-frequency = <48000000>;
 		};
 
-		cpu@1 {
+		CPU1: cpu@1 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <1>;
-			clock-frequency = <48000000>;
 		};
 
 	};
@@ -76,7 +74,7 @@
 				<GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 				<GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 				<GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
-		clock-frequency = <25000000>;
+		clock-frequency = <800000000>;
 	};
 
 	memory@80000000 {
@@ -136,7 +134,7 @@
 			number_of_chip_select = /bits/ 16 <2>;
 			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 		};
-		
+
 		spi1: spi1@1e630000 {
 			/* reg : cs0 : cs1 */
 			reg = <0x1e630000 0x100 
@@ -361,11 +359,11 @@
 			syscon: syscon@1e6e2000 {
 				compatible = "aspeed,aspeed-scu", "aspeed,ast2600-scu", "syscon", "simple-mfd";
 				reg = <0x1e6e2000 0x1000>;
+				ranges = <0 0x1e6e2000 0x1000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
 				#clock-cells = <1>;
 				#reset-cells = <1>;
-				ranges = <0 0x1e6e2000 0x1000>;
 
 				vga_scratch: scratch {
 					compatible = "aspeed,bmc-misc";
@@ -419,7 +417,7 @@
 				reg = <0x1e6e6000 0x1000>;
 				reg-io-width = <4>;
 				clocks = <&syscon ASPEED_CLK_GATE_D1CLK>;
-				resets = <&syscon ASPEED_RESET_CRT1>;
+				resets = <&syscon ASPEED_RESET_CRT>;
 				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 				memory-region = <&gfx_memory>;
                         };
@@ -428,14 +426,14 @@
 				compatible = "aspeed,ast2600-xdma";
 				reg = <0x1e6e7000 0x80>;
 				interrupts-extended = <&gic GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
-				resets = <&syscon ASPEED_RESET_XDMA>;
+				resets = <&syscon ASPEED_RESET_DEV_XDMA>;
 			};
 
 			mctp: mctp@1e6e8000 {
 				compatible = "aspeed,ast2600-mctp";
 				reg = <0x1e6e8000 0x30 0x1e6ed0c4 0x04>;
 	 			interrupts-extended = <&gic GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
-				resets = <&syscon ASPEED_RESET_MCTP>;
+				resets = <&syscon ASPEED_RESET_DEV_MCTP>;
 			};
 
 			adc0: adc@1e6e9000 {
@@ -461,7 +459,7 @@
 				compatible = "aspeed,ast2600-espi";
 				reg = <0x1e6ee000 0x200>;
 				interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>, <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
-				resets = <&syscon ASPEED_RESET_ESPI>;
+				resets = <&syscon ASPEED_RESET_LPC_ESPI>;
 			};
 
 			video: video@1e700000 {
@@ -558,6 +556,7 @@
 				clocks = <&syscon ASPEED_CLK_APB>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				status = "disabled";
 			};
 
 			timer: timer@1e782000 {
@@ -649,7 +648,8 @@
 				no-loopback-test;
 				port_address = <0x3f8>;
 				serial_irq = <4>;
-                        };
+				status = "disabled";
+            };
 
 			vuart1: serial@1e788000 {
 				compatible = "aspeed,ast2600-vuart";
@@ -676,7 +676,7 @@
                         };
 
 			lpc: lpc@1e789000 {
-				compatible = "aspeed,ast-lpc", "simple-mfd", "syscon";
+				compatible = "aspeed,ast2600-lpc", "simple-mfd";
 				reg = <0x1e789000 0x200>;
 
 				#address-cells = <1>;
@@ -687,13 +687,13 @@
 					compatible = "aspeed,ast2600-lpc-bmc", "simple-mfd", "syscon";
 					reg = <0x0 0x80>;
 					reg-io-width = <4>;
+
 					#address-cells = <1>;
 					#size-cells = <1>;
 					ranges = <0x0 0x0 0x80>;
 
 					kcs1: kcs1@0 {
 						compatible = "aspeed,ast2600-kcs-bmc";
-						reg = <0x0 0x80>;
 						interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
 						kcs_chan = <1>;
 						kcs_addr = <0xCA0>;
@@ -702,7 +702,6 @@
 
 					kcs2: kcs2@0 {
 						compatible = "aspeed,ast2600-kcs-bmc";
-						reg = <0x0 0x80>;
 						interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
 						kcs_chan = <2>;
 						kcs_addr = <0xCA8>;
@@ -711,21 +710,10 @@
 
 					kcs3: kcs3@0 {
 						compatible = "aspeed,ast2600-kcs-bmc";
-						reg = <0x0 0x80>;
 						interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
 						kcs_chan = <3>;
 						kcs_addr = <0xCA2>;
 					};
-
-					kcs4: kcs4@0 {
-						compatible = "aspeed,ast2600-kcs-bmc";
-						reg = <0x0 0x120>;
-						interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
-						kcs_chan = <4>;
-						kcs_addr = <0xCA4>;
-						status = "disabled";
-					};
-
 				};
 
 				lpc_host: lpc-host@80 {
@@ -737,10 +725,18 @@
 					#size-cells = <1>;
 					ranges = <0x0 0x80 0x1e0>;
 
+					kcs4: kcs4@0 {
+						compatible = "aspeed,ast2500-kcs-bmc";
+						interrupts = <8>;
+						kcs_chan = <4>;
+						status = "disabled";
+					};
+
 					lpc_ctrl: lpc-ctrl@0 {
 						compatible = "aspeed,ast2600-lpc-ctrl";
 						reg = <0x0 0x80>;
 						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+						status = "disabled";
 					};
 
 					lpc_snoop: lpc-snoop@0 {
@@ -1133,7 +1129,7 @@
                 #address-cells = <1>;
                 #size-cells = <0>;
 		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
-                clocks = <&syscon ASPEED_CLK_GATE_REFCLK>;
+                clocks = <&syscon ASPEED_CLK_GATE_REF0CLK>;
                 resets = <&syscon ASPEED_RESET_PECI>;
                 clock-frequency = <24000000>;
                 msg-timing = <1>;
