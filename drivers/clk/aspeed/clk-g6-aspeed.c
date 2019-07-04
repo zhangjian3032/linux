@@ -61,7 +61,7 @@ static const struct aspeed_gate_data aspeed_g6_gates[] = {
 	//reserved 11/12
 	[ASPEED_CLK_GATE_YCLK] 			= { 13,  ASPEED_RESET_HACE, 	"yclk-gate",	NULL,	0 }, 				/* HAC */
 	[ASPEED_CLK_GATE_USBPORT1CLK] 	= { 14,  ASPEED_RESET_EHCI_P1, 	"usb-port1-gate",	NULL,	0 }, 			/* USB2 hub/USB2 host port 1/USB1.1 dev */
-	[ASPEED_CLK_GATE_UART5CLK] 		= { 15, -1, 					"uart5clk-gate", "uart",	0 }, 			/* UART5 */
+	[ASPEED_CLK_GATE_UART5CLK] 		= { 15, -1, 					"uart5clk-gate", "uart",	CLK_IS_CRITICAL }, 			/* UART5 */
 	//reserved 16/19
 	[ASPEED_CLK_GATE_MAC1CLK] 		= { 20,  ASPEED_RESET_MAC1, 	"mac1clk-gate",	"mac12",	0 }, 			/* MAC1 */
 	[ASPEED_CLK_GATE_MAC2CLK] 		= { 21,  ASPEED_RESET_MAC2, 	"mac2clk-gate",	"mac12",	0 }, 			/* MAC2 */
@@ -714,7 +714,7 @@ static void __init aspeed_ast2600_cc(struct regmap *map)
 	 * High-speed PLL clock derived from the crystal. This the CPU clock,
 	 * and we assume that it is enabled
 	 */
-#if 1	 
+#ifdef CONFIG_FPGA
 	hw = clk_hw_register_fixed_rate(NULL, "hpll", NULL, 0, freq * 2);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_HPLL] = hw;
 
