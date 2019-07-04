@@ -482,26 +482,33 @@ aspeed_sys_event(struct aspeed_espi_data *aspeed_espi)
 	u32 sys_event = aspeed_espi_read(aspeed_espi, ASPEED_ESPI_SYS_EVENT);
 	ESPI_DBUG("sts %x, sys_event %x\n", sts, sys_event);
 
-	if (sts & ESPI_HOST_RST_WARN) {
-		if (sys_event & ESPI_HOST_RST_WARN)
-			aspeed_espi_write(aspeed_espi, sys_event | ESPI_HOST_REST_ACK, ASPEED_ESPI_SYS_EVENT);
-		else
-			aspeed_espi_write(aspeed_espi, sys_event & ~ESPI_HOST_REST_ACK, ASPEED_ESPI_SYS_EVENT);
-		aspeed_espi_write(aspeed_espi, ESPI_HOST_RST_WARN, ASPEED_ESPI_SYS_EVENT_ISR);
-	}
+	if (aspeed_espi->espi_version == 5) {
+		if (sts & ESPI_HOST_RST_WARN) {
+			if (sys_event & ESPI_HOST_RST_WARN)
+				aspeed_espi_write(aspeed_espi, sys_event | ESPI_HOST_REST_ACK, ASPEED_ESPI_SYS_EVENT);
+			else
+				aspeed_espi_write(aspeed_espi, sys_event & ~ESPI_HOST_REST_ACK, ASPEED_ESPI_SYS_EVENT);
+			aspeed_espi_write(aspeed_espi, ESPI_HOST_RST_WARN, ASPEED_ESPI_SYS_EVENT_ISR);
+		}
 
-	if (sts & ESPI_OOB_RST_WARN) {
-		if (sys_event & ESPI_OOB_RST_WARN)
-			aspeed_espi_write(aspeed_espi, sys_event | ESPI_OOB_REST_ACK, ASPEED_ESPI_SYS_EVENT);
-		else
-			aspeed_espi_write(aspeed_espi, sys_event & ~ESPI_OOB_REST_ACK, ASPEED_ESPI_SYS_EVENT);
-		aspeed_espi_write(aspeed_espi, ESPI_OOB_RST_WARN, ASPEED_ESPI_SYS_EVENT_ISR);
-	}
+		if (sts & ESPI_OOB_RST_WARN) {
+			if (sys_event & ESPI_OOB_RST_WARN)
+				aspeed_espi_write(aspeed_espi, sys_event | ESPI_OOB_REST_ACK, ASPEED_ESPI_SYS_EVENT);
+			else
+				aspeed_espi_write(aspeed_espi, sys_event & ~ESPI_OOB_REST_ACK, ASPEED_ESPI_SYS_EVENT);
+			aspeed_espi_write(aspeed_espi, ESPI_OOB_RST_WARN, ASPEED_ESPI_SYS_EVENT_ISR);
+		}
 
-	if (sts & ~(ESPI_OOB_RST_WARN | ESPI_HOST_RST_WARN)) {
+		if (sts & ~(ESPI_OOB_RST_WARN | ESPI_HOST_RST_WARN)) {
+			printk("new sts %x \n", sts);
+			aspeed_espi_write(aspeed_espi, sts, ASPEED_ESPI_SYS_EVENT_ISR);
+		}
+		
+	} else {
 		printk("new sts %x \n", sts);
 		aspeed_espi_write(aspeed_espi, sts, ASPEED_ESPI_SYS_EVENT_ISR);
 	}
+	
 
 }
 
@@ -531,7 +538,9 @@ static void aspeed_espi_ctrl_init(struct aspeed_espi_data *aspeed_espi)
 	//TODO for function interrpt type
 	aspeed_espi_write(aspeed_espi, 0, ASPEED_ESPI_SYS_INT_T0);
 	aspeed_espi_write(aspeed_espi, 0, ASPEED_ESPI_SYS_INT_T1);
-	aspeed_espi_write(aspeed_espi, ESPI_HOST_RST_WARN | ESPI_OOB_RST_WARN, ASPEED_ESPI_SYS_INT_T2);
+
+	if (aspeed_espi->espi_version == 5)
+		aspeed_espi_write(aspeed_espi, ESPI_HOST_RST_WARN | ESPI_OOB_RST_WARN, ASPEED_ESPI_SYS_INT_T2);
 
 	aspeed_espi_write(aspeed_espi, 0xffffffff, ASPEED_ESPI_IER);
 	aspeed_espi_write(aspeed_espi, 0xffffffff, ASPEED_ESPI_SYS_IER);
@@ -578,9 +587,11 @@ static irqreturn_t aspeed_espi_reset_isr(int this_irq, void *dev_id)
 
 	sw_mode = aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) & ESPI_CTRL_SW_FLASH_READ;
 
+#if 0	//temporarily remove the scu reset
 	//scu init
 	reset_control_assert(aspeed_espi->reset);
 	reset_control_deassert(aspeed_espi->reset);
+#endif	
 	aspeed_espi_ctrl_init(aspeed_espi);
 
 	aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) | sw_mode, ASPEED_ESPI_CTRL);
