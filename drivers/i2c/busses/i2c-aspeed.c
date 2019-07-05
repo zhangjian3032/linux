@@ -820,7 +820,7 @@ static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
 	bus->msgs_index = 0;
 	bus->msgs_count = num;
 
-	dev_dbg(bus->dev, "aspeed_i2c_master_xfer bus->msgs_count %d ----------------------------------------------\n", bus->msgs_count);
+	dev_dbg(bus->dev, "aspeed_i2c_master_xfer bus->msgs_count %d \n", bus->msgs_count);
 
 	reinit_completion(&bus->cmd_complete);
 	aspeed_i2c_do_start(bus);
