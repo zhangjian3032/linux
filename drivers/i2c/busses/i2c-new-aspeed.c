@@ -112,7 +112,6 @@
 #define AST_I2CM_TX_ACK					BIT(0)
 
 #define AST_I2CM_CMD_STS		0x18	/* 0x18 : I2CM Master Command/Status Register   */
-#define AST_I2CM_CMD_TRIGGER			BIT(31)
 #define AST_I2CM_PKT_ADDR(x)			((x & 0x7f) << 24)	
 #define AST_I2CM_PKT_EN					BIT(16)
 #define AST_I2CM_SDA_OE_OUT_DIR			BIT(15)
@@ -908,7 +907,7 @@ int aspeed_new_i2c_slave_handler(struct aspeed_new_i2c_bus *i2c_bus)
 
 static void aspeed_new_i2c_master_xfer(struct aspeed_new_i2c_bus *i2c_bus)
 {
-	u32 cmd = AST_I2CM_CMD_TRIGGER | AST_I2CM_PKT_EN;
+	u32 cmd = AST_I2CM_PKT_EN;
 
 	if (i2c_bus->master_msgs->flags & I2C_M_NOSTART) {
 		printk("TODO ~~");
@@ -1157,7 +1156,7 @@ int aspeed_new_i2c_master_handler(struct aspeed_new_i2c_bus *i2c_bus)
 				dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CM_TX_ACK = %x\n", sts);
 				aspeed_new_i2c_master_xfer_done(i2c_bus);
 				break;
-
+			case AST_I2CM_TX_NAK:
 			case AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP:
 				dev_dbg(i2c_bus->dev, "M TX NAK | NORMAL STOP \n");
 				i2c_bus->cmd_err = AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP;
