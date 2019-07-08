@@ -1156,7 +1156,7 @@ int aspeed_new_i2c_master_handler(struct aspeed_new_i2c_bus *i2c_bus)
 				dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CM_TX_ACK = %x\n", sts);
 				aspeed_new_i2c_master_xfer_done(i2c_bus);
 				break;
-
+			case AST_I2CM_TX_NAK:
 			case AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP:
 				dev_dbg(i2c_bus->dev, "M TX NAK | NORMAL STOP \n");
 				i2c_bus->cmd_err = AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP;
