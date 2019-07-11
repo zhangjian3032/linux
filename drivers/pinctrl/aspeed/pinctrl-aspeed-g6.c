@@ -1866,6 +1866,10 @@ static struct pinctrl_pin_desc aspeed_g6_pins[ASPEED_G6_NR_PINS] = {
 	ASPEED_PINCTRL_PIN(AE24),
 	ASPEED_PINCTRL_PIN(AF22),
 	ASPEED_PINCTRL_PIN(AE22),
+	ASPEED_PINCTRL_PIN(A4),
+	ASPEED_PINCTRL_PIN(B4),
+	ASPEED_PINCTRL_PIN(A6),
+	ASPEED_PINCTRL_PIN(B6),
 };
 
 static const struct aspeed_pin_group aspeed_g6_groups[] = {
