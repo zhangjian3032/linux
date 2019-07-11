@@ -222,6 +222,9 @@
 			reg = <0x1e6a1000 0x100>;
 			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2ah_default>;
+			status = "disabled";
 		};
 
 		ehci1: usb@1e6a3000 {
@@ -229,6 +232,8 @@
 			reg = <0x1e6a3000 0x100>;
 			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT2CLK>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2bh_default>;
 			status = "disabled";
 		};
 
@@ -238,6 +243,7 @@
 			interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 			#ports = <2>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBUHCICLK>;
+			status = "disabled";
 		};
 
 		vhub: usb-vhub@1e6a0000 {
@@ -245,7 +251,8 @@
 			reg = <0x1e6a0000 0x300>;
 			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
-			list_mode = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2ad_default>;
 			status = "disabled";
 		};
 
@@ -1176,68 +1183,92 @@
 };
 
 &pinctrl {
+	pinctrl_usb2ah_default: usb2ah_default {
+		function = "USB2AH";
+		groups = "USB2AH";
+    };
+    pinctrl_usb2ad_default: usb2ad_default {
+        function = "USB2AD";
+        groups = "USB2AD";
+    };
+	pinctrl_usb2adp_default: usb2adp_default {
+        function = "USB2ADP";
+        groups = "USB2ADP";
+    };
+    pinctrl_usb11bhid_default: usb11bhid_default {
+        function = "USB11BHID";
+        groups = "USB11BHID";
+    };
+	pinctrl_usb2bd_default: usb2bd_default {
+        function = "USB2BD";
+        groups = "USB2BD";
+    };
+    pinctrl_usb2bh_default: usb2bh_default {
+        function = "USB2BH";
+        groups = "USB2BH";
+    };
 	pinctrl_i2c1_default: i2c1_default {
-	            function = "I2C1";
-	            groups = "I2C1";
-	    };
+        function = "I2C1";
+        groups = "I2C1";
+    };
 	pinctrl_i2c2_default: i2c2_default {
-                function = "I2C2";
-                groups = "I2C2";
-        };
+        function = "I2C2";
+        groups = "I2C2";
+    };
 	pinctrl_i2c3_default: i2c3_default {
-                function = "I2C3";
-                groups = "I2C3";
-        };
+        function = "I2C3";
+        groups = "I2C3";
+    };
 	pinctrl_i2c4_default: i2c4_default {
-                function = "I2C4";
-                groups = "I2C4";
-        };
+        function = "I2C4";
+        groups = "I2C4";
+    };
 	pinctrl_i2c5_default: i2c5_default {
-                function = "I2C5";
-                groups = "I2C5";
-        };
+        function = "I2C5";
+        groups = "I2C5";
+    };
 	pinctrl_i2c6_default: i2c6_default {
-                function = "I2C6";
-                groups = "I2C6";
-        };
+        function = "I2C6";
+        groups = "I2C6";
+    };
 	pinctrl_i2c7_default: i2c7_default {
-                function = "I2C7";
-                groups = "I2C7";
-        };
+        function = "I2C7";
+        groups = "I2C7";
+    };
 	pinctrl_i2c8_default: i2c8_default {
-                function = "I2C8";
-                groups = "I2C8";
-        };
+        function = "I2C8";
+        groups = "I2C8";
+    };
 	pinctrl_i2c9_default: i2c9_default {
-                function = "I2C9";
-                groups = "I2C9";
-        };
+        function = "I2C9";
+        groups = "I2C9";
+    };
 	pinctrl_i2c10_default: i2c10_default {
-                function = "I2C10";
-                groups = "I2C10";
-        };
+        function = "I2C10";
+        groups = "I2C10";
+    };
 	pinctrl_i2c11_default: i2c11_default {
-                function = "I2C11";
-                groups = "I2C11";
-        };
+        function = "I2C11";
+        groups = "I2C11";
+    };
 	pinctrl_i2c12_default: i2c12_default {
-                function = "I2C12";
-                groups = "I2C12";
-        };
+        function = "I2C12";
+        groups = "I2C12";
+    };
 	pinctrl_i2c13_default: i2c13_default {
-                function = "I2C13";
-                groups = "I2C13";
-        };
+        function = "I2C13";
+        groups = "I2C13";
+    };
 	pinctrl_i2c14_default: i2c14_default {
-                function = "I2C14";
-                groups = "I2C14";
-        };
+        function = "I2C14";
+        groups = "I2C14";
+    };
 	pinctrl_i2c15_default: i2c15_default {
-                function = "I2C15";
-                groups = "I2C15";
-        };
+        function = "I2C15";
+        groups = "I2C15";
+    };
 	pinctrl_i2c16_default: i2c16_default {
-                function = "I2C16";
-                groups = "I2C16";
-        };
+        function = "I2C16";
+        groups = "I2C16";
+    };
 };

@@ -60,6 +60,24 @@
         };
 };
 #if 0
+&vhub {
+    status = "okay";
+};
+#else
+&ehci0 {
+    status = "okay";
+};
+
+#endif
+&ehci1 {
+    status = "okay";
+};
+
+&uhci {
+    status = "okay";
+};
+
+#if 0
 &sdhci_slot0{
 	status = "okay";
 };
