@@ -90,7 +90,6 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no ctrlclk clock defined\n");
 		return PTR_ERR(sdclk);
 	}
-	printk("irq_aspeed_sdhci_probe sdclk %ld ", clk_get_rate(sdclk));
 
 	clk_prepare_enable(sdclk);
 
@@ -101,7 +100,6 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 	}
 
 	clk_prepare_enable(sdcardclk);
-	printk("irq_aspeed_sdhci_probe sdcard clk %ld ", clk_get_rate(sdcardclk));
 
 	sdhci_irq->parent_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (sdhci_irq->parent_irq < 0)
