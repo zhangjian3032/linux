@@ -381,144 +381,144 @@ static struct ast_i2c_timing_table aspeed_new_i2c_timing_table[] = {
 static struct ast_i2c_timing_table aspeed_old_i2c_timing_table[] = {
 	/* Divisor : Base Clock : tCK High : tCK Low  */
 	/* Divisor :	  [3:0]    :   [19:16]:   [15:12] */
-	{6,	0x77700300 | (0x0) | (0x2 << 16) | (0x2 << 12) },
-	{7,	0x77700300 | (0x0) | (0x3 << 16) | (0x2 << 12) },
-	{8,	0x77700300 | (0x0) | (0x3 << 16) | (0x3 << 12) },
-	{9,	0x77700300 | (0x0) | (0x4 << 16) | (0x3 << 12) },
-	{10, 	0x77700300 | (0x0) | (0x4 << 16) | (0x4 << 12) },
-	{11, 	0x77700300 | (0x0) | (0x5 << 16) | (0x4 << 12) },
-	{12, 	0x77700300 | (0x0) | (0x5 << 16) | (0x5 << 12) },
-	{13, 	0x77700300 | (0x0) | (0x6 << 16) | (0x5 << 12) },
-	{14, 	0x77700300 | (0x0) | (0x6 << 16) | (0x6 << 12) },
-	{15, 	0x77700300 | (0x0) | (0x7 << 16) | (0x6 << 12) },
-	{16, 	0x77700300 | (0x0) | (0x7 << 16) | (0x7 << 12) },
-	{17, 	0x77700300 | (0x0) | (0x8 << 16) | (0x7 << 12) },
-	{18, 	0x77700300 | (0x0) | (0x8 << 16) | (0x8 << 12) },
-	{19, 	0x77700300 | (0x0) | (0x9 << 16) | (0x8 << 12) },
-	{20, 	0x77700300 | (0x0) | (0x9 << 16) | (0x9 << 12) },
-	{21, 	0x77700300 | (0x0) | (0xa << 16) | (0x9 << 12) },
-	{22, 	0x77700300 | (0x0) | (0xa << 16) | (0xa << 12) },
-	{23, 	0x77700300 | (0x0) | (0xb << 16) | (0xa << 12) },
-	{24, 	0x77700300 | (0x0) | (0xb << 16) | (0xb << 12) },
-	{25, 	0x77700300 | (0x0) | (0xc << 16) | (0xb << 12) },
-	{26, 	0x77700300 | (0x0) | (0xc << 16) | (0xc << 12) },
-	{27, 	0x77700300 | (0x0) | (0xd << 16) | (0xc << 12) },
-	{28, 	0x77700300 | (0x0) | (0xd << 16) | (0xd << 12) },
-	{29, 	0x77700300 | (0x0) | (0xe << 16) | (0xd << 12) },
-	{30, 	0x77700300 | (0x0) | (0xe << 16) | (0xe << 12) },
-	{31, 	0x77700300 | (0x0) | (0xf << 16) | (0xe << 12) },
-	{32, 	0x77700300 | (0x0) | (0xf << 16) | (0xf << 12) },
+	{6,	0x00000300 | (0x0) | (0x2 << 16) | (0x2 << 12) },
+	{7,	0x00000300 | (0x0) | (0x3 << 16) | (0x2 << 12) },
+	{8,	0x00000300 | (0x0) | (0x3 << 16) | (0x3 << 12) },
+	{9,	0x00000300 | (0x0) | (0x4 << 16) | (0x3 << 12) },
+	{10, 	0x00000300 | (0x0) | (0x4 << 16) | (0x4 << 12) },
+	{11, 	0x00000300 | (0x0) | (0x5 << 16) | (0x4 << 12) },
+	{12, 	0x00000300 | (0x0) | (0x5 << 16) | (0x5 << 12) },
+	{13, 	0x00000300 | (0x0) | (0x6 << 16) | (0x5 << 12) },
+	{14, 	0x00000300 | (0x0) | (0x6 << 16) | (0x6 << 12) },
+	{15, 	0x00000300 | (0x0) | (0x7 << 16) | (0x6 << 12) },
+	{16, 	0x00000300 | (0x0) | (0x7 << 16) | (0x7 << 12) },
+	{17, 	0x00000300 | (0x0) | (0x8 << 16) | (0x7 << 12) },
+	{18, 	0x00000300 | (0x0) | (0x8 << 16) | (0x8 << 12) },
+	{19, 	0x00000300 | (0x0) | (0x9 << 16) | (0x8 << 12) },
+	{20, 	0x00000300 | (0x0) | (0x9 << 16) | (0x9 << 12) },
+	{21, 	0x00000300 | (0x0) | (0xa << 16) | (0x9 << 12) },
+	{22, 	0x00000300 | (0x0) | (0xa << 16) | (0xa << 12) },
+	{23, 	0x00000300 | (0x0) | (0xb << 16) | (0xa << 12) },
+	{24, 	0x00000300 | (0x0) | (0xb << 16) | (0xb << 12) },
+	{25, 	0x00000300 | (0x0) | (0xc << 16) | (0xb << 12) },
+	{26, 	0x00000300 | (0x0) | (0xc << 16) | (0xc << 12) },
+	{27, 	0x00000300 | (0x0) | (0xd << 16) | (0xc << 12) },
+	{28, 	0x00000300 | (0x0) | (0xd << 16) | (0xd << 12) },
+	{29, 	0x00000300 | (0x0) | (0xe << 16) | (0xd << 12) },
+	{30, 	0x00000300 | (0x0) | (0xe << 16) | (0xe << 12) },
+	{31, 	0x00000300 | (0x0) | (0xf << 16) | (0xe << 12) },
+	{32, 	0x00000300 | (0x0) | (0xf << 16) | (0xf << 12) },
 
-	{34, 	0x77700300 | (0x1) | (0x8 << 16) | (0x7 << 12) },
-	{36, 	0x77700300 | (0x1) | (0x8 << 16) | (0x8 << 12) },
-	{38, 	0x77700300 | (0x1) | (0x9 << 16) | (0x8 << 12) },
-	{40, 	0x77700300 | (0x1) | (0x9 << 16) | (0x9 << 12) },
-	{42, 	0x77700300 | (0x1) | (0xa << 16) | (0x9 << 12) },
-	{44, 	0x77700300 | (0x1) | (0xa << 16) | (0xa << 12) },
-	{46, 	0x77700300 | (0x1) | (0xb << 16) | (0xa << 12) },
-	{48, 	0x77700300 | (0x1) | (0xb << 16) | (0xb << 12) },
-	{50, 	0x77700300 | (0x1) | (0xc << 16) | (0xb << 12) },
-	{52, 	0x77700300 | (0x1) | (0xc << 16) | (0xc << 12) },
-	{54, 	0x77700300 | (0x1) | (0xd << 16) | (0xc << 12) },
-	{56, 	0x77700300 | (0x1) | (0xd << 16) | (0xd << 12) },
-	{58, 	0x77700300 | (0x1) | (0xe << 16) | (0xd << 12) },
-	{60, 	0x77700300 | (0x1) | (0xe << 16) | (0xe << 12) },
-	{62, 	0x77700300 | (0x1) | (0xf << 16) | (0xe << 12) },
-	{64, 	0x77700300 | (0x1) | (0xf << 16) | (0xf << 12) },
+	{34, 	0x00000300 | (0x1) | (0x8 << 16) | (0x7 << 12) },
+	{36, 	0x00000300 | (0x1) | (0x8 << 16) | (0x8 << 12) },
+	{38, 	0x00000300 | (0x1) | (0x9 << 16) | (0x8 << 12) },
+	{40, 	0x00000300 | (0x1) | (0x9 << 16) | (0x9 << 12) },
+	{42, 	0x00000300 | (0x1) | (0xa << 16) | (0x9 << 12) },
+	{44, 	0x00000300 | (0x1) | (0xa << 16) | (0xa << 12) },
+	{46, 	0x00000300 | (0x1) | (0xb << 16) | (0xa << 12) },
+	{48, 	0x00000300 | (0x1) | (0xb << 16) | (0xb << 12) },
+	{50, 	0x00000300 | (0x1) | (0xc << 16) | (0xb << 12) },
+	{52, 	0x00000300 | (0x1) | (0xc << 16) | (0xc << 12) },
+	{54, 	0x00000300 | (0x1) | (0xd << 16) | (0xc << 12) },
+	{56, 	0x00000300 | (0x1) | (0xd << 16) | (0xd << 12) },
+	{58, 	0x00000300 | (0x1) | (0xe << 16) | (0xd << 12) },
+	{60, 	0x00000300 | (0x1) | (0xe << 16) | (0xe << 12) },
+	{62, 	0x00000300 | (0x1) | (0xf << 16) | (0xe << 12) },
+	{64, 	0x00000300 | (0x1) | (0xf << 16) | (0xf << 12) },
 
-	{68, 	0x77700300 | (0x2) | (0x8 << 16) | (0x7 << 12) },
-	{72, 	0x77700300 | (0x2) | (0x8 << 16) | (0x8 << 12) },
-	{76, 	0x77700300 | (0x2) | (0x9 << 16) | (0x8 << 12) },
-	{80, 	0x77700300 | (0x2) | (0x9 << 16) | (0x9 << 12) },
-	{84, 	0x77700300 | (0x2) | (0xa << 16) | (0x9 << 12) },
-	{88, 	0x77700300 | (0x2) | (0xa << 16) | (0xa << 12) },
-	{92, 	0x77700300 | (0x2) | (0xb << 16) | (0xa << 12) },
-	{96, 	0x77700300 | (0x2) | (0xb << 16) | (0xb << 12) },
-	{100, 	0x77700300 | (0x2) | (0xc << 16) | (0xb << 12) },
-	{104, 	0x77700300 | (0x2) | (0xc << 16) | (0xc << 12) },
-	{108, 	0x77700300 | (0x2) | (0xd << 16) | (0xc << 12) },
-	{112, 	0x77700300 | (0x2) | (0xd << 16) | (0xd << 12) },
-	{116, 	0x77700300 | (0x2) | (0xe << 16) | (0xd << 12) },
-	{120, 	0x77700300 | (0x2) | (0xe << 16) | (0xe << 12) },
-	{124, 	0x77700300 | (0x2) | (0xf << 16) | (0xe << 12) },
-	{128, 	0x77700300 | (0x2) | (0xf << 16) | (0xf << 12) },
+	{68, 	0x00000300 | (0x2) | (0x8 << 16) | (0x7 << 12) },
+	{72, 	0x00000300 | (0x2) | (0x8 << 16) | (0x8 << 12) },
+	{76, 	0x00000300 | (0x2) | (0x9 << 16) | (0x8 << 12) },
+	{80, 	0x00000300 | (0x2) | (0x9 << 16) | (0x9 << 12) },
+	{84, 	0x00000300 | (0x2) | (0xa << 16) | (0x9 << 12) },
+	{88, 	0x00000300 | (0x2) | (0xa << 16) | (0xa << 12) },
+	{92, 	0x00000300 | (0x2) | (0xb << 16) | (0xa << 12) },
+	{96, 	0x00000300 | (0x2) | (0xb << 16) | (0xb << 12) },
+	{100, 	0x00000300 | (0x2) | (0xc << 16) | (0xb << 12) },
+	{104, 	0x00000300 | (0x2) | (0xc << 16) | (0xc << 12) },
+	{108, 	0x00000300 | (0x2) | (0xd << 16) | (0xc << 12) },
+	{112, 	0x00000300 | (0x2) | (0xd << 16) | (0xd << 12) },
+	{116, 	0x00000300 | (0x2) | (0xe << 16) | (0xd << 12) },
+	{120, 	0x00000300 | (0x2) | (0xe << 16) | (0xe << 12) },
+	{124, 	0x00000300 | (0x2) | (0xf << 16) | (0xe << 12) },
+	{128, 	0x00000300 | (0x2) | (0xf << 16) | (0xf << 12) },
 
-	{136, 	0x77700300 | (0x3) | (0x8 << 16) | (0x7 << 12) },
-	{144, 	0x77700300 | (0x3) | (0x8 << 16) | (0x8 << 12) },
-	{152, 	0x77700300 | (0x3) | (0x9 << 16) | (0x8 << 12) },
-	{160, 	0x77700300 | (0x3) | (0x9 << 16) | (0x9 << 12) },
-	{168, 	0x77700300 | (0x3) | (0xa << 16) | (0x9 << 12) },
-	{176, 	0x77700300 | (0x3) | (0xa << 16) | (0xa << 12) },
-	{184, 	0x77700300 | (0x3) | (0xb << 16) | (0xa << 12) },
-	{192, 	0x77700300 | (0x3) | (0xb << 16) | (0xb << 12) },
-	{200, 	0x77700300 | (0x3) | (0xc << 16) | (0xb << 12) },
-	{208, 	0x77700300 | (0x3) | (0xc << 16) | (0xc << 12) },
-	{216, 	0x77700300 | (0x3) | (0xd << 16) | (0xc << 12) },
-	{224, 	0x77700300 | (0x3) | (0xd << 16) | (0xd << 12) },
-	{232, 	0x77700300 | (0x3) | (0xe << 16) | (0xd << 12) },
-	{240, 	0x77700300 | (0x3) | (0xe << 16) | (0xe << 12) },
-	{248, 	0x77700300 | (0x3) | (0xf << 16) | (0xe << 12) },
-	{256, 	0x77700300 | (0x3) | (0xf << 16) | (0xf << 12) },
+	{136, 	0x00000300 | (0x3) | (0x8 << 16) | (0x7 << 12) },
+	{144, 	0x00000300 | (0x3) | (0x8 << 16) | (0x8 << 12) },
+	{152, 	0x00000300 | (0x3) | (0x9 << 16) | (0x8 << 12) },
+	{160, 	0x00000300 | (0x3) | (0x9 << 16) | (0x9 << 12) },
+	{168, 	0x00000300 | (0x3) | (0xa << 16) | (0x9 << 12) },
+	{176, 	0x00000300 | (0x3) | (0xa << 16) | (0xa << 12) },
+	{184, 	0x00000300 | (0x3) | (0xb << 16) | (0xa << 12) },
+	{192, 	0x00000300 | (0x3) | (0xb << 16) | (0xb << 12) },
+	{200, 	0x00000300 | (0x3) | (0xc << 16) | (0xb << 12) },
+	{208, 	0x00000300 | (0x3) | (0xc << 16) | (0xc << 12) },
+	{216, 	0x00000300 | (0x3) | (0xd << 16) | (0xc << 12) },
+	{224, 	0x00000300 | (0x3) | (0xd << 16) | (0xd << 12) },
+	{232, 	0x00000300 | (0x3) | (0xe << 16) | (0xd << 12) },
+	{240, 	0x00000300 | (0x3) | (0xe << 16) | (0xe << 12) },
+	{248, 	0x00000300 | (0x3) | (0xf << 16) | (0xe << 12) },
+	{256, 	0x00000300 | (0x3) | (0xf << 16) | (0xf << 12) },
 
-	{272, 	0x77700300 | (0x4) | (0x8 << 16) | (0x7 << 12) },
-	{288, 	0x77700300 | (0x4) | (0x8 << 16) | (0x8 << 12) },
-	{304, 	0x77700300 | (0x4) | (0x9 << 16) | (0x8 << 12) },
-	{320, 	0x77700300 | (0x4) | (0x9 << 16) | (0x9 << 12) },
-	{336, 	0x77700300 | (0x4) | (0xa << 16) | (0x9 << 12) },
-	{352, 	0x77700300 | (0x4) | (0xa << 16) | (0xa << 12) },
-	{368, 	0x77700300 | (0x4) | (0xb << 16) | (0xa << 12) },
-	{384, 	0x77700300 | (0x4) | (0xb << 16) | (0xb << 12) },
-	{400, 	0x77700300 | (0x4) | (0xc << 16) | (0xb << 12) },
-	{416, 	0x77700300 | (0x4) | (0xc << 16) | (0xc << 12) },
-	{432, 	0x77700300 | (0x4) | (0xd << 16) | (0xc << 12) },
-	{448, 	0x77700300 | (0x4) | (0xd << 16) | (0xd << 12) },
-	{464, 	0x77700300 | (0x4) | (0xe << 16) | (0xd << 12) },
-	{480, 	0x77700300 | (0x4) | (0xe << 16) | (0xe << 12) },
-	{496, 	0x77700300 | (0x4) | (0xf << 16) | (0xe << 12) },
-	{512, 	0x77700300 | (0x4) | (0xf << 16) | (0xf << 12) },
+	{272, 	0x00000300 | (0x4) | (0x8 << 16) | (0x7 << 12) },
+	{288, 	0x00000300 | (0x4) | (0x8 << 16) | (0x8 << 12) },
+	{304, 	0x00000300 | (0x4) | (0x9 << 16) | (0x8 << 12) },
+	{320, 	0x00000300 | (0x4) | (0x9 << 16) | (0x9 << 12) },
+	{336, 	0x00000300 | (0x4) | (0xa << 16) | (0x9 << 12) },
+	{352, 	0x00000300 | (0x4) | (0xa << 16) | (0xa << 12) },
+	{368, 	0x00000300 | (0x4) | (0xb << 16) | (0xa << 12) },
+	{384, 	0x00000300 | (0x4) | (0xb << 16) | (0xb << 12) },
+	{400, 	0x00000300 | (0x4) | (0xc << 16) | (0xb << 12) },
+	{416, 	0x00000300 | (0x4) | (0xc << 16) | (0xc << 12) },
+	{432, 	0x00000300 | (0x4) | (0xd << 16) | (0xc << 12) },
+	{448, 	0x00000300 | (0x4) | (0xd << 16) | (0xd << 12) },
+	{464, 	0x00000300 | (0x4) | (0xe << 16) | (0xd << 12) },
+	{480, 	0x00000300 | (0x4) | (0xe << 16) | (0xe << 12) },
+	{496, 	0x00000300 | (0x4) | (0xf << 16) | (0xe << 12) },
+	{512, 	0x00000300 | (0x4) | (0xf << 16) | (0xf << 12) },
 
-	{544, 	0x77700300 | (0x5) | (0x8 << 16) | (0x7 << 12) },
-	{576, 	0x77700300 | (0x5) | (0x8 << 16) | (0x8 << 12) },
-	{608, 	0x77700300 | (0x5) | (0x9 << 16) | (0x8 << 12) },
-	{640, 	0x77700300 | (0x5) | (0x9 << 16) | (0x9 << 12) },
-	{672, 	0x77700300 | (0x5) | (0xa << 16) | (0x9 << 12) },
-	{704, 	0x77700300 | (0x5) | (0xa << 16) | (0xa << 12) },
-	{736, 	0x77700300 | (0x5) | (0xb << 16) | (0xa << 12) },
-	{768, 	0x77700300 | (0x5) | (0xb << 16) | (0xb << 12) },
-	{800, 	0x77700300 | (0x5) | (0xc << 16) | (0xb << 12) },
-	{832, 	0x77700300 | (0x5) | (0xc << 16) | (0xc << 12) },
-	{864, 	0x77700300 | (0x5) | (0xd << 16) | (0xc << 12) },
-	{896, 	0x77700300 | (0x5) | (0xd << 16) | (0xd << 12) },
-	{928, 	0x77700300 | (0x5) | (0xe << 16) | (0xd << 12) },
-	{960, 	0x77700300 | (0x5) | (0xe << 16) | (0xe << 12) },
-	{992, 	0x77700300 | (0x5) | (0xf << 16) | (0xe << 12) },
-	{1024, 	0x77700300 | (0x5) | (0xf << 16) | (0xf << 12) },
+	{544, 	0x00000300 | (0x5) | (0x8 << 16) | (0x7 << 12) },
+	{576, 	0x00000300 | (0x5) | (0x8 << 16) | (0x8 << 12) },
+	{608, 	0x00000300 | (0x5) | (0x9 << 16) | (0x8 << 12) },
+	{640, 	0x00000300 | (0x5) | (0x9 << 16) | (0x9 << 12) },
+	{672, 	0x00000300 | (0x5) | (0xa << 16) | (0x9 << 12) },
+	{704, 	0x00000300 | (0x5) | (0xa << 16) | (0xa << 12) },
+	{736, 	0x00000300 | (0x5) | (0xb << 16) | (0xa << 12) },
+	{768, 	0x00000300 | (0x5) | (0xb << 16) | (0xb << 12) },
+	{800, 	0x00000300 | (0x5) | (0xc << 16) | (0xb << 12) },
+	{832, 	0x00000300 | (0x5) | (0xc << 16) | (0xc << 12) },
+	{864, 	0x00000300 | (0x5) | (0xd << 16) | (0xc << 12) },
+	{896, 	0x00000300 | (0x5) | (0xd << 16) | (0xd << 12) },
+	{928, 	0x00000300 | (0x5) | (0xe << 16) | (0xd << 12) },
+	{960, 	0x00000300 | (0x5) | (0xe << 16) | (0xe << 12) },
+	{992, 	0x00000300 | (0x5) | (0xf << 16) | (0xe << 12) },
+	{1024, 	0x00000300 | (0x5) | (0xf << 16) | (0xf << 12) },
 
-	{1088, 	0x77700300 | (0x6) | (0x8 << 16) | (0x7 << 12) },
-	{1152, 	0x77700300 | (0x6) | (0x8 << 16) | (0x8 << 12) },
-	{1216, 	0x77700300 | (0x6) | (0x9 << 16) | (0x8 << 12) },
-	{1280, 	0x77700300 | (0x6) | (0x9 << 16) | (0x9 << 12) },
-	{1344, 	0x77700300 | (0x6) | (0xa << 16) | (0x9 << 12) },
-	{1408, 	0x77700300 | (0x6) | (0xa << 16) | (0xa << 12) },
-	{1472, 	0x77700300 | (0x6) | (0xb << 16) | (0xa << 12) },
-	{1536, 	0x77700300 | (0x6) | (0xb << 16) | (0xb << 12) },
-	{1600, 	0x77700300 | (0x6) | (0xc << 16) | (0xb << 12) },
-	{1664, 	0x77700300 | (0x6) | (0xc << 16) | (0xc << 12) },
-	{1728, 	0x77700300 | (0x6) | (0xd << 16) | (0xc << 12) },
-	{1792, 	0x77700300 | (0x6) | (0xd << 16) | (0xd << 12) },
-	{1856, 	0x77700300 | (0x6) | (0xe << 16) | (0xd << 12) },
-	{1920, 	0x77700300 | (0x6) | (0xe << 16) | (0xe << 12) },
-	{1984, 	0x77700300 | (0x6) | (0xf << 16) | (0xe << 12) },
-	{2048, 	0x77700300 | (0x6) | (0xf << 16) | (0xf << 12) },
+	{1088, 	0x00000300 | (0x6) | (0x8 << 16) | (0x7 << 12) },
+	{1152, 	0x00000300 | (0x6) | (0x8 << 16) | (0x8 << 12) },
+	{1216, 	0x00000300 | (0x6) | (0x9 << 16) | (0x8 << 12) },
+	{1280, 	0x00000300 | (0x6) | (0x9 << 16) | (0x9 << 12) },
+	{1344, 	0x00000300 | (0x6) | (0xa << 16) | (0x9 << 12) },
+	{1408, 	0x00000300 | (0x6) | (0xa << 16) | (0xa << 12) },
+	{1472, 	0x00000300 | (0x6) | (0xb << 16) | (0xa << 12) },
+	{1536, 	0x00000300 | (0x6) | (0xb << 16) | (0xb << 12) },
+	{1600, 	0x00000300 | (0x6) | (0xc << 16) | (0xb << 12) },
+	{1664, 	0x00000300 | (0x6) | (0xc << 16) | (0xc << 12) },
+	{1728, 	0x00000300 | (0x6) | (0xd << 16) | (0xc << 12) },
+	{1792, 	0x00000300 | (0x6) | (0xd << 16) | (0xd << 12) },
+	{1856, 	0x00000300 | (0x6) | (0xe << 16) | (0xd << 12) },
+	{1920, 	0x00000300 | (0x6) | (0xe << 16) | (0xe << 12) },
+	{1984, 	0x00000300 | (0x6) | (0xf << 16) | (0xe << 12) },
+	{2048, 	0x00000300 | (0x6) | (0xf << 16) | (0xf << 12) },
 
-	{2176, 	0x77700300 | (0x7) | (0x8 << 16) | (0x7 << 12) },
-	{2304, 	0x77700300 | (0x7) | (0x8 << 16) | (0x8 << 12) },
-	{2432, 	0x77700300 | (0x7) | (0x9 << 16) | (0x8 << 12) },
-	{2560, 	0x77700300 | (0x7) | (0x9 << 16) | (0x9 << 12) },
-	{2688, 	0x77700300 | (0x7) | (0xa << 16) | (0x9 << 12) },
-	{2816, 	0x77700300 | (0x7) | (0xa << 16) | (0xa << 12) },
-	{2944, 	0x77700300 | (0x7) | (0xb << 16) | (0xa << 12) },
-	{3072, 	0x77700300 | (0x7) | (0xb << 16) | (0xb << 12) },
+	{2176, 	0x00000300 | (0x7) | (0x8 << 16) | (0x7 << 12) },
+	{2304, 	0x00000300 | (0x7) | (0x8 << 16) | (0x8 << 12) },
+	{2432, 	0x00000300 | (0x7) | (0x9 << 16) | (0x8 << 12) },
+	{2560, 	0x00000300 | (0x7) | (0x9 << 16) | (0x9 << 12) },
+	{2688, 	0x00000300 | (0x7) | (0xa << 16) | (0x9 << 12) },
+	{2816, 	0x00000300 | (0x7) | (0xa << 16) | (0xa << 12) },
+	{2944, 	0x00000300 | (0x7) | (0xb << 16) | (0xa << 12) },
+	{3072, 	0x00000300 | (0x7) | (0xb << 16) | (0xb << 12) },
 };
 
 struct aspeed_new_i2c_bus {
@@ -909,61 +909,57 @@ static void aspeed_new_i2c_master_xfer(struct aspeed_new_i2c_bus *i2c_bus)
 {
 	u32 cmd = AST_I2CM_PKT_EN;
 
-	if (i2c_bus->master_msgs->flags & I2C_M_NOSTART) {
-		printk("TODO ~~");
-		dev_dbg(i2c_bus->dev, "I2C_M_NOSTART xfer \n");
-	} else {
-		//send start
-		dev_dbg(i2c_bus->dev, " %sing %d byte%s %s 0x%02x\n",
-			i2c_bus->master_msgs->flags & I2C_M_RD ? "read" : "write",
-			i2c_bus->master_msgs->len, i2c_bus->master_msgs->len > 1 ? "s" : "",
-			i2c_bus->master_msgs->flags & I2C_M_RD ? "from" : "to",
-			i2c_bus->master_msgs->addr);
+	//send start
+	dev_dbg(i2c_bus->dev, " %sing %d byte%s %s 0x%02x\n",
+		i2c_bus->master_msgs->flags & I2C_M_RD ? "read" : "write",
+		i2c_bus->master_msgs->len, i2c_bus->master_msgs->len > 1 ? "s" : "",
+		i2c_bus->master_msgs->flags & I2C_M_RD ? "from" : "to",
+		i2c_bus->master_msgs->addr);
 
-		cmd |= AST_I2CM_PKT_ADDR(i2c_bus->master_msgs->addr) | AST_I2CM_START_CMD;
+	cmd |= AST_I2CM_PKT_ADDR(i2c_bus->master_msgs->addr) | AST_I2CM_START_CMD;
 
-		if (i2c_bus->master_msgs->flags & I2C_M_RD) {
-			cmd |= AST_I2CM_RX_CMD | AST_I2CM_RX_DMA_EN;
-			if (i2c_bus->master_msgs->len > ASPEED_I2C_DMA_SIZE) {
-				i2c_bus->master_xfer_len = ASPEED_I2C_DMA_SIZE;
-			} else {
-				if (i2c_bus->xfer_last) {
-					dev_dbg(i2c_bus->dev, "last stop \n");
-					cmd |= AST_I2CM_RX_CMD_LAST | AST_I2CM_STOP_CMD;
-				}
-				i2c_bus->master_xfer_len = i2c_bus->master_msgs->len;
-			}
-			if(i2c_bus->master_msgs->flags & I2C_M_RECV_LEN) {
-				i2c_bus->master_xfer_len = 1;
-			} 
-			aspeed_i2c_write(i2c_bus, AST_I2CM_SET_RX_DMA_LEN(i2c_bus->master_xfer_len - 1), AST_I2CM_DMA_LEN);
-			
-			i2c_bus->master_dma_addr = dma_map_single(i2c_bus->dev, i2c_bus->master_msgs->buf,
-							i2c_bus->master_msgs->len, DMA_FROM_DEVICE);
-			aspeed_i2c_write(i2c_bus, i2c_bus->master_dma_addr, AST_I2CM_RX_DMA);
+	if (i2c_bus->master_msgs->flags & I2C_M_RD) {
+		cmd |= AST_I2CM_RX_CMD | AST_I2CM_RX_DMA_EN;
+		if (i2c_bus->master_msgs->len > ASPEED_I2C_DMA_SIZE) {
+			i2c_bus->master_xfer_len = ASPEED_I2C_DMA_SIZE;
 		} else {
-			cmd |= AST_I2CM_TX_CMD | AST_I2CM_TX_DMA_EN;
-
-			if (i2c_bus->master_msgs->len > ASPEED_I2C_DMA_SIZE) {
-				i2c_bus->master_xfer_len = ASPEED_I2C_DMA_SIZE;
-			} else {
-				if (i2c_bus->xfer_last) {
-					dev_dbg(i2c_bus->dev, "with stop \n");
-					cmd |= AST_I2CM_STOP_CMD;
-				}
-				i2c_bus->master_xfer_len = i2c_bus->master_msgs->len;
+			if (i2c_bus->xfer_last) {
+				dev_dbg(i2c_bus->dev, "last stop \n");
+				cmd |= AST_I2CM_RX_CMD_LAST | AST_I2CM_STOP_CMD;
 			}
-			
-			if(i2c_bus->master_xfer_len) {
-				aspeed_i2c_write(i2c_bus, AST_I2CM_SET_TX_DMA_LEN(i2c_bus->master_xfer_len - 1), AST_I2CM_DMA_LEN);
-				i2c_bus->master_dma_addr = dma_map_single(i2c_bus->dev, i2c_bus->master_msgs->buf,
-								i2c_bus->master_msgs->len, DMA_TO_DEVICE);
-				aspeed_i2c_write(i2c_bus, i2c_bus->master_dma_addr, AST_I2CM_TX_DMA);
-			}
+			i2c_bus->master_xfer_len = i2c_bus->master_msgs->len;
 		}
-		dev_dbg(i2c_bus->dev, "len %d , cmd %x \n", i2c_bus->master_xfer_len, cmd);
-		aspeed_i2c_write(i2c_bus, cmd, AST_I2CM_CMD_STS);
+		if(i2c_bus->master_msgs->flags & I2C_M_RECV_LEN) {
+			dev_dbg(i2c_bus->dev, "smbus transfer xfer xxx\n");
+			i2c_bus->master_xfer_len = 1;
+		} 
+		aspeed_i2c_write(i2c_bus, AST_I2CM_SET_RX_DMA_LEN(i2c_bus->master_xfer_len - 1), AST_I2CM_DMA_LEN);
+		
+		i2c_bus->master_dma_addr = dma_map_single(i2c_bus->dev, i2c_bus->master_msgs->buf,
+						i2c_bus->master_msgs->len, DMA_FROM_DEVICE);
+		aspeed_i2c_write(i2c_bus, i2c_bus->master_dma_addr, AST_I2CM_RX_DMA);
+	} else {
+		cmd |= AST_I2CM_TX_CMD | AST_I2CM_TX_DMA_EN;
+
+		if (i2c_bus->master_msgs->len > ASPEED_I2C_DMA_SIZE) {
+			i2c_bus->master_xfer_len = ASPEED_I2C_DMA_SIZE;
+		} else {
+			if (i2c_bus->xfer_last) {
+				dev_dbg(i2c_bus->dev, "with stop \n");
+				cmd |= AST_I2CM_STOP_CMD;
+			}
+			i2c_bus->master_xfer_len = i2c_bus->master_msgs->len;
+		}
+
+		if(i2c_bus->master_xfer_len) {
+			aspeed_i2c_write(i2c_bus, AST_I2CM_SET_TX_DMA_LEN(i2c_bus->master_xfer_len - 1), AST_I2CM_DMA_LEN);
+			i2c_bus->master_dma_addr = dma_map_single(i2c_bus->dev, i2c_bus->master_msgs->buf,
+							i2c_bus->master_msgs->len, DMA_TO_DEVICE);
+			aspeed_i2c_write(i2c_bus, i2c_bus->master_dma_addr, AST_I2CM_TX_DMA);
+		}
 	}
+	dev_dbg(i2c_bus->dev, "len %d , cmd %x \n", i2c_bus->master_xfer_len, cmd);
+	aspeed_i2c_write(i2c_bus, cmd, AST_I2CM_CMD_STS);
 
 }
 
@@ -1084,66 +1080,8 @@ int aspeed_new_i2c_master_handler(struct aspeed_new_i2c_bus *i2c_bus)
 		return 1;
 	}
 
-	if ((AST_I2CM_PKT_ERROR & sts) && !(AST_I2CM_PKT_DONE & sts)) {
-		printk("DO AST_I2CM_PKT_ERROR \n");
-		dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CM_PKT_ERROR = %x ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", sts);
-		aspeed_i2c_write(i2c_bus, AST_I2CM_PKT_ERROR, AST_I2CM_ISR);
-		
-		if (AST_I2CM_PKT_TIMEOUT & sts) {
-			i2c_bus->cmd_err = AST_I2CM_PKT_TIMEOUT;
-			aspeed_i2c_write(i2c_bus, AST_I2CM_PKT_TIMEOUT, AST_I2CM_ISR);
-			complete(&i2c_bus->cmd_complete);
-			return 1;
-		}
-		
-		if (AST_I2CM_SDA_DL_TO & sts) {
-			i2c_bus->cmd_err = AST_I2CM_SDA_DL_TO;
-			aspeed_i2c_write(i2c_bus, AST_I2CM_SDA_DL_TO, AST_I2CM_ISR);
-			complete(&i2c_bus->cmd_complete);
-			return 1;
-		}
-		
-		if (AST_I2CM_SCL_LOW_TO & sts) {
-			i2c_bus->cmd_err = AST_I2CM_SCL_LOW_TO;
-			aspeed_i2c_write(i2c_bus, AST_I2CM_SCL_LOW_TO, AST_I2CM_ISR);
-			complete(&i2c_bus->cmd_complete);
-			return 1;
-		}
-
-		if (AST_I2CM_ABNORMAL_COND & sts) {
-			i2c_bus->cmd_err = AST_I2CM_ABNORMAL_COND;
-			aspeed_i2c_write(i2c_bus, AST_I2CM_ABNORMAL_COND, AST_I2CM_ISR);
-			complete(&i2c_bus->cmd_complete);
-			return 1;
-		}
-
-		if (AST_I2CM_ARBIT_LOSS & sts) {
-			i2c_bus->cmd_err = AST_I2CM_ARBIT_LOSS;
-			dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CM_ARBIT_LOSS = %x\n", sts);
-			aspeed_i2c_write(i2c_bus, AST_I2CM_ARBIT_LOSS, AST_I2CM_ISR);
-			complete(&i2c_bus->cmd_complete);
-			return 1;
-		}
-
-		if (AST_I2CM_TX_NAK & sts) {
-			dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CM_TX_NAK = %x\n", sts);
-			aspeed_i2c_write(i2c_bus, AST_I2CM_TX_NAK, AST_I2CM_ISR);
-			if (i2c_bus->master_msgs->flags == I2C_M_IGNORE_NAK) {
-				dev_dbg(i2c_bus->dev, "I2C_M_IGNORE_NAK next send\n");
-				i2c_bus->cmd_err = 0;
-			} else {
-				dev_dbg(i2c_bus->dev, "NAK error\n");
-				i2c_bus->cmd_err = AST_I2CM_TX_NAK;
-			}
-			complete(&i2c_bus->cmd_complete);
-		}
-		switch (sts) {
-		}
-		
-	}
-
 	if (AST_I2CM_PKT_DONE & sts) {
-		sts &= ~(AST_I2CM_PKT_DONE | AST_I2CM_PKT_ERROR);
+		sts &= ~AST_I2CM_PKT_DONE;
 		aspeed_i2c_write(i2c_bus,  AST_I2CM_PKT_DONE, AST_I2CM_ISR);
 		switch (sts) {
 			case 0:
@@ -1156,8 +1094,9 @@ int aspeed_new_i2c_master_handler(struct aspeed_new_i2c_bus *i2c_bus)
 				dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CM_TX_ACK = %x\n", sts);
 				aspeed_new_i2c_master_xfer_done(i2c_bus);
 				break;
-			case AST_I2CM_TX_NAK:
-			case AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP:
+			case AST_I2CM_PKT_ERROR | AST_I2CM_TX_NAK:	//a0 fix for issue
+				dev_dbg(i2c_bus->dev, "a0 workaround for M TX NAK  \n");
+			case AST_I2CM_PKT_ERROR | AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP:
 				dev_dbg(i2c_bus->dev, "M TX NAK | NORMAL STOP \n");
 				i2c_bus->cmd_err = AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP;
 				complete(&i2c_bus->cmd_complete);
