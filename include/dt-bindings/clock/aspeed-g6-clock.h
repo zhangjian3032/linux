@@ -72,28 +72,29 @@
 #define ASPEED_CLK_APLL			52
 
 #define ASPEED_CLK_AHB			53
-#define ASPEED_CLK_APB			54
-
-#define ASPEED_CLK_BCLK			55
-
-#define ASPEED_CLK_D1CLK		56
-#define ASPEED_CLK_VCLK			57
-
-#define ASPEED_CLK_LHCLK		58
-
-#define ASPEED_CLK_UART			59
-#define ASPEED_CLK_UARTX		60
-
-#define ASPEED_CLK_SDIO			61
-#define ASPEED_CLK_EMMC			62
-
-#define ASPEED_CLK_ECLK			63
-#define ASPEED_CLK_ECLK_MUX		64
-#define ASPEED_CLK_MAC12		65
-#define ASPEED_CLK_MAC34		66
+#define ASPEED_CLK_APB1			54
+#define ASPEED_CLK_APB2			55
 
 
-#define ASPEED_G6_NUM_CLKS		67
+#define ASPEED_CLK_BCLK			56
+
+#define ASPEED_CLK_D1CLK		57
+#define ASPEED_CLK_VCLK			58
+
+#define ASPEED_CLK_LHCLK		59
+
+#define ASPEED_CLK_UART			60
+#define ASPEED_CLK_UARTX		61
+
+#define ASPEED_CLK_SDIO			62
+#define ASPEED_CLK_EMMC			63
+
+#define ASPEED_CLK_ECLK			64
+#define ASPEED_CLK_ECLK_MUX		65
+#define ASPEED_CLK_MAC12		66
+#define ASPEED_CLK_MAC34		67
+
+#define ASPEED_G6_NUM_CLKS		68
 
 
 #define ASPEED_RESET_FSI		(59)
