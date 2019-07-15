@@ -66,11 +66,19 @@ static const struct irq_domain_ops aspeed_sdhci_irq_domain_ops = {
 	.map = ast_sdhci_map_irq_domain,
 };
 
+static const struct of_device_id irq_aspeed_sdhci_dt_ids[] = {
+	{ .compatible = "aspeed,aspeed-sdhci-irq", .data = (void *)0, },
+	{ .compatible = "aspeed,aspeed-emmc-irq", .data = (void *)1, },
+	{},
+};
+MODULE_DEVICE_TABLE(of, irq_aspeed_sdhci_dt_ids);
+
 static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 {
 	struct aspeed_sdhci_irq *sdhci_irq;
 	struct clk *sdclk;
 	struct clk *sdcardclk;
+	const struct of_device_id *dev_id;
 	u32 slot0_clk_delay, slot1_clk_delay;
 
 	sdhci_irq = kzalloc(sizeof(*sdhci_irq), GFP_KERNEL);
@@ -78,7 +86,6 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, sdhci_irq);
-	//node->data = sdhci_irq;
 	pdev->dev.of_node->data = sdhci_irq;
 
 	sdhci_irq->regs = of_iomap(pdev->dev.of_node, 0);
@@ -128,17 +135,17 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 		writel((readl(sdhci_irq->regs + ASPEED_SDHCI_CTRL) & ~0x3e0c0000) | (0x3 << 18) | (slot1_clk_delay << 25), sdhci_irq->regs + ASPEED_SDHCI_CTRL);
 	}
 
+	dev_id = of_match_node(irq_aspeed_sdhci_dt_ids, pdev->dev.of_node);
+	if (!dev_id)
+		return -EINVAL;
+
+	if (dev_id->data)
+		writel(0, sdhci_irq->regs + 0x14);
+
 	pr_info("sdhci irq controller registered, irq %d\n", sdhci_irq->parent_irq);
 
 	return 0;
 }
-
-static const struct of_device_id irq_aspeed_sdhci_dt_ids[] = {
-	{ .compatible = "aspeed,aspeed-sdhci-irq", },
-	{ .compatible = "aspeed,aspeed-emmc-irq", },	
-	{},
-};
-MODULE_DEVICE_TABLE(of, irq_aspeed_sdhci_dt_ids);
 
 static struct platform_driver irq_aspeed_sdhci_device_driver = {
 	.probe		= irq_aspeed_sdhci_probe,
