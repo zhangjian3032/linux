@@ -1211,6 +1211,71 @@
         function = "USB2BH";
         groups = "USB2BH";
     };
+	pinctrl_tach0_default: tach0_default {
+		function = "TACH0";
+		groups = "TACH0";
+	};
+	pinctrl_tach1_default: tach1_default {
+        function = "TACH1";
+        groups = "TACH1";
+	};
+	pinctrl_tach2_default: tach2_default {
+        function = "TACH2";
+        groups = "TACH2";
+    };
+	pinctrl_tach3_default: tach3_default {
+                function = "TACH3";
+                groups = "TACH3";
+        };
+	pinctrl_tach4_default: tach4_default {
+                function = "TACH4";
+                groups = "TACH4";
+        };
+	pinctrl_tach5_default: tach5_default {
+                function = "TACH5";
+                groups = "TACH5";
+        };
+	pinctrl_tach6_default: tach6_default {
+                function = "TACH6";
+                groups = "TACH6";
+        };
+	pinctrl_tach7_default: tach7_default {
+                function = "TACH7";
+                groups = "TACH7";
+        };
+	pinctrl_tach8_default: tach8_default {
+                function = "TACH8";
+                groups = "TACH8";
+        };
+	pinctrl_tach9_default: tach9_default {
+                function = "TACH9";
+                groups = "TACH9";
+        };
+	pinctrl_tach10_default: tach10_default {
+                function = "TACH10";
+                groups = "TACH10";
+        };
+	pinctrl_tach11_default: tach11_default {
+                function = "TACH11";
+                groups = "TACH11";
+        };
+	pinctrl_tach12_default: tach12_default {
+                function = "TACH12";
+                groups = "TACH12";
+        };
+	pinctrl_tach13_default: tach13_default {
+                function = "TACH13";
+                groups = "TACH13";
+        };
+	pinctrl_tach14_default: tach14_default {
+                function = "TACH14";
+                groups = "TACH14";
+        };
+	pinctrl_tach15_default: tach15_default {
+                function = "TACH15";
+                groups = "TACH15";
+        };
+	
 	pinctrl_pwm0_default: pwm0_default {
         function = "PWM0";
         groups = "PWM0";
