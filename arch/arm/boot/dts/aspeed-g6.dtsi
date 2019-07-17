@@ -176,9 +176,11 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>;
 #if 0
 			phy-handle = <&phy0>;
 #endif
+			status = "disabled";
 		};
 
 		mac2: ftgmac@1e670000 {
@@ -187,6 +189,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&syscon ASPEED_CLK_GATE_MAC3CLK>;
 #if 0
 			phy-handle = <&phy0>;
 #endif
@@ -199,6 +202,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&syscon ASPEED_CLK_GATE_MAC2CLK>;
 #if 0
 			phy-handle = <&phy0>;
 #endif
@@ -211,6 +215,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&syscon ASPEED_CLK_GATE_MAC4CLK>;
 #if 0
 			phy-handle = <&phy0>;
 #endif
@@ -1187,6 +1192,84 @@
 };
 
 &pinctrl {
+		pinctrl_rgmii1_default: rgmii1_default {
+				function = "RGMII1";
+				groups = "RGMII1";
+		};
+		pinctrl_rgmii2_default: rgmii2_default {
+				function = "RGMII2";
+				groups = "RGMII2";
+		};
+
+		pinctrl_rgmii3_default: rgmii3_default {
+				function = "RGMII3";
+				groups = "RGMII3";
+		};
+
+		pinctrl_rgmii4_default: rgmii4_default {
+				function = "RGMII4";
+				groups = "RGMII4";
+		};
+
+		pinctrl_rmii1_default: rmii1_default {
+				function = "RMII1";
+				groups = "RMII1";
+		};
+
+		pinctrl_rmii2_default: rmii2_default {
+				function = "RMII2";
+				groups = "RMII2";
+		};
+
+		pinctrl_rmii3_default: rmii3_default {
+				function = "RMII3";
+				groups = "RMII3";
+		};
+
+		pinctrl_rmii4_default: rmii4_default {
+				function = "RMII4";
+				groups = "RMII4";
+		};
+
+        pinctrl_mac1link_default: mac1link_default {
+                function = "MAC1LINK";
+                groups = "MAC1LINK";
+        };
+
+        pinctrl_mac2link_default: mac2link_default {
+                function = "MAC2LINK";
+                groups = "MAC2LINK";
+        };
+
+        pinctrl_mac3link_default: mac3link_default {
+                function = "MAC3LINK";
+                groups = "MAC3LINK";
+        };
+
+        pinctrl_mac4link_default: mac4link_default {
+                function = "MAC4LINK";
+                groups = "MAC4LINK";
+        };
+
+        pinctrl_mdio1_default: mdio1_default {
+                function = "MDIO1";
+                groups = "MDIO1";
+        };
+
+        pinctrl_mdio2_default: mdio2_default {
+                function = "MDIO2";
+                groups = "MDIO2";
+        };
+
+        pinctrl_mdio3_default: mdio3_default {
+                function = "MDIO3";
+                groups = "MDIO3";
+        };
+        pinctrl_mdio4_default: mdio4_default {
+                function = "MDIO4";
+                groups = "MDIO4";
+        };
+
 	pinctrl_usb2ah_default: usb2ah_default {
 		function = "USB2AH";
 		groups = "USB2AH";
@@ -1325,30 +1408,6 @@
 	pinctrl_emmc_default: emmc_default {
         function = "EMMC";
         groups = "EMMC";
-    };
-	pinctrl_usb2ah_default: usb2ah_default {
-        function = "USB2AH";
-        groups = "USB2AH";
-    };
-    pinctrl_usb2ad_default: usb2ad_default {
-        function = "USB2AD";
-        groups = "USB2AD";
-    };
-	pinctrl_usb2adp_default: usb2adp_default {
-        function = "USB2ADP";
-        groups = "USB2ADP";
-    };
-    pinctrl_usb11bhid_default: usb11bhid_default {
-        function = "USB11BHID";
-        groups = "USB11BHID";
-    };
-	pinctrl_usb2bd_default: usb2bd_default {
-        function = "USB2BD";
-        groups = "USB2BD";
-    };
-    pinctrl_usb2bh_default: usb2bh_default {
-        function = "USB2BH";
-        groups = "USB2BH";
     };
 	pinctrl_i2c1_default: i2c1_default {
         function = "I2C1";

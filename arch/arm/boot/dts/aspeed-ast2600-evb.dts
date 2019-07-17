@@ -66,6 +66,36 @@
         };
 };
 
+#if 0
+&mac0 {
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_mdio1_default>;
+};
+#endif
+
+&mac1 {
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
+};
+
+&mac2 {
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_mdio3_default>;
+};
+
+&mac3 {
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_mdio4_default>;
+};
+
 &pwm_tacho {
         status = "okay";
         pinctrl-names = "default";
