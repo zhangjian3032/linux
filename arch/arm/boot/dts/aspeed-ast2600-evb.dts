@@ -7,14 +7,20 @@
 	compatible = "aspeed,ast2600";
 
 	aliases {
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
 		serial4 = &uart5;
 	};
 
 	chosen {
-		bootargs = "console=ttyS4,115200n8 root=/dev/ram rw init=/linuxrc";
+		stdout-path = &uart5;
+		bootargs = "console=tty0 console=ttyS4,115200n8 root=/dev/ram rw init=/linuxrc";
 	};
 
 	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0x40000000>;
 	};
 
@@ -75,7 +81,6 @@
     status = "okay";
 };
 
-#endif
 &ehci1 {
     status = "okay";
 };
@@ -83,7 +88,7 @@
 &uhci {
     status = "okay";
 };
-
+#endif
 #if 0
 &sdhci_slot0{
 	status = "okay";
