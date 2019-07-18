@@ -623,7 +623,6 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART5CLK>;
-				clock-frequency = <1846154>;
 				no-loopback-test;
 			};
 

@@ -68,7 +68,7 @@ static const struct aspeed_gate_data aspeed_g6_gates[] = {
 	//reserved 11/12
 	[ASPEED_CLK_GATE_YCLK] 			= { 13,  ASPEED_RESET_HACE, 	"yclk-gate",	NULL,	0 }, 				/* HAC */
 	[ASPEED_CLK_GATE_USBPORT1CLK] 	= { 14,  ASPEED_RESET_EHCI_P1, 	"usb-port1-gate",	NULL,	0 }, 			/* USB2 hub/USB2 host port 1/USB1.1 dev */
-	[ASPEED_CLK_GATE_UART5CLK] 		= { 15, -1, 					"uart5clk-gate", "uart",	CLK_IS_CRITICAL }, 			/* UART5 */
+	[ASPEED_CLK_GATE_UART5CLK] 		= { 15, -1, 					"uart5clk-gate", "uart",	0 }, 			/* UART5 */
 	//reserved 16/19
 	[ASPEED_CLK_GATE_MAC1CLK] 		= { 20,  ASPEED_RESET_MAC1, 	"mac1clk-gate",	"mac12",	0 }, 			/* MAC1 */
 	[ASPEED_CLK_GATE_MAC2CLK] 		= { 21,  ASPEED_RESET_MAC2, 	"mac2clk-gate",	"mac12",	0 }, 			/* MAC2 */
@@ -293,7 +293,6 @@ static int aspeed_g6_clk_enable(struct clk_hw *hw)
 	u32 rst = 0;
 	int clk_sel_flag = 0;
 
-printk("aspeed_g6_clk_enable %d =========\n", gate->clock_idx);	
 	if(gate->reset_idx & 0x1f)
 		rst = BIT((gate->reset_idx));
 	else
@@ -309,7 +308,6 @@ printk("aspeed_g6_clk_enable %d =========\n", gate->clock_idx);
 	spin_lock_irqsave(gate->lock, flags);
 
 	if (aspeed_g6_clk_is_enabled(hw)) {
-		printk("is enable return \n");
 		spin_unlock_irqrestore(gate->lock, flags);
 		return 0;
 	}
@@ -374,8 +372,6 @@ static void aspeed_g6_clk_disable(struct clk_hw *hw)
 	u32 clk;
 	u32 enval;
 	int clk_sel_flag = 0;
-
-printk("aspeed_g6_clk_disable %d \n", gate->clock_idx);
 
 	if(gate->clock_idx & 0x40) {
 		clk_sel_flag = 1;
