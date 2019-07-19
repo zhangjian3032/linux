@@ -7,6 +7,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -65,17 +66,21 @@ static const struct drm_mode_config_funcs aspeed_gfx_mode_config_funcs = {
 
 static void aspeed_gfx_setup_mode_config(struct drm_device *drm)
 {
-	drm_mode_config_init(drm);
+	struct aspeed_gfx *priv = drm->dev_private;
 
+	drm_mode_config_init(drm);	
+	
 	drm->mode_config.min_width = 0;
 	drm->mode_config.min_height = 0;
-#ifdef CONFIG_MACHINE_ASPEED_G6
-	drm->mode_config.max_width = 1024;
-	drm->mode_config.max_height = 768;
-#else
-	drm->mode_config.max_width = 800;
-	drm->mode_config.max_height = 600;
-#endif
+
+	if(priv->version == GFX_AST2600) {
+		drm->mode_config.max_width = 800;
+		drm->mode_config.max_height = 600;
+	} else {
+		drm->mode_config.max_width = 800;
+		drm->mode_config.max_height = 600;
+	}
+
 	drm->mode_config.funcs = &aspeed_gfx_mode_config_funcs;
 }
 
@@ -96,11 +101,16 @@ static irqreturn_t aspeed_gfx_irq_handler(int irq, void *data)
 	return IRQ_NONE;
 }
 
-
+static const struct of_device_id aspeed_gfx_match[] = {
+	{ .compatible = "aspeed,ast2500-gfx",  .data = (void *) GFX_AST2500},
+	{ .compatible = "aspeed,ast2600-gfx",  .data = (void *) GFX_AST2600},
+	{ }
+};
 
 static int aspeed_gfx_load(struct drm_device *drm)
 {
 	struct platform_device *pdev = to_platform_device(drm->dev);
+	const struct of_device_id *dev_id;	
 	struct aspeed_gfx *priv;
 	struct resource *res;
 	int ret;
@@ -115,6 +125,12 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
+
+	dev_id = of_match_device(aspeed_gfx_match, &pdev->dev);
+	if (!dev_id)
+		return -EINVAL;
+	
+	priv->version = (int)dev_id->data;
 	priv->scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
 	if (IS_ERR(priv->scu)) {
 		dev_err(&pdev->dev, "failed to find SCU regmap\n");
@@ -134,13 +150,23 @@ static int aspeed_gfx_load(struct drm_device *drm)
 		return ret;
 	}
 
-	priv->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(priv->rst)) {
+	priv->crt_rst = devm_reset_control_get(&pdev->dev, "crt");
+	if (IS_ERR(priv->crt_rst)) {
 		dev_err(&pdev->dev,
-			"missing or invalid reset controller device tree entry");
-		return PTR_ERR(priv->rst);
+			"missing or invalid crt reset controller device tree entry");
+		return PTR_ERR(priv->crt_rst);
 	}
-	reset_control_deassert(priv->rst);
+
+	reset_control_deassert(priv->crt_rst);
+
+	priv->engine_rst = devm_reset_control_get(&pdev->dev, "engine");
+	if (IS_ERR(priv->engine_rst)) {
+		dev_err(&pdev->dev,
+			"missing or invalid engine reset controller device tree entry");
+		return PTR_ERR(priv->engine_rst);
+	}
+
+	reset_control_deassert(priv->engine_rst);
 
 	priv->clk = devm_clk_get(drm->dev, NULL);
 	if (IS_ERR(priv->clk)) {
@@ -183,6 +209,8 @@ static int aspeed_gfx_load(struct drm_device *drm)
 
 	drm_mode_config_reset(drm);
 
+	drm_kms_helper_poll_init(drm);
+
 	drm_fbdev_generic_setup(drm, 32);
 
 	return 0;
@@ -213,12 +241,6 @@ static struct drm_driver aspeed_gfx_driver = {
 	.date = "20180319",
 	.major = 1,
 	.minor = 0,
-};
-
-static const struct of_device_id aspeed_gfx_match[] = {
-	{ .compatible = "aspeed,ast2500-gfx" },
-	{ .compatible = "aspeed,ast2600-gfx" },	
-	{ }
 };
 
 static int aspeed_gfx_probe(struct platform_device *pdev)
