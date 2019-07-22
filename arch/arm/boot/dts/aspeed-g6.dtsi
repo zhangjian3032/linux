@@ -85,26 +85,6 @@
 		reg = <0x80000000 0>;
 	};
 
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		gfx_memory: framebuffer {
-			size = <0x01000000>;
-			alignment = <0x01000000>;
-			compatible = "shared-dma-pool";
-			reusable;
-		};
-
-		video_memory: video {
-			size = <0x04000000>;
-			alignment = <0x01000000>;
-			compatible = "shared-dma-pool";
-			no-map;
-		};
-	};
-
 	ahb {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -434,10 +414,10 @@
 				reg-io-width = <4>;
 				clocks = <&syscon ASPEED_CLK_GATE_D1CLK>;
 				resets = <&syscon ASPEED_RESET_CRT>, <&syscon ASPEED_RESET_GRAPHICS>;
-                reset-names = "crt", "engine";
+				reset-names = "crt", "engine";
 				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-				memory-region = <&gfx_memory>;
-                        };
+				status = "disabled";
+			};
 
 			xdma: xdma@1e6e7000 {
 				compatible = "aspeed,ast2600-xdma";
@@ -479,16 +459,30 @@
 				resets = <&syscon ASPEED_RESET_LPC_ESPI>;
 			};
 
+#if 0
+			video: video@1e700000 {
+				compatible = "aspeed,ast2600-video-engine";
+				reg = <0x1e700000 0x1000>;
+				clocks = <&syscon ASPEED_CLK_GATE_VCLK>,
+					 <&syscon ASPEED_CLK_GATE_ECLK>;
+				clock-names = "vclk", "eclk";
+				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
+#else
 			video: video@1e700000 {
 				compatible = "aspeed,ast2600-video";
 				/* 184MB : 40MB*/
 				reg = <0x1e700000 0x300>;
+				clocks = <&syscon ASPEED_CLK_GATE_VCLK>, 
+				<&syscon ASPEED_CLK_GATE_ECLK>;
+				clock-names = "vclk", "eclk";
 				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
-				memory-region = <&video_memory>;
-				clocks = <&syscon ASPEED_CLK_GATE_ECLK>, <&syscon ASPEED_CLK_GATE_VCLK>;
-				clock-names = "eclk", "vclk";
 				resets = <&syscon ASPEED_RESET_VIDEO>;
+				status = "disabled";
 			};
+#endif
+
 #if 0
 			sdhci: sdhci@1e740000 {
 				#interrupt-cells = <1>;
@@ -800,7 +794,7 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges = <0x0 0x1e78b000 0x60>;
-                        };
+			};
 
 			uart2: serial@1e78d000 {
 				compatible = "ns16550a";
@@ -928,6 +922,24 @@
 
 	};
 
+};
+
+&peci {
+	peci0: peci-bus@0 {
+		compatible = "aspeed,ast2600-peci";
+		reg = <0x0 0x60>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&syscon ASPEED_CLK_GATE_REF1CLK>, <&syscon ASPEED_CLK_AHB>;
+		resets = <&syscon ASPEED_RESET_PECI>;
+		clock-frequency = <25000000>; //target peci clk 
+		msg-timing = <1>;
+		addr-timing = <1>;
+		rd-sampling-point = <8>;
+		cmd-timeout-ms = <1000>;
+		status = "disabled";
+	};
 };
 
 &i2c {
@@ -1172,23 +1184,6 @@
 		pinctrl-0 = <&pinctrl_i2c16_default>;
 	};
 
-};
-
-&peci {
-    peci0: peci-bus@0 {
-        compatible = "aspeed,ast2600-peci";
-        reg = <0x0 0x60>;
-        #address-cells = <1>;
-        #size-cells = <0>;
-	interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
-        clocks = <&syscon ASPEED_CLK_GATE_REF0CLK>;
-        resets = <&syscon ASPEED_RESET_PECI>;
-        clock-frequency = <24000000>;
-        msg-timing = <1>;
-        addr-timing = <1>;
-        rd-sampling-point = <8>;
-        cmd-timeout-ms = <1000>;
-    };
 };
 
 &pinctrl {
