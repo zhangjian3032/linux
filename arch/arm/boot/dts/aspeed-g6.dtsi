@@ -163,19 +163,6 @@
 			status = "disabled";
 		};
 
-		mac2: ftgmac@1e670000 {
-			compatible = "aspeed,ast2600-mac", "faraday,ftgmac100";
-			reg = <0x1e670000 0x180>, <0x1e650010 0x4>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&syscon ASPEED_CLK_GATE_MAC3CLK>;
-#if 0
-			phy-handle = <&phy0>;
-#endif
-			status = "disabled";
-		};
-
 		mac1: ftgmac@1e680000 {
 			compatible = "aspeed,ast2600-mac", "faraday,ftgmac100";
 			reg = <0x1e680000 0x180>, <0x1e650008 0x4>;
@@ -183,6 +170,19 @@
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&syscon ASPEED_CLK_GATE_MAC2CLK>;
+#if 0
+			phy-handle = <&phy0>;
+#endif
+			status = "disabled";
+		};
+
+		mac2: ftgmac@1e670000 {
+			compatible = "aspeed,ast2600-mac", "faraday,ftgmac100";
+			reg = <0x1e670000 0x180>, <0x1e650010 0x4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&syscon ASPEED_CLK_GATE_MAC3CLK>;
 #if 0
 			phy-handle = <&phy0>;
 #endif
