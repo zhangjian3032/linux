@@ -56,26 +56,6 @@ static void aspeed_g6_early_reset_init(void)
 		return retval;
 	}
 	register_restart_handler(&aspeed_g6_restart_nb);
-	//printk("Reset Handler register\n");
-}
-
-static int aspeed_g6_boot_secondary(unsigned int cpu, struct task_struct *idle)
-{
-	__raw_writel(0, secboot_base + ASPEED_BOOT_ADDR_REG_OFFSET);
-	__raw_writel(__pa_symbol(secondary_startup), secboot_base + ASPEED_BOOT_ADDR_REG_OFFSET);
-	__raw_writel(0xABBAADDA, secboot_base + ASPEED_BOOT_SIG_REG_OFFSET);
-	wmb();	
-	/* barrier it to make sure everyone sees it */
-	dsb_sev();
-
-//	printk("secondary_startup address %x\n", __pa_symbol(secondary_startup));
-//	printk("ASPEED_BOOT_ADDR_REG_OFFSET %x\n", __raw_readl(secboot_base + ASPEED_BOOT_ADDR_REG_OFFSET));
-//	printk("ASPEED_BOOT_SIG_REG_OFFSET %x\n", __raw_readl(secboot_base + ASPEED_BOOT_SIG_REG_OFFSET));
-
-	iounmap(secboot_base);
-//	printk("%s end \n", __func__);	
-
-	return 0;
 }
 
 static void __init aspeed_g6_smp_prepare_cpus(unsigned int max_cpus)
@@ -99,9 +79,31 @@ static void __init aspeed_g6_smp_prepare_cpus(unsigned int max_cpus)
 	aspeed_g6_early_reset_init();
 }
 
+static int aspeed_g6_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	__raw_writel(0, secboot_base + ASPEED_BOOT_ADDR_REG_OFFSET);
+	__raw_writel(__pa_symbol(secondary_startup_arm), secboot_base + ASPEED_BOOT_ADDR_REG_OFFSET);
+	__raw_writel((0xABBAAB00 | (cpu & 0xff)), secboot_base + ASPEED_BOOT_SIG_REG_OFFSET);
+	wmb();
+	/* barrier it to make sure everyone sees it */
+	dsb_sev();
+
+	return 0;
+}
+
+static void aspeed_g6_secondary_init(unsigned int cpu)
+{
+	/* restore cpuN go sign and addr */
+	__raw_writel(0x0, secboot_base + ASPEED_BOOT_ADDR_REG_OFFSET);
+	__raw_writel(0x0, secboot_base + ASPEED_BOOT_SIG_REG_OFFSET);
+
+	return 0;
+}
+
 static const struct smp_operations aspeed_smp_ops __initconst = {
 	.smp_prepare_cpus	= aspeed_g6_smp_prepare_cpus,
 	.smp_boot_secondary	= aspeed_g6_boot_secondary,
+	.smp_secondary_init	= aspeed_g6_secondary_init,
 };
 
 CPU_METHOD_OF_DECLARE(aspeed_smp, "aspeed,ast2600-smp", &aspeed_smp_ops);

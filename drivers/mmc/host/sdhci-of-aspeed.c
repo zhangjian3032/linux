@@ -105,8 +105,8 @@ void sdhci_aspeed_reset(struct sdhci_host *host, u8 mask)
 
 	if (mask & SDHCI_RESET_ALL) {
 		//steven:turn off bus power here
-		if (sdhci_irq->pwr_ctrl_gpio >= 0)
-			gpio_set_value(sdhci_irq->pwr_ctrl_gpio, 0);
+		if (sdhci_irq->pwr_pin >= 0)
+			gpio_set_value(sdhci_irq->pwr_pin, 0);
 		host->pwr = 0;
 		host->clock = 0;
 	}
@@ -161,8 +161,8 @@ static void sdhci_aspeed_set_power(struct sdhci_host *host, unsigned char mode,
 
 	if (pwr == 0) {
 		//steven:turn off bus power here
-		if (sdhci_irq->pwr_ctrl_gpio >= 0)
-			gpio_set_value(sdhci_irq->pwr_ctrl_gpio, 0);
+		if (sdhci_irq->pwr_pin >= 0)
+			gpio_set_value(sdhci_irq->pwr_pin, 0);
 		sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
 	} else {
 		/*
@@ -184,8 +184,8 @@ static void sdhci_aspeed_set_power(struct sdhci_host *host, unsigned char mode,
 
 		sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
 		//steven:turn on bus power here
-		if (sdhci_irq->pwr_ctrl_gpio >= 0)
-			gpio_set_value(sdhci_irq->pwr_ctrl_gpio, 1);
+		if (sdhci_irq->pwr_pin >= 0)
+			gpio_set_value(sdhci_irq->pwr_pin, 1);
 
 		/*
 		 * Some controllers need an extra 10ms delay of 10ms before
@@ -203,6 +203,7 @@ static void sdhci_aspeed_set_power(struct sdhci_host *host, unsigned char mode,
 static struct sdhci_ops  sdhci_aspeed_ops= {
 #ifdef CONFIG_MACH_ASPEED_G6
 	.set_clock = sdhci_set_clock,
+//	.set_power = sdhci_aspeed_set_power,	
 #else
 	.set_clock = sdhci_aspeed_set_clock,
 #endif	
@@ -239,24 +240,25 @@ static int sdhci_aspeed_probe(struct platform_device *pdev)
 	sdhci_get_of_property(pdev);
 
 #if 0
+	sdhci_irq->pwr_pin =
+		of_get_named_gpio(np, "pwr-gpios", 0);
 
-	if (!devm_gpio_request(&pdev->dev, slot->power_gpio, "power-gpio")) {
-		gpio_direction_output(slot->pwr_ctrl_gpio, 1);
+	if (gpio_is_valid(sdhci_irq->pwr_pin)) {
+		if (devm_gpio_request(&pdev->dev, sdhci_irq->pwr_pin,
+				      "mmc_pwr")) {
+		}
 	}
-	if (!devm_gpio_request(&pdev->dev, slot->power_switch_gpio, "power-switch-gpio")) {
-		gpio_direction_output(slot->pwr_ctrl_gpio, 1);
+
+	sdhci_irq->pwr_sw_pin =
+		of_get_named_gpio(np, "pwr-sw-gpios", 0);
+
+	if (gpio_is_valid(sdhci_irq->pwr_sw_pin)) {
+		if (devm_gpio_request(&pdev->dev, sdhci_irq->pwr_sw_pin,
+				      "mmc_pwr")) {
+		}
 	}
+
 #endif
-
-	if (of_property_read_u32(np, "pwr_ctrl_gpio", &sdhci_irq->pwr_ctrl_gpio) < 0) {
-		printk("no pwe ctrl gpio \n");
-	} else {
-		printk("gpio power ctrl gpio %d \n", sdhci_irq->pwr_ctrl_gpio);
-		sdhci_aspeed_ops.set_power = sdhci_aspeed_set_power;
-		sdhci_aspeed_ops.reset = sdhci_aspeed_reset;
-//		gpio_direction_output(sdhci_irq->pwr_ctrl_gpio, 1);
-	}
-
 	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
 
 	pnode = of_parse_phandle(np, "interrupt-parent", 0);

@@ -215,7 +215,7 @@
 			ranges;
 
 			syscon: syscon@1e6e2000 {
-				compatible = "aspeed,ast2500-scu", "syscon", "simple-mfd";
+				compatible = "aspeed,aspeed-scu", "aspeed,ast2500-scu", "syscon", "simple-mfd";
 				reg = <0x1e6e2000 0x1a8>;
 				ranges = <0 0x1e6e2000 0x1a8>;
 				#address-cells = <1>;
@@ -297,8 +297,8 @@
                                 /* 184MB : 40MB*/
                                 reg = <0x1e700000 0x300>;
                                 clocks = <&syscon ASPEED_CLK_GATE_VCLK>, 
-					 <&syscon ASPEED_CLK_GATE_ECLK>;
-                                clock-names = "eclk", "vclk";
+					 					<&syscon ASPEED_CLK_GATE_ECLK>;
+                                clock-names = "vclk", "eclk";
                                 interrupts = <7>;
                                 resets = <&syscon ASPEED_RESET_VIDEO>;
 				status = "disabled";
