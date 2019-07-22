@@ -75,7 +75,6 @@
 #define ASPEED_CLK_APB1			54
 #define ASPEED_CLK_APB2			55
 
-
 #define ASPEED_CLK_BCLK			56
 
 #define ASPEED_CLK_D1CLK		57
@@ -94,7 +93,9 @@
 #define ASPEED_CLK_MAC12		66
 #define ASPEED_CLK_MAC34		67
 
-#define ASPEED_G6_NUM_CLKS		68
+#define ASPEED_CLK_USBPHY_40M	68
+
+#define ASPEED_G6_NUM_CLKS		69
 
 
 #define ASPEED_RESET_FSI		(59)
@@ -131,7 +132,7 @@
 #define ASPEED_RESET_DP_MCU		(29)
 #define ASPEED_RESET_DP			(28)
 #define ASPEED_RESET_RC_XDMA	(27)
-#define ASPEED_RESET_GRAPHICS	(26)
+#define ASPEED_RESET_GRAPHICS	(26)	//for controller engine
 #define ASPEED_RESET_DEV_XDMA	(25)
 #define ASPEED_RESET_DEV_MCTP	(24)
 #define ASPEED_RESET_RC_MCTP	(23)
@@ -144,7 +145,7 @@
 #define ASPEED_RESET_EMMC		(16)
 #define ASPEED_RESET_UHCI		(15)
 #define ASPEED_RESET_EHCI_P1	(14)
-#define ASPEED_RESET_CRT		(13)
+#define ASPEED_RESET_CRT		(13)	//for controller register
 #define ASPEED_RESET_MAC2		(12)
 #define ASPEED_RESET_MAC1		(11)
 #define ASPEED_RESET_RESERVED10	(10)

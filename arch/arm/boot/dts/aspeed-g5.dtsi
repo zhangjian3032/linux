@@ -297,8 +297,8 @@
                                 /* 184MB : 40MB*/
                                 reg = <0x1e700000 0x300>;
                                 clocks = <&syscon ASPEED_CLK_GATE_VCLK>, 
-					 <&syscon ASPEED_CLK_GATE_ECLK>;
-                                clock-names = "eclk", "vclk";
+					 					<&syscon ASPEED_CLK_GATE_ECLK>;
+                                clock-names = "vclk", "eclk";
                                 interrupts = <7>;
                                 resets = <&syscon ASPEED_RESET_VIDEO>;
 				status = "disabled";

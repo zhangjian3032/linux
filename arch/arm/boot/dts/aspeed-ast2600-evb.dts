@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /dts-v1/;
 
 #include "aspeed-g6.dtsi"
@@ -23,6 +24,32 @@
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>;
 	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+	};
+
+	reserved-memory {
+                #address-cells = <1>;
+                #size-cells = <1>;
+                ranges;
+
+                video_memory: video {
+                        size = <0x04000000>;
+                        alignment = <0x01000000>;
+                        compatible = "shared-dma-pool";
+                        no-map;
+                };
+         };
 
 };
 
@@ -102,23 +129,36 @@
         pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_tach0_default &pinctrl_pwm1_default &pinctrl_tach1_default>;
 };
 
+&video {
+		memory-region = <&video_memory>;
+		status = "okay";
+};
+
 #if 0
 &vhub {
-    status = "okay";
+		status = "okay";
 };
 #else
 &ehci0 {
-    status = "okay";
+		status = "okay";
 };
 
 &ehci1 {
-    status = "okay";
+		status = "okay";
 };
 
 &uhci {
-    status = "okay";
+		status = "okay";
 };
 #endif
+
+#if 0
+&gfx {
+     status = "okay";
+     memory-region = <&gfx_memory>;
+};
+#endif
+
 #if 0
 &sdhci_slot0{
 	status = "okay";
@@ -132,3 +172,6 @@
 	status = "okay";
 };
 
+&peci0 {
+		status = "okay";
+};
