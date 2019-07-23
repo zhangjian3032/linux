@@ -207,6 +207,8 @@ struct aspeed_cipher_ctx {
 	int 				enc_cmd;
 	int 				src_nents;
 	int 				dst_nents;
+	int				src_sg_len;
+	int				dst_sg_len;
 	void				*cipher_key;
 	dma_addr_t			cipher_key_dma;
 
