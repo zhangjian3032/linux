@@ -156,14 +156,14 @@ static int aspeed_ahash_append_sg_map(struct aspeed_hace_dev *hace_dev)
 	int remaining;
 	int buf_sg = 0;
 	int counter = 0;
-	int ret;
+	int sg_len;
 	int i;
 
 	AHASH_DBG("\n");
 	length = rctx->total + rctx->bufcnt;
 	remaining = length % rctx->block_size;
-	ret = dma_map_sg(hace_dev->dev, rctx->src_sg, rctx->src_nents, DMA_TO_DEVICE);
-	if (!ret) {
+	sg_len = dma_map_sg(hace_dev->dev, rctx->src_sg, rctx->src_nents, DMA_TO_DEVICE);
+	if (!sg_len) {
 		dev_err(hace_dev->dev, "[%s:%d] dma_map_sg(src) error\n",
 			__func__, __LINE__);
 		return -EINVAL;
@@ -181,12 +181,21 @@ static int aspeed_ahash_append_sg_map(struct aspeed_hace_dev *hace_dev)
 	} else {
 		buf_sg = 0;
 	}
-	for_each_sg(rctx->src_sg, s, rctx->src_nents, i) {
-		src_list[i + buf_sg].phy_addr = sg_dma_address(s);
-		src_list[i + buf_sg].len = s->length;
-	}
+
 	counter = 0;
-	for (i = rctx->src_nents + buf_sg - 1; i >= 0; i--) {
+	for_each_sg(rctx->src_sg, s, sg_len, i) {
+		src_list[i + buf_sg].phy_addr = sg_dma_address(s);
+		if (s->length > rctx->total - counter) {
+			src_list[i + buf_sg].len = rctx->total - counter;
+			break;
+		} else {
+			src_list[i + buf_sg].len = s->length;
+			counter += s->length;
+		}
+	}
+
+	counter = 0;
+	for (i = sg_len + buf_sg - 1; i >= 0; i--) {
 		if (src_list[i].len + counter > remaining) {
 			src_list[i].len -= remaining - counter;
 			src_list[i].len |= BIT(31);
