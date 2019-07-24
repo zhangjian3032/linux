@@ -36,21 +36,15 @@
 			compatible = "shared-dma-pool";
 			reusable;
 		};
+
+		video_memory: video {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
 	};
-
-	reserved-memory {
-                #address-cells = <1>;
-                #size-cells = <1>;
-                ranges;
-
-                video_memory: video {
-                        size = <0x04000000>;
-                        alignment = <0x01000000>;
-                        compatible = "shared-dma-pool";
-                        no-map;
-                };
-         };
-
 };
 
 &spi0 {
