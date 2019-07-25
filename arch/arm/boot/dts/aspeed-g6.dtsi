@@ -439,10 +439,10 @@
 				clocks = <&syscon ASPEED_CLK_APB2>;
 				resets = <&syscon ASPEED_RESET_ADC>;
 				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
-				#io-channel-cells = <1>; 
+				#io-channel-cells = <1>;
+				status = "disabled"; 
 			}; 
 
-#if 0
 			adc1: adc@1e6e9100 {
 				compatible = "aspeed,ast2600-adc";
 				reg = <0x1e6e9100 0x100>;
@@ -450,8 +450,9 @@
 				resets = <&syscon ASPEED_RESET_ADC>;
 				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 				#io-channel-cells = <1>;
+				status = "disabled";
 			};
-#endif
+
 			espi: espi@1e6ee000 {
 				compatible = "aspeed,ast2600-espi";
 				reg = <0x1e6ee000 0x200>;
@@ -934,8 +935,8 @@
 		clocks = <&syscon ASPEED_CLK_GATE_REF1CLK>, <&syscon ASPEED_CLK_AHB>;
 		resets = <&syscon ASPEED_RESET_PECI>;
 		clock-frequency = <25000000>; //target peci clk 
-		msg-timing = <1>;
-		addr-timing = <1>;
+		msg-timing = <64>;
+		addr-timing = <64>;
 		rd-sampling-point = <8>;
 		cmd-timeout-ms = <1000>;
 		status = "disabled";
@@ -1187,6 +1188,86 @@
 };
 
 &pinctrl {
+	pinctrl_adc0_default: adc0_default {
+		function = "ADC0";
+		groups = "ADC0";
+	};
+
+	pinctrl_adc1_default: adc1_default {
+		function = "ADC1";
+		groups = "ADC1";
+	};
+
+	pinctrl_adc10_default: adc10_default {
+		function = "ADC10";
+		groups = "ADC10";
+	};
+
+	pinctrl_adc11_default: adc11_default {
+		function = "ADC11";
+		groups = "ADC11";
+	};
+
+	pinctrl_adc12_default: adc12_default {
+		function = "ADC12";
+		groups = "ADC12";
+	};
+
+	pinctrl_adc13_default: adc13_default {
+		function = "ADC13";
+		groups = "ADC13";
+	};
+
+	pinctrl_adc14_default: adc14_default {
+		function = "ADC14";
+		groups = "ADC14";
+	};
+
+	pinctrl_adc15_default: adc15_default {
+		function = "ADC15";
+		groups = "ADC15";
+	};
+
+	pinctrl_adc2_default: adc2_default {
+		function = "ADC2";
+		groups = "ADC2";
+	};
+
+	pinctrl_adc3_default: adc3_default {
+		function = "ADC3";
+		groups = "ADC3";
+	};
+
+	pinctrl_adc4_default: adc4_default {
+		function = "ADC4";
+		groups = "ADC4";
+	};
+
+	pinctrl_adc5_default: adc5_default {
+		function = "ADC5";
+		groups = "ADC5";
+	};
+
+	pinctrl_adc6_default: adc6_default {
+		function = "ADC6";
+		groups = "ADC6";
+	};
+
+	pinctrl_adc7_default: adc7_default {
+		function = "ADC7";
+		groups = "ADC7";
+	};
+
+	pinctrl_adc8_default: adc8_default {
+		function = "ADC8";
+		groups = "ADC8";
+	};
+
+	pinctrl_adc9_default: adc9_default {
+		function = "ADC9";
+		groups = "ADC9";
+	};
+
 		pinctrl_rgmii1_default: rgmii1_default {
 				function = "RGMII1";
 				groups = "RGMII1";

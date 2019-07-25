@@ -51,6 +51,14 @@
                 };
          };
 
+        iio-hwmon {
+                compatible = "iio-hwmon";
+                io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
+                        <&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
+						<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
+						<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
+        };
+
 };
 
 &spi0 {
@@ -175,3 +183,14 @@
 &peci0 {
 		status = "okay";
 };
+
+&adc0 {
+	ref_voltage = <1200>;
+        status = "okay";
+};
+
+&adc1 {
+        ref_voltage = <1200>;
+        status = "okay";
+};
+
