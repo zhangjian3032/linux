@@ -1,8 +1,8 @@
 /*
- * Aspeed AST2400/2500 ADC
+ * Aspeed AST2400/2500/2600 ADC
  *
  * Copyright (C) 2017 Google, Inc.
- *
+ * Copyright (C) ASPEED Technology Inc.
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
@@ -40,6 +40,8 @@
 #define REF_VLOTAGE_1550mV 		(2 << 6)
 #define REF_VLOTAGE_900mV 		(3 << 6)
 
+#define ASPEED_AUTOPENSATING		BIT(5)
+
 #define ASPEED_OPERATION_MODE_POWER_DOWN	(0x0 << 1)
 #define ASPEED_OPERATION_MODE_STANDBY		(0x1 << 1)
 #define ASPEED_OPERATION_MODE_NORMAL		(0x7 << 1)
@@ -68,6 +70,7 @@ struct aspeed_adc_data {
 	struct clk_hw		*clk_prescaler;
 	struct clk_hw		*clk_scaler;
 	struct reset_control	*rst;
+	int 				cv;
 };
 
 #define ASPEED_CHAN(_idx, _data_reg_addr) {			\
@@ -198,6 +201,8 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	const struct aspeed_adc_model_data *model_data;
 	struct resource *res;
 	const char *clk_parent_name;
+	char prescaler_clk_name[32];
+	char scaler_clk_name[32];
 	int ret;
 	u32 eng_ctrl = 0;
 	u32 adc_engine_control_reg_val;
@@ -218,19 +223,21 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	spin_lock_init(&data->clk_lock);
 	clk_parent_name = of_clk_get_parent_name(pdev->dev.of_node, 0);
 
+	snprintf(prescaler_clk_name, sizeof(prescaler_clk_name), "prescaler-%s", pdev->name);
 	data->clk_prescaler = clk_hw_register_divider(
-				&pdev->dev, "prescaler", clk_parent_name, 0,
+				&pdev->dev, prescaler_clk_name, clk_parent_name, 0,
 				data->base + ASPEED_REG_CLOCK_CONTROL,
 				17, 15, 0, &data->clk_lock);
 	if (IS_ERR(data->clk_prescaler))
 		return PTR_ERR(data->clk_prescaler);
 
+	snprintf(scaler_clk_name, sizeof(scaler_clk_name), "scaler-%s", pdev->name);
 	/*
 	 * Register ADC clock scaler downstream from the prescaler. Allow rate
 	 * setting to adjust the prescaler as well.
 	 */
 	data->clk_scaler = clk_hw_register_divider(
-				&pdev->dev, "scaler", "prescaler",
+				&pdev->dev, scaler_clk_name, prescaler_clk_name,
 				CLK_SET_RATE_PARENT,
 				data->base + ASPEED_REG_CLOCK_CONTROL,
 				0, 10, 0, &data->clk_lock);
@@ -239,7 +246,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		goto scaler_error;
 	}
 
-	data->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+	data->rst = devm_reset_control_get_shared(&pdev->dev, NULL);
 	if (IS_ERR(data->rst)) {
 		dev_err(&pdev->dev,
 			"invalid or missing reset controller device tree entry");
@@ -249,9 +256,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	reset_control_deassert(data->rst);
 
 	model_data = of_device_get_match_data(&pdev->dev);
-
-	if (of_property_read_u32(pdev->dev.of_node, "ref_voltage", (u32 *)&model_data->vref_voltage) == 0) {
-		printk(KERN_INFO "aspeed_adc: ref_voltage %x\n", model_data->vref_voltage);
+	if (!of_property_read_u32(pdev->dev.of_node, "ref_voltage", (u32 *)&model_data->vref_voltage)) {
 		if (model_data->vref_voltage == 2500)
 			eng_ctrl = REF_VLOTAGE_2500mV;
 		else if (model_data->vref_voltage == 1200)
@@ -282,6 +287,20 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		if (ret)
 			goto poll_timeout_error;
 	}
+
+	// do compensating calculation use ch 0
+	writel(eng_ctrl | ASPEED_OPERATION_MODE_NORMAL | 
+			ASPEED_ENGINE_ENABLE | ASPEED_AUTOPENSATING, data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	writel(eng_ctrl | ASPEED_OPERATION_MODE_NORMAL | BIT(16) |
+			ASPEED_ENGINE_ENABLE | ASPEED_AUTOPENSATING, data->base + ASPEED_REG_ENGINE_CONTROL);
+	mdelay(1);
+
+	data->cv = 0x200 - (readl(data->base + 0x10) & GENMASK(9, 0));
+
+	writel(eng_ctrl | ASPEED_OPERATION_MODE_NORMAL | 
+			ASPEED_ENGINE_ENABLE | ASPEED_AUTOPENSATING, data->base + ASPEED_REG_ENGINE_CONTROL);
+	printk(KERN_INFO "aspeed_adc: cv %d \n", data->cv);	
 
 	/* Start all channels in normal mode. */
 	ret = clk_prepare_enable(data->clk_scaler->clk);
@@ -386,5 +405,5 @@ static struct platform_driver aspeed_adc_driver = {
 module_platform_driver(aspeed_adc_driver);
 
 MODULE_AUTHOR("Rick Altherr <raltherr@google.com>");
-MODULE_DESCRIPTION("Aspeed AST2400/2500 ADC Driver");
+MODULE_DESCRIPTION("Aspeed AST2400/2500/2600 ADC Driver");
 MODULE_LICENSE("GPL");
