@@ -256,8 +256,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	reset_control_deassert(data->rst);
 
 	model_data = of_device_get_match_data(&pdev->dev);
-	if (of_property_read_u32(pdev->dev.of_node, "ref_voltage", (u32 *)&model_data->vref_voltage) == 0) {
-		printk(KERN_INFO "aspeed_adc: ref_voltage %x\n", model_data->vref_voltage);
+	if (!of_property_read_u32(pdev->dev.of_node, "ref_voltage", (u32 *)&model_data->vref_voltage)) {
 		if (model_data->vref_voltage == 2500)
 			eng_ctrl = REF_VLOTAGE_2500mV;
 		else if (model_data->vref_voltage == 1200)
