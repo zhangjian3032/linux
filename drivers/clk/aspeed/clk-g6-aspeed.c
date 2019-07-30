@@ -114,10 +114,6 @@ static const struct aspeed_gate_data aspeed_g6_gates[] = {
 	[ASPEED_CLK_GATE_UART12CLK] 	= { 60, -1, 					"uart12clk-gate",	"uartx",	0 }, /* UART12 */
 	[ASPEED_CLK_GATE_UART13CLK] 	= { 61, -1, 					"uart13clk-gate",	"uartx",	0 }, /* UART13 */
 	[ASPEED_CLK_GATE_FSICLK] 		= { 62, ASPEED_RESET_FSI, 		"fsiclk-gate",	NULL,	0 }, 		/* fsi */
-
-
-
-
 };
 
 static const char * const eclk_parent_names[] = {
@@ -229,17 +225,17 @@ static int aspeed_g6_clk_is_enabled(struct clk_hw *hw)
 	int clk_sel_flag = 0;
 	struct aspeed_clk_gate *gate = to_aspeed_clk_gate(hw);
 
-	if(gate->reset_idx & 0x1f)
-		rst = BIT((gate->reset_idx));
-	else
+	if(gate->reset_idx & 0x20)
 		rst = BIT(gate->reset_idx - 32);
-
-	if(gate->clock_idx & 0x40) {
-		clk_sel_flag = 1;
-	} else if(gate->clock_idx & 0x1f)
-		clk = BIT((gate->clock_idx));
 	else
+		rst = BIT((gate->reset_idx));
+
+	if(gate->clock_idx & 0x40)
+		clk_sel_flag = 1;
+	else if(gate->clock_idx & 0x20)
 		clk = BIT(gate->clock_idx - 32);
+	else
+		clk = BIT((gate->clock_idx));
 
 	if(clk_sel_flag) {
 		if (gate->clock_idx == 64) {
@@ -258,7 +254,6 @@ static int aspeed_g6_clk_is_enabled(struct clk_hw *hw)
 		}
 	} else {
 		enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? 0 : clk;
-	
 		/*
 		 * If the IP is in reset, treat the clock as not enabled,
 		 * this happens with some clocks such as the USB one when
@@ -266,19 +261,19 @@ static int aspeed_g6_clk_is_enabled(struct clk_hw *hw)
 		 * will fail to lift the reset.
 		 */
 		if (gate->reset_idx >= 0) {
-			if(gate->reset_idx & 0x1f)
-				regmap_read(gate->map, ASPEED_G6_RESET_CTRL, &reg);
-			else
+			if(gate->reset_idx & 0x20)
 				regmap_read(gate->map, ASPEED_G6_RESET_CTRL2, &reg);
+			else
+				regmap_read(gate->map, ASPEED_G6_RESET_CTRL, &reg);
 
 			if (reg & rst)
 				return 0;
 		}
 
-		if(gate->clock_idx & 0x1f)
-			regmap_read(gate->map, ASPEED_G6_CLK_STOP_CTRL, &reg);
-		else
+		if(gate->clock_idx & 0x20)
 			regmap_read(gate->map, ASPEED_G6_CLK_STOP_CTRL2, &reg);
+		else
+			regmap_read(gate->map, ASPEED_G6_CLK_STOP_CTRL, &reg);
 
 		return ((reg & clk) == enval) ? 1 : 0;
 	}
@@ -293,20 +288,19 @@ static int aspeed_g6_clk_enable(struct clk_hw *hw)
 	u32 rst = 0;
 	int clk_sel_flag = 0;
 
-	if(gate->reset_idx & 0x1f)
-		rst = BIT((gate->reset_idx));
-	else
+	if(gate->reset_idx & 0x20)
 		rst = BIT(gate->reset_idx - 32);
-
-	if(gate->clock_idx & 0x40) {
-		clk_sel_flag = 1;
-	} else if(gate->clock_idx & 0x1f)
-		clk = BIT((gate->clock_idx));
 	else
+		rst = BIT((gate->reset_idx));
+	if(gate->clock_idx & 0x40)
+		clk_sel_flag = 1;
+	else if(gate->clock_idx & 0x20)
 		clk = BIT(gate->clock_idx - 32);
+	else
+		clk = BIT((gate->clock_idx));
+		
 
 	spin_lock_irqsave(gate->lock, flags);
-
 	if (aspeed_g6_clk_is_enabled(hw)) {
 		spin_unlock_irqrestore(gate->lock, flags);
 		return 0;
@@ -317,10 +311,10 @@ static int aspeed_g6_clk_enable(struct clk_hw *hw)
 	} else {
 		if (gate->reset_idx >= 0) {
 			/* Put IP in reset */
-			if(gate->reset_idx & 0x1f)	
-				regmap_write(gate->map, ASPEED_G6_RESET_CTRL, rst);
-			else
+			if(gate->reset_idx & 0x20)
 				regmap_write(gate->map, ASPEED_G6_RESET_CTRL2, rst);
+			else
+				regmap_write(gate->map, ASPEED_G6_RESET_CTRL, rst);
 			/* Delay 100us */
 			udelay(100);
 		}
@@ -337,15 +331,15 @@ static int aspeed_g6_clk_enable(struct clk_hw *hw)
 		} else {
 			enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? 0 : clk;
 			if(enval) {
-				if(gate->clock_idx & 0x1f)			
-					regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL, clk);
-				else
+				if(gate->clock_idx & 0x20)
 					regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL2, clk);
-			} else {
-				if(gate->clock_idx & 0x1f)
-					regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL + 0x04, clk);
 				else
+					regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL, clk);
+			} else {
+				if(gate->clock_idx & 0x20)
 					regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL2 + 0x04, clk);
+				else
+					regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL + 0x04, clk);
 			}
 		}
 
@@ -353,10 +347,10 @@ static int aspeed_g6_clk_enable(struct clk_hw *hw)
 			/* A delay of 10ms is specified by the ASPEED docs */
 			mdelay(10);
 			/* Take IP out of reset */
-			if(gate->reset_idx & 0x1f)
-				regmap_write(gate->map, ASPEED_G6_RESET_CTRL + 0x04, rst);
-			else
+			if(gate->reset_idx & 0x20)
 				regmap_write(gate->map, ASPEED_G6_RESET_CTRL2 + 0x04, rst);
+			else
+				regmap_write(gate->map, ASPEED_G6_RESET_CTRL + 0x04, rst);
 		}
 	}
 	
@@ -393,17 +387,17 @@ static void aspeed_g6_clk_disable(struct clk_hw *hw)
 		enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? clk : 0;
 
 		if(enval) {
-			if(gate->clock_idx & 0x1f)
-				regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL, clk);
-			else
+			if(gate->clock_idx & 0x20)
 				regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL2, clk);
-		} else {
-			if(gate->clock_idx & 0x1f)
-				regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL + 0x04, clk);
 			else
+				regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL, clk);
+		} else {
+			if(gate->clock_idx & 0x20)
 				regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL2 + 0x04, clk);
+			else
+				regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL + 0x04, clk);
 		}
-	}		
+	}
 	spin_unlock_irqrestore(gate->lock, flags);
 }
 
