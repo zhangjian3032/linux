@@ -366,6 +366,7 @@ static int aspeed_uart_routing_remove(struct platform_device *pdev)
 static const struct of_device_id aspeed_uart_routing_table[] = {
 	{ .compatible = "aspeed,ast2400-uart-routing" },
 	{ .compatible = "aspeed,ast2500-uart-routing" },
+	{ .compatible = "aspeed,ast2600-uart-routing" },
 	{ },
 };
 
