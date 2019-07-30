@@ -136,4 +136,8 @@ status = "okay";
         };
 	
 };
+&espi_vw{
+	    status = "okay";
+};
+
 

@@ -232,6 +232,19 @@
 			pwm-source-freq = <50000000>;
 			status = "disabled";
 		};
+		espireg: espireg@40423000 {
+			compatible = "aspeed,pilot-espi-reg";
+			reg = <0x40426500 0x200>,
+				<0x40100100 0x100>,
+				<0x40100200 0x100>,
+				<0x40423000 0x1000>;
+		};	
+		espi_vw: pilot_espi_vw@40423000 {
+			compatible = "aspeed,pilot-espi"; 
+			interrupt-parent = <&gic>;
+			interrupts = <0 44 4>, <0 48 4>;
+			status = "disabled";
+		};
 		pincontroller: pincontroller@40100900{
                         compatible = "aspeed,pilot-pinctrl";
 			syscon = <&syscon>;

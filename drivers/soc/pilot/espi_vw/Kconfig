@@ -1,0 +1,6 @@
+config PILOT_ESPI_VW
+	bool "pilot eSPI virtual wire interface driver"
+	help
+	  say Y to add support for eSPI
+	  If unsure, say N
+	  
