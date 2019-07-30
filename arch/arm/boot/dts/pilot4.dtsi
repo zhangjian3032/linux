@@ -251,6 +251,12 @@
 			interrupts = <0 45 4>, <0 48 4>;
 			status = "disabled";
 		};
+		espi_mafs: pilot_espi_mafs@40423000 {
+			compatible = "aspeed,pilot-espi-mafs"; 
+			interrupt-parent = <&gic>;
+			interrupts = <0 46 4>;
+			status = "disabled";
+		};
 		pincontroller: pincontroller@40100900{
                         compatible = "aspeed,pilot-pinctrl";
 			syscon = <&syscon>;

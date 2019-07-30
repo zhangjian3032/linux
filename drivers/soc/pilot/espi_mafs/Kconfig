@@ -1,0 +1,5 @@
+config PILOT_ESPI_MAFS
+	bool "pilot eSPI mafs driver"
+	help
+	  say Y to add support for eSPI
+	  If unsure, say N

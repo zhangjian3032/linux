@@ -142,5 +142,8 @@ status = "okay";
 &espi_oob{
            status = "okay";
 };
+&espi_mafs{
+           status = "okay";
+};
 
 

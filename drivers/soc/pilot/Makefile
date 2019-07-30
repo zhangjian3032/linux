@@ -4,3 +4,4 @@
 #
 obj-$(CONFIG_PILOT_ESPI_VW)           += espi_vw/
 obj-$(CONFIG_PILOT_ESPI_OOB)          += espi_oob/
+obj-$(CONFIG_PILOT_ESPI_MAFS)         += espi_mafs/
