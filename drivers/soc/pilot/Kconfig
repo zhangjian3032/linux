@@ -1,1 +1,2 @@
 source "drivers/soc/pilot/espi_vw/Kconfig"
+source "drivers/soc/pilot/espi_oob/Kconfig"

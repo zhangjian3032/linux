@@ -139,5 +139,8 @@ status = "okay";
 &espi_vw{
 	    status = "okay";
 };
+&espi_oob{
+           status = "okay";
+};
 
 

@@ -1,0 +1,5 @@
+config PILOT_ESPI_OOB
+	bool "pilot eSPI oob driver"
+	help
+	  say Y to add support for eSPI
+	  If unsure, say N
