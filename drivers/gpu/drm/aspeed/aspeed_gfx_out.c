@@ -13,7 +13,7 @@ static int aspeed_gfx_get_modes(struct drm_connector *connector)
 	struct aspeed_gfx *priv = container_of(connector, struct aspeed_gfx, connector);
 
 	if(priv->version == GFX_AST2600) 
-		return drm_add_modes_noedid(connector, 800, 600);
+		return drm_add_modes_noedid(connector, 1024, 768);
 	else
 		return drm_add_modes_noedid(connector, 800, 600);
 }

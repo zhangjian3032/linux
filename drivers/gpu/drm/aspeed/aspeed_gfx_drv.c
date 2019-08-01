@@ -74,8 +74,8 @@ static void aspeed_gfx_setup_mode_config(struct drm_device *drm)
 	drm->mode_config.min_height = 0;
 
 	if(priv->version == GFX_AST2600) {
-		drm->mode_config.max_width = 800;
-		drm->mode_config.max_height = 600;
+		drm->mode_config.max_width = 1024;
+		drm->mode_config.max_height = 768;
 	} else {
 		drm->mode_config.max_width = 800;
 		drm->mode_config.max_height = 600;
