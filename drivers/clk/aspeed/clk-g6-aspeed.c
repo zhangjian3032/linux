@@ -631,7 +631,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	aspeed_g6_clk_data->hws[ASPEED_CLK_D1CLK] = hw;
 
 	//d1 clk div 0x308[17:15] x [14:12] - 8,7,6,5,4,3,2,1
-	regmap_write(map, 0x308, 0x12000); //3x3 = 9
+	regmap_write(map, 0x308, 0xa000); //2x3 = 6
 
 	//bclk -check
 	/* P-Bus (BCLK) clock divider */
