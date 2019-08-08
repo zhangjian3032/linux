@@ -750,22 +750,25 @@ espi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int ret = 0;
 	struct miscdevice *c = file->private_data;
 	struct aspeed_espi_data *aspeed_espi = dev_get_drvdata(c->this_device);
-	struct aspeed_espi_xfer *xfer = (void __user *)arg;
+	struct aspeed_espi_xfer xfer;
+
+	if (copy_from_user(&xfer, (void*)arg, sizeof(struct aspeed_espi_xfer)))
+		return -EFAULT; 
 
 	switch (cmd) {
 	case ASPEED_ESPI_PERIP_IOCRX:
 		ESPI_DBUG(" \n");
-		xfer->header = aspeed_espi->p_rx_channel.header;
-		xfer->buf_len = aspeed_espi->p_rx_channel.buf_len;
-		if (copy_to_user(xfer->xfer_buf, aspeed_espi->p_rx_channel.buff, aspeed_espi->p_rx_channel.buf_len))
+		xfer.header = aspeed_espi->p_rx_channel.header;
+		xfer.buf_len = aspeed_espi->p_rx_channel.buf_len;
+		if (copy_to_user(xfer.xfer_buf, aspeed_espi->p_rx_channel.buff, aspeed_espi->p_rx_channel.buf_len))
 			ret = -EFAULT;
 		aspeed_espi_write(aspeed_espi, ESPI_TRIGGER_PACKAGE, ASPEED_ESPI_PCP_RX_CTRL);
 		break;
 	case ASPEED_ESPI_PERIP_IOCTX:
 		ESPI_DBUG(" \n");
-		aspeed_espi->p_tx_channel.header = xfer->header;
-		aspeed_espi->p_tx_channel.buf_len = xfer->buf_len;
-		if (copy_from_user(aspeed_espi->p_tx_channel.buff, xfer->xfer_buf, xfer->buf_len)) {
+		aspeed_espi->p_tx_channel.header = xfer.header;
+		aspeed_espi->p_tx_channel.buf_len = xfer.buf_len;
+		if (copy_from_user(aspeed_espi->p_tx_channel.buff, xfer.xfer_buf, xfer.buf_len)) {
 			ESPI_DBUG("copy_from_user  fail\n");
 			ret = -EFAULT;
 		} else
@@ -773,9 +776,9 @@ espi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case ASPEED_ESPI_PERINP_IOCTX:
 		ESPI_DBUG(" \n");
-		aspeed_espi->np_tx_channel.header = xfer->header;
-		aspeed_espi->np_tx_channel.buf_len = xfer->buf_len;
-		if (copy_from_user(aspeed_espi->np_tx_channel.buff, xfer->xfer_buf, xfer->buf_len)) {
+		aspeed_espi->np_tx_channel.header = xfer.header;
+		aspeed_espi->np_tx_channel.buf_len = xfer.buf_len;
+		if (copy_from_user(aspeed_espi->np_tx_channel.buff, xfer.xfer_buf, xfer.buf_len)) {
 			ESPI_DBUG("copy_from_user  fail\n");
 			ret = -EFAULT;
 		} else
@@ -789,20 +792,20 @@ espi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -ENODATA;
 			break;
 		}
-		xfer->header = aspeed_espi->flash_rx_channel.header;
-		xfer->buf_len = aspeed_espi->flash_rx_channel.buf_len;
-		if (copy_to_user(xfer->xfer_buf, aspeed_espi->flash_rx_channel.buff, aspeed_espi->flash_rx_channel.buf_len))
+		xfer.header = aspeed_espi->flash_rx_channel.header;
+		xfer.buf_len = aspeed_espi->flash_rx_channel.buf_len;
+		if (copy_to_user(xfer.xfer_buf, aspeed_espi->flash_rx_channel.buff, aspeed_espi->flash_rx_channel.buf_len))
 			ret = -EFAULT;
 
 		aspeed_espi->flash_rx_channel.full = 0;
 		aspeed_espi_write(aspeed_espi, ESPI_TRIGGER_PACKAGE, ASPEED_ESPI_FLASH_RX_CTRL);
 		break;
 	case ASPEED_ESPI_FLASH_IOCTX:
-		ESPI_DBUG("header %x, buf_len = %d  \n", xfer->header, xfer->buf_len);
-		aspeed_espi->flash_tx_channel.header = xfer->header;
-		aspeed_espi->flash_tx_channel.buf_len = xfer->buf_len;
-		if (xfer->buf_len) {
-			if (copy_from_user(aspeed_espi->flash_tx_channel.buff, xfer->xfer_buf, xfer->buf_len)) {
+		ESPI_DBUG("header %x, buf_len = %d  \n", xfer.header, xfer.buf_len);
+		aspeed_espi->flash_tx_channel.header = xfer.header;
+		aspeed_espi->flash_tx_channel.buf_len = xfer.buf_len;
+		if (xfer.buf_len) {
+			if (copy_from_user(aspeed_espi->flash_tx_channel.buff, xfer.xfer_buf, xfer.buf_len)) {
 				ESPI_DBUG("copy_from_user  fail\n");
 				ret = -EFAULT;
 			}
@@ -1209,7 +1212,7 @@ static ssize_t aspeed_oob_channel_tx(struct file *filp, struct kobject *kobj,
 			printk("TX full \n");
 			return 0;
 		} else {
-			*tx_buff = aspeed_espi->oob_tx_buff[(aspeed_espi->oob_tx_idx) * OOB_BUFF_SIZE];
+			tx_buff = &aspeed_espi->oob_tx_buff[(aspeed_espi->oob_tx_idx) * OOB_BUFF_SIZE];
 			memcpy(tx_buff, buf, count);
 			aspeed_espi->oob_rx_cmd[aspeed_espi->oob_tx_idx].cmd = (0x4 << 24) | (count << 12) | (tag << 8) | ESPI_OOB_MESSAGE;			
 			aspeed_espi->oob_tx_idx++;
