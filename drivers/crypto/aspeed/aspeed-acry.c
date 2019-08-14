@@ -48,6 +48,7 @@ static irqreturn_t aspeed_acry_irq(int irq, void *dev)
 	aspeed_acry_write(acry_dev, sts, ASPEED_ACRY_STATUS);
 
 	if (sts & ACRY_RSA_ISR) {
+		aspeed_acry_write(acry_dev, 0, ASPEED_ACRY_TRIGGER);
 		if (acry_dev->flags & CRYPTO_FLAGS_BUSY)
 			tasklet_schedule(&acry_dev->done_task);
 		else
@@ -63,7 +64,7 @@ int aspeed_acry_handle_queue(struct aspeed_acry_dev *acry_dev,
 {
 	struct crypto_async_request *areq, *backlog;
 	unsigned long flags;
-	int ret = 0;
+	int err, ret = 0;
 
 	ACRY_DBUG("\n");
 	spin_lock_irqsave(&acry_dev->lock, flags);
@@ -85,11 +86,12 @@ int aspeed_acry_handle_queue(struct aspeed_acry_dev *acry_dev,
 	if (backlog)
 		backlog->complete(backlog, -EINPROGRESS);
 
+	acry_dev->is_async = (areq != new_areq);
 	acry_dev->akcipher_req = container_of(areq, struct akcipher_request, base);
 
-	ret = aspeed_acry_rsa_trigger(acry_dev);
+	err = aspeed_acry_rsa_trigger(acry_dev);
 
-	return ret;
+	return (acry_dev->is_async) ? ret : err;
 }
 static void aspeed_acry_sram_mapping(void)
 {
@@ -125,6 +127,7 @@ static void aspeed_acry_done_task(unsigned long data)
 
 	ACRY_DBUG("\n");
 
+	acry_dev->is_async = true;
 	(void)acry_dev->resume(acry_dev);
 }
 
@@ -175,16 +178,16 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	// acry_dev->irq = platform_get_irq(pdev, 0);
-	// if (!acry_dev->irq) {
-	// 	dev_err(&pdev->dev, "no memory/irq resource for acry_dev\n");
-	// 	return -ENXIO;
-	// }
+	acry_dev->irq = platform_get_irq(pdev, 0);
+	if (!acry_dev->irq) {
+		dev_err(&pdev->dev, "no memory/irq resource for acry_dev\n");
+		return -ENXIO;
+	}
 
-	// if (devm_request_irq(&pdev->dev, acry_dev->irq, aspeed_acry_irq, 0, dev_name(&pdev->dev), acry_dev)) {
-	// 	dev_err(dev, "unable to request aes irq.\n");
-	// 	return -EBUSY;
-	// }
+	if (devm_request_irq(&pdev->dev, acry_dev->irq, aspeed_acry_irq, 0, dev_name(&pdev->dev), acry_dev)) {
+		dev_err(dev, "unable to request aes irq.\n");
+		return -EBUSY;
+	}
 
 	acry_dev->rsaclk = devm_clk_get(&pdev->dev, "rsaclk");
 	if (IS_ERR(acry_dev->rsaclk)) {
