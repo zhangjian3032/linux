@@ -309,6 +309,6 @@ static struct platform_driver aspeed_hace_driver = {
 
 module_platform_driver(aspeed_hace_driver);
 
-MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
+MODULE_AUTHOR("Johnny Huang <johnny_huang@aspeedtech.com>");
 MODULE_DESCRIPTION("ASPEED Crypto driver");
 MODULE_LICENSE("GPL2");
