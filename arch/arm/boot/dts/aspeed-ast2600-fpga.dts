@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: GPL-2.0+
+/dts-v1/;
+
+#include "aspeed-g6.dtsi"
+
+/ {
+	model = "AST2600 EVB";
+	compatible = "aspeed,ast2600";
+
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
+		serial5 = &uart6;
+		serial6 = &uart7;
+		serial7 = &uart8;
+		serial8 = &uart9;
+		serial9 = &uart10;
+		serial10 = &uart11;
+		serial11 = &uart12;
+		serial12 = &uart13;
+	};
+
+	chosen {
+		stdout-path = &uart5;
+		bootargs = "console=tty0 console=ttyS4,115200n8 root=/dev/ram rw init=/linuxrc";
+	};
+
+	cpus {
+		CPU0: cpu@0 {
+			clock-frequency = <0x2FAF080>;
+		};
+
+		CPU1: cpu@1 {
+			clock-frequency = <0x2FAF080>;
+		};
+	};
+
+	timer {
+		clocks = <0x17d7840>;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x40000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		video_memory: video {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+	};
+
+    iio-hwmon {
+            compatible = "iio-hwmon";
+            io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
+                    <&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
+					<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
+					<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
+    };
+
+};
+
+&spi0 {
+        status = "okay";
+        flash: m25p80@0 {
+                compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
+                reg = <0x0>;
+                #address-cells = <0x1>;
+                #size-cells = <0x1>;
+                spi-max-frequency = <50000000>;
+                m25p,fast-read;
+                        partition@0 {
+                                label = "all.bin 8MB";
+                                reg = <0x000000 0x0800000>; /* 8 MiB */
+                        };
+                        partition@1 {
+                                label = "u-boot";
+                                reg = <0x000000 0x060000>; /* 384 KiB */
+                        };
+                        partition@2 {
+                                label = "u-boot-env";
+                                reg = <0x060000 0x010000>; /* 64 KiB */
+                        };
+                        partition@3 {
+                                label = "dts";
+                                reg = <0x070000 0x010000>; /* 64 Kib */
+                        };
+                        partition@4 {
+                                label = "kernel";
+                                reg = <0x080000 0x380000>; /* 3.5 MiB */
+                        };
+                        partition@5 {
+                                label = "rootfs";
+                                reg = <0x400000 0x400000>; /* 4 MiB */
+                        };
+                        partition@6 {
+                                label = "pd_rootfs";
+                                reg = <0x800000 0x0>;
+                        };
+        };
+};
+
+&uart5 {
+		status = "okay";
+};
+
+&mac0 {
+		status = "okay";
+};
