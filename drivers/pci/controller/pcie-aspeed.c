@@ -113,6 +113,15 @@
 #define AST_PCIE_WIN_BASE				0x70000000
 #define AST_PCIE_WIN_SIZE				0x10000000
 
+struct aspeed_msi {			/* MSI information */
+	struct irq_domain *msi_domain;
+	unsigned long *bitmap;
+	struct irq_domain *dev_domain;
+	struct mutex lock;		/* protect bitmap variable */
+	int irq_msi0;
+	int irq_msi1;
+};
+
 struct aspeed_pcie {
 	struct device *dev;
 
@@ -135,9 +144,10 @@ struct aspeed_pcie {
 
 	u32 irq;
 	unsigned long msi_pages;
-	struct irq_domain *msi_domain;
 	struct irq_domain *leg_domain;
+	struct aspeed_msi msi;
 	struct list_head resources;
+	raw_spinlock_t leg_mask_lock;	
 	
 };
 
@@ -356,56 +366,188 @@ static struct pci_ops aspeed_pcie_ops = {
 
 static irqreturn_t aspeed_pcie_misc_handler(int irq, void *data)
 {
-
-}
-///////
-
-
-
-///////
-
-static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
-{
+	struct aspeed_pcie *pcie = data;
 	struct device *dev = pcie->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *pcie_intc_node;
+	u32 misc_stat;
+	printk("aspeed_pcie_misc_handler\n");
 
-#if 0	
-	/* Setup INTx */
-	pcie_intc_node = of_get_next_child(node, NULL);
-	if (!pcie_intc_node) {
-			dev_err(dev, "No PCIe Intc node found\n");
-			return -ENODEV;
-	}
-	
-	pcie->leg_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
-											 &intx_domain_ops,
-											 pcie);
-	of_node_put(pcie_intc_node);
-	if (!pcie->leg_domain) {
-			dev_err(dev, "Failed to get a INTx IRQ domain\n");
-			return -ENODEV;
-	}
-	
-	/* Setup MSI */
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-			pcie->msi_domain = irq_domain_add_linear(node,
-													 XILINX_NUM_MSI_IRQS,
-													 &msi_domain_ops,
-													 &xilinx_pcie_msi_chip);
-			if (!pcie->msi_domain) {
-					dev_err(dev, "Failed to get a MSI IRQ domain\n");
-					return -ENODEV;
-			}
-	
-			xilinx_pcie_enable_msi(pcie);
-	}
-#endif	
-	return 0;
-
+	return IRQ_HANDLED;
 }
 
-#if 0
+static void aspeed_pcie_leg_handler(struct irq_desc *desc)
+{
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct aspeed_pcie *pcie;
+	struct device *dev = pcie->dev;
+	unsigned long status;
+	u32 reg;
+	u32 bit;
+	u32 virq;
+
+	printk("aspeed_pcie_leg_handler \n");
+	chained_irq_enter(chip, desc);
+	pcie = irq_desc_get_handler_data(desc);
+
+	while ((status = readl(pcie->h2xreg_base + 0x88) &
+				0xf ) != 0) {
+		for_each_set_bit(bit, &status, PCI_NUM_INTX) {
+			printk("intx bit %d \n", bit);
+			virq = irq_find_mapping(pcie->leg_domain, bit);
+			if (virq)
+				generic_handle_irq(virq);
+		}
+	}
+
+	chained_irq_exit(chip, desc);
+}
+
+static void aspeed_pcie_handle_msi_irq(struct nwl_pcie *pcie, u32 status_reg)
+{
+}
+
+
+
+
+static void aspeed_mask_leg_irq(struct irq_data *data)
+{
+	struct irq_desc *desc = irq_to_desc(data->irq);
+	struct aspeed_pcie *pcie;
+	unsigned long flags;
+	u32 mask;
+	u32 val;
+
+	printk("aspeed_mask_leg_irq : data->hwirq %d \n", data->hwirq);
+	
+	pcie = irq_desc_get_chip_data(desc);
+	mask = 1 << (data->hwirq - 1);
+	raw_spin_lock_irqsave(&pcie->leg_mask_lock, flags);
+	writel((readl(pcie->h2xreg_base + 0x84) & ~mask), pcie->h2xreg_base + 0x84);
+	raw_spin_unlock_irqrestore(&pcie->leg_mask_lock, flags);
+}
+
+static void aspeed_unmask_leg_irq(struct irq_data *data)
+{
+	struct irq_desc *desc = irq_to_desc(data->irq);
+	struct aspeed_pcie *pcie;
+	unsigned long flags;
+	u32 mask;
+	u32 val;
+
+	printk("aspeed_unmask_leg_irq : data->hwirq %d \n", data->hwirq);
+	
+	pcie = irq_desc_get_chip_data(desc);
+	mask = 1 << (data->hwirq);
+	raw_spin_lock_irqsave(&pcie->leg_mask_lock, flags);
+	writel((readl(pcie->h2xreg_base + 0x84) | mask), pcie->h2xreg_base + 0x84);
+	raw_spin_unlock_irqrestore(&pcie->leg_mask_lock, flags);
+}
+
+static struct irq_chip aspeed_leg_irq_chip = {
+	.name = "pcie:intx",
+	.irq_enable = aspeed_unmask_leg_irq,
+	.irq_disable = aspeed_mask_leg_irq,
+	.irq_mask = aspeed_mask_leg_irq,
+	.irq_unmask = aspeed_unmask_leg_irq,
+};
+
+static int aspeed_legacy_map(struct irq_domain *domain, unsigned int irq,
+                                  irq_hw_number_t hwirq)
+{
+    irq_set_chip_and_handler(irq, &aspeed_leg_irq_chip, handle_level_irq);
+    irq_set_chip_data(irq, domain->host_data);
+	irq_set_status_flags(irq, IRQ_LEVEL);
+
+    return 0;
+}
+
+static const struct irq_domain_ops intx_domain_ops = {
+    .map = aspeed_legacy_map,
+	.xlate = pci_irqd_intx_xlate,
+};
+
+#ifdef CONFIG_PCI_MSI
+static struct irq_chip aspeed_msi_irq_chip = {
+	.name = "aspeed_pcie:msi",
+	.irq_enable = unmask_msi_irq,
+	.irq_disable = mask_msi_irq,
+	.irq_mask = mask_msi_irq,
+	.irq_unmask = unmask_msi_irq,
+
+};
+
+static struct msi_domain_info aspeed_msi_domain_info = {
+	.flags = (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+		  MSI_FLAG_MULTI_PCI_MSI),
+	.chip = &aspeed_msi_irq_chip,
+};
+#endif
+
+static void aspeed_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
+{
+	struct aspeed_pcie *pcie = irq_data_get_irq_chip_data(data);
+//	phys_addr_t msi_addr = pcie->phys_pcie_reg_base;
+
+	msg->address_lo = 0x1e770058;//lower_32_bits(msi_addr);
+	msg->address_hi = 0;//upper_32_bits(msi_addr);
+	msg->data = data->hwirq;
+}
+
+static int aspeed_msi_set_affinity(struct irq_data *irq_data,
+				const struct cpumask *mask, bool force)
+{
+	return -EINVAL;
+}
+
+static struct irq_chip aspeed_irq_chip = {
+	.name = "ASPEED MSI",
+	.irq_compose_msi_msg = aspeed_compose_msi_msg,
+	.irq_set_affinity = aspeed_msi_set_affinity,
+};
+
+static int aspeed_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
+				unsigned int nr_irqs, void *args)
+{
+	struct aspeed_pcie *pcie = domain->host_data;
+	struct aspeed_msi *msi = &pcie->msi;
+	int bit;
+	int i;
+
+	mutex_lock(&msi->lock);
+	bit = bitmap_find_next_zero_area(msi->bitmap, MAX_MSI_HOST_IRQS, 0,
+					 nr_irqs, 0);
+	if (bit >= MAX_MSI_HOST_IRQS) {
+		mutex_unlock(&msi->lock);
+		return -ENOSPC;
+	}
+
+	bitmap_set(msi->bitmap, bit, nr_irqs);
+
+	for (i = 0; i < nr_irqs; i++) {
+		irq_domain_set_info(domain, virq + i, bit + i, &aspeed_irq_chip,
+				domain->host_data, handle_simple_irq,
+				NULL, NULL);
+	}
+	mutex_unlock(&msi->lock);
+	return 0;
+}
+
+static void aspeed_irq_domain_free(struct irq_domain *domain, unsigned int virq,
+					unsigned int nr_irqs)
+{
+	struct irq_data *data = irq_domain_get_irq_data(domain, virq);
+	struct aspeed_pcie *pcie = irq_data_get_irq_chip_data(data);
+	struct aspeed_msi *msi = &pcie->msi;
+printk("aspeed_irq_domain_free \n");
+	mutex_lock(&msi->lock);
+	bitmap_clear(msi->bitmap, data->hwirq, nr_irqs);
+	mutex_unlock(&msi->lock);
+}
+
+static const struct irq_domain_ops dev_msi_domain_ops = {
+	.alloc  = aspeed_irq_domain_alloc,
+	.free   = aspeed_irq_domain_free,
+};
+
 static int aspeed_pcie_init_msi_irq_domain(struct aspeed_pcie *pcie)
 {
 #ifdef CONFIG_PCI_MSI
@@ -413,14 +555,14 @@ static int aspeed_pcie_init_msi_irq_domain(struct aspeed_pcie *pcie)
 	struct fwnode_handle *fwnode = of_node_to_fwnode(dev->of_node);
 	struct aspeed_msi *msi = &pcie->msi;
 
-	msi->dev_domain = irq_domain_add_linear(NULL, 64,
+	msi->dev_domain = irq_domain_add_linear(NULL, MAX_MSI_HOST_IRQS,
 						&dev_msi_domain_ops, pcie);
 	if (!msi->dev_domain) {
 		dev_err(dev, "failed to create dev IRQ domain\n");
 		return -ENOMEM;
 	}
 	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
-						    &nwl_msi_domain_info,
+						    &aspeed_msi_domain_info,
 						    msi->dev_domain);
 	if (!msi->msi_domain) {
 		dev_err(dev, "failed to create msi IRQ domain\n");
@@ -431,9 +573,34 @@ static int aspeed_pcie_init_msi_irq_domain(struct aspeed_pcie *pcie)
 	return 0;
 }
 
-#endif
+static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
+{
+	struct device *dev = pcie->dev;
+	struct device_node *node = dev->of_node;
+	struct device_node *legacy_intc_node;
 
-static void aspeed_pcie_init(struct aspeed_pcie *pcie)
+	legacy_intc_node = of_get_next_child(node, NULL);
+	if (!legacy_intc_node) {
+		dev_err(dev, "No legacy intc node found\n");
+		return -EINVAL;
+	}
+	
+	pcie->leg_domain = irq_domain_add_linear(legacy_intc_node, MAX_LEGACY_IRQS,
+											 &intx_domain_ops,
+											 pcie);
+	of_node_put(legacy_intc_node);
+	if (!pcie->leg_domain) {
+			dev_err(dev, "Failed to get a INTx IRQ domain\n");
+			return -ENODEV;
+	}
+
+	raw_spin_lock_init(&pcie->leg_mask_lock);
+//	aspeed_pcie_init_msi_irq_domain(pcie);
+	return 0;
+
+}
+
+static void aspeed_pcie_bridge_init(struct aspeed_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 //	struct platform_device *pdev = to_platform_device(dev);
@@ -482,15 +649,6 @@ static void aspeed_pcie_init(struct aspeed_pcie *pcie)
 		printk("PCIE- Link down\n");
 	}
 
-#if 0
-	err = devm_request_irq(dev, pcie->irq, aspeed_pcie_misc_handler,
-						   IRQF_SHARED,
-						   "aspeed-pcie:misc", pcie);
-	if (err) {
-		dev_err(dev, "unable to request irq %d\n", pcie->irq);
-		return err;
-	}
-#endif
 	return 0;
 }
 
@@ -500,6 +658,7 @@ static int aspeed_pcie_parse_dt(struct aspeed_pcie *pcie,
 	struct device *dev = pcie->dev;
 	struct device_node *node = dev->of_node;	
 	struct resource *res;
+	int err;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pciebreg");
 	if(res) {
@@ -519,15 +678,31 @@ static int aspeed_pcie_parse_dt(struct aspeed_pcie *pcie,
 			return PTR_ERR(pcie->h2xreg_base);
 	}
 
-#if 0
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
-	pcie->config_addr = res->start;
-#endif
-
 	pcie->irq = irq_of_parse_and_map(node, 0);
+	if (pcie->irq < 0) {
+		dev_err(dev, "failed to get IRQ %d\n", pcie->irq);
+		return pcie->irq;
+	}
 
+	err = devm_request_irq(dev, pcie->irq, aspeed_pcie_misc_handler,
+						   IRQF_SHARED,
+						   "aspeed-pcie:misc", pcie);
+	if (err) {
+		dev_err(dev, "unable to request irq %d\n", pcie->irq);
+		return err;
+	}
+
+	irq_set_chained_handler_and_data(pcie->irq,
+					 aspeed_pcie_leg_handler, pcie);
+
+	printk("==================================== ***\n");
 	return 0;
 }
+
+static const struct of_device_id aspeed_pcie_of_match[] = {
+	{ .compatible = "aspeed,ast2600-pcie", },
+	{},
+};
 
 static int aspeed_pcie_probe(struct platform_device *pdev)
 {
@@ -559,8 +734,9 @@ static int aspeed_pcie_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	aspeed_pcie_init(pcie);
+	aspeed_pcie_bridge_init(pcie);
 
+	printk("============================= \n");
 	err = aspeed_pcie_init_irq_domain(pcie);
 	if (err) {
 	   dev_err(dev, "Failed creating IRQ Domain\n");
@@ -589,15 +765,14 @@ static int aspeed_pcie_probe(struct platform_device *pdev)
 
 
 	err = pci_scan_root_bus_bridge(bridge);
-	if (err < 0)
-			goto error;
+	if (err)
+		goto error;
 
 	bus = bridge->bus;
 
 	pci_assign_unassigned_bus_resources(bus);
 	list_for_each_entry(child, &bus->children, node)
-			pcie_bus_configure_settings(child);
-	
+		pcie_bus_configure_settings(child);
 	pci_bus_add_devices(bus);
 	printk("aspeed_pcie_probe end =============================================\n");	
 	return 0;
@@ -606,12 +781,6 @@ error:
 	pci_free_resource_list(&res);
 	return err;
 }
-
-static const struct of_device_id aspeed_pcie_of_match[] = {
-	{ .compatible = "aspeed,ast2600-pcie", },
-	{},
-};
-
 static struct platform_driver aspeed_pcie_driver = {
 	.probe = aspeed_pcie_probe,
 	.driver = {
