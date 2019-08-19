@@ -101,13 +101,13 @@ static void aspeed_hace_rsa_done_task(unsigned long data)
 	rsa_engine->is_async = true;
 	(void)rsa_engine->resume(hace_dev);
 }
-// static void aspeed_hace_hash_queue_task(unsigned long data)
-// {
-// 	struct aspeed_hace_dev *hace_dev = (struct aspeed_hace_dev *)data;
+static void aspeed_hace_hash_queue_task(unsigned long data)
+{
+	struct aspeed_hace_dev *hace_dev = (struct aspeed_hace_dev *)data;
 
-// 	HACE_DBUG("\n");
-// 	aspeed_hace_hash_handle_queue(hace_dev, NULL);
-// }
+	HACE_DBUG("\n");
+	aspeed_hace_hash_handle_queue(hace_dev, NULL);
+}
 
 static int aspeed_hace_register(struct aspeed_hace_dev *hace_dev)
 {
@@ -170,11 +170,12 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hace_dev);
 	spin_lock_init(&crypto_engine->lock);
 	tasklet_init(&crypto_engine->done_task, aspeed_hace_cryptro_done_task, (unsigned long)hace_dev);
+	tasklet_init(&crypto_engine->queue_task, aspeed_hace_hash_queue_task, (unsigned long)hace_dev);
 	crypto_init_queue(&crypto_engine->queue, 50);
 
 	spin_lock_init(&hash_engine->lock);
 	tasklet_init(&hash_engine->done_task, aspeed_hace_hash_done_task, (unsigned long)hace_dev);
-	// tasklet_init(&hash_engine->queue_task, aspeed_hace_hash_queue_task, (unsigned long)hace_dev);
+	tasklet_init(&hash_engine->queue_task, aspeed_hace_hash_queue_task, (unsigned long)hace_dev);
 	crypto_init_queue(&hash_engine->queue, 50);
 
 	spin_lock_init(&rsa_engine->lock);

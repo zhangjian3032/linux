@@ -184,7 +184,7 @@ struct aspeed_sg_list {
 struct aspeed_engine_crypto {
 	struct crypto_queue		queue;
 	struct tasklet_struct		done_task;
-	// struct tasklet_struct		queue_task;
+	struct tasklet_struct		queue_task;
 	bool				is_async;
 	spinlock_t			lock;
 	aspeed_hace_fn_t		resume;
@@ -226,7 +226,7 @@ struct aspeed_gcm_subkey_result {
 struct aspeed_engine_hash {
 	struct crypto_queue		queue;
 	struct tasklet_struct		done_task;
-	// struct tasklet_struct		queue_task;
+	struct tasklet_struct		queue_task;
 	bool				is_async;
 	spinlock_t			lock;
 	aspeed_hace_fn_t		resume;

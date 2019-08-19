@@ -154,14 +154,12 @@ static int aspeed_ahash_append_sg_map(struct aspeed_hace_dev *hace_dev)
 	struct scatterlist *s;
 	int length;
 	int remaining;
-	int buf_sg = 0;
-	int counter = 0;
 	int sg_len;
 	int i;
 
 	AHASH_DBG("\n");
-	length = rctx->total + rctx->bufcnt;
-	remaining = length % rctx->block_size;
+	remaining = (rctx->total + rctx->bufcnt) % rctx->block_size;
+	length = rctx->total + rctx->bufcnt - remaining;
 	sg_len = dma_map_sg(hace_dev->dev, rctx->src_sg, rctx->src_nents, DMA_TO_DEVICE);
 	if (!sg_len) {
 		dev_err(hace_dev->dev, "[%s:%d] dma_map_sg(src) error\n",
@@ -177,36 +175,34 @@ static int aspeed_ahash_append_sg_map(struct aspeed_hace_dev *hace_dev)
 						       rctx->buflen + rctx->block_size, DMA_TO_DEVICE);
 		src_list[0].phy_addr = rctx->buffer_dma_addr;
 		src_list[0].len = rctx->bufcnt;
-		buf_sg = 1;
-	} else {
-		buf_sg = 0;
+		length -= src_list[0].len;
+		if (length == 0)
+			src_list[0].len |= BIT(31);
+		src_list++;
 	}
 
-	counter = 0;
-	for_each_sg(rctx->src_sg, s, sg_len, i) {
-		src_list[i + buf_sg].phy_addr = sg_dma_address(s);
-		if (s->length > rctx->total - counter) {
-			src_list[i + buf_sg].len = rctx->total - counter;
-			break;
-		} else {
-			src_list[i + buf_sg].len = s->length;
-			counter += s->length;
+	// printk("total_length:%d\n", rctx->total);
+	// printk("length:%d\n", length);
+	if (length != 0) {
+		for_each_sg(rctx->src_sg, s, sg_len, i) {
+			src_list[i].phy_addr = sg_dma_address(s);
+			if (length > sg_dma_len(s)) {
+				src_list[i].len = sg_dma_len(s);
+				length -= sg_dma_len(s);
+			} else {
+				src_list[i].len = length;
+				src_list[i].len |= BIT(31);
+				length = 0;
+				break;
+			}
 		}
 	}
 
-	counter = 0;
-	for (i = sg_len + buf_sg - 1; i >= 0; i--) {
-		if (src_list[i].len + counter > remaining) {
-			src_list[i].len -= remaining - counter;
-			src_list[i].len |= BIT(31);
-			break;
-		} else {
-			counter += src_list[i].len;
-		}
-	}
+	if (length != 0)
+		return -EINVAL;
 
 	rctx->offset = rctx->total - remaining;
-	hash_engine->src_length = length - remaining;
+	hash_engine->src_length = rctx->total + rctx->bufcnt - remaining;
 	hash_engine->src_dma = hash_engine->ahash_src_dma_addr;
 	hash_engine->digeset_dma = rctx->digest_dma_addr;
 	return 0;
@@ -224,8 +220,8 @@ static int aspeed_ahash_complete(struct aspeed_hace_dev *hace_dev, int err)
 	if (req->base.complete)
 		req->base.complete(&req->base, err);
 
-	// tasklet_schedule(&hash_engine->queue_task);
-	aspeed_hace_hash_handle_queue(hace_dev, NULL);
+	tasklet_schedule(&hash_engine->queue_task);
+	// aspeed_hace_hash_handle_queue(hace_dev, NULL);
 	return err;
 }
 
@@ -369,7 +365,6 @@ static int aspeed_ahash_req_final(struct aspeed_hace_dev *hace_dev)
 
 	AHASH_DBG("\n");
 	aspeed_ahash_fill_padding(rctx);
-	// aspeed_ahash_dma_prepare(hace_dev);
 	rctx->digest_dma_addr = dma_map_single(hace_dev->dev, rctx->digest,
 					       SHA512_DIGEST_SIZE, DMA_BIDIRECTIONAL);
 	rctx->buffer_dma_addr = dma_map_single(hace_dev->dev, rctx->buffer,
@@ -385,7 +380,7 @@ static int aspeed_ahash_req_final(struct aspeed_hace_dev *hace_dev)
 }
 
 int aspeed_hace_hash_handle_queue(struct aspeed_hace_dev *hace_dev,
-				     struct crypto_async_request *new_areq)
+				  struct crypto_async_request *new_areq)
 {
 	struct aspeed_engine_hash *hash_engine = &hace_dev->hash_engine;
 	struct crypto_async_request *areq, *backlog;
@@ -427,7 +422,7 @@ int aspeed_hace_hash_handle_queue(struct aspeed_hace_dev *hace_dev,
 }
 
 int aspeed_hace_ahash_trigger(struct aspeed_hace_dev *hace_dev,
-				aspeed_hace_fn_t resume)
+			      aspeed_hace_fn_t resume)
 {
 	struct aspeed_engine_hash *hash_engine = &hace_dev->hash_engine;
 	struct ahash_request *req = hash_engine->ahash_req;
