@@ -134,6 +134,7 @@
 #define ESPI_CTRL_SW_FLASH_READ		BIT(10)
 #define ESPI_CTRL_SW_GPIO_VIRTCH		BIT(9)
 
+#define ESPI_CTRL_OOB_FW_RDY			BIT(4)
 
 /* ASPEED_ESPI_ISR	- 0x08 : Interrupt Status */
 #define ESPI_ISR_HW_RESET				BIT(31)
@@ -503,12 +504,11 @@ aspeed_sys_event(struct aspeed_espi_data *aspeed_espi)
 			printk("new sts %x \n", sts);
 			aspeed_espi_write(aspeed_espi, sts, ASPEED_ESPI_SYS_EVENT_ISR);
 		}
-		
+
 	} else {
 		printk("new sts %x \n", sts);
 		aspeed_espi_write(aspeed_espi, sts, ASPEED_ESPI_SYS_EVENT_ISR);
 	}
-	
 
 }
 
@@ -532,8 +532,11 @@ aspeed_sys1_event(struct aspeed_espi_data *aspeed_espi)
 static void aspeed_espi_ctrl_init(struct aspeed_espi_data *aspeed_espi)
 {
 
-	//a1 espi intiial
-	aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) | 0xff, ASPEED_ESPI_CTRL);
+	//ast2600 a0 workaround for oob free init before espi reset 
+	if(aspeed_espi->espi_version == 6)
+		aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) | 0xef, ASPEED_ESPI_CTRL);
+	else
+		aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) | 0xff, ASPEED_ESPI_CTRL);
 
 	//TODO for function interrpt type
 	aspeed_espi_write(aspeed_espi, 0, ASPEED_ESPI_SYS_INT_T0);
@@ -562,7 +565,7 @@ static void aspeed_espi_ctrl_init(struct aspeed_espi_data *aspeed_espi)
 
 		aspeed_espi_write(aspeed_espi, aspeed_espi->oob_tx_cmd_dma, ASPEED_ESPI_OOB_TX_DMA);
 		aspeed_espi_write(aspeed_espi, OOB_TXCMD_DESC_NUM, ASPEED_ESPI_OOB_TX_RING_SIZE);
-		
+
 		aspeed_espi->oob_rx_buff = aspeed_espi->oob_tx_buff + (OOB_BUFF_SIZE * OOB_TX_BUF_NUM);
 		aspeed_espi->oob_rx_buff_dma = aspeed_espi->oob_tx_buff_dma + (OOB_BUFF_SIZE * OOB_TX_BUF_NUM);
 
@@ -574,7 +577,6 @@ static void aspeed_espi_ctrl_init(struct aspeed_espi_data *aspeed_espi)
 					   ESPI_CTRL_OOB_RX_DMA | ESPI_CTRL_OOB_TX_DMA |
 					   ESPI_CTRL_PCNP_TX_DMA | ESPI_CTRL_PCP_RX_DMA | ESPI_CTRL_PCP_TX_DMA,  ASPEED_ESPI_CTRL);
 	}
-
 
 }
 
@@ -591,7 +593,12 @@ static irqreturn_t aspeed_espi_reset_isr(int this_irq, void *dev_id)
 	//scu init
 	reset_control_assert(aspeed_espi->reset);
 	reset_control_deassert(aspeed_espi->reset);
-#endif	
+#endif
+
+	//ast2600 a0 workaround for oob free init before espi reset 
+	if(aspeed_espi->espi_version == 6)
+		aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) | ESPI_CTRL_OOB_FW_RDY, ASPEED_ESPI_CTRL);
+
 	aspeed_espi_ctrl_init(aspeed_espi);
 
 	aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) | sw_mode, ASPEED_ESPI_CTRL);
