@@ -25,7 +25,7 @@
 #define CIPHER_DBG(fmt, args...)
 #endif
 
-static int aspeed_hace_crypto_handle_queue(struct aspeed_hace_dev *hace_dev,
+int aspeed_hace_crypto_handle_queue(struct aspeed_hace_dev *hace_dev,
 		struct crypto_async_request *new_areq)
 {
 	struct aspeed_engine_crypto *crypto_engine = &hace_dev->crypto_engine;
@@ -100,7 +100,7 @@ static int aspeed_sk_complete(struct aspeed_hace_dev *hace_dev, int err)
 	if (crypto_engine->is_async)
 		req->base.complete(&req->base, err);
 
-	aspeed_hace_crypto_handle_queue(hace_dev, NULL);
+	tasklet_schedule(&crypto_engine->queue_task);
 
 	return err;
 }
@@ -1111,7 +1111,7 @@ static int aspeed_gcm_init(struct crypto_aead *tfm)
 	ctx->hace_dev = crypto_alg->hace_dev;
 	ctx->cipher_key = dma_alloc_coherent(ctx->hace_dev->dev, PAGE_SIZE, &ctx->cipher_key_dma, GFP_KERNEL);
 	ctx->start = aspeed_hace_aead_trigger;
-	ctx->aes = crypto_alloc_skcipher("ecb(aes)", 0, CRYPTO_ALG_ASYNC);
+	ctx->aes = crypto_alloc_skcipher("ecb(aes)", 0, 0);
 	if (IS_ERR(ctx->aes)) {
 		pr_err("aspeed-gcm: base driver 'ecb(aes)' could not be loaded.\n");
 		return PTR_ERR(ctx->aes);

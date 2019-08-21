@@ -382,13 +382,14 @@ aspeed_hace_read(struct aspeed_hace_dev *crypto, u32 reg)
 #endif
 }
 
-extern int aspeed_hace_skcipher_trigger(struct aspeed_hace_dev *aspeed_hace);
+extern int aspeed_hace_skcipher_trigger(struct aspeed_hace_dev *hace_dev);
 
-extern int aspeed_hace_ahash_trigger(struct aspeed_hace_dev *aspeed_hace,
+extern int aspeed_hace_ahash_trigger(struct aspeed_hace_dev *hace_dev,
 				     aspeed_hace_fn_t resume);
-extern int aspeed_hace_hash_handle_queue(struct aspeed_hace_dev *aspeed_hace, struct crypto_async_request *areq);
+extern int aspeed_hace_hash_handle_queue(struct aspeed_hace_dev *hace_dev, struct crypto_async_request *new_areq);
+extern int aspeed_hace_crypto_handle_queue(struct aspeed_hace_dev *hace_dev, struct crypto_async_request *new_areq);
 
-extern int aspeed_hace_rsa_trigger(struct aspeed_hace_dev *aspeed_hace);
+extern int aspeed_hace_rsa_trigger(struct aspeed_hace_dev *hace_dev);
 
 extern int aspeed_register_hace_crypto_algs(struct aspeed_hace_dev *hace_dev);
 extern int aspeed_register_hace_hash_algs(struct aspeed_hace_dev *hace_dev);
