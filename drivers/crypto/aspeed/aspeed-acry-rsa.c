@@ -216,14 +216,7 @@ static int aspeed_acry_rsa_transfer(struct aspeed_acry_dev *acry_dev)
 static inline int aspeed_acry_rsa_wait_for_data_ready(struct aspeed_acry_dev *acry_dev,
 		aspeed_acry_fn_t resume)
 {
-#if 0
-	u32 isr = aspeed_acry_read(acry_dev, ASPEED_HACE_STS);
-
-	RSA_DBG("\n");
-	if (unlikely(isr & HACE_RSA_ISR))
-		return resume(acry_dev);
-
-	rsa_engine->resume = resume;
+#if 1
 	return -EINPROGRESS;
 #else
 	u32 isr;

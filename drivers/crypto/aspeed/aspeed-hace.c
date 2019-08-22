@@ -50,7 +50,7 @@ static irqreturn_t aspeed_hace_irq(int irq, void *dev)
 		if (crypto_engine->flags & CRYPTO_FLAGS_BUSY)
 			tasklet_schedule(&crypto_engine->done_task);
 		else
-			dev_warn(hace_dev->dev, "CRYPTO interrupt when no active requests.\n");
+			dev_warn(hace_dev->dev, "HACE CRYPTO interrupt when no active requests.\n");
 		handle = IRQ_HANDLED;
 	}
 
@@ -58,7 +58,7 @@ static irqreturn_t aspeed_hace_irq(int irq, void *dev)
 		if (hash_engine->flags & CRYPTO_FLAGS_BUSY)
 			tasklet_schedule(&hash_engine->done_task);
 		else
-			dev_warn(hace_dev->dev, "CRYPTO interrupt when no active requests.\n");
+			dev_warn(hace_dev->dev, "HACE HASH interrupt when no active requests.\n");
 		handle = IRQ_HANDLED;
 	}
 	if (sts & HACE_RSA_ISR) {
@@ -101,13 +101,22 @@ static void aspeed_hace_rsa_done_task(unsigned long data)
 	rsa_engine->is_async = true;
 	(void)rsa_engine->resume(hace_dev);
 }
-// static void aspeed_hace_hash_queue_task(unsigned long data)
-// {
-// 	struct aspeed_hace_dev *hace_dev = (struct aspeed_hace_dev *)data;
 
-// 	HACE_DBUG("\n");
-// 	aspeed_hace_hash_handle_queue(hace_dev, NULL);
-// }
+static void aspeed_hace_crypto_queue_task(unsigned long data)
+{
+	struct aspeed_hace_dev *hace_dev = (struct aspeed_hace_dev *)data;
+
+	HACE_DBUG("\n");
+	aspeed_hace_crypto_handle_queue(hace_dev, NULL);
+}
+
+static void aspeed_hace_hash_queue_task(unsigned long data)
+{
+	struct aspeed_hace_dev *hace_dev = (struct aspeed_hace_dev *)data;
+
+	HACE_DBUG("\n");
+	aspeed_hace_hash_handle_queue(hace_dev, NULL);
+}
 
 static int aspeed_hace_register(struct aspeed_hace_dev *hace_dev)
 {
@@ -170,11 +179,12 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hace_dev);
 	spin_lock_init(&crypto_engine->lock);
 	tasklet_init(&crypto_engine->done_task, aspeed_hace_cryptro_done_task, (unsigned long)hace_dev);
+	tasklet_init(&crypto_engine->queue_task, aspeed_hace_crypto_queue_task, (unsigned long)hace_dev);
 	crypto_init_queue(&crypto_engine->queue, 50);
 
 	spin_lock_init(&hash_engine->lock);
 	tasklet_init(&hash_engine->done_task, aspeed_hace_hash_done_task, (unsigned long)hace_dev);
-	// tasklet_init(&hash_engine->queue_task, aspeed_hace_hash_queue_task, (unsigned long)hace_dev);
+	tasklet_init(&hash_engine->queue_task, aspeed_hace_hash_queue_task, (unsigned long)hace_dev);
 	crypto_init_queue(&hash_engine->queue, 50);
 
 	spin_lock_init(&rsa_engine->lock);
@@ -278,7 +288,7 @@ static int aspeed_hace_suspend(struct platform_device *pdev, pm_message_t state)
 	 * the spacc. The hardware will preserve state until we turn it back
 	 * on again.
 	 */
-//	clk_disable(hace_dev->clk);
+	clk_disable(hace_dev->yclk);
 
 	return 0;
 }
@@ -286,8 +296,8 @@ static int aspeed_hace_suspend(struct platform_device *pdev, pm_message_t state)
 static int aspeed_hace_resume(struct platform_device *pdev)
 {
 	struct aspeed_hace_dev *hace_dev = platform_get_drvdata(pdev);
-	return 0;
-//	return clk_enable(hace_dev->clk);
+
+	return clk_enable(hace_dev->yclk);
 }
 
 #endif /* CONFIG_PM */
@@ -309,6 +319,6 @@ static struct platform_driver aspeed_hace_driver = {
 
 module_platform_driver(aspeed_hace_driver);
 
-MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
+MODULE_AUTHOR("Johnny Huang <johnny_huang@aspeedtech.com>");
 MODULE_DESCRIPTION("ASPEED Crypto driver");
 MODULE_LICENSE("GPL2");
