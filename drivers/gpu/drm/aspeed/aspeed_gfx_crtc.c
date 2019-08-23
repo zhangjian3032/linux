@@ -122,7 +122,6 @@ static void aspeed_gfx_crtc_mode_set_nofb(struct aspeed_gfx *priv)
 	writel(CRT_H_RS_START(m->hsync_start - 1) | CRT_H_RS_END(m->hsync_end),
 			priv->base + CRT_HORIZ1);
 
-
 	/* Vertical timing */
 	writel(CRT_V_TOTAL(m->vtotal - 1) | CRT_V_DE(m->vdisplay - 1),
 			priv->base + CRT_VERT0);
@@ -134,7 +133,12 @@ static void aspeed_gfx_crtc_mode_set_nofb(struct aspeed_gfx *priv)
 	 * Terminal Count: memory size of one scan line
 	 */
 	d_offset = m->hdisplay * bpp / 8;
-	t_count = (m->hdisplay * bpp + 127) / 128;
+
+	if(priv->version == GFX_AST2400)
+		t_count = (m->hdisplay * bpp + 63) / 64;
+	else
+		t_count = (m->hdisplay * bpp + 127) / 128;
+
 	writel(CRT_DISP_OFFSET(d_offset) | CRT_TERM_COUNT(t_count),
 			priv->base + CRT_OFFSET);
 
@@ -142,7 +146,14 @@ static void aspeed_gfx_crtc_mode_set_nofb(struct aspeed_gfx *priv)
 	 * Threshold: FIFO thresholds of refill and stop (16 byte chunks
 	 * per line, rounded up)
 	 */
-	writel(G5_CRT_THROD_VAL, priv->base + CRT_THROD);
+	if(priv->version == GFX_AST2600) {
+		writel(G6_CRT_THROD_VAL, priv->base + CRT_THROD);
+	} else if(priv->version == GFX_AST2500) {
+		writel(G5_CRT_THROD_VAL, priv->base + CRT_THROD);
+	} else {
+		writel(CRT_THROD_VAL, priv->base + CRT_THROD);
+	}
+	
 }
 
 static void aspeed_gfx_pipe_enable(struct drm_simple_display_pipe *pipe,
