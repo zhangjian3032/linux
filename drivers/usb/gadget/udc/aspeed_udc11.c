@@ -456,16 +456,13 @@ static int ast_ep_enable(struct usb_ep *_ep,
 	unsigned long	flags;
 	printk("*************************************** %s : %s -----\n", __func__, _ep->name);
 
-	spin_lock_irqsave(&udc->lock, flags);
-
 	/* initialize endpoint to match this descriptor */
 //	ep->is_in = usb_endpoint_dir_in(desc);
 
 	ep->stopped = 0;
 	ep->desc = desc;
 	ep->ep.maxpacket = 8;
-
-	spin_unlock_irqrestore(&udc->lock, flags);
+	udc->gadget.speed = USB_SPEED_FULL;
 
 	return 0;
 }
@@ -478,15 +475,11 @@ static int ast_ep_disable (struct usb_ep * _ep)
 
 	printk("%s\n", __func__ );
 
-	spin_lock_irqsave(&udc->lock, flags);
-
 	nuke(ep, -ESHUTDOWN);
 
 	/* restore the endpoint's pristine config */
 	ep->desc = NULL;
 	ep->stopped = 1;
-
-	spin_unlock_irqrestore(&udc->lock, flags);
 
 	return 0;
 }
@@ -575,9 +568,10 @@ resend:
 	printk("\n");
 	
 #endif
-	
+	printk("ep->ep.name %s , ep0name %s \n", ep->ep.name, ep0name);
 
-	if(ep->ep.name == ep0name) {
+	if(ep->ep.name == "ep0") {
+		printk("ep 0 \n");
 		while(ast_udc_read(ep->udc, AST_UDC11_EP0_CTRL)& EP_IN_BUFF_TX_RDY);
 		ast_udc_write(ep->udc, *(u32 * )(req->req.buf + req->req.actual), AST_UDC11_EP0_DATA0);
 		ast_udc_write(ep->udc, *(u32 * )(req->req.buf + req->req.actual + 4), AST_UDC11_EP0_DATA1);
@@ -588,6 +582,7 @@ resend:
 		while(!ast_udc_read(ep->udc, AST_UDC11_ISR)& UDC11_EP0_IN_ACK);
 		ast_udc_write(ep->udc, UDC11_EP0_NAK | UDC11_EP0_IN_ACK, AST_UDC11_ISR);	
 	} else if (ep->ep.name == "ep1-int") {
+		printk("ep 1 int \n");	
 		while(ast_udc_read(ep->udc, AST_UDC11_EP1_CTRL)& EP_IN_BUFF_TX_RDY);
 		ast_udc_write(ep->udc, *(u32 * )(req->req.buf + req->req.actual), AST_UDC11_EP1_DATA0);
 		ast_udc_write(ep->udc, *(u32 * )(req->req.buf + req->req.actual + 4), AST_UDC11_EP1_DATA1);
@@ -599,6 +594,7 @@ resend:
 		ast_udc_write(ep->udc, UDC11_EP1_IN_ACK, AST_UDC11_ISR);	
 		
 	} else if (ep->ep.name == "ep2-int") {
+		printk("ep 2 int \n");		
 		while(ast_udc_read(ep->udc, AST_UDC11_EP2_CTRL)& EP_IN_BUFF_TX_RDY);	
 		ast_udc_write(ep->udc, *(u32 * )(req->req.buf + req->req.actual), AST_UDC11_EP2_DATA0);
 		ast_udc_write(ep->udc, *(u32 * )(req->req.buf + req->req.actual + 4), AST_UDC11_EP2_DATA1);
@@ -608,9 +604,9 @@ resend:
 		ast_udc_write(ep->udc, SET_EP_IN_TX_LEN(count) | EP_IN_BUFF_TX_RDY, AST_UDC11_EP2_CTRL);
 		while(!ast_udc_read(ep->udc, AST_UDC11_ISR)& UDC11_EP2_IN_ACK); 
 		ast_udc_write(ep->udc, UDC11_EP2_IN_ACK, AST_UDC11_ISR);	
-		
 	} else {
-		UDC_DBG("TODO .. >> ");
+		printk("TODO  ep->ep.name %s , ep0name %s \n", ep->ep.name, ep0name);
+
 	}
 
 	if(req->req.actual != req->req.length)
@@ -654,9 +650,9 @@ static int ast_udc_queue(struct usb_ep *_ep,
 	struct aspeed_hid	*udc;
 	unsigned long		flags, sts=0;
 
-	printk("xxx %x , %x , ep->ep.name :%s , ep0name: %s \n",_ep, ep->ep.desc, ep->ep.name, ep0name);
+//	printk("xxx %x , %x , ep->ep.name :%s , ep0name: %s \n",_ep, ep->ep.desc, ep->ep.name, ep0name);
 
-
+#if 0
 	if (!_req || !_req->complete
 				|| !_req->buf || !list_empty(&req->queue)) {
 		printk("invalid request\n");
@@ -667,7 +663,7 @@ static int ast_udc_queue(struct usb_ep *_ep,
 		printk("invalid ep\n");
 		return -EINVAL;
 	}
-
+#endif
 	if (!_req || !_req->complete
 			|| !_req->buf || !list_empty(&req->queue)) {
 		printk("invalid request ========== \n");
@@ -683,7 +679,6 @@ static int ast_udc_queue(struct usb_ep *_ep,
 		return -EINVAL;
 	}
 
-
 	udc = ep->udc;
 
 	if (!udc || !udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN) {
@@ -691,7 +686,7 @@ static int ast_udc_queue(struct usb_ep *_ep,
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&udc->lock, flags);
+//	spin_lock_irqsave(&udc->lock, flags);
 
 	_req->status = -EINPROGRESS;
 	_req->actual = 0;
@@ -716,11 +711,10 @@ static int ast_udc_queue(struct usb_ep *_ep,
 	}
 	
 	if(!sts) {
-		printk("list add queue \n");
 		list_add_tail(&req->queue, &ep->queue);
-	}
+	} 
 
-	spin_unlock_irqrestore(&udc->lock, flags);
+//	spin_unlock_irqrestore(&udc->lock, flags);
 	return 0;
 
 }
@@ -837,7 +831,7 @@ static void ast_udc_enable(struct aspeed_hid *udc)
 
 static void ast_udc_disable(struct aspeed_hid *udc)
 {
-	printk("%s\n", __func__ );
+	printk("%s ====\n", __func__ );
 
 	ast_udc_write(udc, ast_udc_read(udc, AST_UDC11_CTRL) & ~UDC11_CTRL_CONNECT_EN, AST_UDC11_CTRL);
 	udc->addr = 0;
@@ -995,18 +989,9 @@ static void ast_udc_ep0_setup(struct aspeed_hid *udc)
 		return;
 	}
 
-#if 0
-	if (list_empty(&ep0->queue))
-			req = NULL;
-	else
-			req = list_entry(ep0->queue.next, struct ast_udc_req, queue);
-#endif
-	
-
 	udc->ep0state = EP0_IN_DATA_PHASE;
 	setup_request_data[0] = ast_udc_read(udc, AST_UDC11_EP0_SETUP0);
 	setup_request_data[1] = ast_udc_read(udc, AST_UDC11_EP0_SETUP1);
-	printk("ast_udc_ep0_setup %x %x \n", setup_request_data[0], setup_request_data[1]);
 	memcpy(&setup_request, setup_request_data, sizeof(setup_request));
 
 	switch (setup_request.bRequest) {
@@ -1026,6 +1011,7 @@ static void ast_udc_ep0_setup(struct aspeed_hid *udc)
 			ast_udc_write(udc, 0, AST_UDC11_EP0_CTRL);
 			ast_udc_write(udc, SET_EP_IN_TX_LEN(0) | EP_IN_BUFF_TX_RDY, AST_UDC11_EP0_CTRL);
 		}
+		return;
 		break;
 
 	}
@@ -1080,10 +1066,10 @@ static void ast_udc_ep0_in_intr(struct aspeed_hid *udc)
 	struct ast_ep		*ep0 = &udc->ep[0];
 	struct ast_udc_req	*req;
 
-	UDC_DBG("ast_udc_ep0_in_intr\n");
+//	UDC_DBG("ast_udc_ep0_in_intr\n");
 	if (list_empty(&ep0->queue)) {
 		req = NULL;
-		printk("!! list_empty ======== TODO =======\n");
+//		printk("!! list_empty ======== TODO ======= %d , %x \n", udc->addr, ast_udc_read(udc, AST_UDC11_CONF));
 		//Ryan workaround for ours set address mode ...
 		if((udc->addr != 0) && (ast_udc_read(udc, AST_UDC11_CONF) == 0)) {
 			printk("SET ADDR  = %d \n",udc->addr);
@@ -1091,6 +1077,7 @@ static void ast_udc_ep0_in_intr(struct aspeed_hid *udc)
 							UDC11_CONF_SET_ADDR(udc->addr), AST_UDC11_CONF);
 		}
 	} else {
+		printk("ep0 in xx\n");
 		req = list_entry(ep0->queue.next, struct ast_udc_req, queue);
 		ast_udc_done(ep0, req, 0);
 		//trigger rx 
@@ -1133,7 +1120,7 @@ static irqreturn_t aspeed_hid_irq (int irq, void *_udc)
 
 	spin_lock_irqsave(&udc->lock, flags);
 	if(sts & UDC11_BUS_REST) {
-//		UDC_DBG("UDC11_BUS_REST \n");
+		UDC_DBG("UDC11_BUS_REST \n");
 		/* clear interrupt */
 		udc->suspended = 0;
 		ast_udc_write(udc, UDC11_BUS_REST, AST_UDC11_ISR);
@@ -1144,6 +1131,7 @@ static irqreturn_t aspeed_hid_irq (int irq, void *_udc)
 	} 
 
 	if(sts & UDC11_SUSPEND_ENTRY) {
+//		UDC_DBG("UDC11_SUSPEND_ENTRY \n");
 		ast_udc_write(udc, UDC11_SUSPEND_ENTRY, AST_UDC11_ISR);
 		udc->suspended = 1;
 		if (udc->driver	&& udc->driver->suspend) {
@@ -1155,6 +1143,7 @@ static irqreturn_t aspeed_hid_irq (int irq, void *_udc)
 	}
 
 	if(sts & UDC11_SUSPEND_RESUME) {
+//		UDC_DBG("UDC11_SUSPEND_RESUME \n");
 		udc->suspended = 0;
 		ast_udc_write(udc, UDC11_SUSPEND_RESUME, AST_UDC11_ISR);
 		if (udc->driver && udc->driver->resume) {
@@ -1171,13 +1160,13 @@ static irqreturn_t aspeed_hid_irq (int irq, void *_udc)
 	}
 
 	if(sts & UDC11_EP0_IN_ACK) {
-		UDC_DBG("UDC11_EP0_IN_ACK \n");
+//		UDC_DBG("UDC11_EP0_IN_ACK \n");
 		ast_udc_write(udc, UDC11_EP0_IN_ACK, AST_UDC11_ISR);	
 		ast_udc_ep0_in_intr(udc);
 	}
 
 	if(sts & UDC11_EP0_OUT_ACK) {
-		UDC_DBG("UDC11_EP0_OUT_ACK \n");
+//		UDC_DBG("UDC11_EP0_OUT_ACK \n");
 		ast_udc_write(udc, UDC11_EP0_OUT_ACK, AST_UDC11_ISR);
 		ast_udc_ep0_out_intr(udc);
 	}
@@ -1265,23 +1254,17 @@ static int aspeed_hid_probe(struct platform_device *pdev)
 	if (!udc)
 		return -ENOMEM;
 
-	printk("%s 1\n", __func__ );
-
 	/* init software state */
 	udc->gadget.dev.parent = dev;
 	udc->pdev = pdev;
 	udc->enabled = 0;
 	spin_lock_init(&udc->lock);
 
-	printk("%s 2\n", __func__ );
-	
 	udc->gadget.ops = &aspeed_hid_ops;
 	udc->gadget.ep0 = &udc->ep[0].ep;
 	udc->gadget.name = driver_name;
 	udc->gadget.dev.init_name = "gadget";
 
-	printk("%s 3\n", __func__ );
-	
 	for (i = 0; i < NUM_ENDPOINTS; i++) {
 		ep = &udc->ep[i];
 		ep->ep.name = ep_info[i].name;
