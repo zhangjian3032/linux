@@ -30,6 +30,9 @@ menu "USB Peripheral Controller"
 # Integrated controllers
 #
 
+config USB_ASPEED_HID
+	tristate "Aspeed USB HID"
+
 config USB_AT91
 	tristate "Atmel AT91 USB Device Port"
 	depends on ARCH_AT91
