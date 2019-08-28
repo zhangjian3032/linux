@@ -1062,6 +1062,8 @@
 		interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c1_default>;
+
+		status = "disabled";
 	};
 
 	i2c1: i2c@100 {
@@ -1076,6 +1078,8 @@
 		interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c2_default>;
+
+		status = "disabled";
 	};
 
 	i2c2: i2c@180 {
@@ -1090,6 +1094,8 @@
 		interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c3_default>;
+
+		status = "disabled";
 	};
 
 	i2c3: i2c@200 {
@@ -1104,6 +1110,8 @@
 		interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
                 pinctrl-0 = <&pinctrl_i2c4_default>;
+
+		status = "disabled";
 	};
 
 	i2c4: i2c@280 {
@@ -1118,6 +1126,8 @@
 		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c5_default>;
+
+		status = "disabled";
 	};
 
 	i2c5: i2c@300 {
@@ -1132,6 +1142,8 @@
 		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c6_default>;
+
+		status = "disabled";
 	};
 
 	i2c6: i2c@380 {
@@ -1146,6 +1158,8 @@
 		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c7_default>;
+
+		status = "disabled";
 	};
 
 	i2c7: i2c@400 {
@@ -1160,6 +1174,8 @@
 		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
                 pinctrl-0 = <&pinctrl_i2c8_default>;
+
+		status = "disabled";
 	};
 
 	i2c8: i2c@480 {
@@ -1174,6 +1190,8 @@
 		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c9_default>;
+
+		status = "disabled";
 	};
 
 	i2c9: i2c@500 {
@@ -1186,9 +1204,10 @@
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c10_default>;
+
+		status = "disabled";
 	};
 
 	i2c10: i2c@580 {
@@ -1201,9 +1220,10 @@
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c11_default>;
+
+		status = "disabled";
 	};
 
 	i2c11: i2c@600 {
@@ -1216,9 +1236,10 @@
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c12_default>;
+
+		status = "disabled";
 	};
 
 	i2c12: i2c@680 {
@@ -1231,9 +1252,10 @@
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		pinctrl-names = "default";
                 pinctrl-0 = <&pinctrl_i2c13_default>;
+
+		status = "disabled";
 	};
 
 	i2c13: i2c@700 {
@@ -1246,9 +1268,10 @@
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c14_default>;
+
+		status = "disabled";
 	};
 
 	i2c14: i2c@780 {
@@ -1261,9 +1284,10 @@
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c15_default>;
+
+		status = "disabled";
 	};
 
 	i2c15: i2c@800 {
@@ -1276,9 +1300,10 @@
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c16_default>;
+
+		status = "disabled";
 	};
 
 };
