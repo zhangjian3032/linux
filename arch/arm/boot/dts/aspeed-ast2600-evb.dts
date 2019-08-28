@@ -128,6 +128,7 @@
         status = "okay";
 };
 
+#if 0
 &uart7 {
         status = "okay";
 };
@@ -160,6 +161,43 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_uart13g1_default>;
+};
+#endif
+
+&i2c4 {
+	status = "okay";
+};
+
+&i2c5 {
+	status = "okay";
+};
+
+&i2c6 {
+	status = "okay";
+};
+
+&i2c7 {
+	status = "okay";
+};
+
+&i2c8 {
+	status = "okay";
+
+	eeprom@50 {
+		compatible = "atmel,24c08";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+
+	lm75@4d {
+		compatible = "national,lm75";
+		reg = <0x4d>;
+	};
+
+};
+
+&i2c9 {
+	status = "okay";
 };
 
 #if 0
