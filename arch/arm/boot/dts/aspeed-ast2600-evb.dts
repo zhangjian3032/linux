@@ -257,14 +257,14 @@
 			&pinctrl_pwm5_default &pinctrl_tach5_default
 			&pinctrl_pwm6_default &pinctrl_tach6_default
 			&pinctrl_pwm7_default &pinctrl_tach7_default
-			&pinctrl_pwm8_default &pinctrl_tach8_default
-			&pinctrl_pwm9_default &pinctrl_tach9_default
-			&pinctrl_pwm10_default &pinctrl_tach10_default
-			&pinctrl_pwm11_default &pinctrl_tach11_default
-			&pinctrl_pwm12_default &pinctrl_tach12_default
-			&pinctrl_pwm13_default &pinctrl_tach13_default
-			&pinctrl_pwm14_default &pinctrl_tach14_default
-			&pinctrl_pwm15_default &pinctrl_tach15_default>;
+			&pinctrl_pwm8g1_default &pinctrl_tach8_default
+			&pinctrl_pwm9g1_default &pinctrl_tach9_default
+			&pinctrl_pwm10g1_default &pinctrl_tach10_default
+			&pinctrl_pwm11g1_default &pinctrl_tach11_default
+			&pinctrl_pwm12g1_default &pinctrl_tach12_default
+			&pinctrl_pwm13g1_default &pinctrl_tach13_default
+			&pinctrl_pwm14g1_default &pinctrl_tach14_default
+			&pinctrl_pwm15g1_default &pinctrl_tach15_default>;
 
 		fan@0 {
 			reg = <0x00>;
