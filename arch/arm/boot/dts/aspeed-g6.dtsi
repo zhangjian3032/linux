@@ -12,6 +12,12 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		i3c0 = &i3c0;
+		i3c1 = &i3c1;
+		i3c2 = &i3c2;
+		i3c3 = &i3c3;
+		i3c4 = &i3c4;
+		i3c5 = &i3c5;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -1008,11 +1014,18 @@
 			};
 
 			dma: dma-controller@1e79e000 {
-                	compatible = "aspeed,ast-uart-sdma";
-                	reg = <0x1e79e000 0x400>;
-                	interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
-                	#dma-cells = <1>;
-        	};
+				compatible = "aspeed,ast-uart-sdma";
+				reg = <0x1e79e000 0x400>;
+				interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+				#dma-cells = <1>;
+			};
+
+			i3c: bus@1e7a0000 {
+				compatible = "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e7a0000 0x8000>;
+			};
 
 		};
 
@@ -1302,6 +1315,111 @@
 		interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c16_default>;
+
+		status = "disabled";
+	};
+
+};
+
+&i3c{
+	i3c0: i3c0@2000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x2000 0x1000>;
+		compatible = "snps,dw-i3c-master-1.00a";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		resets = <&syscon ASPEED_RESET_I3C0>;
+		bus-frequency = <100000>;
+		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c1_default>;
+
+		status = "disabled";
+	};
+
+	i3c1: i3c1@3000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x3000 0x1000>;
+		compatible = "snps,dw-i3c-master-1.00a";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		resets = <&syscon ASPEED_RESET_I3C1>;
+		bus-frequency = <100000>;
+		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c2_default>;
+
+		status = "disabled";
+	};
+
+	i3c2: i3c2@4000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x4000 0x1000>;
+		compatible = "snps,dw-i3c-master-1.00a";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		resets = <&syscon ASPEED_RESET_I3C2>;
+		bus-frequency = <100000>;
+		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c3_default>;
+
+		status = "disabled";
+	};
+
+	i3c3: i3c3@5000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x5000 0x1000>;
+		compatible = "snps,dw-i3c-master-1.00a";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		resets = <&syscon ASPEED_RESET_I3C3>;
+		bus-frequency = <100000>;
+		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c4_default>;
+
+		status = "disabled";
+	};
+
+	i3c4: i3c4@6000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x6000 0x1000>;
+		compatible = "snps,dw-i3c-master-1.00a";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		resets = <&syscon ASPEED_RESET_I3C4>;
+		bus-frequency = <100000>;
+		interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c5_default>;
+
+		status = "disabled";
+	};
+
+	i3c5: i3c5@7000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x7000 0x1000>;
+		compatible = "snps,dw-i3c-master-1.00a";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		resets = <&syscon ASPEED_RESET_I3C5>;
+		bus-frequency = <100000>;
+		interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c6_default>;
 
 		status = "disabled";
 	};
@@ -1791,4 +1909,34 @@
 		function = "I2C16";
 		groups = "I2C16";
 	};
+
+	pinctrl_i3c1_default: i3c1_default {
+                function = "I3C1";
+                groups = "I3C1";
+        };
+
+	pinctrl_i3c2_default: i3c2_default {
+                function = "I3C2";
+                groups = "I3C2";
+        };
+
+	pinctrl_i3c3_default: i3c3_default {
+                function = "I3C3";
+                groups = "I3C3";
+        };
+
+	pinctrl_i3c4_default: i3c4_default {
+                function = "I3C4";
+                groups = "I3C4";
+        };
+
+	pinctrl_i3c5_default: i3c5_default {
+                function = "I3C5";
+                groups = "I3C5";
+        };
+
+	pinctrl_i3c6_default: i3c6_default {
+                function = "I3C6";
+                groups = "I3C6";
+        };
 };
