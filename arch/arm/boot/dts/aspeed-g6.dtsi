@@ -12,6 +12,12 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		i3c0 = &i3c0;
+		i3c1 = &i3c1;
+		i3c2 = &i3c2;
+		i3c3 = &i3c3;
+		i3c4 = &i3c4;
+		i3c5 = &i3c5;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -411,6 +417,17 @@
 				clock-names = "rsaclk";
 			};
 
+			hid: hid@1e6e1000 {
+				compatible = "aspeed,ast2600-hid";
+				reg= <0x1e6e1000 0x20>;
+				interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_USBPORT2CLK>;
+				resets = <&syscon ASPEED_RESET_EHCI_P2>;
+				reset-names = "hid";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usb11bhid_default>;
+			};
+
 			jtag: jtag@1e6e4100 {
 				compatible = "aspeed,ast2600-jtag";
 				reg= <0x1e6e4000 0x20>;
@@ -431,6 +448,40 @@
 				status = "disabled";
 			};
 
+			pcie: pcie@1e6ed0000 {
+				compatible = "aspeed,ast2600-pcie";
+				reg = <0x1e6ed000 0x100 0x1e770000 0x100>;
+				reg-names = "pciebreg", "h2xreg";
+				device_type = "pci";
+/*				linux,pci-domain = <0>;*/
+				bus-range = <0x00 0xff>;
+/*				num-lanes = <1>;*/
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+				#interrupt-cells = <1>;
+#if 1
+				ranges = < 0x02000000 0 0x60000000 0x60000000 0 0x10000000 >;
+#else
+				ranges = <0x01000000 0 0x60000000 0x60000000 0 0x10000000   /* I/O */
+                                          0x02000000 0 0x70000000 0x70000000 0 0x10000000>; /* memory */
+#endif
+				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+
+				interrupt-map-mask = <0 0 0 7>;
+				interrupt-map = <0 0 0 1 &pcie0_intc 0>,
+					<0 0 0 2 &pcie0_intc 1>,
+					<0 0 0 3 &pcie0_intc 2>,
+					<0 0 0 4 &pcie0_intc 3>;
+				linux,pci-domain = <0>;
+				pcie0_intc: interrupt-controller {
+					interrupt-controller;
+					#address-cells = <0>;
+					#interrupt-cells = <1>;
+				};
+  
+			};
+
 			xdma: xdma@1e6e7000 {
 				compatible = "aspeed,ast2600-xdma";
 				reg = <0x1e6e7000 0x80>;
@@ -440,7 +491,7 @@
 
 			mctp: mctp@1e6e8000 {
 				compatible = "aspeed,ast2600-mctp";
-				reg = <0x1e6e8000 0x30 0x1e6ed0c4 0x04>;
+				reg = <0x1e6e8000 0x30>;
 	 			interrupts-extended = <&gic GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
 				resets = <&syscon ASPEED_RESET_DEV_MCTP>;
 			};
@@ -625,6 +676,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd1_default &pinctrl_rxd1_default>;
+
 				status = "disabled";	
 			};
 
@@ -667,6 +719,8 @@
 				no-loopback-test;
 				port_address = <0x3f8>;
 				serial_irq = <4>;
+
+				status = "disabled";
 			};
 
 			vuart2: serial@1e787800 {
@@ -678,6 +732,7 @@
 				no-loopback-test;
 				port_address = <0x3f8>;
 				serial_irq = <4>;
+
 				status = "disabled";
             };
 
@@ -690,6 +745,7 @@
 				no-loopback-test;
 				port_address = <0x2f8>;
 				serial_irq = <3>;
+
 				status = "disabled";
 			};
 
@@ -702,6 +758,7 @@
                                 no-loopback-test;
                                 port_address = <0x2f8>;
                                 serial_irq = <3>;
+
                                 status = "disabled";
                         };
 
@@ -824,6 +881,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd2_default &pinctrl_rxd2_default>;
+
 				status = "disabled";
 			};
 
@@ -838,6 +896,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd3_default &pinctrl_rxd3_default>;
+
 				status = "disabled";
 			};
 
@@ -851,7 +910,8 @@
 				resets = <&lpc_reset 7>;
 				no-loopback-test;
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_txd4_default &pinctrl_rxd4_default>;				
+				pinctrl-0 = <&pinctrl_txd4_default &pinctrl_rxd4_default>;
+
 				status = "disabled";
 			};
 
@@ -872,6 +932,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart6_default>;
+
 				status = "disabled";
 			};
 
@@ -885,6 +946,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart7_default>;
+
 				status = "disabled";
 			};
 
@@ -898,6 +960,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart8_default>;
+
 				status = "disabled";
 			};
 
@@ -911,6 +974,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
                                 pinctrl-0 = <&pinctrl_uart9_default>;
+
 				status = "disabled";
 			};
 
@@ -924,6 +988,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart10_default>;
+
 				status = "disabled";
 			};
 
@@ -937,6 +1002,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart11_default>;
+
 				status = "disabled";
 			};
 
@@ -948,6 +1014,9 @@
 				interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART12CLK>;
 				no-loopback-test;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart12g1_default>;
+
 				status = "disabled";
 			};
 
@@ -959,7 +1028,24 @@
 				interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART13CLK>;
 				no-loopback-test;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart13g1_default>;
+
 				status = "disabled";
+			};
+
+			dma: dma-controller@1e79e000 {
+				compatible = "aspeed,ast-uart-sdma";
+				reg = <0x1e79e000 0x400>;
+				interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+				#dma-cells = <1>;
+			};
+
+			i3c: bus@1e7a0000 {
+				compatible = "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e7a0000 0x8000>;
 			};
 
 		};
@@ -1010,6 +1096,8 @@
 		interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c1_default>;
+
+		status = "disabled";
 	};
 
 	i2c1: i2c@100 {
@@ -1024,6 +1112,8 @@
 		interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c2_default>;
+
+		status = "disabled";
 	};
 
 	i2c2: i2c@180 {
@@ -1038,6 +1128,8 @@
 		interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c3_default>;
+
+		status = "disabled";
 	};
 
 	i2c3: i2c@200 {
@@ -1052,6 +1144,8 @@
 		interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
                 pinctrl-0 = <&pinctrl_i2c4_default>;
+
+		status = "disabled";
 	};
 
 	i2c4: i2c@280 {
@@ -1066,6 +1160,8 @@
 		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c5_default>;
+
+		status = "disabled";
 	};
 
 	i2c5: i2c@300 {
@@ -1080,6 +1176,8 @@
 		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c6_default>;
+
+		status = "disabled";
 	};
 
 	i2c6: i2c@380 {
@@ -1094,6 +1192,8 @@
 		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c7_default>;
+
+		status = "disabled";
 	};
 
 	i2c7: i2c@400 {
@@ -1108,6 +1208,8 @@
 		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
                 pinctrl-0 = <&pinctrl_i2c8_default>;
+
+		status = "disabled";
 	};
 
 	i2c8: i2c@480 {
@@ -1122,6 +1224,8 @@
 		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c9_default>;
+
+		status = "disabled";
 	};
 
 	i2c9: i2c@500 {
@@ -1134,9 +1238,10 @@
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c10_default>;
+
+		status = "disabled";
 	};
 
 	i2c10: i2c@580 {
@@ -1149,9 +1254,10 @@
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c11_default>;
+
+		status = "disabled";
 	};
 
 	i2c11: i2c@600 {
@@ -1164,9 +1270,10 @@
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c12_default>;
+
+		status = "disabled";
 	};
 
 	i2c12: i2c@680 {
@@ -1179,9 +1286,10 @@
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		pinctrl-names = "default";
                 pinctrl-0 = <&pinctrl_i2c13_default>;
+
+		status = "disabled";
 	};
 
 	i2c13: i2c@700 {
@@ -1194,9 +1302,10 @@
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c14_default>;
+
+		status = "disabled";
 	};
 
 	i2c14: i2c@780 {
@@ -1209,9 +1318,10 @@
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c15_default>;
+
+		status = "disabled";
 	};
 
 	i2c15: i2c@800 {
@@ -1224,9 +1334,115 @@
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c16_default>;
+
+		status = "disabled";
+	};
+
+};
+
+&i3c{
+	i3c0: i3c0@2000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x2000 0x1000>;
+		compatible = "snps,dw-i3c-master-1.00a";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		resets = <&syscon ASPEED_RESET_I3C0>;
+		bus-frequency = <100000>;
+		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c1_default>;
+
+		status = "disabled";
+	};
+
+	i3c1: i3c1@3000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x3000 0x1000>;
+		compatible = "snps,dw-i3c-master-1.00a";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		resets = <&syscon ASPEED_RESET_I3C1>;
+		bus-frequency = <100000>;
+		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c2_default>;
+
+		status = "disabled";
+	};
+
+	i3c2: i3c2@4000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x4000 0x1000>;
+		compatible = "snps,dw-i3c-master-1.00a";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		resets = <&syscon ASPEED_RESET_I3C2>;
+		bus-frequency = <100000>;
+		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c3_default>;
+
+		status = "disabled";
+	};
+
+	i3c3: i3c3@5000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x5000 0x1000>;
+		compatible = "snps,dw-i3c-master-1.00a";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		resets = <&syscon ASPEED_RESET_I3C3>;
+		bus-frequency = <100000>;
+		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c4_default>;
+
+		status = "disabled";
+	};
+
+	i3c4: i3c4@6000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x6000 0x1000>;
+		compatible = "snps,dw-i3c-master-1.00a";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		resets = <&syscon ASPEED_RESET_I3C4>;
+		bus-frequency = <100000>;
+		interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c5_default>;
+
+		status = "disabled";
+	};
+
+	i3c5: i3c5@7000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x7000 0x1000>;
+		compatible = "snps,dw-i3c-master-1.00a";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		resets = <&syscon ASPEED_RESET_I3C5>;
+		bus-frequency = <100000>;
+		interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i3c6_default>;
+
+		status = "disabled";
 	};
 
 };
@@ -1271,55 +1487,55 @@
 		groups = "RXD4";
 	};
 
-        pinctrl_uart6_default: uart6_default {
-                function = "UART6";
-                groups = "UART6";
-        };
+	pinctrl_uart6_default: uart6_default {
+        function = "UART6";
+        groups = "UART6";
+	};
 
 	pinctrl_uart7_default: uart7_default {
-                function = "UART7";
-                groups = "UART7";
-        };
+		function = "UART7";
+		groups = "UART7";
+	};
 
 	pinctrl_uart8_default: uart8_default {
-                function = "UART8";
-                groups = "UART8";
-        };
+		function = "UART8";
+		groups = "UART8";
+	};
 
 	pinctrl_uart9_default: uart9_default {
-                function = "UART9";
-                groups = "UART9";
-        };
+		function = "UART9";
+		groups = "UART9";
+	};
 
 	pinctrl_uart10_default: uart10_default {
-                function = "UART10";
-                groups = "UART10";
-        };
+		function = "UART10";
+		groups = "UART10";
+	};
 
 	pinctrl_uart11_default: uart11_default {
-                function = "UART11";
-                groups = "UART11";
-        };
+		function = "UART11";
+		groups = "UART11";
+	};
 
 	pinctrl_uart12g0_default: uart12g0_default {
-                function = "UART12";
-                groups = "UART12G0";
-        };
+        function = "UART12";
+        groups = "UART12G0";
+	};
 
 	pinctrl_uart12g1_default: uart12g1_default {
-                function = "UART12";
-                groups = "UART12G1";
-        };
+		function = "UART12";
+		groups = "UART12G1";
+	};
 
 	pinctrl_uart13g0_default: uart13g0_default {
-                function = "UART13";
-                groups = "UART13G0";
-        };
+		function = "UART13";
+		groups = "UART13G0";
+	};
 
 	pinctrl_uart13g1_default: uart13g1_default {
-                function = "UART13";
-                groups = "UART13G1";
-        };
+		function = "UART13";
+		groups = "UART13G1";
+	};
 
 	pinctrl_adc0_default: adc0_default {
 		function = "ADC0";
@@ -1402,82 +1618,82 @@
 	};
 
 	pinctrl_rgmii1_default: rgmii1_default {
-			function = "RGMII1";
-			groups = "RGMII1";
+		function = "RGMII1";
+		groups = "RGMII1";
 	};
 	pinctrl_rgmii2_default: rgmii2_default {
-			function = "RGMII2";
-			groups = "RGMII2";
+		function = "RGMII2";
+		groups = "RGMII2";
 	};
 
 	pinctrl_rgmii3_default: rgmii3_default {
-			function = "RGMII3";
-			groups = "RGMII3";
+		function = "RGMII3";
+		groups = "RGMII3";
 	};
 
 	pinctrl_rgmii4_default: rgmii4_default {
-			function = "RGMII4";
-			groups = "RGMII4";
+		function = "RGMII4";
+		groups = "RGMII4";
 	};
 
 	pinctrl_rmii1_default: rmii1_default {
-			function = "RMII1";
-			groups = "RMII1";
+		function = "RMII1";
+		groups = "RMII1";
 	};
 
 	pinctrl_rmii2_default: rmii2_default {
-			function = "RMII2";
-			groups = "RMII2";
+		function = "RMII2";
+		groups = "RMII2";
 	};
 
 	pinctrl_rmii3_default: rmii3_default {
-			function = "RMII3";
-			groups = "RMII3";
+		function = "RMII3";
+		groups = "RMII3";
 	};
 
 	pinctrl_rmii4_default: rmii4_default {
-			function = "RMII4";
-			groups = "RMII4";
+		function = "RMII4";
+		groups = "RMII4";
 	};
 
-        pinctrl_mac1link_default: mac1link_default {
-                function = "MAC1LINK";
-                groups = "MAC1LINK";
-        };
+	pinctrl_mac1link_default: mac1link_default {
+		function = "MAC1LINK";
+		groups = "MAC1LINK";
+	};
 
-        pinctrl_mac2link_default: mac2link_default {
-                function = "MAC2LINK";
-                groups = "MAC2LINK";
-        };
+	pinctrl_mac2link_default: mac2link_default {
+		function = "MAC2LINK";
+		groups = "MAC2LINK";
+	};
 
-        pinctrl_mac3link_default: mac3link_default {
-                function = "MAC3LINK";
-                groups = "MAC3LINK";
-        };
+	pinctrl_mac3link_default: mac3link_default {
+		function = "MAC3LINK";
+		groups = "MAC3LINK";
+	};
 
-        pinctrl_mac4link_default: mac4link_default {
-                function = "MAC4LINK";
-                groups = "MAC4LINK";
-        };
+	pinctrl_mac4link_default: mac4link_default {
+		function = "MAC4LINK";
+		groups = "MAC4LINK";
+	};
 
-        pinctrl_mdio1_default: mdio1_default {
-                function = "MDIO1";
-                groups = "MDIO1";
-        };
+	pinctrl_mdio1_default: mdio1_default {
+		function = "MDIO1";
+		groups = "MDIO1";
+	};
 
-        pinctrl_mdio2_default: mdio2_default {
-                function = "MDIO2";
-                groups = "MDIO2";
-        };
+	pinctrl_mdio2_default: mdio2_default {
+		function = "MDIO2";
+		groups = "MDIO2";
+	};
 
-        pinctrl_mdio3_default: mdio3_default {
-                function = "MDIO3";
-                groups = "MDIO3";
-        };
-        pinctrl_mdio4_default: mdio4_default {
-                function = "MDIO4";
-                groups = "MDIO4";
-        };
+	pinctrl_mdio3_default: mdio3_default {
+		function = "MDIO3";
+		groups = "MDIO3";
+	};
+	pinctrl_mdio4_default: mdio4_default {
+		function = "MDIO4";
+		groups = "MDIO4";
+	};
 
 	pinctrl_usb2ah_default: usb2ah_default {
 		function = "USB2AH";
@@ -1502,187 +1718,246 @@
 		function = "USB2BD";
 		groups = "USB2BD";
 	};
-	    pinctrl_usb2bh_default: usb2bh_default {
-	        function = "USB2BH";
-	        groups = "USB2BH";
-	    };
-		pinctrl_tach0_default: tach0_default {
-			function = "TACH0";
-			groups = "TACH0";
-		};
-		pinctrl_tach1_default: tach1_default {
-	        function = "TACH1";
-	        groups = "TACH1";
-		};
-		pinctrl_tach2_default: tach2_default {
-	        function = "TACH2";
-	        groups = "TACH2";
-	    };
-		pinctrl_tach3_default: tach3_default {
-	                function = "TACH3";
-	                groups = "TACH3";
-	        };
-		pinctrl_tach4_default: tach4_default {
-	                function = "TACH4";
-	                groups = "TACH4";
-	        };
-		pinctrl_tach5_default: tach5_default {
-	                function = "TACH5";
-	                groups = "TACH5";
-	        };
-		pinctrl_tach6_default: tach6_default {
-	                function = "TACH6";
-	                groups = "TACH6";
-	        };
-		pinctrl_tach7_default: tach7_default {
-	                function = "TACH7";
-	                groups = "TACH7";
-	        };
-		pinctrl_tach8_default: tach8_default {
-	                function = "TACH8";
-	                groups = "TACH8";
-	        };
-		pinctrl_tach9_default: tach9_default {
-	                function = "TACH9";
-	                groups = "TACH9";
-	        };
-		pinctrl_tach10_default: tach10_default {
-	                function = "TACH10";
-	                groups = "TACH10";
-	        };
-		pinctrl_tach11_default: tach11_default {
-	                function = "TACH11";
-	                groups = "TACH11";
-	        };
-		pinctrl_tach12_default: tach12_default {
-	                function = "TACH12";
-	                groups = "TACH12";
-	        };
-		pinctrl_tach13_default: tach13_default {
-	                function = "TACH13";
-	                groups = "TACH13";
-	        };
-		pinctrl_tach14_default: tach14_default {
-	                function = "TACH14";
-	                groups = "TACH14";
-	        };
-		pinctrl_tach15_default: tach15_default {
-	                function = "TACH15";
-	                groups = "TACH15";
-	        };
 
-		pinctrl_pwm0_default: pwm0_default {
-	        function = "PWM0";
-	        groups = "PWM0";
-	    };
-	    pinctrl_pwm1_default: pwm1_default {
-	        function = "PWM1";
-	        groups = "PWM1";
-	    };
-	    pinctrl_pwm2_default: pwm2_default {
-	        function = "PWM2";
-	        groups = "PWM2";
-	    };
-	    pinctrl_pwm3_default: pwm3_default {
-	        function = "PWM3";
-	        groups = "PWM3";
-	    };
-	    pinctrl_pwm4_default: pwm4_default {
-	        function = "PWM4";
-	        groups = "PWM4";
-	    };
-	    pinctrl_pwm5_default: pwm5_default {
-	        function = "PWM5";
-	        groups = "PWM5";
-	    };
-	    pinctrl_pwm6_default: pwm6_default {
-	        function = "PWM6";
-	        groups = "PWM6";
-	    };
-	    pinctrl_pwm7_default: pwm7_default {
-	        function = "PWM7";
-	        groups = "PWM7";
-	    };
-		pinctrl_sd1_default: sd1_default {
-	        function = "SD1";
-	        groups = "SD1";
-	    };
-	#if 0
-	    pinctrl_sd1_8bits_default: sd1_8bits_default {
-	        function = "SD1_8BITS";
-	        groups = "SD1_8BITS";
-	    };
-	#endif
-	    pinctrl_sd2_default: sd2_default {
-	        function = "SD2";
-	        groups = "SD2";
-	    };
-		pinctrl_emmc_default: emmc_default {
-	        function = "EMMC";
-	        groups = "EMMC";
-	    };
-		pinctrl_i2c1_default: i2c1_default {
-	        function = "I2C1";
-	        groups = "I2C1";
-	    };
-		pinctrl_i2c2_default: i2c2_default {
-	        function = "I2C2";
-	        groups = "I2C2";
-	    };
-		pinctrl_i2c3_default: i2c3_default {
-	        function = "I2C3";
-	        groups = "I2C3";
-	    };
-		pinctrl_i2c4_default: i2c4_default {
-	        function = "I2C4";
-	        groups = "I2C4";
-	    };
-		pinctrl_i2c5_default: i2c5_default {
-	        function = "I2C5";
-	        groups = "I2C5";
-	    };
-		pinctrl_i2c6_default: i2c6_default {
-	        function = "I2C6";
-	        groups = "I2C6";
-	    };
-		pinctrl_i2c7_default: i2c7_default {
-	        function = "I2C7";
-	        groups = "I2C7";
-	    };
-		pinctrl_i2c8_default: i2c8_default {
-	        function = "I2C8";
-	        groups = "I2C8";
-	    };
-		pinctrl_i2c9_default: i2c9_default {
-	        function = "I2C9";
-	        groups = "I2C9";
-	    };
-		pinctrl_i2c10_default: i2c10_default {
-	        function = "I2C10";
-	        groups = "I2C10";
-	    };
-		pinctrl_i2c11_default: i2c11_default {
-	        function = "I2C11";
-	        groups = "I2C11";
-	    };
-		pinctrl_i2c12_default: i2c12_default {
-	        function = "I2C12";
-	        groups = "I2C12";
-	    };
-		pinctrl_i2c13_default: i2c13_default {
-	        function = "I2C13";
-	        groups = "I2C13";
-	    };
-		pinctrl_i2c14_default: i2c14_default {
-	        function = "I2C14";
-	        groups = "I2C14";
-	    };
-		pinctrl_i2c15_default: i2c15_default {
-	        function = "I2C15";
-	        groups = "I2C15";
-	    };
-		pinctrl_i2c16_default: i2c16_default {
-	        function = "I2C16";
-	        groups = "I2C16";
-	    };
+	pinctrl_usb2bh_default: usb2bh_default {
+		function = "USB2BH";
+		groups = "USB2BH";
+	};
+
+	pinctrl_tach0_default: tach0_default {
+		function = "TACH0";
+		groups = "TACH0";
+	};
+
+	pinctrl_tach1_default: tach1_default {
+		function = "TACH1";
+		groups = "TACH1";
+	};
+
+	pinctrl_tach2_default: tach2_default {
+		function = "TACH2";
+		groups = "TACH2";
+	};
+
+	pinctrl_tach3_default: tach3_default {
+		function = "TACH3";
+		groups = "TACH3";
+	};
+	pinctrl_tach4_default: tach4_default {
+		function = "TACH4";
+		groups = "TACH4";
+	};
+	pinctrl_tach5_default: tach5_default {
+		function = "TACH5";
+		groups = "TACH5";
+	};
+	pinctrl_tach6_default: tach6_default {
+		function = "TACH6";
+		groups = "TACH6";
+	};
+	pinctrl_tach7_default: tach7_default {
+		function = "TACH7";
+		groups = "TACH7";
+	};
+	pinctrl_tach8_default: tach8_default {
+		function = "TACH8";
+		groups = "TACH8";
+	};
+	pinctrl_tach9_default: tach9_default {
+		function = "TACH9";
+		groups = "TACH9";
+	};
+	pinctrl_tach10_default: tach10_default {
+		function = "TACH10";
+		groups = "TACH10";
+	};
+	pinctrl_tach11_default: tach11_default {
+		function = "TACH11";
+		groups = "TACH11";
+	};
+	pinctrl_tach12_default: tach12_default {
+		function = "TACH12";
+		groups = "TACH12";
+	};
+	pinctrl_tach13_default: tach13_default {
+		function = "TACH13";
+		groups = "TACH13";
+	};
+	pinctrl_tach14_default: tach14_default {
+		function = "TACH14";
+		groups = "TACH14";
+	};
+	pinctrl_tach15_default: tach15_default {
+		function = "TACH15";
+		groups = "TACH15";
+	};
+
+	pinctrl_pwm0_default: pwm0_default {
+		function = "PWM0";
+		groups = "PWM0";
+	};
+
+	pinctrl_pwm1_default: pwm1_default {
+		function = "PWM1";
+		groups = "PWM1";
+	};
+
+	pinctrl_pwm2_default: pwm2_default {
+		function = "PWM2";
+		groups = "PWM2";
+	};
+
+	pinctrl_pwm3_default: pwm3_default {
+		function = "PWM3";
+		groups = "PWM3";
+	};
+
+	pinctrl_pwm4_default: pwm4_default {
+		function = "PWM4";
+		groups = "PWM4";
+	};
+
+	pinctrl_pwm5_default: pwm5_default {
+		function = "PWM5";
+		groups = "PWM5";
+	};
+
+	pinctrl_pwm6_default: pwm6_default {
+		function = "PWM6";
+		groups = "PWM6";
+	};
+
+	pinctrl_pwm7_default: pwm7_default {
+		function = "PWM7";
+		groups = "PWM7";
+	};
+
+	pinctrl_sd1_default: sd1_default {
+		function = "SD1";
+		groups = "SD1";
+	};
+#if 0
+	pinctrl_sd1_8bits_default: sd1_8bits_default {
+		function = "SD1_8BITS";
+		groups = "SD1_8BITS";
+	};
+#endif
+	pinctrl_sd2_default: sd2_default {
+		function = "SD2";
+		groups = "SD2";
+	};
+
+	pinctrl_emmc_default: emmc_default {
+		function = "EMMC";
+		groups = "EMMC";
+	};
+
+	pinctrl_i2c1_default: i2c1_default {
+		function = "I2C1";
+		groups = "I2C1";
+	};
+
+	pinctrl_i2c2_default: i2c2_default {
+		function = "I2C2";
+		groups = "I2C2";
+	};
+
+	pinctrl_i2c3_default: i2c3_default {
+		function = "I2C3";
+		groups = "I2C3";
+	};
+
+	pinctrl_i2c4_default: i2c4_default {
+		function = "I2C4";
+		groups = "I2C4";
+	};
+
+	pinctrl_i2c5_default: i2c5_default {
+		function = "I2C5";
+		groups = "I2C5";
+	};
+
+	pinctrl_i2c6_default: i2c6_default {
+		function = "I2C6";
+		groups = "I2C6";
+	};
+
+	pinctrl_i2c7_default: i2c7_default {
+		function = "I2C7";
+		groups = "I2C7";
+	};
+
+	pinctrl_i2c8_default: i2c8_default {
+		function = "I2C8";
+		groups = "I2C8";
+	};
+
+	pinctrl_i2c9_default: i2c9_default {
+		function = "I2C9";
+		groups = "I2C9";
+	};
+
+	pinctrl_i2c10_default: i2c10_default {
+		function = "I2C10";
+		groups = "I2C10";
+	};
+
+	pinctrl_i2c11_default: i2c11_default {
+		function = "I2C11";
+		groups = "I2C11";
+	};
+	pinctrl_i2c12_default: i2c12_default {
+		function = "I2C12";
+		groups = "I2C12";
+	};
+
+	pinctrl_i2c13_default: i2c13_default {
+		function = "I2C13";
+		groups = "I2C13";
+	};
+
+	pinctrl_i2c14_default: i2c14_default {
+		function = "I2C14";
+		groups = "I2C14";
+	};
+
+	pinctrl_i2c15_default: i2c15_default {
+		function = "I2C15";
+		groups = "I2C15";
+	};
+
+	pinctrl_i2c16_default: i2c16_default {
+		function = "I2C16";
+		groups = "I2C16";
+	};
+
+	pinctrl_i3c1_default: i3c1_default {
+                function = "I3C1";
+                groups = "I3C1";
+        };
+
+	pinctrl_i3c2_default: i3c2_default {
+                function = "I3C2";
+                groups = "I3C2";
+        };
+
+	pinctrl_i3c3_default: i3c3_default {
+                function = "I3C3";
+                groups = "I3C3";
+        };
+
+	pinctrl_i3c4_default: i3c4_default {
+                function = "I3C4";
+                groups = "I3C4";
+        };
+
+	pinctrl_i3c5_default: i3c5_default {
+                function = "I3C5";
+                groups = "I3C5";
+        };
+
+	pinctrl_i3c6_default: i3c6_default {
+                function = "I3C6";
+                groups = "I3C6";
+        };
 };

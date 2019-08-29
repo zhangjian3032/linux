@@ -124,22 +124,6 @@
 		status = "okay";
 };
 
-&uart6 {
-        status = "okay";
-};
-
-&uart7 {
-        status = "okay";
-};
-
-&uart8 {
-        status = "okay";
-};
-
-&uart9 {
-        status = "okay";
-};
-
 &uart10 {
         status = "okay";
 };
@@ -148,18 +132,40 @@
         status = "okay";
 };
 
-&uart12 {
-        status = "okay";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_uart12g1_default>;
+&i2c4 {
+	status = "okay";
 };
 
-&uart13 {
-        status = "okay";
+&i2c5 {
+	status = "okay";
+};
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_uart13g1_default>;
+&i2c6 {
+	status = "okay";
+};
+
+&i2c7 {
+	status = "okay";
+};
+
+&i2c8 {
+	status = "okay";
+
+	eeprom@50 {
+		compatible = "atmel,24c08";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+
+	lm75@4d {
+		compatible = "national,lm75";
+		reg = <0x4d>;
+	};
+
+};
+
+&i2c9 {
+	status = "okay";
 };
 
 #if 0
