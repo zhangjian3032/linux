@@ -105,6 +105,11 @@
 					<0x40466000 0x2000>;
 		};
 
+		sram: sram@10000000 {
+			compatible = "mmio-sram";
+			reg = <0x10000000 0x10000>;      // 64K
+		};
+
 		spi0: spi@1e620000 {
 			/* reg : cs0 : cs1 : cs2  */
 			reg = <0x1e620000 0x100 
