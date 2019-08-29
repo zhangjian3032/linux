@@ -1773,6 +1773,46 @@
 		groups = "PWM7";
 	};
 
+	pinctrl_pwm8_default: pwm8_default {
+		function = "PWM8";
+		groups = "PWM8";
+	};
+
+	pinctrl_pwm9_default: pwm9_default {
+		function = "PWM9";
+		groups = "PWM9";
+	};
+
+	pinctrl_pwm10_default: pwm10_default {
+		function = "PWM10";
+		groups = "PWM10";
+	};
+
+	pinctrl_pwm11_default: pwm11_default {
+		function = "PWM11";
+		groups = "PWM11";
+	};
+
+	pinctrl_pwm12_default: pwm12_default {
+		function = "PWM12";
+		groups = "PWM12";
+	};
+
+	pinctrl_pwm13_default: pwm13_default {
+		function = "PWM13";
+		groups = "PWM13";
+	};
+
+	pinctrl_pwm14_default: pwm14_default {
+		function = "PWM14";
+		groups = "PWM14";
+	};
+
+	pinctrl_pwm15_default: pwm15_default {
+		function = "PWM15";
+		groups = "PWM15";
+	};
+
 	pinctrl_sd1_default: sd1_default {
 		function = "SD1";
 		groups = "SD1";
