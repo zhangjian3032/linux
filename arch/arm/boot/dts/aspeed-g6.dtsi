@@ -676,6 +676,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd1_default &pinctrl_rxd1_default>;
+
 				status = "disabled";	
 			};
 
@@ -718,6 +719,8 @@
 				no-loopback-test;
 				port_address = <0x3f8>;
 				serial_irq = <4>;
+
+				status = "disabled";
 			};
 
 			vuart2: serial@1e787800 {
@@ -729,6 +732,7 @@
 				no-loopback-test;
 				port_address = <0x3f8>;
 				serial_irq = <4>;
+
 				status = "disabled";
             };
 
@@ -741,6 +745,7 @@
 				no-loopback-test;
 				port_address = <0x2f8>;
 				serial_irq = <3>;
+
 				status = "disabled";
 			};
 
@@ -753,6 +758,7 @@
                                 no-loopback-test;
                                 port_address = <0x2f8>;
                                 serial_irq = <3>;
+
                                 status = "disabled";
                         };
 
@@ -875,6 +881,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd2_default &pinctrl_rxd2_default>;
+
 				status = "disabled";
 			};
 
@@ -889,6 +896,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd3_default &pinctrl_rxd3_default>;
+
 				status = "disabled";
 			};
 
@@ -902,7 +910,8 @@
 				resets = <&lpc_reset 7>;
 				no-loopback-test;
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_txd4_default &pinctrl_rxd4_default>;				
+				pinctrl-0 = <&pinctrl_txd4_default &pinctrl_rxd4_default>;
+
 				status = "disabled";
 			};
 
@@ -923,6 +932,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart6_default>;
+
 				status = "disabled";
 			};
 
@@ -936,6 +946,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart7_default>;
+
 				status = "disabled";
 			};
 
@@ -949,6 +960,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart8_default>;
+
 				status = "disabled";
 			};
 
@@ -962,6 +974,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
                                 pinctrl-0 = <&pinctrl_uart9_default>;
+
 				status = "disabled";
 			};
 
@@ -975,6 +988,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart10_default>;
+
 				status = "disabled";
 			};
 
@@ -988,6 +1002,7 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart11_default>;
+
 				status = "disabled";
 			};
 
@@ -999,6 +1014,9 @@
 				interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART12CLK>;
 				no-loopback-test;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart12g1_default>;
+
 				status = "disabled";
 			};
 
@@ -1010,6 +1028,9 @@
 				interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART13CLK>;
 				no-loopback-test;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart13g1_default>;
+
 				status = "disabled";
 			};
 

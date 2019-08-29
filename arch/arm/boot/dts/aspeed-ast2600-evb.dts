@@ -124,23 +124,6 @@
 		status = "okay";
 };
 
-&uart6 {
-        status = "okay";
-};
-
-#if 0
-&uart7 {
-        status = "okay";
-};
-
-&uart8 {
-        status = "okay";
-};
-
-&uart9 {
-        status = "okay";
-};
-
 &uart10 {
         status = "okay";
 };
@@ -148,21 +131,6 @@
 &uart11 {
         status = "okay";
 };
-
-&uart12 {
-        status = "okay";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_uart12g1_default>;
-};
-
-&uart13 {
-        status = "okay";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_uart13g1_default>;
-};
-#endif
 
 &i2c4 {
 	status = "okay";
