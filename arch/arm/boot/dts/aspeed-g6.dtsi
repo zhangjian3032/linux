@@ -272,8 +272,6 @@
 			reg = <0x1e6a0000 0x300>;
 			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_usb2ad_default>;
 			status = "disabled";
 		};
 
@@ -409,6 +407,8 @@
 #endif
 				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 
+				status = "disabled";
+
 				interrupt-map-mask = <0 0 0 7>;
 				interrupt-map = <0 0 0 1 &pcie0_intc 0>,
 					<0 0 0 2 &pcie0_intc 1>,
@@ -420,7 +420,7 @@
 					#address-cells = <0>;
 					#interrupt-cells = <1>;
 				};
-  
+
 			};
 
 			xdma: xdma@1e6e7000 {
