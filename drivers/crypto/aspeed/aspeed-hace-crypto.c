@@ -1547,12 +1547,14 @@ int aspeed_register_hace_crypto_algs(struct aspeed_hace_dev *hace_dev)
 			if (err)
 				return err;
 		}
+#if 0
 		for (i = 0; i < ARRAY_SIZE(aspeed_aead_algs_g6); i++) {
 			aspeed_aead_algs_g6[i].hace_dev = hace_dev;
 			err = crypto_register_aead(&aspeed_aead_algs_g6[i].alg.aead);
 			if (err)
 				return err;
 		}
+#endif
 	}
 	return 0;
 }

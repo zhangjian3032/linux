@@ -133,7 +133,7 @@ static void aspeed_acry_done_task(unsigned long data)
 
 static int aspeed_acry_register(struct aspeed_acry_dev *acry_dev)
 {
-	aspeed_register_acry_rsa_algs(acry_dev);
+	// aspeed_register_acry_rsa_algs(acry_dev);
 	return 0;
 }
 
