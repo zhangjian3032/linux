@@ -55,81 +55,81 @@
 	};
 
     iio-hwmon {
-            compatible = "iio-hwmon";
-            io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
-                    <&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
-					<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
-					<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
+	    compatible = "iio-hwmon";
+	    io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
+	            <&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
+				<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
+				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
     };
 
 };
 
 &spi0 {
-        status = "okay";
-        flash: m25p80@0 {
-                compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
-                reg = <0x0>;
-                #address-cells = <0x1>;
-                #size-cells = <0x1>;
-                spi-max-frequency = <50000000>;
-                m25p,fast-read;
-                        partition@0 {
-                                label = "all.bin 8MB";
-                                reg = <0x000000 0x0800000>; /* 8 MiB */
-                        };
-                        partition@1 {
-                                label = "u-boot";
-                                reg = <0x000000 0x060000>; /* 384 KiB */
-                        };
-                        partition@2 {
-                                label = "u-boot-env";
-                                reg = <0x060000 0x010000>; /* 64 KiB */
-                        };
-                        partition@3 {
-                                label = "dts";
-                                reg = <0x070000 0x010000>; /* 64 Kib */
-                        };
-                        partition@4 {
-                                label = "kernel";
-                                reg = <0x080000 0x380000>; /* 3.5 MiB */
-                        };
-                        partition@5 {
-                                label = "rootfs";
-                                reg = <0x400000 0x400000>; /* 4 MiB */
-                        };
-                        partition@6 {
-                                label = "pd_rootfs";
-                                reg = <0x800000 0x0>;
-                        };
-        };
+	status = "okay";
+	flash: m25p80@0 {
+	        compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
+	        reg = <0x0>;
+	        #address-cells = <0x1>;
+	        #size-cells = <0x1>;
+	        spi-max-frequency = <50000000>;
+	        m25p,fast-read;
+	                partition@0 {
+	                        label = "all.bin 8MB";
+	                        reg = <0x000000 0x0800000>; /* 8 MiB */
+	                };
+	                partition@1 {
+	                        label = "u-boot";
+	                        reg = <0x000000 0x060000>; /* 384 KiB */
+	                };
+	                partition@2 {
+	                        label = "u-boot-env";
+	                        reg = <0x060000 0x010000>; /* 64 KiB */
+	                };
+	                partition@3 {
+	                        label = "dts";
+	                        reg = <0x070000 0x010000>; /* 64 Kib */
+	                };
+	                partition@4 {
+	                        label = "kernel";
+	                        reg = <0x080000 0x380000>; /* 3.5 MiB */
+	                };
+	                partition@5 {
+	                        label = "rootfs";
+	                        reg = <0x400000 0x400000>; /* 4 MiB */
+	                };
+	                partition@6 {
+	                        label = "pd_rootfs";
+	                        reg = <0x800000 0x0>;
+	                };
+	};
 };
 
 &uart1 {
-		status = "okay";
+	status = "okay";
 };
 
 &uart2 {
-		status = "okay";
+	status = "okay";
 };
 
 &uart3 {
-		status = "okay";
+	status = "okay";
 };
 
 &uart4 {
-		status = "okay";
+	status = "okay";
 };
 
 &uart5 {
-		status = "okay";
+	status = "okay";
 };
 
 &uart10 {
-        status = "okay";
+	status = "okay";
 };
 
 &uart11 {
-        status = "okay";
+	status = "okay";
 };
 
 &i2c4 {
@@ -169,68 +169,234 @@
 };
 
 #if 0
-&mac0 {
-		status = "okay";
+&mdio0 {
+	status = "okay";
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_mdio1_default>;
+	ethphy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mac0 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy0>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_mdio1_default>;
 };
 #endif
 
-&mac1 {
-		status = "okay";
+&mdio1 {
+	status = "okay";
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
+	ethphy1: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mac1 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
+};
+
+&mdio2 {
+	status = "okay";
+
+	ethphy2: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
 };
 
 &mac2 {
-		status = "okay";
+	status = "okay";
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_mdio3_default>;
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy2>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_mdio3_default>;
+};
+
+&mdio3 {
+	status = "okay";
+
+	ethphy3: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
 };
 
 &mac3 {
-		status = "okay";
+	status = "okay";
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_mdio4_default>;
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy3>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_mdio4_default>;
 };
 
 &pwm_tacho {
-        status = "okay";
-        pinctrl-names = "default";
-        pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_tach0_default &pinctrl_pwm1_default &pinctrl_tach1_default>;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_tach0_default 
+			&pinctrl_pwm1_default &pinctrl_tach1_default
+			&pinctrl_pwm2_default &pinctrl_tach2_default
+			&pinctrl_pwm3_default &pinctrl_tach3_default
+			&pinctrl_pwm4_default &pinctrl_tach4_default
+			&pinctrl_pwm5_default &pinctrl_tach5_default
+			&pinctrl_pwm6_default &pinctrl_tach6_default
+			&pinctrl_pwm7_default &pinctrl_tach7_default
+			&pinctrl_pwm8g1_default &pinctrl_tach8_default
+			&pinctrl_pwm9g1_default &pinctrl_tach9_default
+			&pinctrl_pwm10g1_default &pinctrl_tach10_default
+			&pinctrl_pwm11g1_default &pinctrl_tach11_default
+			&pinctrl_pwm12g1_default &pinctrl_tach12_default
+			&pinctrl_pwm13g1_default &pinctrl_tach13_default
+			&pinctrl_pwm14g1_default &pinctrl_tach14_default
+			&pinctrl_pwm15g1_default &pinctrl_tach15_default>;
+
+	fan@0 {
+		reg = <0x00>;
+		period = /bits/ 8 <>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
+	};
+
+	fan@1 {
+		reg = <0x01>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x01>;
+	};
+
+	fan@2 {
+		reg = <0x02>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x02>;
+	};
+
+	fan@3 {
+		reg = <0x03>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x03>;
+	};
+
+	fan@4 {
+		reg = <0x04>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x04>;
+	};
+
+	fan@5 {
+		reg = <0x05>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x05>;
+	};
+
+	fan@6 {
+		reg = <0x06>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x06>;
+	};
+
+	fan@7 {
+		reg = <0x07>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x07>;
+	};
+
+	fan@8 {
+		reg = <0x08>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x08>;
+	};
+
+	fan@9 {
+		reg = <0x09>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x09>;
+	};
+
+	fan@10 {
+		reg = <0x0a>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x0a>;
+	};
+
+	fan@11 {
+		reg = <0x0b>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x0b>;
+	};
+
+	fan@12 {
+		reg = <0x0c>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x0c>;
+	};
+
+	fan@13 {
+		reg = <0x0d>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x0d>;
+	};
+
+	fan@14 {
+		reg = <0x0e>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x0e>;
+	};
+
+	fan@15 {
+		reg = <0x0f>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x0f>;
+	};
 };
 
 &video {
-		memory-region = <&video_memory>;
-		status = "okay";
+	memory-region = <&video_memory>;
+	status = "okay";
 };
 
 #if 0
 &vhub {
-		status = "okay";
+	status = "okay";
+
+	pinctrl-names = "default";
+#if 1
+	pinctrl-0 = <&pinctrl_usb2ad_default>;
+#else
+	pinctrl-0 = <&pinctrl_usb2adp_default>;
+#endif
 };
 #else
 &ehci0 {
-		status = "okay";
+	status = "okay";
 };
-
 &ehci1 {
-		status = "okay";
+	status = "okay";
 };
 
 &uhci {
-		status = "okay";
+	status = "okay";
 };
 #endif
 
 #if 0
 &gfx {
-     status = "okay";
-     memory-region = <&gfx_memory>;
+	status = "okay";
+	memory-region = <&gfx_memory>;
 };
 #endif
 
@@ -248,15 +414,25 @@
 };
 
 &peci0 {
-		status = "okay";
+	status = "okay";
 };
 
 &adc0 {
 	ref_voltage = <1200>;
-        status = "okay";
+	status = "okay";
+
+	pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
+		&pinctrl_adc2_default &pinctrl_adc3_default
+		&pinctrl_adc4_default &pinctrl_adc5_default
+		&pinctrl_adc6_default &pinctrl_adc7_default>;
 };
 
 &adc1 {
-        ref_voltage = <1200>;
-        status = "okay";
+	ref_voltage = <1200>;
+	status = "okay";
+
+	pinctrl-0 = <&pinctrl_adc8_default &pinctrl_adc9_default
+		&pinctrl_adc10_default &pinctrl_adc11_default
+		&pinctrl_adc12_default &pinctrl_adc13_default
+		&pinctrl_adc14_default &pinctrl_adc15_default>;
 };

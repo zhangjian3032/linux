@@ -105,6 +105,11 @@
 					<0x40466000 0x2000>;
 		};
 
+		sram: sram@10000000 {
+			compatible = "mmio-sram";
+			reg = <0x10000000 0x10000>;      // 64K
+		};
+
 		spi0: spi@1e620000 {
 			/* reg : cs0 : cs1 : cs2  */
 			reg = <0x1e620000 0x100 
@@ -151,55 +156,85 @@
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		i3cdma: i3cdma@1e651000 {
+			compatible = "aspeed,ast2600-i3c-dma";
+			reg = <0x1e651000 0x1000>;
+			resets = <&syscon ASPEED_RESET_I3C_DMA>;
+		};
+
+		mdio0: mdio@1e650000 {
+			compatible = "aspeed,ast2600-mdio";
+			reg = <0x1e650000 0x8>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		mdio1: mdio@1e650008 {
+			compatible = "aspeed,ast2600-mdio";
+			reg = <0x1e650008 0x8>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		mdio2: mdio@1e650010 {
+			compatible = "aspeed,ast2600-mdio";
+			reg = <0x1e650010 0x8>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		mdio3: mdio@1e650018 {
+			compatible = "aspeed,ast2600-mdio";
+			reg = <0x1e650018 0x8>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		mac0: ftgmac@1e660000 {
 			compatible = "aspeed,ast2600-mac", "faraday,ftgmac100";
-			reg = <0x1e660000 0x180>, <0x1e650000 0x4>;
+			reg = <0x1e660000 0x180>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>;
-#if 0
-			phy-handle = <&phy0>;
-#endif
+
 			status = "disabled";
 		};
 
 		mac1: ftgmac@1e680000 {
 			compatible = "aspeed,ast2600-mac", "faraday,ftgmac100";
-			reg = <0x1e680000 0x180>, <0x1e650008 0x4>;
+			reg = <0x1e680000 0x180>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&syscon ASPEED_CLK_GATE_MAC2CLK>;
-#if 0
-			phy-handle = <&phy0>;
-#endif
+
 			status = "disabled";
 		};
 
 		mac2: ftgmac@1e670000 {
 			compatible = "aspeed,ast2600-mac", "faraday,ftgmac100";
-			reg = <0x1e670000 0x180>, <0x1e650010 0x4>;
+			reg = <0x1e670000 0x180>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&syscon ASPEED_CLK_GATE_MAC3CLK>;
-#if 0
-			phy-handle = <&phy0>;
-#endif
+
 			status = "disabled";
 		};
 
 		mac3: ftgmac@1e690000 {
 			compatible = "aspeed,ast2600-mac", "faraday,ftgmac100";
-			reg = <0x1e690000 0x180>, <0x1e650018 0x4>;
+			reg = <0x1e690000 0x180>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&syscon ASPEED_CLK_GATE_MAC4CLK>;
-#if 0
-			phy-handle = <&phy0>;
-#endif
+
 			status = "disabled";
 		};
 
@@ -237,8 +272,6 @@
 			reg = <0x1e6a0000 0x300>;
 			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_usb2ad_default>;
 			status = "disabled";
 		};
 
@@ -253,106 +286,12 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x1e610000 0x100>;
-				clocks = <&syscon ASPEED_CLK_HPLL>;
+				clocks = <&syscon ASPEED_CLK_AHB>;
 				resets = <&syscon ASPEED_RESET_PWM>;
 				status = "disabled";
 
-				fan@0 {
-					reg = <0x00>;
-					period = /bits/ 8 <>;
-					cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-					aspeed,fan-tach-ch = /bits/ 8 <0x00>;
-                		};
-				fan@1 {
-					reg = <0x01>;
-					cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-					aspeed,fan-tach-ch = /bits/ 8 <0x01>;
-				};
-	                	fan@2 {
-        	                	reg = <0x02>;
-					cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-        	                	aspeed,fan-tach-ch = /bits/ 8 <0x02>;
-		                };
-
-        		        fan@3 {
-                		        reg = <0x03>;
-					cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-					aspeed,fan-tach-ch = /bits/ 8 <0x03>;
-				};
-
-				fan@4 {
-					reg = <0x04>;
-					cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-					aspeed,fan-tach-ch = /bits/ 8 <0x04>;
-				};
-
-				fan@5 {
-					reg = <0x05>;
-					cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-					aspeed,fan-tach-ch = /bits/ 8 <0x05>;
-				};
-
-				fan@6 {
-					reg = <0x06>;
-					cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-					aspeed,fan-tach-ch = /bits/ 8 <0x06>;
-				};
-
-				fan@7 {
-					reg = <0x07>;
-					cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-					aspeed,fan-tach-ch = /bits/ 8 <0x07>;
-				};
-
-				fan@8 {
-                                        reg = <0x08>;
-                                        cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-                                        aspeed,fan-tach-ch = /bits/ 8 <0x08>;
-                                };
-
-				fan@9 {
-                                        reg = <0x09>;
-                                        cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-                                        aspeed,fan-tach-ch = /bits/ 8 <0x09>;
-                                };
-
-				fan@10 {
-                                        reg = <0x0a>;
-                                        cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-                                        aspeed,fan-tach-ch = /bits/ 8 <0x0a>;
-                                };
-
-				fan@11 {
-                                        reg = <0x0b>;
-                                        cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-                                        aspeed,fan-tach-ch = /bits/ 8 <0x0b>;
-                                };
-
-				fan@12 {
-                                        reg = <0x0c>;
-                                        cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-                                        aspeed,fan-tach-ch = /bits/ 8 <0x0c>;
-                                };
-
-				fan@13 {
-                                        reg = <0x0d>;
-                                        cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-                                        aspeed,fan-tach-ch = /bits/ 8 <0x0d>;
-                                };
-
-				fan@14 {
-                                        reg = <0x0e>;
-                                        cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-                                        aspeed,fan-tach-ch = /bits/ 8 <0x0e>;
-                                };
-
-				fan@15 {
-					reg = <0x0f>;
-					cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
-					aspeed,fan-tach-ch = /bits/ 8 <0x0f>;
-				};
-
 			};
+
 			syscon: syscon@1e6e2000 {
 				compatible = "aspeed,aspeed-scu", "aspeed,ast2600-scu", "syscon", "simple-mfd";
 				reg = <0x1e6e2000 0x1000>;
@@ -468,6 +407,8 @@
 #endif
 				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 
+				status = "disabled";
+
 				interrupt-map-mask = <0 0 0 7>;
 				interrupt-map = <0 0 0 1 &pcie0_intc 0>,
 					<0 0 0 2 &pcie0_intc 1>,
@@ -479,7 +420,7 @@
 					#address-cells = <0>;
 					#interrupt-cells = <1>;
 				};
-  
+
 			};
 
 			xdma: xdma@1e6e7000 {
@@ -1830,6 +1771,86 @@
 	pinctrl_pwm7_default: pwm7_default {
 		function = "PWM7";
 		groups = "PWM7";
+	};
+
+	pinctrl_pwm8g0_default: pwm8g0_default {
+		function = "PWM8";
+		groups = "PWM8G0";
+	};
+
+	pinctrl_pwm8g1_default: pwm8g1_default {
+		function = "PWM8";
+		groups = "PWM8G1";
+	};
+
+	pinctrl_pwm9g0_default: pwm9g0_default {
+		function = "PWM9";
+		groups = "PWM9G0";
+	};
+
+	pinctrl_pwm9g1_default: pwm9g1_default {
+		function = "PWM9";
+		groups = "PWM9G1";
+	};
+
+	pinctrl_pwm10g0_default: pwm10g0_default {
+		function = "PWM10";
+		groups = "PWM10G0";
+	};
+
+	pinctrl_pwm10g1_default: pwm10g1_default {
+		function = "PWM10";
+		groups = "PWM10G1";
+	};
+
+	pinctrl_pwm11g0_default: pwm11g0_default {
+		function = "PWM11";
+		groups = "PWM11G0";
+	};
+
+	pinctrl_pwm11g1_default: pwm11g1_default {
+		function = "PWM11";
+		groups = "PWM11G1";
+	};
+
+	pinctrl_pwm12g0_default: pwm12g0_default {
+		function = "PWM12";
+		groups = "PWM12G0";
+	};
+
+	pinctrl_pwm12g1_default: pwm12g1_default {
+		function = "PWM12";
+		groups = "PWM12G1";
+	};
+
+	pinctrl_pwm13g0_default: pwm13g0_default {
+		function = "PWM13";
+		groups = "PWM13G0";
+	};
+
+	pinctrl_pwm13g1_default: pwm13g1_default {
+		function = "PWM13";
+		groups = "PWM13G1";
+	};
+
+	pinctrl_pwm14g0_default: pwm14g0_default {
+		function = "PWM14";
+		groups = "PWM14G0";
+	};
+
+	pinctrl_pwm14g1_default: pwm14g1_default {
+		function = "PWM14";
+		groups = "PWM14G1";
+	};
+
+	pinctrl_pwm15g0_default: pwm15g0_default {
+		function = "PWM15";
+		groups = "PWM15G0";
+	};
+
+	pinctrl_pwm15g1_default: pwm15g1_default {
+		function = "PWM15";
+		groups = "PWM15G1";
 	};
 
 	pinctrl_sd1_default: sd1_default {
