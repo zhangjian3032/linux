@@ -122,11 +122,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 1,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[1] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -134,11 +134,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[2] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -146,11 +146,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[3] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -158,11 +158,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[4] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -170,11 +170,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[5] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -182,11 +182,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[6] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -194,11 +194,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[7] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -206,11 +206,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[8] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -218,11 +218,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[9] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -230,11 +230,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[10] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -242,11 +242,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[11] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -254,11 +254,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[12] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -266,11 +266,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[13] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -278,11 +278,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[14] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -290,11 +290,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 	[15] = {
 		.load_wdt_rising_falling_pt = 0x10,	
@@ -302,11 +302,11 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 13,
-		.divide_l = 4,
-		.period = 0xff,
+		.divide_h = 0x5,
+		.divide_l = 0x6,
+		.period = 0x13,	//5% ~~
 		.rising = 0x00,
-		.falling = 0xBF,
+		.falling = 0x0a,
 	},
 };
 
@@ -619,7 +619,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	if (ret != 0)
 		return ret;
 
-	if (fan_ctrl < 0 || fan_ctrl > 0x100)
+	if (fan_ctrl < 0 || fan_ctrl > priv->pwm_channel[index].period)
 		return -EINVAL;
 
 	if (priv->pwm_channel[index].falling == fan_ctrl)
