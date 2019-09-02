@@ -286,7 +286,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x1e610000 0x100>;
-				clocks = <&syscon ASPEED_CLK_HPLL>;
+				clocks = <&syscon ASPEED_CLK_AHB>;
 				resets = <&syscon ASPEED_RESET_PWM>;
 				status = "disabled";
 
