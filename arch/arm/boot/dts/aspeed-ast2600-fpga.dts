@@ -39,7 +39,7 @@
 	};
 
 	timer {
-		clocks = <0x17d7840>;
+		clock-frequency = <0x17d7840>;
 	};
 
 	memory@80000000 {
@@ -135,4 +135,9 @@
 	status = "okay";
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy0>;
+};
+
+&video {
+		memory-region = <&video_memory>;
+		status = "okay";
 };
