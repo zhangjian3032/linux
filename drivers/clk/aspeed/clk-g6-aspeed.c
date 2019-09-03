@@ -795,8 +795,9 @@ static void __init aspeed_ast2600_cc(struct regmap *map)
 
 
 	regmap_read(map, 0x04, &chip_id);
+	regmap_read(map, 0x500, &val);
+
 	if (chip_id & BIT(16)) {
-		regmap_read(map, 0x500, &val);
 		if (val & BIT(16)) {
 			ast2600_a1_axi_ahb_div1_table[0] = ast2600_a1_axi_ahb_default_table[(val >> 8) & 0x3];
 			axi_div = 1;
