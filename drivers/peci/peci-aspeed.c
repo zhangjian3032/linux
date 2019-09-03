@@ -306,7 +306,7 @@ static irqreturn_t aspeed_peci_irq_handler(int irq, void *arg)
 static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 {
 	u32 msg_timing, addr_timing, rd_sampling_point;
-	u32 clk_freq, clk_divisor, clk_div_val = 0;
+	u32 clk_freq, clk_div_val = 0;
 	int ret;
 
 	priv->clk = devm_clk_get(priv->dev, NULL);
