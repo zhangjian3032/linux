@@ -175,18 +175,19 @@ struct aspeed_jtag_config {
 };
 
 struct aspeed_jtag_info {
-	void __iomem		*reg_base;
-	struct 	aspeed_jtag_config	*config;
-	u32			*tdi;
-	u32			*tdo;
-	u8			sts;	//0: idle, 1:irpause 2:drpause
-	int			irq;		//JTAG IRQ number
-	struct reset_control	*reset;
-	struct clk		*clk;
-	u32			clkin;	//ast2600 use hclk, old use pclk
-	u32			flag;
-	wait_queue_head_t	jtag_wq;
-	bool			is_open;
+	void __iomem			*reg_base;
+	struct aspeed_jtag_config	*config;
+	u32				*tdi;
+	u32				*tdo;
+	u8				sts;	// 0: idle, 1:irpause 2:drpause
+	int				irq;	// JTAG IRQ number
+	struct reset_control		*reset;
+	struct clk			*clk;
+	u32				clkin;	// ast2600 use hclk, old use pclk
+	u32				flag;
+	wait_queue_head_t		jtag_wq;
+	bool				is_open;
+	struct miscdevice		*misc_dev;
 };
 
 /******************************************************************************/
@@ -306,9 +307,8 @@ static void aspeed_jtag_run_test_idle(struct aspeed_jtag_info *aspeed_jtag, stru
 	JTAG_DBUG(":%s mode\n", runtest->mode ? "SW" : "HW");
 
 	if (runtest->mode) {
-		//SW mode
-		//from idle , from pause,  -- > to pause, to idle
-
+		// SW mode
+		// from idle , from pause,  -- > to pause, to idle
 		if (runtest->reset) {
 			for (i = 0; i < 10; i++)
 				TCK_Cycle(aspeed_jtag, 1, 0);
@@ -1063,12 +1063,6 @@ static const struct file_operations aspeed_jtag_fops = {
 	.release		= jtag_release,
 };
 
-struct miscdevice aspeed_jtag_misc = {
-	.minor	= MISC_DYNAMIC_MINOR,
-	.name	= "aspeed-jtag",
-	.fops	= &aspeed_jtag_fops,
-};
-
 static struct aspeed_jtag_config jtag_config = {
 	.jtag_version = 0,
 	.jtag_buff_len = 32,
@@ -1092,6 +1086,7 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 	struct aspeed_jtag_info *aspeed_jtag;
 	const struct of_device_id *jtag_dev_id;
 	struct resource *res;	
+	struct miscdevice *misc_dev;
 	int ret = 0;
 
 	JTAG_DBUG("aspeed_jtag_probe\n");
@@ -1135,22 +1130,31 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no clock defined\n");
 		return -ENODEV;
 	}
+
 	aspeed_jtag->clkin = clk_get_rate(aspeed_jtag->clk);
 	JTAG_DBUG("aspeed_jtag->clkin %d \n", aspeed_jtag->clkin);
+
 	aspeed_jtag->config = (struct aspeed_jtag_config *)jtag_dev_id->data;
 
 	aspeed_jtag->tdi = kmalloc(BUFFER_LEN * 2, GFP_KERNEL);
 	aspeed_jtag->tdo = aspeed_jtag->tdi + (BUFFER_LEN / sizeof(u32));
 
 	JTAG_DBUG("buffer addr : tdi %x tdo %x \n", (u32)aspeed_jtag->tdi, (u32)aspeed_jtag->tdo);
-	//scu init
+
+	// SCU init
 	reset_control_assert(aspeed_jtag->reset);
 	udelay(3);
 	reset_control_deassert(aspeed_jtag->reset);
 
-	aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN, ASPEED_JTAG_CTRL);  //Eanble Clock
-	//Enable sw mode for disable clk
-	aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO, ASPEED_JTAG_SW);
+	// enable clock
+	aspeed_jtag_write(aspeed_jtag,
+			  JTAG_ENG_EN | JTAG_ENG_OUT_EN,
+			  ASPEED_JTAG_CTRL);
+
+	// enable sw mode for disable clk
+	aspeed_jtag_write(aspeed_jtag,
+			  JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO,
+			  ASPEED_JTAG_SW);
 	
 	ret = devm_request_irq(&pdev->dev, aspeed_jtag->irq, aspeed_jtag_isr,
 			       0, dev_name(&pdev->dev), aspeed_jtag);
@@ -1159,23 +1163,37 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	aspeed_jtag_write(aspeed_jtag, JTAG_INST_PAUSE | JTAG_INST_COMPLETE |
-		       JTAG_DATA_PAUSE | JTAG_DATA_COMPLETE |
-		       JTAG_INST_PAUSE_EN | JTAG_INST_COMPLETE_EN |
-		       JTAG_DATA_PAUSE_EN | JTAG_DATA_COMPLETE_EN,
-		       ASPEED_JTAG_ISR);		//Eanble Interrupt
+	// enable interrupt
+	aspeed_jtag_write(aspeed_jtag,
+			  JTAG_INST_PAUSE | JTAG_INST_COMPLETE |
+			  JTAG_DATA_PAUSE | JTAG_DATA_COMPLETE |
+			  JTAG_INST_PAUSE_EN | JTAG_INST_COMPLETE_EN |
+			  JTAG_DATA_PAUSE_EN | JTAG_DATA_COMPLETE_EN,
+			  ASPEED_JTAG_ISR);
 	
 	aspeed_jtag->flag = 0;
 	init_waitqueue_head(&aspeed_jtag->jtag_wq);
 
-	ret = misc_register(&aspeed_jtag_misc);
+	misc_dev = (struct miscdevice*)devm_kzalloc(&pdev->dev, sizeof(struct miscdevice), GFP_KERNEL);
+	if (!misc_dev) {
+	    pr_err("failed to allocate misc device\n");
+	    goto out_irq;
+	}
+
+	misc_dev->minor = MISC_DYNAMIC_MINOR;
+	misc_dev->name = pdev->name;
+	misc_dev->fops = &aspeed_jtag_fops;
+
+	ret = misc_register(misc_dev);
 	if (ret) {
-		printk(KERN_ERR "JTAG : failed to request interrupt\n");
+		printk(KERN_ERR "JTAG : failed to register misc device\n");
 		goto out_irq;
 	}
 
 	platform_set_drvdata(pdev, aspeed_jtag);
-	dev_set_drvdata(aspeed_jtag_misc.this_device, aspeed_jtag);
+	dev_set_drvdata(misc_dev->this_device, aspeed_jtag);
+
+	aspeed_jtag->misc_dev = misc_dev;
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &jtag_attribute_group);
 	if (ret) {
@@ -1188,7 +1206,7 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 	return 0;
 
 out_irq:
-	free_irq(aspeed_jtag->irq, NULL);
+	devm_free_irq(&pdev->dev, aspeed_jtag->irq, aspeed_jtag);
 out_region:
 	release_mem_region(res->start, res->end - res->start + 1);
 	kfree(aspeed_jtag->tdi);
@@ -1206,9 +1224,11 @@ static int aspeed_jtag_remove(struct platform_device *pdev)
 
 	sysfs_remove_group(&pdev->dev.kobj, &jtag_attribute_group);
 
-	misc_deregister(&aspeed_jtag_misc);
+	misc_deregister(aspeed_jtag->misc_dev);
 
-	free_irq(aspeed_jtag->irq, aspeed_jtag);
+	kfree(aspeed_jtag->misc_dev);
+
+	devm_free_irq(&pdev->dev, aspeed_jtag->irq, aspeed_jtag);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 

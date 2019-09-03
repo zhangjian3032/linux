@@ -367,13 +367,24 @@
 				pinctrl-0 = <&pinctrl_usb11bhid_default>;
 			};
 
-			jtag: jtag@1e6e4100 {
+			jtag0: jtag@1e6e4000 {
 				compatible = "aspeed,ast2600-jtag";
 				reg= <0x1e6e4000 0x20>;
 				interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_HPLL>;
 				resets = <&syscon ASPEED_RESET_JTAG_MASTER>;
 				reset-names = "jtag";
+			};
+
+			jtag1: jtag@1e6e4100 {
+				compatible = "aspeed,ast2600-jtag";
+				reg= <0x1e6e4100 0x20>;
+				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_HPLL>;
+				resets = <&syscon ASPEED_RESET_JTAG_MASTER2>;
+				reset-names = "jtag";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_jtagm_default>;
 			};
 
 			gfx: display@1e6e6000 {
@@ -1981,4 +1992,9 @@
                 function = "I3C6";
                 groups = "I3C6";
         };
+
+	pinctrl_jtagm_default: jtagm_default {
+		function = "JTAGM";
+		groups = "JTAGM";
+	};
 };
