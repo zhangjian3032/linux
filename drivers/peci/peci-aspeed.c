@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2012-2017 ASPEED Technology Inc.
+// Copyright (C) ASPEED Technology Inc.
 // Copyright (c) 2018 Intel Corporation
 
 #include <linux/bitfield.h>
@@ -39,6 +39,39 @@
 #define ASPEED_PECI_R_DATA6  0x58
 #define ASPEED_PECI_R_DATA7  0x5c
 
+#define ASPEED_PECI_NEW_W_DATA0  0x80
+#define ASPEED_PECI_NEW_W_DATA1  0x84
+#define ASPEED_PECI_NEW_W_DATA2  0x88
+#define ASPEED_PECI_NEW_W_DATA3  0x8C
+#define ASPEED_PECI_NEW_W_DATA4  0x90
+#define ASPEED_PECI_NEW_W_DATA5  0x94
+#define ASPEED_PECI_NEW_W_DATA6  0x98
+#define ASPEED_PECI_NEW_W_DATA7  0x9C
+#define ASPEED_PECI_NEW_W_DATA8  0xA0
+#define ASPEED_PECI_NEW_W_DATA9  0xA4
+#define ASPEED_PECI_NEW_W_DATAA  0xA8
+#define ASPEED_PECI_NEW_W_DATAB  0xAC
+#define ASPEED_PECI_NEW_W_DATAC  0xB0
+#define ASPEED_PECI_NEW_W_DATAD  0xB4
+#define ASPEED_PECI_NEW_W_DATAE  0xB8
+#define ASPEED_PECI_NEW_W_DATAF  0xBC
+#define ASPEED_PECI_NEW_R_DATA0  0xC0
+#define ASPEED_PECI_NEW_R_DATA1  0xC4
+#define ASPEED_PECI_NEW_R_DATA2  0xC8
+#define ASPEED_PECI_NEW_R_DATA3  0xCC
+#define ASPEED_PECI_NEW_R_DATA4  0xD0
+#define ASPEED_PECI_NEW_R_DATA5  0xD4
+#define ASPEED_PECI_NEW_R_DATA6  0xD8
+#define ASPEED_PECI_NEW_R_DATA7  0xDC
+#define ASPEED_PECI_NEW_R_DATA8  0xE0
+#define ASPEED_PECI_NEW_R_DATA9  0xE4
+#define ASPEED_PECI_NEW_R_DATAA  0xE8
+#define ASPEED_PECI_NEW_R_DATAB  0xEC
+#define ASPEED_PECI_NEW_R_DATAC  0xF0
+#define ASPEED_PECI_NEW_R_DATAD  0xF4
+#define ASPEED_PECI_NEW_R_DATAE  0xF8
+#define ASPEED_PECI_NEW_R_DATAF  0xFC
+
 /* ASPEED_PECI_CTRL - 0x00 : Control Register */
 #define PECI_CTRL_SAMPLING_MASK      GENMASK(19, 16)
 #define PECI_CTRL_READ_MODE_MASK     GENMASK(13, 12)
@@ -50,6 +83,7 @@
 #define PECI_CTRL_INVERT_IN          BIT(6)
 #define PECI_CTRL_BUS_CONTENT_EN     BIT(5)
 #define PECI_CTRL_PECI_EN            BIT(4)
+#define PECI_CTRL_64BYTE_MODE_EN     BIT(1)
 #define PECI_CTRL_PECI_CLK_EN        BIT(0)
 
 /* ASPEED_PECI_TIMING - 0x04 : Timing Negotiation Register */
@@ -114,6 +148,7 @@ struct aspeed_peci {
 	struct completion	xfer_complete;
 	u32			status;
 	u32			cmd_timeout_ms;
+	int 		xfer_mode;	/* 0: older 32 bytes, 1 : 64bytes mode */
 };
 
 static int aspeed_peci_xfer_native(struct aspeed_peci *priv,
@@ -143,8 +178,12 @@ static int aspeed_peci_xfer_native(struct aspeed_peci *priv,
 	regmap_write(priv->regmap, ASPEED_PECI_CMD_CTRL, peci_head);
 
 	for (i = 0; i < msg->tx_len; i += 4) {
-		reg = i < 16 ? ASPEED_PECI_W_DATA0 + i % 16 :
-			       ASPEED_PECI_W_DATA4 + i % 16;
+		if (priv->xfer_mode)
+			reg = ASPEED_PECI_NEW_W_DATA0 + i % 16;
+		else
+			reg = i < 16 ? ASPEED_PECI_W_DATA0 + i % 16 :
+					ASPEED_PECI_W_DATA4 + i % 16;
+
 		regmap_write(priv->regmap, reg,
 			     le32_to_cpup((__le32 *)&msg->tx_buf[i]));
 	}
@@ -191,8 +230,11 @@ static int aspeed_peci_xfer_native(struct aspeed_peci *priv,
 		u8 byte_offset = i % 4;
 
 		if (byte_offset == 0) {
-			reg = i < 16 ? ASPEED_PECI_R_DATA0 + i % 16 :
-				       ASPEED_PECI_R_DATA4 + i % 16;
+			if (priv->xfer_mode)
+				reg = ASPEED_PECI_NEW_R_DATA0 + i % 16;
+			else
+				reg = i < 16 ? ASPEED_PECI_R_DATA0 + i % 16 :
+					ASPEED_PECI_R_DATA4 + i % 16;
 			regmap_read(priv->regmap, reg, &rx_data);
 		}
 
@@ -279,6 +321,7 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 		return ret;
 	}
 
+	//peci bus speed range from 2kbps ~ 2Mbps
 	ret = of_property_read_u32(priv->dev->of_node, "clock-frequency",
 				   &clk_freq);
 	if (ret) {
@@ -288,10 +331,8 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 		return ret;
 	}
 
-	clk_divisor = clk_get_rate(priv->clk) / clk_freq;
-
-	while ((clk_divisor >> 1) && (clk_div_val < PECI_CLK_DIV_MAX))
-		clk_div_val++;
+	ret = of_property_read_u32(priv->dev->of_node, "clk-div",
+				   &clk_div_val);
 
 	ret = of_property_read_u32(priv->dev->of_node, "msg-timing",
 				   &msg_timing);
@@ -336,8 +377,12 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 		priv->cmd_timeout_ms = PECI_CMD_TIMEOUT_MS_DEFAULT;
 	}
 
+	if (of_property_read_bool(priv->dev->of_node, "64byte-mode")) 
+		priv->xfer_mode = 1;
+
 	regmap_write(priv->regmap, ASPEED_PECI_CTRL,
 		     FIELD_PREP(PECI_CTRL_CLK_DIV_MASK, PECI_CLK_DIV_DEFAULT) |
+             (priv->xfer_mode ? PECI_CTRL_64BYTE_MODE_EN : 0) |
 		     PECI_CTRL_PECI_CLK_EN);
 
 	/**
@@ -356,8 +401,10 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 
 	/* Read sampling point and clock speed setting */
 	regmap_write(priv->regmap, ASPEED_PECI_CTRL,
+			 PECI_CTRL_CLK_SOURCE_MASK |
 		     FIELD_PREP(PECI_CTRL_SAMPLING_MASK, rd_sampling_point) |
 		     FIELD_PREP(PECI_CTRL_CLK_DIV_MASK, clk_div_val) |
+		     (priv->xfer_mode ? PECI_CTRL_64BYTE_MODE_EN : 0) |
 		     PECI_CTRL_PECI_EN | PECI_CTRL_PECI_CLK_EN);
 
 	return 0;
@@ -367,7 +414,7 @@ static const struct regmap_config aspeed_peci_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
-	.max_register = ASPEED_PECI_R_DATA7,
+	.max_register = ASPEED_PECI_NEW_R_DATAF,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 	.fast_io = true,
 };
