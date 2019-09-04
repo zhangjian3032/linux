@@ -107,6 +107,7 @@
 #define JTAG_GO_IDLE			BIT(0)
 
 #define BUFFER_LEN			1024
+#define TCK_FREQ			8000000
 
 /******************************************************************************/
 typedef enum jtag_xfer_mode {
@@ -1200,6 +1201,8 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 		printk(KERN_ERR "aspeed_jtag: failed to create sysfs device attributes.\n");
 		return -1;
 	}
+
+	aspeed_jtag_set_freq(aspeed_jtag, TCK_FREQ);
 
 	printk(KERN_INFO "aspeed_jtag: driver successfully loaded.\n");
 
