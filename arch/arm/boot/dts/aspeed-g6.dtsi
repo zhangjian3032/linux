@@ -374,6 +374,7 @@
 				clocks = <&syscon ASPEED_CLK_AHB>;
 				resets = <&syscon ASPEED_RESET_JTAG_MASTER>;
 				reset-names = "jtag";
+				status = "disabled";
 			};
 
 			jtag1: jtag@1e6e4100 {
@@ -385,6 +386,7 @@
 				reset-names = "jtag";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_jtagm_default>;
+				status = "disabled";
 			};
 
 			gfx: display@1e6e6000 {
