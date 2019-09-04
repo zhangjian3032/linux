@@ -501,7 +501,6 @@
 			};
 #endif
 
-#if 0
 			sdhci: sdhci@1e740000 {
 				#interrupt-cells = <1>;
 				compatible = "aspeed,aspeed-sdhci-irq", "simple-mfd";
@@ -513,6 +512,8 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges = <0x0 0x1e740000 0x1000>;
+				slot0-wp-inverse;
+				slot1-wp-inverse;
 
 				sdhci_slot0: sdhci_slot0@100 {
 					compatible = "aspeed,sdhci-ast2500";
@@ -538,12 +539,12 @@
 					power-gpio = <&gpio0 ASPEED_GPIO(V, 2) GPIO_ACTIVE_LOW>;
                                         power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 3) GPIO_ACTIVE_LOW>;
 					pinctrl-names = "default";
-					pinctrl-0 = <&pinctrl_sd1_default>;
+					pinctrl-0 = <&pinctrl_sd2_default>;
 					status = "disabled";
 				};
 
 			};
-#endif
+
 			emmc: emmc@1e750000 {
 				#interrupt-cells = <1>;
 				compatible = "aspeed,aspeed-emmc-irq", "simple-mfd";
