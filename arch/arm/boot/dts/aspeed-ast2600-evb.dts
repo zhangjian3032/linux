@@ -436,3 +436,7 @@
 		&pinctrl_adc12_default &pinctrl_adc13_default
 		&pinctrl_adc14_default &pinctrl_adc15_default>;
 };
+
+&jtag0 {
+	status = "okay";
+};

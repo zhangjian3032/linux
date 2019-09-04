@@ -179,11 +179,7 @@
 	status = "okay";
 };
 
-&jtag0 {
-	status = "okay";
-};
-
-&jtag1 {
+&jtag {
 	status = "okay";
 };
 
