@@ -821,7 +821,7 @@
 				compatible = "simple-bus";
 				#address-cells = <1>;
 				#size-cells = <1>;
-				ranges = <0x0 0x1e78b000 0x60>;
+				ranges = <0x0 0x1e78b000 0x100>;
 			};
 
 			uart2: serial@1e78d000 {
@@ -1011,15 +1011,16 @@
 &peci {
 	peci0: peci-bus@0 {
 		compatible = "aspeed,ast2600-peci";
-		reg = <0x0 0x60>;
+		reg = <0x0 0x100>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&syscon ASPEED_CLK_GATE_REF1CLK>, <&syscon ASPEED_CLK_AHB>;
 		resets = <&syscon ASPEED_RESET_PECI>;
 		clock-frequency = <25000000>; //target peci clk 
-		msg-timing = <64>;
-		addr-timing = <64>;
+		clk-div = <1>;
+		msg-timing = <3>;
+		addr-timing = <3>;
 		rd-sampling-point = <8>;
 		cmd-timeout-ms = <1000>;
 		64byte-mode;
