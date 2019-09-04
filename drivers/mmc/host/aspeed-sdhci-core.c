@@ -129,10 +129,18 @@ static int irq_aspeed_sdhci_probe(struct platform_device *pdev)
 		writel((readl(sdhci_irq->regs + ASPEED_SDHCI_CTRL) & ~0x01f30000) | (0x3 << 16) | (slot0_clk_delay << 20), sdhci_irq->regs + ASPEED_SDHCI_CTRL);
 	}
 
+	if (of_property_read_bool(pdev->dev.of_node, "slot0-wp-inverse")) {
+		writel(readl(sdhci_irq->regs + ASPEED_SDHCI_CTRL) | BIT(0), sdhci_irq->regs + ASPEED_SDHCI_CTRL);
+	}
+
 	//1e7600f0[19:18] = 0x3 //slot1 clock delay mode
 	//1e7600f0[29:25] = 0x8 //slot1 delay
 	if (!of_property_read_u32(pdev->dev.of_node, "slot1-clk-delay", &slot1_clk_delay)) {
 		writel((readl(sdhci_irq->regs + ASPEED_SDHCI_CTRL) & ~0x3e0c0000) | (0x3 << 18) | (slot1_clk_delay << 25), sdhci_irq->regs + ASPEED_SDHCI_CTRL);
+	}
+
+	if (of_property_read_bool(pdev->dev.of_node, "slot1-wp-inverse")) {
+		writel(readl(sdhci_irq->regs + ASPEED_SDHCI_CTRL) | BIT(1), sdhci_irq->regs + ASPEED_SDHCI_CTRL);
 	}
 
 	dev_id = of_match_node(irq_aspeed_sdhci_dt_ids, pdev->dev.of_node);

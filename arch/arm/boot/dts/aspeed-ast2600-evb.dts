@@ -400,7 +400,6 @@
 };
 #endif
 
-#if 0
 &sdhci_slot0{
 	status = "okay";
 };
@@ -408,7 +407,7 @@
 &sdhci_slot1{
 	status = "okay";
 };
-#endif
+
 &emmc_slot0{
 	status = "okay";
 };

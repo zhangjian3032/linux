@@ -512,6 +512,8 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges = <0x0 0x1e740000 0x1000>;
+				slot0-wp-inverse;
+				slot1-wp-inverse;
 
 				sdhci_slot0: sdhci_slot0@100 {
 					compatible = "aspeed,sdhci-ast2500";
