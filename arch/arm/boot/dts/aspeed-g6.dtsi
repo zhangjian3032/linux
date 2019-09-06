@@ -769,7 +769,7 @@
 
 					kcs4: kcs4@0 {
 						compatible = "aspeed,ast2500-kcs-bmc";
-						interrupts = <8>;
+						interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
 						kcs_chan = <4>;
 						status = "disabled";
 					};
