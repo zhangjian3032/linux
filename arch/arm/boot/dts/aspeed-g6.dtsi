@@ -996,6 +996,116 @@
 				#dma-cells = <1>;
 			};
 
+			dma_uart0: dma_uart0@1e78e000 {
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e78e000 0x20>;
+				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				reg-shift = <2>;
+				dma-channel = <2>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			dma_uart1: dma_uart1@1e78f000 {
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e78f000 0x20>;
+				interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				reg-shift = <2>;
+				dma-channel = <3>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			dma_uart2: dma_uart2@1e790000{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e790000 0x20>;
+				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				reg-shift = <2>;
+				dma-channel = <4>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			dma_uart3: dma_uart3@1e790100{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e790100 0x20>;
+				interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				reg-shift = <2>;
+				dma-channel = <5>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			dma_uart4: dma_uart4@1e790200{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e790200 0x20>;
+				interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				reg-shift = <2>;
+				dma-channel = <6>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			dma_uart5: dma_uart5@1e790300{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e790300 0x20>;
+				interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				reg-shift = <2>;
+				dma-channel = <7>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			dma_uart6: dma_uart6@1e790400{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e790400 0x20>;
+				interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				reg-shift = <2>;
+				dma-channel = <8>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			dma_uart7: dma_uart7@1e790500{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e790500 0x20>;
+				interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				reg-shift = <2>;
+				dma-channel = <9>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			dma_uart8: dma_uart8@1e790600{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e790600 0x20>;
+				interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				reg-shift = <2>;
+				dma-channel = <10>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			dma_uart9: dma_uart9@1e790700{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e790700 0x20>;
+				interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <1846154>;
+				reg-shift = <2>;
+				dma-channel = <11>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
 			i3c: bus@1e7a0000 {
 				compatible = "simple-bus";
 				#address-cells = <1>;

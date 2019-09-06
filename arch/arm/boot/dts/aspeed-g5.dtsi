@@ -226,7 +226,6 @@
 				pinctrl: pinctrl {
 					compatible = "aspeed,g5-pinctrl";
 					aspeed,external-nodes = <&gfx &lhc>;
-
 				};
 
 				vga_scratch: scratch {
@@ -255,11 +254,12 @@
 			};
 
 			hace: hace@1e6e3000 {
-                                compatible = "aspeed,ast2500-hace";
-                                reg = <0x1e6e3000 0x200 0x1e728000 0x1000>;
-                                interrupts = <4>;
-                                clocks = <&syscon ASPEED_CLK_GATE_YCLK>, <&syscon ASPEED_CLK_GATE_RSACLK>;
-                                clock-names = "yclk", "rsaclk";
+				compatible = "aspeed,ast2500-hace";
+				reg = <0x1e6e3000 0x200 0x1e728000 0x1000>;
+				interrupts = <4>;
+				clocks = <&syscon ASPEED_CLK_GATE_YCLK>,
+					 <&syscon ASPEED_CLK_GATE_RSACLK>;
+				clock-names = "yclk", "rsaclk";
 				status = "disabled";
                         };
 
@@ -297,7 +297,7 @@
                                 /* 184MB : 40MB*/
                                 reg = <0x1e700000 0x300>;
                                 clocks = <&syscon ASPEED_CLK_GATE_VCLK>, 
-					 					<&syscon ASPEED_CLK_GATE_ECLK>;
+					 <&syscon ASPEED_CLK_GATE_ECLK>;
                                 clock-names = "vclk", "eclk";
                                 interrupts = <7>;
                                 resets = <&syscon ASPEED_RESET_VIDEO>;
@@ -595,20 +595,149 @@
                         };
 
 			xdma: xdma@1e6e7000 {
-                                compatible = "aspeed,ast2500-xdma";
-                                reg = <0x1e6e7000 0x80 0x1e6ed0c4 0x04>;
-                                interrupts-extended = <&vic 6>, <&scu_ic ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
-                                resets = <&syscon ASPEED_RESET_XDMA>;
+				compatible = "aspeed,ast2500-xdma";
+				reg = <0x1e6e7000 0x80 0x1e6ed0c4 0x04>;
+				interrupts-extended = <&vic 6>, <&scu_ic ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
+				resets = <&syscon ASPEED_RESET_XDMA>;
 				status = "disabled";
                         };
 
 			mctp: mctp@1e6e8000 {
-                                compatible = "aspeed,ast2500-mctp";
-                                reg = <0x1e6e8000 0x30 0x1e6ed0c4 0x04>;
+				compatible = "aspeed,ast2500-mctp";
+				reg = <0x1e6e8000 0x30 0x1e6ed0c4 0x04>;
 				interrupts-extended = <&vic 42>, <&scu_ic ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
-                                resets = <&syscon ASPEED_RESET_MCTP>;
+				resets = <&syscon ASPEED_RESET_MCTP>;
 				status = "disabled";
-                        };
+			};
+
+			ast_uart_sdma: uart_sdma@1e79e000 {
+				compatible = "aspeed,ast-uart-sdma";
+				reg = <0x1e79e000 0x400>;
+				interrupts = <50>;
+				status = "disabled";
+			};
+
+			dma_uart0: dma_uart0@1e78e000 {
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e78e000 0x1000>;
+				interrupts = <33>;
+				clock-frequency = <24000000>;
+				reg-shift = <2>;
+				dma-channel = <2>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_txd1_default &pinctrl_rxd1_default>;
+				status = "disabled";
+			};
+
+			dma_uart1: dma_uart1@1e78f000 {
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e78f000 0x1000>;
+				interrupts = <34>;
+				clock-frequency = <24000000>;
+				reg-shift = <2>;
+				dma-channel = <3>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_txd1_default &pinctrl_rxd1_default>;
+				status = "disabled";
+			};
+
+			dma_uart2: dma_uart2@1e790000{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e790000 0x1000>;
+				interrupts = <51>;
+				clock-frequency = <24000000>;
+				reg-shift = <2>;
+				dma-channel = <4>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_txd2_default &pinctrl_rxd2_default>;
+				status = "disabled";
+			};
+
+			dma_uart3: dma_uart3@1e791000{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e791000 0x1000>;
+				interrupts = <52>;
+				clock-frequency = <24000000>;
+				reg-shift = <2>;
+				dma-channel = <5>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_txd3_default &pinctrl_rxd3_default>;
+				status = "disabled";
+			};
+
+			dma_uart4: dma_uart4@1e792000{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e792000 0x1000>;
+				interrupts = <53>;
+				clock-frequency = <24000000>;
+				reg-shift = <2>;
+				dma-channel = <6>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_txd4_default &pinctrl_rxd4_default>;
+				status = "disabled";
+			};
+
+			dma_uart5: dma_uart5@1e793000{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e793000 0x1000>;
+				interrupts = <54>;
+				clock-frequency = <24000000>;
+				reg-shift = <2>;
+				dma-channel = <7>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			dma_uart6: dma_uart6@1e794000{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e794000 0x1000>;
+				interrupts = <55>;
+				clock-frequency = <24000000>;
+				reg-shift = <2>;
+				dma-channel = <8>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart6_default &pinctrl_uart6_default>;
+				status = "disabled";
+			};
+
+			dma_uart7: dma_uart7@1e795000{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e795000 0x1000>;
+				interrupts = <56>;
+				clock-frequency = <24000000>;
+				reg-shift = <2>;
+				dma-channel = <9>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			dma_uart8: dma_uart8@1e796000{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e796000 0x1000>;
+				interrupts = <57>;
+				clock-frequency = <24000000>;
+				reg-shift = <2>;
+				dma-channel = <10>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			dma_uart9: dma_uart9@1e797000{
+				compatible = "aspeed,ast-sdma-uart";
+				reg = <0x1e797000 0x1000>;
+				interrupts = <58>;
+				clock-frequency = <24000000>;
+				reg-shift = <2>;
+				dma-channel = <11>;
+				no-loopback-test;
+				status = "disabled";
+			};
 
 		};
 	};
