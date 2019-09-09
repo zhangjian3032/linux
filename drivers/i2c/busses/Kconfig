@@ -360,16 +360,9 @@ config I2C_ALTERA
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-altera.
 
-choice
-	bool "Aspeed I2C"
-	default I2C_NEW_ASPEED if MACH_ASPEED_G6
-	default I2C_ASPEED if MACH_ASPEED_G5
-	depends on ARCH_ASPEED
-	optional
-
 config I2C_NEW_ASPEED
 	bool "Aspeed New I2C Controller"
-	depends on MACH_ASPEED_G6
+	depends on ARCH_ASPEED || MACH_ASPEED_G6
 
 config I2C_ASPEED
 	bool "Aspeed I2C Controller"
@@ -380,8 +373,6 @@ config I2C_ASPEED
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-aspeed.
-
-endchoice
 
 config I2C_AT91
 	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
