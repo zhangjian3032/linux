@@ -1049,6 +1049,7 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 
 	/* Disable all interrupts */
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+	ioread32(priv->base + FTGMAC100_OFFSET_IER);
 
 	/* Reset the adapter asynchronously */
 	schedule_work(&priv->reset_task);
@@ -1248,6 +1249,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 	/* Fetch and clear interrupt bits, process abnormal ones */
 	status = ioread32(priv->base + FTGMAC100_OFFSET_ISR);
 	iowrite32(status, priv->base + FTGMAC100_OFFSET_ISR);
+	ioread32(priv->base + FTGMAC100_OFFSET_ISR);
 	if (unlikely(status & FTGMAC100_INT_BAD)) {
 
 		/* RX buffer unavailable */
@@ -1268,6 +1270,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 				netdev_warn(netdev,
 					   "AHB bus error ! Resetting chip.\n");
 			iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+			ioread32(priv->base + FTGMAC100_OFFSET_IER);
 			schedule_work(&priv->reset_task);
 			return IRQ_HANDLED;
 		}
@@ -1283,7 +1286,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 
 	/* Only enable "bad" interrupts while NAPI is on */
 	iowrite32(new_mask, priv->base + FTGMAC100_OFFSET_IER);
-
+	ioread32(priv->base + FTGMAC100_OFFSET_IER);
 	/* Schedule NAPI bh */
 	napi_schedule_irqoff(&priv->napi);
 
@@ -1323,6 +1326,7 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 		/* Re-enable "bad" interrupts */
 		iowrite32(FTGMAC100_INT_BAD,
 			  priv->base + FTGMAC100_OFFSET_IER);
+		ioread32(priv->base + FTGMAC100_OFFSET_IER);
 	}
 
 	/* As long as we are waiting for transmit packets to be
@@ -1356,6 +1360,7 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 		/* enable all interrupts */
 		iowrite32(FTGMAC100_INT_ALL,
 			  priv->base + FTGMAC100_OFFSET_IER);
+		ioread32(priv->base + FTGMAC100_OFFSET_IER);			  
 	}
 
 	return work_done;
@@ -1384,7 +1389,7 @@ static int ftgmac100_init_all(struct ftgmac100 *priv, bool ignore_alloc_err)
 
 	/* Enable all interrupts */
 	iowrite32(FTGMAC100_INT_ALL, priv->base + FTGMAC100_OFFSET_IER);
-
+	ioread32(priv->base + FTGMAC100_OFFSET_IER);
 	return err;
 }
 
@@ -1510,6 +1515,7 @@ static int ftgmac100_open(struct net_device *netdev)
 	netif_napi_del(&priv->napi);
  err_hw:
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+	ioread32(priv->base + FTGMAC100_OFFSET_IER);
 	ftgmac100_free_rings(priv);
 	return err;
 }
@@ -1528,6 +1534,7 @@ static int ftgmac100_stop(struct net_device *netdev)
 
 	/* disable all interrupts */
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+	ioread32(priv->base + FTGMAC100_OFFSET_IER);
 
 	netif_stop_queue(netdev);
 	napi_disable(&priv->napi);
@@ -1560,6 +1567,7 @@ static void ftgmac100_tx_timeout(struct net_device *netdev)
 
 	/* Disable all interrupts */
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+	ioread32(priv->base + FTGMAC100_OFFSET_IER);
 
 	/* Do the reset outside of interrupt context */
 	schedule_work(&priv->reset_task);
