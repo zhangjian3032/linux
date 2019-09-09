@@ -316,6 +316,7 @@
 					interrupt-parent = <&gic>;
 					interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 					interrupt-controller;
+					parity-check;
 				};
 
 				scu_ic1: interrupt-controller@1 {
