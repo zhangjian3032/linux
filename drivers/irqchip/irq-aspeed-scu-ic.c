@@ -24,9 +24,10 @@
 #define ASPEED_SCU_IRQ_NUM 	7
 
 struct aspeed_scu_irq {
-	void __iomem	*regs;
-	int	irq;
-	struct irq_domain	*irq_domain;
+	void __iomem *regs;
+	int irq;
+	int parity_check;
+	struct irq_domain *irq_domain;
 };
 
 static void aspeed_scu_irq_handler(struct irq_desc *desc)
@@ -40,13 +41,16 @@ static void aspeed_scu_irq_handler(struct irq_desc *desc)
 	status = readl(scu_irq->regs);
 	irq_sts = (status >> 16) & status;
 
+	/* crash kernel if parity check fail on L1/L2 D$ and SRAM */
+	if (scu_irq->parity_check)
+	    BUG_ON((status & 0x1e000000));
+
 	for_each_set_bit(bit, &irq_sts, ASPEED_SCU_IRQ_NUM) {
 		bus_irq = irq_find_mapping(scu_irq->irq_domain, bit);
 		generic_handle_irq(bus_irq);
 		writel((status & 0x7f) | BIT(bit + 16), scu_irq->regs);
 	}
 	chained_irq_exit(chip, desc);
-
 }
 
 static void aspeed_scu_mask_irq(struct irq_data *data)
@@ -99,7 +103,7 @@ static int __init aspeed_scu_intc_of_init(struct device_node *node,
 		ret = -ENOMEM;
 		goto err_free;
 	}
-	
+
 	scu_irq->irq = irq_of_parse_and_map(node, 0);
 	if (scu_irq->irq < 0) {
 		ret = scu_irq->irq;
@@ -119,6 +123,10 @@ static int __init aspeed_scu_intc_of_init(struct device_node *node,
 
 	pr_info("scu-irq controller registered, irq %d\n", scu_irq->irq);
 	
+	scu_irq->parity_check = of_property_read_bool(node, "parity-check");
+	if (scu_irq->parity_check)
+		writel(readl(scu_irq->regs) | 0x1e00, scu_irq->regs);
+
 	return 0;
 
 err_iounmap:
