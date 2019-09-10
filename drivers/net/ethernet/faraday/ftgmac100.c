@@ -105,7 +105,7 @@ struct ftgmac100 {
 	bool aneg_pause;
 
 	/* Misc */
-	bool need_mac_restart;
+	volatile bool need_mac_restart;
 	bool is_aspeed;
 };
 
@@ -645,6 +645,9 @@ static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 	if (ctl_stat & FTGMAC100_TXDES0_TXDMA_OWN)
 		return false;
 
+	if ((ctl_stat & ~(priv->txdes0_edotr_mask)) == 0)
+		return false;
+
 	skb = priv->tx_skbs[pointer];
 	netdev->stats.tx_packets++;
 	netdev->stats.tx_bytes += skb->len;
@@ -741,6 +744,9 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 	/* Grab the next free tx descriptor */
 	pointer = priv->tx_pointer;
 	txdes = first = &priv->txdes[pointer];
+	if ((le32_to_cpu(txdes->txdes0) & ~priv->txdes0_edotr_mask) != 0) {
+		goto drop;
+	}
 
 	/* Setup it up with the packet head. Don't write the head to the
 	 * ring just yet
@@ -786,6 +792,11 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 		/* Setup descriptor */
 		priv->tx_skbs[pointer] = skb;
 		txdes = &priv->txdes[pointer];
+
+		if ((le32_to_cpu(txdes->txdes0) & ~priv->txdes0_edotr_mask) != 0) {
+			goto dma_err;
+		}
+
 		ctl_stat = ftgmac100_base_tx_ctlstat(priv, pointer);
 		ctl_stat |= FTGMAC100_TXDES0_TXDMA_OWN;
 		ctl_stat |= FTGMAC100_TXDES0_TXBUF_SIZE(len);
@@ -803,8 +814,8 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 	 * before setting the OWN bit on the first descriptor.
 	 */
 	dma_wmb();
-	first->txdes0 = cpu_to_le32(f_ctl_stat);
-
+	WRITE_ONCE(first->txdes0, cpu_to_le32(f_ctl_stat));
+	READ_ONCE(first->txdes0);
 	/* Update next TX pointer */
 	priv->tx_pointer = pointer;
 
@@ -1038,6 +1049,7 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 
 	/* Disable all interrupts */
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+	ioread32(priv->base + FTGMAC100_OFFSET_IER);
 
 	/* Reset the adapter asynchronously */
 	schedule_work(&priv->reset_task);
@@ -1237,6 +1249,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 	/* Fetch and clear interrupt bits, process abnormal ones */
 	status = ioread32(priv->base + FTGMAC100_OFFSET_ISR);
 	iowrite32(status, priv->base + FTGMAC100_OFFSET_ISR);
+	ioread32(priv->base + FTGMAC100_OFFSET_ISR);
 	if (unlikely(status & FTGMAC100_INT_BAD)) {
 
 		/* RX buffer unavailable */
@@ -1257,6 +1270,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 				netdev_warn(netdev,
 					   "AHB bus error ! Resetting chip.\n");
 			iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+			ioread32(priv->base + FTGMAC100_OFFSET_IER);
 			schedule_work(&priv->reset_task);
 			return IRQ_HANDLED;
 		}
@@ -1272,7 +1286,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 
 	/* Only enable "bad" interrupts while NAPI is on */
 	iowrite32(new_mask, priv->base + FTGMAC100_OFFSET_IER);
-
+	ioread32(priv->base + FTGMAC100_OFFSET_IER);
 	/* Schedule NAPI bh */
 	napi_schedule_irqoff(&priv->napi);
 
@@ -1307,11 +1321,18 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 	 * after an RX overflow
 	 */
 	if (unlikely(priv->need_mac_restart)) {
+		/* clear status again */
+		iowrite32(ioread32(priv->base + FTGMAC100_OFFSET_ISR) &
+			      FTGMAC100_INT_BAD,
+			  priv->base + FTGMAC100_OFFSET_ISR);
+		ioread32(priv->base + FTGMAC100_OFFSET_ISR);
 		ftgmac100_start_hw(priv);
+		priv->need_mac_restart = false;
 
 		/* Re-enable "bad" interrupts */
 		iowrite32(FTGMAC100_INT_BAD,
 			  priv->base + FTGMAC100_OFFSET_IER);
+		ioread32(priv->base + FTGMAC100_OFFSET_IER);
 	}
 
 	/* As long as we are waiting for transmit packets to be
@@ -1345,6 +1366,7 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 		/* enable all interrupts */
 		iowrite32(FTGMAC100_INT_ALL,
 			  priv->base + FTGMAC100_OFFSET_IER);
+		ioread32(priv->base + FTGMAC100_OFFSET_IER);			  
 	}
 
 	return work_done;
@@ -1373,7 +1395,7 @@ static int ftgmac100_init_all(struct ftgmac100 *priv, bool ignore_alloc_err)
 
 	/* Enable all interrupts */
 	iowrite32(FTGMAC100_INT_ALL, priv->base + FTGMAC100_OFFSET_IER);
-
+	ioread32(priv->base + FTGMAC100_OFFSET_IER);
 	return err;
 }
 
@@ -1499,6 +1521,7 @@ static int ftgmac100_open(struct net_device *netdev)
 	netif_napi_del(&priv->napi);
  err_hw:
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+	ioread32(priv->base + FTGMAC100_OFFSET_IER);
 	ftgmac100_free_rings(priv);
 	return err;
 }
@@ -1517,6 +1540,7 @@ static int ftgmac100_stop(struct net_device *netdev)
 
 	/* disable all interrupts */
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+	ioread32(priv->base + FTGMAC100_OFFSET_IER);
 
 	netif_stop_queue(netdev);
 	napi_disable(&priv->napi);
@@ -1549,6 +1573,7 @@ static void ftgmac100_tx_timeout(struct net_device *netdev)
 
 	/* Disable all interrupts */
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+	ioread32(priv->base + FTGMAC100_OFFSET_IER);
 
 	/* Do the reset outside of interrupt context */
 	schedule_work(&priv->reset_task);
