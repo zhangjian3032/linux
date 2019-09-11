@@ -18,10 +18,10 @@
 #include <linux/module.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
-
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_device.h>
+#include <linux/of_address.h>
 #include <linux/io.h>
 #include <asm/uaccess.h>
 /*************************************************************************************/
@@ -233,13 +233,13 @@ struct aspeed_mctp_xfer {
 
 struct aspeed_mctp_info {
 	void __iomem *reg_base;
+	void __iomem *pci_bdf_regs;
 	int irq;
 	bool is_open;
 	int pcie_irq;
 	struct reset_control *reset;
 	int	mctp_version;
 	u32 dram_base;
-	void *pci_bdf_regs;
 
 	/* mctp tx info */
 	struct completion tx_complete;
@@ -341,8 +341,9 @@ static int aspeed_mctp_tx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct aspe
 			return 0;
 		} else {
 			void *cur_tx_buff = aspeed_mctp->tx_pool + (MCTP_TX_BUFF_SIZE * aspeed_mctp->tx_idx);
+
 			//ast2600 support vdm header transfer
-			mctp_xfer->header.pcie_req_id = (readl(aspeed_mctp->pci_bdf_regs) & 0x1fff << 3);
+			mctp_xfer->header.pcie_req_id = (readl(aspeed_mctp->pci_bdf_regs + 0xc4) & 0x1fff) << 3;
 			memcpy(cur_tx_buff, &mctp_xfer->header, sizeof(struct pcie_vdm_header));
 			if (copy_from_user(cur_tx_buff + sizeof(struct pcie_vdm_header), mctp_xfer->xfer_buff, byte_length))
 				return -EFAULT;
@@ -407,17 +408,16 @@ static int aspeed_mctp_tx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct aspe
 static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 {
 	int i = 0;
+
 	MCTP_DBUG("dram base %x \n", aspeed_mctp->dram_base);
 	aspeed_mctp_write(aspeed_mctp, aspeed_mctp->dram_base, ASPEED_MCTP_EID);
 
 	aspeed_mctp->tx_idx = 0;
 
 	if (aspeed_mctp->mctp_version == 6) {
-		for (i = 0; i < aspeed_mctp->tx_fifo_num; i++) {
-			if (i == (aspeed_mctp->tx_fifo_num - 1))
-				aspeed_mctp->tx_cmd_desc[i].desc0 = LAST_CMD;
+		for (i = 0; i < aspeed_mctp->tx_fifo_num; i++)
 			aspeed_mctp->tx_cmd_desc[i].desc1 = ((aspeed_mctp->tx_pool_dma + (MCTP_TX_BUFF_SIZE * i)) & 0x7ffffff0) | 0x1;
-		}
+		aspeed_mctp->tx_cmd_desc[aspeed_mctp->tx_fifo_num - 1].desc1 |= LAST_CMD;
 		aspeed_mctp_write(aspeed_mctp, aspeed_mctp->tx_cmd_desc_dma, ASPEED_MCTP_TX_DESC_ADDR);
 		aspeed_mctp_write(aspeed_mctp, aspeed_mctp->tx_fifo_num, ASPEED_MCTP_TX_DESC_NUM);
 		aspeed_mctp_write(aspeed_mctp, 0, ASPEED_MCTP_TX_WRITE_PT);
@@ -529,7 +529,7 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 	case ASPEED_MCTP_IOCTX:
 		MCTP_DBUG("ASPEED_MCTP_IOCTX ver %d\n", aspeed_mctp->mctp_version);
 		if (aspeed_mctp->mctp_version != 0) {
-			if ((readl(aspeed_mctp->pci_bdf_regs) & 0x1fff) == 0) {
+			if ((readl(aspeed_mctp->pci_bdf_regs + 0xc4) & 0x1fff) == 0) {
 				printk("PCIE not ready \n");
 				return -EFAULT;
 			}
@@ -554,15 +554,17 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 			} else {
 				struct pcie_vdm_header *vdm = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_idx);
 				u32 *rx_buffer = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_idx) + sizeof(struct pcie_vdm_header);
-				struct aspeed_mctp_xfer *mctp_rx_xfer = (struct aspeed_mctp_xfer *)arg;
+				// struct aspeed_mctp_xfer *mctp_rx_xfer = (struct aspeed_mctp_xfer *)arg;
 				recv_length = (vdm->length * 4) + vdm->pad_len;
-
-				if (copy_to_user(&mctp_rx_xfer->header, vdm, sizeof(struct pcie_vdm_header)))
+				mctp_xfer.header = *vdm;
+				// if (copy_to_user(&mctp_xfer.header, vdm, sizeof(struct pcie_vdm_header)))
+				// 	return -EFAULT;
+				// else {
+				if (copy_to_user(mctp_xfer.xfer_buff, rx_buffer, recv_length))
 					return -EFAULT;
-				else {
-					if (copy_to_user(mctp_rx_xfer->xfer_buff, rx_buffer, recv_length))
-						return -EFAULT;
-				}
+				// }
+				if (copy_to_user(argp, &mctp_xfer, sizeof(struct aspeed_mctp_xfer)))
+					return -EFAULT;
 
 				aspeed_mctp->rx_idx++;
 				aspeed_mctp->rx_idx %= aspeed_mctp->rx_fifo_num;
@@ -602,7 +604,7 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 			// 0x1e6ed0c4[12:5]: Bus#
 			// Fun# always 0
 			if (aspeed_mctp->mctp_version != 0) {
-				pci_bdf = readl(aspeed_mctp->pci_bdf_regs);
+				pci_bdf = readl(aspeed_mctp->pci_bdf_regs + 0xc4);
 				mctp_xfer.header.pcie_target_id = (pci_bdf & 0x1f) << 3 |
 								  (pci_bdf >> 5 & 0xff) << 8;
 			}
@@ -734,15 +736,22 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	}
 	// g4 not support pcie host controller
 	if (aspeed_mctp->mctp_version != 0) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (NULL == res) {
-			dev_err(&pdev->dev, "cannot get BDF\n");
-		}
+		struct resource pcie_res;
+		struct device_node *pcie_np;
 
-		// 0x1e6ed0c4[4:0]: Dev#
-		// 0x1e6ed0c4[12:5]: Bus#
-		// Fun# always 0
-		aspeed_mctp->pci_bdf_regs = devm_ioremap_resource(&pdev->dev, res);
+		pcie_np = of_find_compatible_node(NULL, NULL, "aspeed,aspeed-pcie");
+
+		if (of_address_to_resource(pcie_np, 0, &pcie_res)) {
+			dev_err(&pdev->dev, "failed to find pcie resouce\n");
+			ret = -ENOMEM;
+			goto out_region;
+		}
+		aspeed_mctp->pci_bdf_regs = ioremap(pcie_res.start, resource_size(&pcie_res));
+		if (!aspeed_mctp->pci_bdf_regs) {
+			dev_err(&pdev->dev, "failed to remap pcie\n");
+			ret = -ENOMEM;
+			goto out_region;
+		}
 	}
 
 	aspeed_mctp->irq = platform_get_irq(pdev, 0);
@@ -845,6 +854,10 @@ static int aspeed_mctp_remove(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	iounmap(aspeed_mctp->reg_base);
+
+	if (aspeed_mctp->mctp_version != 0) {
+		iounmap(aspeed_mctp->pci_bdf_regs);
+	}
 
 	platform_set_drvdata(pdev, NULL);
 
