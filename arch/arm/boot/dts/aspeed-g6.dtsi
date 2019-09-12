@@ -418,6 +418,8 @@
 #endif
 				interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 
+				status = "disabled";
+
 				linux,pci-domain = <0>;
 				pcie0_intc: interrupt-controller {
 					interrupt-controller;
@@ -425,7 +427,6 @@
 					#interrupt-cells = <1>;
 				};
 
-				status = "disabled";
 			};
 
 			xdma: xdma@1e6e7000 {
