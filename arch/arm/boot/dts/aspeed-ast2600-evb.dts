@@ -416,11 +416,9 @@
 	status = "okay";
 };
 
-#if 0
 &pcie {
 	status = "okay";
 };
-#endif
 
 &adc0 {
 	ref_voltage = <1200>;

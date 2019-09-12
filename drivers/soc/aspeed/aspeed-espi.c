@@ -1294,17 +1294,10 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 		aspeed_espi->dma_mode = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "no memory resource defined\n");
-		ret = -ENODEV;
-		goto err_free;
-	}
-
 	aspeed_espi->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (aspeed_espi->reg_base == NULL) {
+	if (IS_ERR(aspeed_espi->reg_base)) {
 		dev_err(&pdev->dev, "failed to ioremap() registers\n");
-		ret = -ENODEV;
-		goto err_free_mem;
+		return ERR_PTR(aspeed_espi->reg_base);
 	}
 
 	sysfs_bin_attr_init(&aspeed_espi->oob_channel);
@@ -1408,15 +1401,14 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 	aspeed_espi->irq = platform_get_irq(pdev, 0);
 	if (aspeed_espi->irq < 0) {
 		dev_err(&pdev->dev, "no irq specified\n");
-		ret = -ENOENT;
-		goto err_free_mem;
+		return aspeed_espi->irq;
 	}
 
 	ret = devm_request_irq(&pdev->dev, aspeed_espi->irq, aspeed_espi_isr,
 						   0, dev_name(&pdev->dev), aspeed_espi);
 	if (ret) {
 		printk("AST ESPI Unable to get IRQ");
-		goto err_free_mem;
+		return ret;
 	}
 
 	aspeed_espi->reset = devm_reset_control_get(&pdev->dev, NULL);
@@ -1431,7 +1423,7 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 						   0, dev_name(&pdev->dev), aspeed_espi);
 	if (ret) {
 		printk("AST ESPI Unable to get GPIO IRQ %d\n", ret);
-		goto err_free_mem;
+		return ret;
 	}
 
 	aspeed_espi_ctrl_init(aspeed_espi);
@@ -1439,7 +1431,7 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 	ret = misc_register(&aspeed_espi_misc);
 	if (ret) {
 		printk(KERN_ERR "ESPI : failed misc_register\n");
-		goto err_free_irq;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, aspeed_espi);
@@ -1454,16 +1446,6 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 	printk(KERN_INFO "aspeed_espi: driver successfully loaded.\n");
 
 	return 0;
-
-err_free_irq:
-	free_irq(aspeed_espi->irq, pdev);
-
-err_free_mem:
-	release_mem_region(res->start, resource_size(res));
-err_free:
-	kfree(aspeed_espi);
-
-	return ret;
 }
 
 static int aspeed_espi_remove(struct platform_device *pdev)
