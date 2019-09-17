@@ -91,12 +91,12 @@ static const struct aspeed_gate_data aspeed_g6_gates[] = {
 	[ASPEED_CLK_GATE_LHCCLK] 		= { 37, -1, 					"lhclk-gate",		"lhclk", 0 }, 				/* LPC master/LPC+ */
 	//reserved 38 rsa no ues anymore
 	[ASPEED_CLK_GATE_I3CDMACLK] 	= { 39,  ASPEED_RESET_I3C_DMA, 	"i3cdmaclk-gate",	NULL,	0 }, 				/* I3C_DMA */
-	[ASPEED_CLK_GATE_I3C0CLK] 		= { 40,  ASPEED_RESET_I3C0, 	"i3c0clk-gate",	NULL,	0 }, 				/* I3C0 */
-	[ASPEED_CLK_GATE_I3C1CLK] 		= { 41,  ASPEED_RESET_I3C1, 	"i3c1clk-gate",	NULL,	0 }, 				/* I3C1 */
-	[ASPEED_CLK_GATE_I3C2CLK] 		= { 42,  ASPEED_RESET_I3C2, 	"i3c2clk-gate",	NULL,	0 }, 				/* I3C2 */
-	[ASPEED_CLK_GATE_I3C3CLK] 		= { 43,  ASPEED_RESET_I3C3, 	"i3c3clk-gate",	NULL,	0 }, 				/* I3C3 */
-	[ASPEED_CLK_GATE_I3C4CLK] 		= { 44,  ASPEED_RESET_I3C4, 	"i3c4clk-gate",	NULL,	0 }, 				/* I3C4 */
-	[ASPEED_CLK_GATE_I3C5CLK] 		= { 45,  ASPEED_RESET_I3C5, 	"i3c5clk-gate",	NULL,	0 }, 				/* I3C5 */
+	[ASPEED_CLK_GATE_I3C0CLK] 		= { 40,  ASPEED_RESET_I3C0, 	"i3c0clk-gate",	"apb2",	0 }, 				/* I3C0 */
+	[ASPEED_CLK_GATE_I3C1CLK] 		= { 41,  ASPEED_RESET_I3C1, 	"i3c1clk-gate",	"apb2",	0 }, 				/* I3C1 */
+	[ASPEED_CLK_GATE_I3C2CLK] 		= { 42,  ASPEED_RESET_I3C2, 	"i3c2clk-gate",	"apb2",	0 }, 				/* I3C2 */
+	[ASPEED_CLK_GATE_I3C3CLK] 		= { 43,  ASPEED_RESET_I3C3, 	"i3c3clk-gate",	"apb2",	0 }, 				/* I3C3 */
+	[ASPEED_CLK_GATE_I3C4CLK] 		= { 44,  ASPEED_RESET_I3C4, 	"i3c4clk-gate",	"apb2",	0 }, 				/* I3C4 */
+	[ASPEED_CLK_GATE_I3C5CLK] 		= { 45,  ASPEED_RESET_I3C5, 	"i3c5clk-gate",	"apb2",	0 }, 				/* I3C5 */
 	
 	[ASPEED_CLK_GATE_I3C6CLK] 		= { 46,  ASPEED_RESET_I3C6, 	"i3c6clk-gate",	NULL,	0 }, 				/* I3C6 */
 	
@@ -354,7 +354,7 @@ static int aspeed_g6_clk_enable(struct clk_hw *hw)
 				regmap_write(gate->map, ASPEED_G6_RESET_CTRL + 0x04, rst);
 		}
 	}
-	
+
 	spin_unlock_irqrestore(gate->lock, flags);
 
 	return 0;
