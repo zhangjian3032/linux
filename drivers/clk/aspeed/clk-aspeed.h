@@ -45,7 +45,6 @@ struct aspeed_clk_soc_data {
 	const struct clk_div_table *eclk_div_table;
 	const struct clk_div_table *mac_div_table;
 	struct clk_hw *(*calc_pll)(const char *name, u32 val);
-	struct clk_hw *(*calc_apll)(const char *name, u32 val);
 };
 
 /**
