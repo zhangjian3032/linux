@@ -159,7 +159,7 @@
 		i3cdma: i3cdma@1e651000 {
 			compatible = "aspeed,ast2600-i3c-dma";
 			reg = <0x1e651000 0x1000>;
-			resets = <&syscon ASPEED_RESET_I3C_DMA>;
+			resets = <&syscon ASPEED_RESET_I3C>;
 		};
 
 		mdio0: mdio@1e650000 {

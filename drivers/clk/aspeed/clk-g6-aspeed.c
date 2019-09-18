@@ -90,7 +90,7 @@ static struct aspeed_gate_data aspeed_g6_gates[] = {
 
 	[ASPEED_CLK_GATE_LHCCLK] 		= { 37, -1, 					"lhclk-gate",		"lhclk", 0 }, 				/* LPC master/LPC+ */
 	//reserved 38 rsa no ues anymore
-	[ASPEED_CLK_GATE_I3CDMACLK] 	= { 39,  ASPEED_RESET_I3C_DMA, 	"i3cdmaclk-gate",	NULL,	0 }, 				/* I3C_DMA */
+	[ASPEED_CLK_GATE_I3CDMACLK] 	= { 39,  ASPEED_RESET_I3C,		"i3cdmaclk-gate",	NULL,	0 }, 				/* I3C_DMA */
 	[ASPEED_CLK_GATE_I3C0CLK] 		= { 40,  ASPEED_RESET_I3C0, 	"i3c0clk-gate",	"apb2",	0 }, 				/* I3C0 */
 	[ASPEED_CLK_GATE_I3C1CLK] 		= { 41,  ASPEED_RESET_I3C1, 	"i3c1clk-gate",	"apb2",	0 }, 				/* I3C1 */
 	[ASPEED_CLK_GATE_I3C2CLK] 		= { 42,  ASPEED_RESET_I3C2, 	"i3c2clk-gate",	"apb2",	0 }, 				/* I3C2 */
