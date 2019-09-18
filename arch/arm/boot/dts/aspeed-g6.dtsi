@@ -1403,6 +1403,12 @@
 };
 
 &i3c{
+	i3cglobal: i3cg@00 {
+		reg = <0x0 0x1000>;
+		compatible = "aspeed,ast2600-i3c-global";
+		resets = <&syscon ASPEED_RESET_I3C>;
+	};
+
 	i3c0: i3c0@2000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
