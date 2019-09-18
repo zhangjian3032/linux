@@ -90,15 +90,15 @@ static struct aspeed_gate_data aspeed_g6_gates[] = {
 
 	[ASPEED_CLK_GATE_LHCCLK] 		= { 37, -1, 					"lhclk-gate",		"lhclk", 0 }, 				/* LPC master/LPC+ */
 	//reserved 38 rsa no ues anymore
-	[ASPEED_CLK_GATE_I3CDMACLK] 	= { 39,  ASPEED_RESET_I3C,		"i3cdmaclk-gate",	NULL,	0 }, 				/* I3C_DMA */
-	[ASPEED_CLK_GATE_I3C0CLK] 		= { 40,  ASPEED_RESET_I3C0, 	"i3c0clk-gate",	"apb2",	0 }, 				/* I3C0 */
-	[ASPEED_CLK_GATE_I3C1CLK] 		= { 41,  ASPEED_RESET_I3C1, 	"i3c1clk-gate",	"apb2",	0 }, 				/* I3C1 */
-	[ASPEED_CLK_GATE_I3C2CLK] 		= { 42,  ASPEED_RESET_I3C2, 	"i3c2clk-gate",	"apb2",	0 }, 				/* I3C2 */
-	[ASPEED_CLK_GATE_I3C3CLK] 		= { 43,  ASPEED_RESET_I3C3, 	"i3c3clk-gate",	"apb2",	0 }, 				/* I3C3 */
-	[ASPEED_CLK_GATE_I3C4CLK] 		= { 44,  ASPEED_RESET_I3C4, 	"i3c4clk-gate",	"apb2",	0 }, 				/* I3C4 */
-	[ASPEED_CLK_GATE_I3C5CLK] 		= { 45,  ASPEED_RESET_I3C5, 	"i3c5clk-gate",	"apb2",	0 }, 				/* I3C5 */
+	[ASPEED_CLK_GATE_I3CDMACLK] 	= { 39,  ASPEED_RESET_I3C,		"i3cclk-gate",	NULL,	0 }, 				/* I3C_DMA */
+	[ASPEED_CLK_GATE_I3C0CLK] 		= { 40,  ASPEED_RESET_I3C0, 	"i3c0clk-gate",	"i3cclk",	0 }, 				/* I3C0 */
+	[ASPEED_CLK_GATE_I3C1CLK] 		= { 41,  ASPEED_RESET_I3C1, 	"i3c1clk-gate",	"i3cclk",	0 }, 				/* I3C1 */
+	[ASPEED_CLK_GATE_I3C2CLK] 		= { 42,  ASPEED_RESET_I3C2, 	"i3c2clk-gate",	"i3cclk",	0 }, 				/* I3C2 */
+	[ASPEED_CLK_GATE_I3C3CLK] 		= { 43,  ASPEED_RESET_I3C3, 	"i3c3clk-gate",	"i3cclk",	0 }, 				/* I3C3 */
+	[ASPEED_CLK_GATE_I3C4CLK] 		= { 44,  ASPEED_RESET_I3C4, 	"i3c4clk-gate",	"i3cclk",	0 }, 				/* I3C4 */
+	[ASPEED_CLK_GATE_I3C5CLK] 		= { 45,  ASPEED_RESET_I3C5, 	"i3c5clk-gate",	"i3cclk",	0 }, 				/* I3C5 */
 	
-	[ASPEED_CLK_GATE_I3C6CLK] 		= { 46,  ASPEED_RESET_I3C6, 	"i3c6clk-gate",	NULL,	0 }, 				/* I3C6 */
+	[ASPEED_CLK_GATE_I3C6CLK] 		= { 46,  ASPEED_RESET_I3C6, 	"i3c6clk-gate",	"i3cclk",	0 }, 				/* I3C6 */
 	
 	[ASPEED_CLK_GATE_UART1CLK] 		= { 48, -1, 					"uart1clk-gate",	"uxclk",		0 }, /* UART1 */
 	[ASPEED_CLK_GATE_UART2CLK] 		= { 49, -1, 					"uart2clk-gate",	"uxclk",		0 }, /* UART2 */
@@ -684,7 +684,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 				aspeed_g6_gates[ASPEED_CLK_GATE_UART1CLK + i].parent_name = "uxclk";
 		}
 	}
-	
+
 	for (i = 0; i < ARRAY_SIZE(aspeed_g6_gates); i++) {
 		const struct aspeed_gate_data *gd = &aspeed_g6_gates[i];
 		u32 gate_flags;
@@ -859,6 +859,23 @@ static void __init aspeed_ast2600_cc(struct regmap *map)
 	/* USB 2.0 port1 phy 40MHz clock */
 	hw = clk_hw_register_fixed_rate(NULL, "usb-phy-40m", NULL, 0, 40000000);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_USBPHY_40M] = hw;
+
+	//* i3c clock */
+	regmap_read(map, ASPEED_G6_CLK_SELECTION5, &val);
+	if(val & BIT(31)) {
+		val = (val >> 28) & 0x7;
+		if(val)
+			div = val + 1;
+		else
+			div = val + 2;
+		printk("div --------------------- %d \n", div);
+		hw = clk_hw_register_fixed_factor(NULL, "i3cclk", "apll", 0, 1, div);
+	} else {
+		printk("div --------------------- %d xxxxxxxxxxxxxxxxxxxx \n", div);
+		hw = clk_hw_register_fixed_factor(NULL, "i3cclk", "ahb", 0, 1, 1);
+	}
+	aspeed_g6_clk_data->hws[ASPEED_CLK_I3C] = hw;	
+
 };
 
 static void __init aspeed_g6_cc_init(struct device_node *np)
