@@ -273,6 +273,12 @@
 				interrupts = <0x19>;
 			};
 
+			pcie: pcie@1e6ed0000 {
+				compatible = "aspeed,ast2500-pcie","aspeed,aspeed-pcie";
+				reg = <0x1e6ed000 0x100>;
+				status = "disabled";
+			};
+
 			adc: adc@1e6e9000 {
 				compatible = "aspeed,ast2500-adc";
 				reg = <0x1e6e9000 0xb0>;
@@ -604,7 +610,7 @@
 
 			mctp: mctp@1e6e8000 {
 				compatible = "aspeed,ast2500-mctp";
-				reg = <0x1e6e8000 0x30 0x1e6ed0c4 0x04>;
+				reg = <0x1e6e8000 0x30>;
 				interrupts-extended = <&vic 42>, <&scu_ic ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
 				resets = <&syscon ASPEED_RESET_MCTP>;
 				status = "disabled";
