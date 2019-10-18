@@ -602,7 +602,7 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_pwm_tachometer_data *priv,
 	if (raw_data == 0)
 		return 0;
 
-	return (clk_source * 60) / (2 * raw_data * tach_div);
+	return (clk_source / (2 * raw_data * tach_div)) * 60;
 
 }
 
