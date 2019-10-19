@@ -411,10 +411,10 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				#interrupt-cells = <1>;
-#if 1
+#if 0
 				ranges = < 0x02000000 0 0x60000000 0x60000000 0 0x10000000 >;
 #else
-				ranges = <0x01000000 0 0x60000000 0x60000000 0 0x10000000   /* I/O */
+				ranges = <0x01000000 0 0x60000000 0x60000000 0 0x10000   /* I/O */
                                           0x02000000 0 0x70000000 0x70000000 0 0x10000000>; /* memory */
 #endif
 				interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
@@ -569,12 +569,36 @@
 				#gpio-cells = <2>;
 				gpio-controller;
 				compatible = "aspeed,ast2600-gpio";
-				reg = <0x1e780000 0x800>;
+				reg = <0x1e780000 0x500>;
 				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
 				gpio-ranges = <&pinctrl 0 0 248>;
 				clocks = <&syscon ASPEED_CLK_APB2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+			};
+
+			sgpiom0: sgpiom@1e780500 {
+				#gpio-cells = <2>;
+				gpio-controller;
+				compatible = "aspeed,ast2600-sgpiom";
+				reg = <0x1e780500 0x200>;
+				interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+				ngpios = <8>;
+				clocks = <&syscon ASPEED_CLK_APB2>;
+				interrupt-controller;
+				bus-frequency = <12000000>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_sgpm1_default>;
+			};
+
+			sgpios0: sgpios@1e780700 {
+				#gpio-cells = <2>;
+				gpio-controller;
+				compatible = "aspeed,ast2600-sgpios";
+				reg = <0x1e780700 0x100>;
+				interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_APB2>;
 			};
 
 			gpio1: gpio@1e780800 {
@@ -2231,5 +2255,10 @@
 	pinctrl_jtagm_default: jtagm_default {
 		function = "JTAGM";
 		groups = "JTAGM";
+	};
+
+	pinctrl_sgpm1_default: sgpm1_default {
+		function = "SGPM1";
+		groups = "SGPM1";
 	};
 };
