@@ -2085,26 +2085,62 @@ static int i3c_master_i2c_adapter_xfer(struct i2c_adapter *adap,
 	struct i2c_dev_desc *dev;
 	int i, ret;
 	u16 addr;
-
+	u8 *buff;
+	
 	if (!xfers || !master || nxfers <= 0)
 		return -EINVAL;
 
 	if (!master->ops->i2c_xfers)
 		return -ENOTSUPP;
+	printk("i3c_master_i2c_adapter_xfer xfers[0].addr %x nxfers %d\n", xfers[0].addr, nxfers);
 
 	/* Doing transfers to different devices is not supported. */
 	addr = xfers[0].addr;
 	for (i = 1; i < nxfers; i++) {
+		printk("[%d] addr %x, xfers[i].addr %x",i, addr, xfers[i].addr);
 		if (addr != xfers[i].addr)
 			return -ENOTSUPP;
 	}
+	printk("i3c_master_i2c_adapter_xfer -- xfers->flags %x \n", xfers->flags);
 
 	i3c_bus_normaluse_lock(&master->bus);
-	dev = i3c_master_find_i2c_dev_by_addr(master, addr);
-	if (!dev)
-		ret = -ENOENT;
-	else
-		ret = master->ops->i2c_xfers(dev, xfers, nxfers);
+	if(xfers->flags & I3C_M_CCC) {
+		printk("i3c_master_i2c_adapter_xfer I3C_M_CCC addr %x, ccc id %d nxfers %d\n", xfers[0].addr, xfers[0].len, nxfers);
+		struct i3c_ccc_cmd_dest dest;
+		struct i3c_ccc_cmd cmd;
+
+		dest.addr = xfers[0].addr;
+
+		cmd.id = xfers[0].buf[0];
+
+		for(i = 0; i < xfers[0].len; i++) {
+			printk("payload %x \n", xfers[0].buf[i]);
+		}
+		buff = i3c_ccc_cmd_dest_init(&dest, addr, xfers[0].buf[1]);
+
+		if(xfers[0].len >= 2) {
+			for(i = 0; i < xfers[0].len - 2; i++) {
+				buff[i] = xfers[0].buf[2 + i];
+				printk("payload %x \n", buff[i]);
+			}
+		}
+		
+		if(xfers->flags & I2C_M_RD)
+			i3c_ccc_cmd_init(&cmd, true, cmd.id, &dest, 1);
+		else
+			i3c_ccc_cmd_init(&cmd, false, cmd.id, &dest, 1);
+		
+		ret = master->ops->send_ccc_cmd(master, &cmd);
+		i3c_ccc_cmd_dest_cleanup(&dest);
+	} else {
+		printk("i3c_master_i2c_adapter_xfer addr %x  xfers->flags %x \n", addr, xfers->flags);
+		dev = i3c_master_find_i2c_dev_by_addr(master, addr);
+		if (!dev) {
+			printk("no device \n");
+			ret = -ENOENT;
+		} else
+			ret = master->ops->i2c_xfers(dev, xfers, nxfers);
+	}
 	i3c_bus_normaluse_unlock(&master->bus);
 
 	return ret ? ret : nxfers;
@@ -2112,7 +2148,9 @@ static int i3c_master_i2c_adapter_xfer(struct i2c_adapter *adap,
 
 static u32 i3c_master_i2c_funcs(struct i2c_adapter *adapter)
 {
-	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
+	printk("i3c_master_i2c_funcs \n");
+//	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_SMBUS_BLOCK_DATA;
 }
 
 static const struct i2c_algorithm i3c_master_i2c_algo = {
