@@ -122,6 +122,14 @@
 		status = "okay";
 };
 
+#if 0
+&i3c0 {
+	status = "okay";
+	
+	clock-frequency = <0x2dc6c00>;
+};
+#endif
+
 &mdio0 {
 	status = "okay";
 

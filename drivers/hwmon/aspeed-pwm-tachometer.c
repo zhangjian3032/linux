@@ -596,13 +596,13 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_pwm_tachometer_data *priv,
 	both = (mode & BOTH_EDGES) ? 1 : 0;
 //	printk("clk %ld, raw_data %x , tach_div %x  both %x \n", priv->clk_freq, raw_data, tach_div, both);
 
-	tach_div = (tach_div * 2) * (0x1 << both);
+	tach_div = (0x1 << (tach_div * 2)) * (0x1 << both);
 	clk_source = priv->clk_freq;
 
 	if (raw_data == 0)
 		return 0;
 
-	return (clk_source * 60) / (2 * raw_data * tach_div);
+	return (clk_source / (2 * raw_data * tach_div)) * 60;
 
 }
 

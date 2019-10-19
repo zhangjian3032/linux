@@ -199,7 +199,7 @@
 #define I3C_BUS_I2C_FMP_TLOW_MIN_NS	500
 #define I3C_BUS_THIGH_MAX_NS		41
 
-#define XFER_TIMEOUT (msecs_to_jiffies(10000))
+#define XFER_TIMEOUT (msecs_to_jiffies(1000))
 
 struct dw_i3c_master_caps {
 	u8 cmdfifodepth;
@@ -258,6 +258,8 @@ static u8 even_parity(u8 p)
 static bool dw_i3c_master_supports_ccc_cmd(struct i3c_master_controller *m,
 					   const struct i3c_ccc_cmd *cmd)
 {
+	printk("*** %s *** cmd->ndests %d, cmd->id [%x] \n", __FUNCTION__, cmd->ndests, cmd->id);
+
 	if (cmd->ndests > 1)
 		return false;
 
@@ -300,14 +302,24 @@ to_dw_i3c_master(struct i3c_master_controller *master)
 
 static void dw_i3c_master_disable(struct dw_i3c_master *master)
 {
-	writel(readl(master->regs + DEVICE_CTRL) & ~DEV_CTRL_ENABLE,
+	u32 ctrl = readl(master->regs + DEVICE_CTRL);
+	writel(ctrl & ~DEV_CTRL_ENABLE,
 	       master->regs + DEVICE_CTRL);
+	writel(ctrl & ~DEV_CTRL_ENABLE,
+	       master->regs + DEVICE_CTRL);	
+	printk("w %x : %x \n", DEVICE_CTRL, ctrl & ~DEV_CTRL_ENABLE);
 }
 
 static void dw_i3c_master_enable(struct dw_i3c_master *master)
 {
-	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_ENABLE,
+	printk("*** %s ***\n", __FUNCTION__);
+
+	u32 ctrl = readl(master->regs + DEVICE_CTRL);
+	writel(ctrl | DEV_CTRL_ENABLE,
 	       master->regs + DEVICE_CTRL);
+	writel(ctrl | DEV_CTRL_ENABLE,
+	       master->regs + DEVICE_CTRL);	
+	printk("w DEVICE_CTRL [%x] : %x \n", DEVICE_CTRL, ctrl | DEV_CTRL_ENABLE);
 }
 
 static int dw_i3c_master_get_addr_pos(struct dw_i3c_master *master, u8 addr)
@@ -333,12 +345,19 @@ static int dw_i3c_master_get_free_pos(struct dw_i3c_master *master)
 static void dw_i3c_master_wr_tx_fifo(struct dw_i3c_master *master,
 				     const u8 *bytes, int nbytes)
 {
+	int i = 0;
+	printk("dw_i3c_master_wr_tx_fifo nbytes %d \n", nbytes);
+	for(i = 0; i < nbytes; i++) {
+		printk(" ----- %x -----", bytes[i]);
+	}
 	writesl(master->regs + RX_TX_DATA_PORT, bytes, nbytes / 4);
+	printk("w RX_TX_DATA_PORT [%x]\n", RX_TX_DATA_PORT);
 	if (nbytes & 3) {
 		u32 tmp = 0;
 
 		memcpy(&tmp, bytes + (nbytes & ~3), nbytes & 3);
 		writesl(master->regs + RX_TX_DATA_PORT, &tmp, 1);
+		printk("w RX_TX_DATA_PORT [%x]\n", RX_TX_DATA_PORT);
 	}
 }
 
@@ -348,7 +367,6 @@ static void dw_i3c_master_read_rx_fifo(struct dw_i3c_master *master,
 	readsl(master->regs + RX_TX_DATA_PORT, bytes, nbytes / 4);
 	if (nbytes & 3) {
 		u32 tmp;
-
 		readsl(master->regs + RX_TX_DATA_PORT, &tmp, 1);
 		memcpy(bytes + (nbytes & ~3), &tmp, nbytes & 3);
 	}
@@ -386,7 +404,6 @@ static void dw_i3c_master_start_xfer_locked(struct dw_i3c_master *master)
 
 	for (i = 0; i < xfer->ncmds; i++) {
 		struct dw_i3c_cmd *cmd = &xfer->cmds[i];
-
 		dw_i3c_master_wr_tx_fifo(master, cmd->tx_buf, cmd->tx_len);
 	}
 
@@ -394,12 +411,30 @@ static void dw_i3c_master_start_xfer_locked(struct dw_i3c_master *master)
 	thld_ctrl &= ~QUEUE_THLD_CTRL_RESP_BUF_MASK;
 	thld_ctrl |= QUEUE_THLD_CTRL_RESP_BUF(xfer->ncmds);
 	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
+	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
+	printk("w QUEUE_THLD_CTRL [%x] : %x - rep xfer->ncmds %d \n", QUEUE_THLD_CTRL, thld_ctrl, xfer->ncmds);
 
 	for (i = 0; i < xfer->ncmds; i++) {
 		struct dw_i3c_cmd *cmd = &xfer->cmds[i];
+		printk("w cmd h : %x  l: %x ", cmd->cmd_hi, cmd->cmd_lo);
+#if 1	
+		//dummy write
+		writel(cmd->cmd_hi, master->regs + 0xec);
+		//write
+		writel(cmd->cmd_hi, master->regs + COMMAND_QUEUE_PORT);
+		//dummy read
+		readl(master->regs + COMMAND_QUEUE_PORT);
 
+		//dummy write
+		writel(cmd->cmd_hi, master->regs + 0xec);
+		//write
+		writel(cmd->cmd_lo, master->regs + COMMAND_QUEUE_PORT);
+		//dummy read
+		readl(master->regs + COMMAND_QUEUE_PORT);
+#else
 		writel(cmd->cmd_hi, master->regs + COMMAND_QUEUE_PORT);
 		writel(cmd->cmd_lo, master->regs + COMMAND_QUEUE_PORT);
+#endif
 	}
 }
 
@@ -411,8 +446,10 @@ static void dw_i3c_master_enqueue_xfer(struct dw_i3c_master *master,
 	init_completion(&xfer->comp);
 	spin_lock_irqsave(&master->xferqueue.lock, flags);
 	if (master->xferqueue.cur) {
+		printk("dw_i3c_master_enqueue_xfer : list_add_tail \n");
 		list_add_tail(&xfer->node, &master->xferqueue.list);
 	} else {
+		printk("dw_i3c_master_enqueue_xfer : new \n");
 		master->xferqueue.cur = xfer;
 		dw_i3c_master_start_xfer_locked(master);
 	}
@@ -422,6 +459,7 @@ static void dw_i3c_master_enqueue_xfer(struct dw_i3c_master *master,
 static void dw_i3c_master_dequeue_xfer_locked(struct dw_i3c_master *master,
 					      struct dw_i3c_xfer *xfer)
 {
+	printk("dw_i3c_master_dequeue_xfer_locked \n");
 	if (master->xferqueue.cur == xfer) {
 		u32 status;
 
@@ -430,6 +468,12 @@ static void dw_i3c_master_dequeue_xfer_locked(struct dw_i3c_master *master,
 		writel(RESET_CTRL_RX_FIFO | RESET_CTRL_TX_FIFO |
 		       RESET_CTRL_RESP_QUEUE | RESET_CTRL_CMD_QUEUE,
 		       master->regs + RESET_CTRL);
+		writel(RESET_CTRL_RX_FIFO | RESET_CTRL_TX_FIFO |
+		       RESET_CTRL_RESP_QUEUE | RESET_CTRL_CMD_QUEUE,
+		       master->regs + RESET_CTRL);
+
+		printk("w %x %x \n", RESET_CTRL, RESET_CTRL_RX_FIFO | RESET_CTRL_TX_FIFO |
+		       RESET_CTRL_RESP_QUEUE | RESET_CTRL_CMD_QUEUE);
 
 		readl_poll_timeout_atomic(master->regs + RESET_CTRL, status,
 					  !status, 10, 1000000);
@@ -460,7 +504,7 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 
 	nresp = readl(master->regs + QUEUE_STATUS_LEVEL);
 	nresp = QUEUE_STATUS_LEVEL_RESP(nresp);
-	printk("nresp %x  \n", nresp);
+
 	for (i = 0; i < nresp; i++) {
 		struct dw_i3c_cmd *cmd;
 		u32 resp;
@@ -510,10 +554,15 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 	complete(&xfer->comp);
 
 	if (ret < 0) {
+		u32 ctrl;
 		dw_i3c_master_dequeue_xfer_locked(master, xfer);
 		printk("go to resume ==== \n");
-		writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_RESUME,
+		ctrl = readl(master->regs + DEVICE_CTRL);
+		writel(ctrl | DEV_CTRL_RESUME,
 		       master->regs + DEVICE_CTRL);
+		writel(ctrl | DEV_CTRL_RESUME,
+			   master->regs + DEVICE_CTRL);	
+		printk("w %x : %x \n", DEVICE_CTRL, ctrl | DEV_CTRL_RESUME);
 	}
 
 	xfer = list_first_entry_or_null(&master->xferqueue.list,
@@ -532,12 +581,15 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 	u32 scl_timing;
 	u8 hcnt, lcnt;
 
+	printk("*** %s : ***\n", __FUNCTION__);
 	core_rate = clk_get_rate(master->core_clk);
 	if (!core_rate)
 		return -EINVAL;
 
 	core_period = DIV_ROUND_UP(1000000000, core_rate);
 
+	printk("core_rate %d , core_period %d \n", core_rate, core_period);
+	
 	hcnt = DIV_ROUND_UP(I3C_BUS_THIGH_MAX_NS, core_period) - 1;
 	if (hcnt < SCL_I3C_TIMING_CNT_MIN)
 		hcnt = SCL_I3C_TIMING_CNT_MIN;
@@ -548,13 +600,20 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 
 	scl_timing = SCL_I3C_TIMING_HCNT(hcnt) | SCL_I3C_TIMING_LCNT(lcnt);
 	writel(scl_timing, master->regs + SCL_I3C_PP_TIMING);
+	writel(scl_timing, master->regs + SCL_I3C_PP_TIMING);
+	printk("w SCL_I3C_PP_TIMING [%x] : %x - hcnt %d, lcnt %d\n", SCL_I3C_PP_TIMING, scl_timing, hcnt, lcnt);
 
-	if (!(readl(master->regs + DEVICE_CTRL) & DEV_CTRL_I2C_SLAVE_PRESENT))
+	if (!(readl(master->regs + DEVICE_CTRL) & DEV_CTRL_I2C_SLAVE_PRESENT)) {
 		writel(BUS_I3C_MST_FREE(lcnt), master->regs + BUS_FREE_TIMING);
+		writel(BUS_I3C_MST_FREE(lcnt), master->regs + BUS_FREE_TIMING);
+		printk("w BUS_I3C_MST_FREE [%x] : %x - lcnt %d\n", BUS_FREE_TIMING, BUS_I3C_MST_FREE(lcnt), lcnt);
+	}
 
 	lcnt = DIV_ROUND_UP(I3C_BUS_TLOW_OD_MIN_NS, core_period);
 	scl_timing = SCL_I3C_TIMING_HCNT(hcnt) | SCL_I3C_TIMING_LCNT(lcnt);
 	writel(scl_timing, master->regs + SCL_I3C_OD_TIMING);
+	writel(scl_timing, master->regs + SCL_I3C_OD_TIMING);
+	printk("w SCL_I3C_OD_TIMING [%x] : %x - lcnt %d \n", SCL_I3C_OD_TIMING, scl_timing, lcnt);
 
 	lcnt = DIV_ROUND_UP(core_rate, I3C_BUS_SDR1_SCL_RATE) - hcnt;
 	scl_timing = SCL_EXT_LCNT_1(lcnt);
@@ -565,6 +624,9 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 	lcnt = DIV_ROUND_UP(core_rate, I3C_BUS_SDR4_SCL_RATE) - hcnt;
 	scl_timing |= SCL_EXT_LCNT_4(lcnt);
 	writel(scl_timing, master->regs + SCL_EXT_LCNT_TIMING);
+	writel(scl_timing, master->regs + SCL_EXT_LCNT_TIMING);
+	printk("w SCL_EXT_LCNT_TIMING [%x] : %x \n", SCL_EXT_LCNT_TIMING, scl_timing);
+
 
 	return 0;
 }
@@ -574,6 +636,7 @@ static int dw_i2c_clk_cfg(struct dw_i3c_master *master)
 	unsigned long core_rate, core_period;
 	u16 hcnt, lcnt;
 	u32 scl_timing;
+	u32 ctrl;
 
 	core_rate = clk_get_rate(master->core_clk);
 	if (!core_rate)
@@ -586,16 +649,28 @@ static int dw_i2c_clk_cfg(struct dw_i3c_master *master)
 	scl_timing = SCL_I2C_FMP_TIMING_HCNT(hcnt) |
 		     SCL_I2C_FMP_TIMING_LCNT(lcnt);
 	writel(scl_timing, master->regs + SCL_I2C_FMP_TIMING);
+	writel(scl_timing, master->regs + SCL_I2C_FMP_TIMING);
+	printk("w %x : %x \n", SCL_I2C_FMP_TIMING, scl_timing);
 
 	lcnt = DIV_ROUND_UP(I3C_BUS_I2C_FM_TLOW_MIN_NS, core_period);
 	hcnt = DIV_ROUND_UP(core_rate, I3C_BUS_I2C_FM_SCL_RATE) - lcnt;
 	scl_timing = SCL_I2C_FM_TIMING_HCNT(hcnt) |
 		     SCL_I2C_FM_TIMING_LCNT(lcnt);
 	writel(scl_timing, master->regs + SCL_I2C_FM_TIMING);
+	writel(scl_timing, master->regs + SCL_I2C_FM_TIMING);
+	printk("w %x : %x \n", SCL_I2C_FM_TIMING, scl_timing);
 
 	writel(BUS_I3C_MST_FREE(lcnt), master->regs + BUS_FREE_TIMING);
-	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_I2C_SLAVE_PRESENT,
+	writel(BUS_I3C_MST_FREE(lcnt), master->regs + BUS_FREE_TIMING);
+	printk("w %x : %x \n", BUS_FREE_TIMING, BUS_I3C_MST_FREE(lcnt));
+
+	ctrl = readl(master->regs + DEVICE_CTRL);
+	writel(ctrl | DEV_CTRL_I2C_SLAVE_PRESENT,
 	       master->regs + DEVICE_CTRL);
+	writel(ctrl | DEV_CTRL_I2C_SLAVE_PRESENT,
+	       master->regs + DEVICE_CTRL);
+
+	printk("w %x : %x \n", DEVICE_CTRL, ctrl | DEV_CTRL_I2C_SLAVE_PRESENT);
 
 	return 0;
 }
@@ -606,6 +681,7 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	struct i3c_bus *bus = i3c_master_get_bus(m);
 	struct i3c_device_info info = { };
 	u32 thld_ctrl;
+	u32 ctrl;
 	int ret;
 	printk("*** %s : bus mode [%d] ***\n", __FUNCTION__, bus->mode);
 
@@ -628,14 +704,24 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	thld_ctrl = readl(master->regs + QUEUE_THLD_CTRL);
 	thld_ctrl &= ~QUEUE_THLD_CTRL_RESP_BUF_MASK;
 	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
+	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
+	printk("w QUEUE_THLD_CTRL [%x] : %x \n", QUEUE_THLD_CTRL, thld_ctrl);
 
 	thld_ctrl = readl(master->regs + DATA_BUFFER_THLD_CTRL);
 	thld_ctrl &= ~DATA_BUFFER_THLD_CTRL_RX_BUF;
 	writel(thld_ctrl, master->regs + DATA_BUFFER_THLD_CTRL);
+	writel(thld_ctrl, master->regs + DATA_BUFFER_THLD_CTRL);
+	printk("w DATA_BUFFER_THLD_CTRL [%x] : %x \n", DATA_BUFFER_THLD_CTRL, thld_ctrl);
 
 	writel(INTR_ALL, master->regs + INTR_STATUS);
+	writel(INTR_ALL, master->regs + INTR_STATUS);
+	printk("w INTR_STATUS [%x] : %x \n", INTR_STATUS, INTR_ALL);
 	writel(INTR_MASTER_MASK, master->regs + INTR_STATUS_EN);
+	writel(INTR_MASTER_MASK, master->regs + INTR_STATUS_EN);
+	printk("w INTR_STATUS_EN [%x] : %x \n", INTR_STATUS_EN, INTR_MASTER_MASK);
 	writel(INTR_MASTER_MASK, master->regs + INTR_SIGNAL_EN);
+	writel(INTR_MASTER_MASK, master->regs + INTR_SIGNAL_EN);
+	printk("w INTR_SIGNAL_EN [%x] : %x \n", INTR_SIGNAL_EN, INTR_MASTER_MASK);
 
 	ret = i3c_master_get_free_addr(m, 0);
 	if (ret < 0)
@@ -643,8 +729,13 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 
 	writel(DEV_ADDR_DYNAMIC_ADDR_VALID | DEV_ADDR_DYNAMIC(ret),
 	       master->regs + DEVICE_ADDR);
+	writel(DEV_ADDR_DYNAMIC_ADDR_VALID | DEV_ADDR_DYNAMIC(ret),
+	       master->regs + DEVICE_ADDR);
+
+	printk("w DEVICE_ADDR [%x] : %x - dynamic addr %x \n", DEVICE_ADDR, DEV_ADDR_DYNAMIC_ADDR_VALID | DEV_ADDR_DYNAMIC(ret), ret);
 
 	memset(&info, 0, sizeof(info));
+
 	info.dyn_addr = ret;
 
 	ret = i3c_master_set_info(&master->base, &info);
@@ -652,11 +743,20 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 		return ret;
 
 	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_SIR_REQ_REJECT);
+	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_SIR_REQ_REJECT);
+	printk("w IBI_SIR_REQ_REJECT [%x] : %x \n", IBI_SIR_REQ_REJECT, IBI_REQ_REJECT_ALL);
 	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_MR_REQ_REJECT);
+	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_MR_REQ_REJECT);
+	printk("w IBI_MR_REQ_REJECT [%x] : %x \n", IBI_MR_REQ_REJECT, IBI_REQ_REJECT_ALL);
 
 	/* For now don't support Hot-Join */
-	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_HOT_JOIN_NACK,
+	ctrl = readl(master->regs + DEVICE_CTRL);
+	writel(ctrl | DEV_CTRL_HOT_JOIN_NACK,
 	       master->regs + DEVICE_CTRL);
+	writel(ctrl | DEV_CTRL_HOT_JOIN_NACK,
+	       master->regs + DEVICE_CTRL);
+
+	printk("w DEVICE_CTRL [%x] : %x \n", DEVICE_CTRL, ctrl | DEV_CTRL_HOT_JOIN_NACK);
 
 	dw_i3c_master_enable(master);
 
@@ -666,6 +766,7 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 static void dw_i3c_master_bus_cleanup(struct i3c_master_controller *m)
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
+	printk("*** %s ***\n", __FUNCTION__);
 
 	dw_i3c_master_disable(master);
 }
@@ -676,8 +777,6 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 	struct dw_i3c_xfer *xfer;
 	struct dw_i3c_cmd *cmd;
 	int ret = 0, pos = 0;
-	u8 *buff;
-	int i;
 
 	printk("dw_i3c_ccc_set ccc->rnw %d, ccc->id [%x], ccc->ndests %d\n", ccc->rnw, ccc->id, ccc->ndests);
 
@@ -696,13 +795,6 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 	cmd->tx_buf = ccc->dests[0].payload.data;
 	cmd->tx_len = ccc->dests[0].payload.len;
 
-	buff = cmd->tx_buf;
-
-	printk("cmd->tx_len %d \n", cmd->tx_len);
-	for(i = 0; i < cmd->tx_len; i++) {
-		printk("buff %x \n", buff[i]);
-	}
-	
 	cmd->cmd_hi = COMMAND_PORT_ARG_DATA_LEN(ccc->dests[0].payload.len) |
 		      COMMAND_PORT_TRANSFER_ARG;
 
@@ -714,15 +806,22 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
-		printk("wait_for_completion_timeout --\n");
+		printk("wait xfer comp timeout \n");
 		dw_i3c_master_dequeue_xfer(master, xfer);
 	}
+	
+	printk("dw_i3c_ccc_set 4\n");
 
 	ret = xfer->ret;
+	printk("dw_i3c_ccc_set ret %x \n", ret);
+	
 	if (xfer->cmds[0].error == RESPONSE_ERROR_IBA_NACK)
 		ccc->err = I3C_ERROR_M2;
 
+	printk("dw_i3c_ccc_set xfer->cmds[0].error %x \n", xfer->cmds[0].error);
+
 	dw_i3c_master_free_xfer(xfer);
+	printk("dw_i3c_ccc_set end\n");
 
 	return ret;
 }
@@ -732,8 +831,7 @@ static int dw_i3c_ccc_get(struct dw_i3c_master *master, struct i3c_ccc_cmd *ccc)
 	struct dw_i3c_xfer *xfer;
 	struct dw_i3c_cmd *cmd;
 	int ret, pos;
-
-printk("dw_i3c_ccc_get ccc->rnw %d, ccc->id [%x], ccc->ndests %d\n", ccc->rnw, ccc->id, ccc->ndests);
+	printk("dw_i3c_ccc_get 0\n");
 
 	pos = dw_i3c_master_get_addr_pos(master, ccc->dests[0].addr);
 	if (pos < 0)
@@ -758,10 +856,8 @@ printk("dw_i3c_ccc_get ccc->rnw %d, ccc->id [%x], ccc->ndests %d\n", ccc->rnw, c
 		      COMMAND_PORT_ROC;
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
-		printk("wait_for_completion_timeout -\n");
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
 		dw_i3c_master_dequeue_xfer(master, xfer);
-	}
 
 	ret = xfer->ret;
 	if (xfer->cmds[0].error == RESPONSE_ERROR_IBA_NACK)
@@ -776,26 +872,25 @@ static int dw_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	int ret = 0;
-	
-	u32 ctrl;
 	u32 master_status = (readl(master->regs + PRESENT_STATE) >> 16) & 0x3f;
+	u32 ctrl;
 
 	printk("*** %s *** ccc->id %d, master status %x ccc->rnw %d \n", __FUNCTION__, ccc->id, master_status, ccc->rnw);	
-//	if (ccc->id == I3C_CCC_ENTDAA)
-//		return -EINVAL;
+	if (ccc->id == I3C_CCC_ENTDAA)
+		return -EINVAL;
 
 	printk("---------------------------- \n");
 	printk("bus status  %x \n", master_status);
 	printk("---------------------------- \n");
-
-	if(master_status) {
-			ctrl = readl(master->regs + DEVICE_CTRL);
-			writel(ctrl | DEV_CTRL_RESUME,
-				   master->regs + DEVICE_CTRL);
-			writel(ctrl | DEV_CTRL_RESUME,
-					   master->regs + DEVICE_CTRL);
-	}
 	
+	if(master_status) {
+		ctrl = readl(master->regs + DEVICE_CTRL);
+		writel(ctrl | DEV_CTRL_RESUME,
+		       master->regs + DEVICE_CTRL);
+		writel(ctrl | DEV_CTRL_RESUME,
+			   master->regs + DEVICE_CTRL);
+	}
+
 	
 	if (ccc->rnw)
 		ret = dw_i3c_ccc_get(master, ccc);
@@ -814,6 +909,7 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 	u8 p, last_addr = 0;
 	int ret, pos;
 
+	printk("*** %s ***\n", __FUNCTION__);
 	olddevs = ~(master->free_pos);
 
 	/* Prepare DAT before launching DAA. */
@@ -833,6 +929,11 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 		writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(ret),
 		       master->regs +
 		       DEV_ADDR_TABLE_LOC(master->datstartaddr, pos));
+		writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(ret),
+			   master->regs +
+			   DEV_ADDR_TABLE_LOC(master->datstartaddr, pos));
+		printk("w %x : %x \n", DEV_ADDR_TABLE_LOC(master->datstartaddr, pos), DEV_ADDR_TABLE_DYNAMIC_ADDR(ret));
+		
 	}
 
 	xfer = dw_i3c_master_alloc_xfer(master, 1);
@@ -881,6 +982,8 @@ static int dw_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 	unsigned int nrxwords = 0, ntxwords = 0;
 	struct dw_i3c_xfer *xfer;
 	int i, ret = 0;
+
+	printk("*** %s ***\n", __FUNCTION__);
 
 	if (!i3c_nxfers)
 		return 0;
@@ -946,12 +1049,28 @@ static int dw_i3c_master_reattach_i3c_dev(struct i3c_dev_desc *dev,
 	struct dw_i3c_i2c_dev_data *data = i3c_dev_get_master_data(dev);
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
+	
+	printk("*** %s ***\n", __FUNCTION__);
+	printk("dw_i3c_master_reattach_i3c_dev old_dyn_addr %x \n", master->regs);
 
+printk("dw_i3c_master_reattach_i3c_dev old_dyn_addr %x master->datstartaddr %d, dev->info.dyn_addr %d data->index %d \n", old_dyn_addr, master->datstartaddr, dev->info.dyn_addr, data->index);
+
+	printk("%x %x \n", DEV_ADDR_TABLE_DYNAMIC_ADDR(dev->info.dyn_addr), DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
+	writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(dev->info.dyn_addr),
+	       master->regs +
+	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
+	
 	writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(dev->info.dyn_addr),
 	       master->regs +
 	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
 
+printk("dw_i3c_master_reattach_i3c_dev old_dyn_addr  \n");	
+	printk("w %x : %x \n", DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index), DEV_ADDR_TABLE_DYNAMIC_ADDR(dev->info.dyn_addr));
+
+	printk("dw_i3c_master_reattach_i3c_dev old_dyn_addr  1 \n");	
+
 	master->addrs[data->index] = dev->info.dyn_addr;
+	printk("dw_i3c_master_reattach_i3c_dev old_dyn_addr  end\n");	
 
 	return 0;
 }
@@ -962,6 +1081,8 @@ static int dw_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	struct dw_i3c_i2c_dev_data *data;
 	int pos;
+
+	printk("*** %s ***\n", __FUNCTION__);
 
 	pos = dw_i3c_master_get_free_pos(master);
 	if (pos < 0)
@@ -979,6 +1100,10 @@ static int dw_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 	writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(master->addrs[pos]),
 	       master->regs +
 	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
+	writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(master->addrs[pos]),
+	       master->regs +
+	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
+	printk("w %x : %x \n", DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index), DEV_ADDR_TABLE_DYNAMIC_ADDR(master->addrs[pos]));
 
 	return 0;
 }
@@ -989,9 +1114,16 @@ static void dw_i3c_master_detach_i3c_dev(struct i3c_dev_desc *dev)
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 
+	printk("*** %s ***\n", __FUNCTION__);
+
 	writel(0,
 	       master->regs +
 	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
+	writel(0,
+	       master->regs +
+	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
+
+	printk("w %x : %x \n", DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index), 0);
 
 	i3c_dev_set_master_data(dev, NULL);
 	master->addrs[data->index] = 0;
@@ -1009,7 +1141,9 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 	unsigned int nrxwords = 0, ntxwords = 0;
 	struct dw_i3c_xfer *xfer;
 	int i, ret = 0;
-printk("dw_i3c_master_i2c_xfers @@@@\n");
+
+	printk("========*** %s ***======\n", __FUNCTION__);
+
 	if (!i2c_nxfers)
 		return 0;
 
@@ -1060,7 +1194,6 @@ printk("dw_i3c_master_i2c_xfers @@@@\n");
 
 	ret = xfer->ret;
 	dw_i3c_master_free_xfer(xfer);
-	printk("dw_i3c_master_i2c_xfers @@@@ end\n");
 
 	return ret;
 }
@@ -1071,6 +1204,8 @@ static int dw_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	struct dw_i3c_i2c_dev_data *data;
 	int pos;
+
+	printk("*** %s ***\n", __FUNCTION__);
 
 	pos = dw_i3c_master_get_free_pos(master);
 	if (pos < 0)
@@ -1089,6 +1224,12 @@ static int dw_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 	       DEV_ADDR_TABLE_STATIC_ADDR(dev->addr),
 	       master->regs +
 	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
+	writel(DEV_ADDR_TABLE_LEGACY_I2C_DEV |
+	       DEV_ADDR_TABLE_STATIC_ADDR(dev->addr),
+	       master->regs +
+	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
+	printk("w %x : %x \n", DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index), DEV_ADDR_TABLE_LEGACY_I2C_DEV |
+	       DEV_ADDR_TABLE_STATIC_ADDR(dev->addr));
 
 	return 0;
 }
@@ -1099,9 +1240,16 @@ static void dw_i3c_master_detach_i2c_dev(struct i2c_dev_desc *dev)
 	struct i3c_master_controller *m = i2c_dev_get_master(dev);
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 
+	printk("*** %s ***\n", __FUNCTION__);
+
 	writel(0,
 	       master->regs +
 	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
+	writel(0,
+	       master->regs +
+	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
+
+	printk("w %x : %x \n", DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index), 0);
 
 	i2c_dev_set_master_data(dev, NULL);
 	master->addrs[data->index] = 0;
@@ -1115,16 +1263,21 @@ static irqreturn_t dw_i3c_master_irq_handler(int irq, void *dev_id)
 	u32 status;
 
 	status = readl(master->regs + INTR_STATUS);
+	printk("dw_i3c_master_irq_handler %x xxxxxxxxxxxxxxxxxxxxxxxxxxx\n", status);
 
 	if (!(status & readl(master->regs + INTR_STATUS_EN))) {
+		writel(INTR_ALL, master->regs + INTR_STATUS);
 		writel(INTR_ALL, master->regs + INTR_STATUS);
 		return IRQ_NONE;
 	}
 
 	spin_lock(&master->xferqueue.lock);
+
 	dw_i3c_master_end_xfer_locked(master, status);
-	if (status & INTR_TRANSFER_ERR_STAT)
+	if (status & INTR_TRANSFER_ERR_STAT) {
 		writel(INTR_TRANSFER_ERR_STAT, master->regs + INTR_STATUS);
+		writel(INTR_TRANSFER_ERR_STAT, master->regs + INTR_STATUS);
+	}
 	spin_unlock(&master->xferqueue.lock);
 
 	return IRQ_HANDLED;
@@ -1179,6 +1332,8 @@ static int dw_i3c_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&master->xferqueue.list);
 
 	writel(INTR_ALL, master->regs + INTR_STATUS);
+	writel(INTR_ALL, master->regs + INTR_STATUS);
+	
 	irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(&pdev->dev, irq,
 			       dw_i3c_master_irq_handler, 0,

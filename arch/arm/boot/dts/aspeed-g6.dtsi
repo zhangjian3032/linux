@@ -159,7 +159,7 @@
 		i3cdma: i3cdma@1e651000 {
 			compatible = "aspeed,ast2600-i3c-dma";
 			reg = <0x1e651000 0x1000>;
-			resets = <&syscon ASPEED_RESET_I3C_DMA>;
+			resets = <&syscon ASPEED_RESET_I3C>;
 		};
 
 		mdio0: mdio@1e650000 {
@@ -411,10 +411,10 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				#interrupt-cells = <1>;
-#if 1
+#if 0
 				ranges = < 0x02000000 0 0x60000000 0x60000000 0 0x10000000 >;
 #else
-				ranges = <0x01000000 0 0x60000000 0x60000000 0 0x10000000   /* I/O */
+				ranges = <0x01000000 0 0x60000000 0x60000000 0 0x10000   /* I/O */
                                           0x02000000 0 0x70000000 0x70000000 0 0x10000000>; /* memory */
 #endif
 				interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
@@ -569,12 +569,36 @@
 				#gpio-cells = <2>;
 				gpio-controller;
 				compatible = "aspeed,ast2600-gpio";
-				reg = <0x1e780000 0x800>;
+				reg = <0x1e780000 0x500>;
 				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
 				gpio-ranges = <&pinctrl 0 0 248>;
 				clocks = <&syscon ASPEED_CLK_APB2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+			};
+
+			sgpiom0: sgpiom@1e780500 {
+				#gpio-cells = <2>;
+				gpio-controller;
+				compatible = "aspeed,ast2600-sgpiom";
+				reg = <0x1e780500 0x200>;
+				interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+				ngpios = <8>;
+				clocks = <&syscon ASPEED_CLK_APB2>;
+				interrupt-controller;
+				bus-frequency = <12000000>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_sgpm1_default>;
+			};
+
+			sgpios0: sgpios@1e780700 {
+				#gpio-cells = <2>;
+				gpio-controller;
+				compatible = "aspeed,ast2600-sgpios";
+				reg = <0x1e780700 0x100>;
+				interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_APB2>;
 			};
 
 			gpio1: gpio@1e780800 {
@@ -1403,6 +1427,12 @@
 };
 
 &i3c{
+	i3cglobal: i3cg@00 {
+		reg = <0x0 0x1000>;
+		compatible = "aspeed,ast2600-i3c-global";
+		resets = <&syscon ASPEED_RESET_I3C>;
+	};
+
 	i3c0: i3c0@2000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1997,9 +2027,19 @@
 		groups = "I2C1";
 	};
 
+	pinctrl_salt1_default: salt1_default {
+		function = "SALT1";
+		groups = "SALT1";
+	};
+
 	pinctrl_i2c2_default: i2c2_default {
 		function = "I2C2";
 		groups = "I2C2";
+	};
+
+	pinctrl_salt2_default: salt2_default {
+		function = "SALT2";
+		groups = "SALT2";
 	};
 
 	pinctrl_i2c3_default: i2c3_default {
@@ -2007,9 +2047,19 @@
 		groups = "I2C3";
 	};
 
+	pinctrl_salt3_default: salt3_default {
+		function = "SALT3";
+		groups = "SALT3";
+	};
+
 	pinctrl_i2c4_default: i2c4_default {
 		function = "I2C4";
 		groups = "I2C4";
+	};
+
+	pinctrl_salt4_default: salt4_default {
+		function = "SALT4";
+		groups = "SALT4";
 	};
 
 	pinctrl_i2c5_default: i2c5_default {
@@ -2017,9 +2067,19 @@
 		groups = "I2C5";
 	};
 
+	pinctrl_salt5_default: salt5_default {
+		function = "SALT5";
+		groups = "SALT5";
+	};
+
 	pinctrl_i2c6_default: i2c6_default {
 		function = "I2C6";
 		groups = "I2C6";
+	};
+
+	pinctrl_salt6_default: salt6_default {
+		function = "SALT6";
+		groups = "SALT6";
 	};
 
 	pinctrl_i2c7_default: i2c7_default {
@@ -2027,9 +2087,19 @@
 		groups = "I2C7";
 	};
 
+	pinctrl_salt7_default: salt7_default {
+		function = "SALT7";
+		groups = "SALT7";
+	};
+
 	pinctrl_i2c8_default: i2c8_default {
 		function = "I2C8";
 		groups = "I2C8";
+	};
+
+	pinctrl_salt8_default: salt8_default {
+		function = "SALT8";
+		groups = "SALT8";
 	};
 
 	pinctrl_i2c9_default: i2c9_default {
@@ -2037,18 +2107,59 @@
 		groups = "I2C9";
 	};
 
+	pinctrl_salt9g0_default: salt9g0_default {
+		function = "SALT9";
+		groups = "SALT9G0";
+	};
+
+	pinctrl_salt9g1_default: salt9g1_default {
+		function = "SALT9";
+		groups = "SALT9G1";
+	};
+
 	pinctrl_i2c10_default: i2c10_default {
 		function = "I2C10";
 		groups = "I2C10";
+	};
+
+	pinctrl_salt10g0_default: salt10g0_default {
+		function = "SALT10";
+		groups = "SALT10G0";
+	};
+
+	pinctrl_salt10g1_default: salt10g1_default {
+		function = "SALT10";
+		groups = "SALT10G1";
 	};
 
 	pinctrl_i2c11_default: i2c11_default {
 		function = "I2C11";
 		groups = "I2C11";
 	};
+
+	pinctrl_salt11g0_default: salt11g0_default {
+		function = "SALT11";
+		groups = "SALT11G0";
+	};
+
+	pinctrl_salt11g1_default: salt11g1_default {
+		function = "SALT11";
+		groups = "SALT11G1";
+	};
+
 	pinctrl_i2c12_default: i2c12_default {
 		function = "I2C12";
 		groups = "I2C12";
+	};
+
+	pinctrl_salt12g0_default: salt12g0_default {
+		function = "SALT12";
+		groups = "SALT12G0";
+	};
+
+	pinctrl_salt12g1_default: salt12g1_default {
+		function = "SALT12";
+		groups = "SALT12G1";
 	};
 
 	pinctrl_i2c13_default: i2c13_default {
@@ -2056,9 +2167,29 @@
 		groups = "I2C13";
 	};
 
+	pinctrl_salt13g0_default: salt13g0_default {
+		function = "SALT13";
+		groups = "SALT13G0";
+	};
+
+	pinctrl_salt13g1_default: salt13g1_default {
+		function = "SALT13";
+		groups = "SALT13G1";
+	};
+
 	pinctrl_i2c14_default: i2c14_default {
 		function = "I2C14";
 		groups = "I2C14";
+	};
+
+	pinctrl_salt14g0_default: salt14g0_default {
+		function = "SALT14";
+		groups = "SALT14G0";
+	};
+
+	pinctrl_salt14g1_default: salt14g1_default {
+		function = "SALT14";
+		groups = "SALT14G1";
 	};
 
 	pinctrl_i2c15_default: i2c15_default {
@@ -2066,9 +2197,29 @@
 		groups = "I2C15";
 	};
 
+	pinctrl_salt15g0_default: salt15g0_default {
+		function = "SALT15";
+		groups = "SALT15G0";
+	};
+
+	pinctrl_salt15g1_default: salt15g1_default {
+		function = "SALT15";
+		groups = "SALT15G1";
+	};
+
 	pinctrl_i2c16_default: i2c16_default {
 		function = "I2C16";
 		groups = "I2C16";
+	};
+
+	pinctrl_salt16g0_default: salt16g0_default {
+		function = "SALT16";
+		groups = "SALT16G0";
+	};
+
+	pinctrl_salt16g1_default: salt16g1_default {
+		function = "SALT16";
+		groups = "SALT16G1";
 	};
 
 	pinctrl_i3c1_default: i3c1_default {
@@ -2104,5 +2255,10 @@
 	pinctrl_jtagm_default: jtagm_default {
 		function = "JTAGM";
 		groups = "JTAGM";
+	};
+
+	pinctrl_sgpm1_default: sgpm1_default {
+		function = "SGPM1";
+		groups = "SGPM1";
 	};
 };
