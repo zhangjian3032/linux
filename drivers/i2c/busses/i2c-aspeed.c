@@ -80,6 +80,7 @@
  */
 #define ASPEED_I2CD_INTR_SDA_DL_TIMEOUT			BIT(14)
 #define ASPEED_I2CD_INTR_BUS_RECOVER_DONE		BIT(13)
+#define ASPEED_I2CD_INTR_SMBUS_ALERT			BIT(12)
 #define ASPEED_I2CD_INTR_SLAVE_MATCH			BIT(7)
 #define ASPEED_I2CD_INTR_SCL_TIMEOUT			BIT(6)
 #define ASPEED_I2CD_INTR_ABNORMAL			BIT(5)
@@ -495,6 +496,11 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 		}
 	}
 
+	if(irq_status & ASPEED_I2CD_INTR_SMBUS_ALERT) {
+		irq_handled |= ASPEED_I2CD_INTR_SMBUS_ALERT;
+		printk("smbus alert \n");
+	}
+
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 	/*
 	 * A pending master command will be started by H/W when the bus comes
@@ -751,6 +757,7 @@ static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
 	irq_received = readl(bus->base + ASPEED_I2C_INTR_STS_REG);
 	irq_received &= 0xf000ffff;
 	/* Ack all interrupts except for Rx done */
+	printk("write ack irq_received %x \n", irq_received);
 	writel(irq_received & ~ASPEED_I2CD_INTR_RX_DONE,
 	       bus->base + ASPEED_I2C_INTR_STS_REG);
 	irq_remaining = irq_received;
@@ -1166,7 +1173,7 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 			"Could not read bus-frequency property\n");
 		bus->bus_frequency = 100000;
 	}
-
+printk("bus->bus_frequency %d , bus->parent_clk_frequency %d \n", bus->bus_frequency, bus->parent_clk_frequency);
 	match = of_match_node(aspeed_i2c_bus_of_table, pdev->dev.of_node);
 	if (!match)
 		bus->get_clk_reg_val = aspeed_i2c_24xx_get_clk_reg_val;
