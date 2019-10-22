@@ -3,7 +3,6 @@
  * Copyright 2019 American Megatrends International LLC.
  *
  * Author: Karthikeyan Mani <karthikeyanm@amiindia.co.in>
- * Ryan Chen <ryan_chen@aspeedtech.com> 
  */
 
 #include <linux/bitfield.h>
