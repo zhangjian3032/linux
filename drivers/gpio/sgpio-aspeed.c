@@ -96,7 +96,6 @@ static void __iomem *bank_reg(struct aspeed_sgpio *gpio,
 				     const struct aspeed_sgpio_bank *bank,
 				     const enum aspeed_sgpio_reg reg)
 {
-	printk("bank_reg %d \n", reg);
 	switch (reg) {
 	case reg_val:
 		return gpio->base + bank->val_regs + GPIO_VAL_VALUE;
@@ -405,7 +404,6 @@ static int aspeed_sgpio_setup_irqs(struct aspeed_sgpio *gpio,
 		/* clear status bits */
 		iowrite32(0xffffffff, bank_reg(gpio, bank, reg_irq_status));
 	}
-	printk("aspeed_sgpio_setup_irqs 2\n");
 
 	irq = &gpio->chip.irq;
 	irq->chip = &aspeed_sgpio_irqchip;
@@ -415,7 +413,6 @@ static int aspeed_sgpio_setup_irqs(struct aspeed_sgpio *gpio,
 	irq->parent_handler_data = gpio;
 	irq->parents = &gpio->irq;
 	irq->num_parents = 1;
-	printk("aspeed_sgpio_setup_irqs 3\n");
 
 	/* set IRQ settings and Enable Interrupt */
 	for (i = 0; i < ARRAY_SIZE(aspeed_sgpio_banks); i++) {
@@ -429,7 +426,6 @@ static int aspeed_sgpio_setup_irqs(struct aspeed_sgpio *gpio,
 		/* enable irq */
 //		iowrite32(0xffffffff, bank_reg(gpio, bank, reg_irq_enable));
 	}
-	printk("aspeed_sgpio_setup_irqs end \n");
 
 	return 0;
 }
