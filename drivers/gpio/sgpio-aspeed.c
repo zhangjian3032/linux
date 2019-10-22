@@ -422,7 +422,7 @@ static int aspeed_sgpio_setup_irqs(struct aspeed_sgpio *gpio,
 		/* trigger type is edge */
 		iowrite32(0x00000000, bank_reg(gpio, bank, reg_irq_type1));
 		/* dual edge trigger mode. */
-		iowrite32(0xffffffff, bank_reg(gpio, bank, reg_irq_type2));
+		iowrite32(0x00000000, bank_reg(gpio, bank, reg_irq_type2));
 		/* enable irq */
 //		iowrite32(0xffffffff, bank_reg(gpio, bank, reg_irq_enable));
 	}
