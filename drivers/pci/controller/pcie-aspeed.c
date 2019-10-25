@@ -346,8 +346,6 @@ u8 aspeed_pcie_inb(u32 addr)
 	u32 type = 0;
 	int timeout = 0;
 
-	printk("aspeed_pcie_inb addr %x mask : %x\n", addr, (0x1 << (addr & 0x3)));
-
 	writel(0x02000001, h2xreg_base + 0x10);
 	writel(0x00002000 | (0x1 << (addr & 0x3)), h2xreg_base + 0x14);
 	writel(addr & (~0x3), h2xreg_base + 0x18);
@@ -375,9 +373,8 @@ u8 aspeed_pcie_inb(u32 addr)
 	return ((readl(h2xreg_base + 0x8C) >> ((addr & 0x3) * 8)) & 0xff);
 #else
 	while(!(readl(h2xreg_base + 0xc8) & PCIE_RC_RX_DONE_ISR));
-	writel(readl(h2xreg_base + 0xC8), h2xreg_base + 0x88);
+	writel(readl(h2xreg_base + 0xC8), h2xreg_base + 0xC8);
 	writel(BIT(4) | readl(h2xreg_base + 0xC0), h2xreg_base + 0xC0);
-	printk("%x \n", ((readl(h2xreg_base + 0xCC) >> ((addr & 0x3) * 8)) & 0xff));
 	return ((readl(h2xreg_base + 0xCC) >> ((addr & 0x3) * 8)) & 0xff);
 #endif
 
@@ -390,8 +387,6 @@ void aspeed_pcie_outb(u8 value, u32 addr)
 	u32 type = 0;
 	int timeout = 0;
 	u32 wvalue = value;
-
-	printk("aspeed_pcie_outb addr %x %x, mask\n", addr, value, (0x1 << (addr & 0x3)));
 
 	writel(0x42000001, h2xreg_base + 0x10);
 	writel(0x00002000 | (0x1 << (addr & 0x3)), h2xreg_base + 0x14);
@@ -631,6 +626,8 @@ static irqreturn_t aspeed_pcie_intr_handler(int irq, void *data)
 		writel(sts1, pcie->h2xreg_base + 0xcc);
 	}
 #else
+	printk("aspeed_pcie_intr_handler  xx\n");
+
 	//intx isr
 	if(intx) {
 		printk("intx %x ----------------\n", intx);
