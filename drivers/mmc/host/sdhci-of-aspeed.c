@@ -134,20 +134,24 @@ static void sdhci_aspeed_set_power(struct sdhci_host *host, unsigned char mode,
 	host->pwr = pwr;
 
 	if (pwr == 0) {
-		gpio_set_value(sdhci_irq->pwr_pin, 0);
+		if(gpio_is_valid(sdhci_irq->pwr_pin))
+			gpio_set_value(sdhci_irq->pwr_pin, 0);
 		sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
 	} else {
 		pwr |= SDHCI_POWER_ON;
 
 		if(pwr & SDHCI_POWER_ON) {
-			gpio_set_value(sdhci_irq->pwr_pin, 1);
+			if(gpio_is_valid(sdhci_irq->pwr_pin))
+				gpio_set_value(sdhci_irq->pwr_pin, 1);
 		}
 
-		if (pwr & SDHCI_POWER_330)
-			gpio_set_value(sdhci_irq->pwr_sw_pin, 1);
-		else if (pwr & SDHCI_POWER_180)
-			gpio_set_value(sdhci_irq->pwr_sw_pin, 0);
-		else
+		if (pwr & SDHCI_POWER_330) {
+			if(gpio_is_valid(sdhci_irq->pwr_sw_pin))
+				gpio_set_value(sdhci_irq->pwr_sw_pin, 1);
+		} else if (pwr & SDHCI_POWER_180) {
+			if(gpio_is_valid(sdhci_irq->pwr_sw_pin))
+				gpio_set_value(sdhci_irq->pwr_sw_pin, 0);
+		} else
 			printk("todo fail check ~~ \n");
 
 		sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
@@ -213,28 +217,33 @@ static int sdhci_aspeed_probe(struct platform_device *pdev)
 	if (pnode)
 		memcpy(sdhci_irq, pnode->data, sizeof(struct aspeed_sdhci_irq));
 
-	sdhci_irq->pwr_pin = of_get_named_gpio(np, "power-gpio", 0);
+	sdhci_irq->pwr_pin = 
+		of_get_named_gpio(np, "power-gpio", 0);
 
-	if (gpio_is_valid(sdhci_irq->pwr_pin)) {
-		if (devm_gpio_request(&pdev->dev, sdhci_irq->pwr_pin,
-				      "mmc_pwr")) {
-			printk("devm_gpio_request pwr fail \n");
+	if(sdhci_irq->pwr_pin >= 0) {
+		if (gpio_is_valid(sdhci_irq->pwr_pin)) {
+			if (devm_gpio_request(&pdev->dev, sdhci_irq->pwr_pin,
+					      "mmc_pwr")) {
+				printk("devm_gpio_request pwr fail \n");
+			}
+			gpio_direction_output(sdhci_irq->pwr_pin, 1);
 		}
-		gpio_direction_output(sdhci_irq->pwr_pin, 1);
-	}
+	} 
 
 	sdhci_irq->pwr_sw_pin =
 		of_get_named_gpio(np, "power-switch-gpio", 0);
 
-	if (gpio_is_valid(sdhci_irq->pwr_sw_pin)) {
-		if (devm_gpio_request(&pdev->dev, sdhci_irq->pwr_sw_pin,
-				      "mmc_pwr_sw")) {
-			printk("devm_gpio_request pwr sw fail \n");
+	if(sdhci_irq->pwr_sw_pin >= 0) {
+		if (gpio_is_valid(sdhci_irq->pwr_sw_pin)) {
+			if (devm_gpio_request(&pdev->dev, sdhci_irq->pwr_sw_pin,
+					      "mmc_pwr_sw")) {
+				printk("devm_gpio_request pwr sw fail \n");
 
+			}
+			gpio_direction_output(sdhci_irq->pwr_sw_pin, 1);
 		}
-		gpio_direction_output(sdhci_irq->pwr_sw_pin, 1);
 	}
-
+	
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
 		goto err_sdhci_add;
