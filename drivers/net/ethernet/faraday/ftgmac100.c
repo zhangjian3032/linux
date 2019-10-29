@@ -781,7 +781,7 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 	for (i = 0; i < nfrags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-		len = frag->size;
+		len = skb_frag_size(frag);
 
 		/* Map it */
 		map = skb_frag_dma_map(priv->dev, frag, 0, len,
@@ -1075,7 +1075,7 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv, phy_interface_t intf)
 	}
 
 	/* Indicate that we support PAUSE frames (see comment in
-	 * Documentation/networking/phy.txt)
+	 * Documentation/networking/phy.rst)
 	 */
 	phy_support_asym_pause(phydev);
 
