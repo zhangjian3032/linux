@@ -39,6 +39,8 @@
 #include <linux/platform_device.h>
 #include <linux/irqchip/chained_irq.h>
 
+#include <linux/aspeed_pcie_io.h>
+
 #include "../pci.h"
 
 //#include "pcie-aspeed.h"
@@ -129,6 +131,8 @@ struct aspeed_pcie {
 
 static DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_HOST_IRQS);
 
+void __iomem *h2xreg_base;
+
 static int
 aspeed_pcie_rd_conf(struct pci_bus *bus, unsigned int devfn, 
 				int where, int size, u32 *val)
@@ -140,14 +144,6 @@ aspeed_pcie_rd_conf(struct pci_bus *bus, unsigned int devfn,
 
 //	printk("cfg rd : %x:%x:%x => size = %d, where = %xh \n",
 //		bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn), size, where);
-
-	//H2X80[4] (unlock) is write-only.
-	//Driver may set H2X80[4]=1 before triggering next TX config.
-#ifdef H2X_RC_L	
-	writel(BIT(4) | readl(pcie->h2xreg_base + 0x80), pcie->h2xreg_base + 0x80);
-#else
-	writel(BIT(4) | readl(pcie->h2xreg_base + 0xC0), pcie->h2xreg_base + 0xC0);
-#endif
 
 	if(bus->number)
 		type = 1;
@@ -167,7 +163,7 @@ aspeed_pcie_rd_conf(struct pci_bus *bus, unsigned int devfn,
 	writel(0x00000000, pcie->h2xreg_base + 0x1c);
 
 	//trigger tx
-	writel(PCIE_TRIGGER_TX, pcie->h2xreg_base + 0x24);
+	writel((readl(pcie->h2xreg_base + 0x24) & 0xf) | PCIE_TRIGGER_TX, pcie->h2xreg_base + 0x24);
 
 	//wait tx idle
 	while(!(readl(pcie->h2xreg_base + 0x24) & PCIE_TX_IDLE)) {
@@ -226,6 +222,14 @@ aspeed_pcie_rd_conf(struct pci_bus *bus, unsigned int devfn,
 out:
 	pcie->txTag++;
 
+	//H2X80[4] (unlock) is write-only.
+	//Driver may set H2X80[4]=1 before triggering next TX config.
+#ifdef H2X_RC_L	
+	writel(BIT(4) | readl(pcie->h2xreg_base + 0x80), pcie->h2xreg_base + 0x80);
+#else
+	writel(BIT(4) | readl(pcie->h2xreg_base + 0xC0), pcie->h2xreg_base + 0xC0);
+#endif
+
 	return PCIBIOS_SUCCESSFUL;
 }
 
@@ -244,11 +248,6 @@ aspeed_pcie_wr_conf(struct pci_bus *bus, unsigned int devfn,
 
 //	printk("cfg w : %x:%x:%x => size = %d, where = %xh, val = %xh\n",
 //		bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn), size, where, val);
-#ifdef H2X_RC_L	
-	writel(BIT(4) | readl(pcie->h2xreg_base + 0x80), pcie->h2xreg_base + 0x80);
-#else
-	writel(BIT(4) | readl(pcie->h2xreg_base + 0xC0), pcie->h2xreg_base + 0xC0);
-#endif
 	
 	switch (size) {
 	case 1:
@@ -302,7 +301,7 @@ aspeed_pcie_wr_conf(struct pci_bus *bus, unsigned int devfn,
 	writel(val, pcie->h2xreg_base + 0x20);
 	
 	//trigger tx
-	writel(1, pcie->h2xreg_base + 0x24); 
+	writel((readl(pcie->h2xreg_base + 0x24) & 0xf) | PCIE_TRIGGER_TX, pcie->h2xreg_base + 0x24); 
 	
 //wait tx idle
 	while(!(readl(pcie->h2xreg_base + 0x24) & BIT(31))) {
@@ -333,8 +332,97 @@ aspeed_pcie_wr_conf(struct pci_bus *bus, unsigned int devfn,
 out:
 	pcie->txTag++;
 
+#ifdef H2X_RC_L	
+	writel(BIT(4) | readl(pcie->h2xreg_base + 0x80), pcie->h2xreg_base + 0x80);
+#else
+	writel(BIT(4) | readl(pcie->h2xreg_base + 0xC0), pcie->h2xreg_base + 0xC0);
+#endif
+
 	return PCIBIOS_SUCCESSFUL;
 }
+
+u8 aspeed_pcie_inb(u32 addr)
+{
+	u32 type = 0;
+	int timeout = 0;
+
+	writel(0x02000001, h2xreg_base + 0x10);
+	writel(0x00002000 | (0x1 << (addr & 0x3)), h2xreg_base + 0x14);
+	writel(addr & (~0x3), h2xreg_base + 0x18);
+	writel(0x00000000, h2xreg_base + 0x1c);
+
+	//trigger
+	writel((readl(h2xreg_base + 0x24) & 0xf) | PCIE_TRIGGER_TX, h2xreg_base + 0x24); 	
+
+	//wait tx idle
+	while(!(readl(h2xreg_base + 0x24) & PCIE_TX_IDLE)) {
+		timeout++;
+		if(timeout > 10000) {
+			printk("aspeed_pcie_inb timeout\n");
+			return 0xff;
+		}
+	};
+
+	//write clr tx idle
+	writel(1, h2xreg_base + 0x08);
+
+#ifdef H2X_RC_L	
+	while(!(readl(h2xreg_base + 0x88) & PCIE_RC_RX_DONE_ISR));
+	writel(readl(h2xreg_base + 0x88), h2xreg_base + 0x88);
+	writel(BIT(4) | readl(h2xreg_base + 0x80), h2xreg_base + 0x80);
+	return ((readl(h2xreg_base + 0x8C) >> ((addr & 0x3) * 8)) & 0xff);
+#else
+	while(!(readl(h2xreg_base + 0xc8) & PCIE_RC_RX_DONE_ISR));
+	writel(readl(h2xreg_base + 0xC8), h2xreg_base + 0xC8);
+	writel(BIT(4) | readl(h2xreg_base + 0xC0), h2xreg_base + 0xC0);
+	return ((readl(h2xreg_base + 0xCC) >> ((addr & 0x3) * 8)) & 0xff);
+#endif
+
+}
+
+EXPORT_SYMBOL_GPL(aspeed_pcie_inb);
+
+void aspeed_pcie_outb(u8 value, u32 addr)
+{
+	u32 type = 0;
+	int timeout = 0;
+	u32 wvalue = value;
+
+	writel(0x42000001, h2xreg_base + 0x10);
+	writel(0x00002000 | (0x1 << (addr & 0x3)), h2xreg_base + 0x14);
+	writel(addr & (~0x3), h2xreg_base + 0x18);
+	writel(0x00000000, h2xreg_base + 0x1c);
+
+	writel((wvalue << (8 * (addr & 0x3))), h2xreg_base + 0x20);
+
+	//trigger
+	writel((readl(h2xreg_base + 0x24) & 0xf) | PCIE_TRIGGER_TX, h2xreg_base + 0x24); 		
+
+	//wait tx idle
+	while(!(readl(h2xreg_base + 0x24) & PCIE_TX_IDLE)) {
+		timeout++;
+		if(timeout > 10000) {
+			printk("aspeed_pcie_outb timeout\n");
+			return;
+		}
+	};
+
+	//write clr tx idle
+	writel(1, h2xreg_base + 0x08);
+
+#ifdef H2X_RC_L	
+	while(!(readl(h2xreg_base + 0x88) & PCIE_RC_RX_DONE_ISR));
+	writel(readl(h2xreg_base + 0x88), h2xreg_base + 0x88);
+	writel(BIT(4) | readl(h2xreg_base + 0x80), h2xreg_base + 0x80);
+#else
+	while(!(readl(h2xreg_base + 0xC8) & PCIE_RC_RX_DONE_ISR));
+	writel(readl(h2xreg_base + 0xC8), h2xreg_base + 0xC8);
+	writel(BIT(4) | readl(h2xreg_base + 0xC0), h2xreg_base + 0xC0);
+#endif
+}
+
+EXPORT_SYMBOL_GPL(aspeed_pcie_outb);
+
 
 /* PCIe operations */
 static struct pci_ops aspeed_pcie_ops = {
@@ -518,6 +606,10 @@ static irqreturn_t aspeed_pcie_intr_handler(int irq, void *data)
 	u32 bit;	
 	u32 virq;
 	unsigned long status;
+#ifdef H2X_RC_L
+#else
+	u32 intx = readl(pcie->h2xreg_base + 0xc8) & 0xf;
+#endif
 	int i;
 
 #ifdef H2X_RC_L
@@ -534,6 +626,13 @@ static irqreturn_t aspeed_pcie_intr_handler(int irq, void *data)
 		writel(sts1, pcie->h2xreg_base + 0xcc);
 	}
 #else
+	printk("aspeed_pcie_intr_handler  xx\n");
+
+	//intx isr
+	if(intx) {
+		printk("intx %x ----------------\n", intx);
+	}
+	//msi isr
 	for (i = 0; i < 2; i++) {
 			status = readl(pcie->h2xreg_base + 0xe8 + (i * 4));
 //			printk("aspeed_pcie_intr_handler  status %lx \n", status);
@@ -703,6 +802,7 @@ static int aspeed_pcie_parse_dt(struct aspeed_pcie *pcie, struct platform_device
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "h2xreg");
 	if(res) {
 		pcie->h2xreg_base = devm_ioremap_resource(dev, res);
+		h2xreg_base = pcie->h2xreg_base;
 		if (IS_ERR(pcie->h2xreg_base))
 			return PTR_ERR(pcie->h2xreg_base);
 	}

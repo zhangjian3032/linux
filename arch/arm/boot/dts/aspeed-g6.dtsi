@@ -407,7 +407,7 @@
 				status = "disabled";
 			};
 
-			pcie: pcie@1e6ed200 {
+			pcie: pcie@1e6ed2000 {
 				compatible = "aspeed,ast2600-pcie";
 				reg = <0x1e6ed200 0x100 0x1e770000 0x100>;
 				reg-names = "pciebreg", "h2xreg";
@@ -420,8 +420,8 @@
 #if 0
 				ranges = < 0x02000000 0 0x60000000 0x60000000 0 0x10000000 >;
 #else
-				ranges = <0x01000000 0 0x60000000 0x60000000 0 0x10000   /* I/O */
-                                          0x02000000 0 0x70000000 0x70000000 0 0x10000000>; /* memory */
+				ranges = <0x01000000 0 0x00000000 0x00000000 0x0 0x10000   /* I/O */
+                                          0x02000000 0x0 0x70000000 0x70000000 0 0x10000000>; /* memory */
 #endif
 				interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -589,7 +589,7 @@
 				compatible = "aspeed,ast2600-sgpiom";
 				reg = <0x1e780500 0x200>;
 				interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
-				ngpios = <8>;
+				ngpios = <80>;
 				clocks = <&syscon ASPEED_CLK_APB2>;
 				interrupt-controller;
 				bus-frequency = <12000000>;

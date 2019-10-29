@@ -94,38 +94,6 @@ static void sdhci_aspeed_set_bus_width(struct sdhci_host *host, int width)
 
 }
 
-void sdhci_aspeed_reset(struct sdhci_host *host, u8 mask)
-{
-	struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
-	struct aspeed_sdhci_irq *sdhci_irq = sdhci_pltfm_priv(pltfm_priv);
-	unsigned long timeout;
-
-	printk("sdhci_aspeed_reset \n");
-	sdhci_writeb(host, mask, SDHCI_SOFTWARE_RESET);
-
-	if (mask & SDHCI_RESET_ALL) {
-		//steven:turn off bus power here
-		if (sdhci_irq->pwr_pin >= 0)
-			gpio_set_value(sdhci_irq->pwr_pin, 0);
-		host->pwr = 0;
-		host->clock = 0;
-	}
-
-	/* Wait max 100 ms */
-	timeout = 100;
-
-	/* hw clears the bit when it's done */
-	while (sdhci_readb(host, SDHCI_SOFTWARE_RESET) & mask) {
-		if (timeout == 0) {
-			pr_err("%s: Reset 0x%x never completed.\n",
-				mmc_hostname(host->mmc), (int)mask);
-			return;
-		}
-		timeout--;
-		mdelay(1);
-	}
-}
-
 static void sdhci_aspeed_set_power(struct sdhci_host *host, unsigned char mode,
 			   unsigned short vdd)
 {
@@ -133,10 +101,16 @@ static void sdhci_aspeed_set_power(struct sdhci_host *host, unsigned char mode,
 	struct aspeed_sdhci_irq *sdhci_irq = sdhci_pltfm_priv(pltfm_priv);
 	u8 pwr = 0;
 
-	printk("sdhci_aspeed_set_power \n");
 	if (mode != MMC_POWER_OFF) {
 		switch (1 << vdd) {
 		case MMC_VDD_165_195:
+		/*
+		 * Without a regulator, SDHCI does not support 2.0v
+		 * so we only get here if the driver deliberately
+		 * added the 2.0v range to ocr_avail. Map it to 1.8v
+		 * for the purpose of turning on the power.
+		 */
+		case MMC_VDD_20_21:
 			pwr = SDHCI_POWER_180;
 			break;
 		case MMC_VDD_29_30:
@@ -160,40 +134,36 @@ static void sdhci_aspeed_set_power(struct sdhci_host *host, unsigned char mode,
 	host->pwr = pwr;
 
 	if (pwr == 0) {
-		//steven:turn off bus power here
-		if (sdhci_irq->pwr_pin >= 0)
+		if(gpio_is_valid(sdhci_irq->pwr_pin))
 			gpio_set_value(sdhci_irq->pwr_pin, 0);
 		sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
 	} else {
-		/*
-		 * Spec says that we should clear the power reg before setting
-		 * a new value. Some controllers don't seem to like this though.
-		 */
-		if (!(host->quirks & SDHCI_QUIRK_SINGLE_POWER_WRITE))
-			sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
-
-		/*
-		 * At least the Marvell CaFe chip gets confused if we set the
-		 * voltage and set turn on power at the same time, so set the
-		 * voltage first.
-		 */
-		if (host->quirks & SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER)
-			sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
-
 		pwr |= SDHCI_POWER_ON;
 
-		sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
-		//steven:turn on bus power here
-		if (sdhci_irq->pwr_pin >= 0)
-			gpio_set_value(sdhci_irq->pwr_pin, 1);
+		if(pwr & SDHCI_POWER_ON) {
+			if(gpio_is_valid(sdhci_irq->pwr_pin))
+				gpio_set_value(sdhci_irq->pwr_pin, 1);
+		}
 
-		/*
-		 * Some controllers need an extra 10ms delay of 10ms before
-		 * they can apply clock after applying power
-		 */
-		if (host->quirks & SDHCI_QUIRK_DELAY_AFTER_POWER)
-			mdelay(10);
+		if (pwr & SDHCI_POWER_330) {
+			if(gpio_is_valid(sdhci_irq->pwr_sw_pin))
+				gpio_set_value(sdhci_irq->pwr_sw_pin, 1);
+		} else if (pwr & SDHCI_POWER_180) {
+			if(gpio_is_valid(sdhci_irq->pwr_sw_pin))
+				gpio_set_value(sdhci_irq->pwr_sw_pin, 0);
+		} else
+			printk("todo fail check ~~ \n");
+
+		sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
 	}
+}
+
+static void aspeed_sdhci_voltage_switch(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
+	struct aspeed_sdhci_irq *sdhci_irq = sdhci_pltfm_priv(pltfm_priv);
+	if (gpio_is_valid(sdhci_irq->pwr_sw_pin))
+		gpio_set_value(sdhci_irq->pwr_sw_pin, 0);
 }
 
 /*
@@ -203,7 +173,8 @@ static void sdhci_aspeed_set_power(struct sdhci_host *host, unsigned char mode,
 static struct sdhci_ops  sdhci_aspeed_ops= {
 #ifdef CONFIG_MACH_ASPEED_G6
 	.set_clock = sdhci_set_clock,
-//	.set_power = sdhci_aspeed_set_power,	
+	.set_power = sdhci_aspeed_set_power,	
+	.voltage_switch	= aspeed_sdhci_voltage_switch,
 #else
 	.set_clock = sdhci_aspeed_set_clock,
 #endif	
@@ -217,7 +188,7 @@ static struct sdhci_ops  sdhci_aspeed_ops= {
 static struct sdhci_pltfm_data sdhci_aspeed_pdata = {
 	.ops = &sdhci_aspeed_ops,
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
-	.quirks2 = SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN | SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 };
 
 static int sdhci_aspeed_probe(struct platform_device *pdev)
@@ -238,33 +209,41 @@ static int sdhci_aspeed_probe(struct platform_device *pdev)
 	sdhci_irq = sdhci_pltfm_priv(pltfm_host);
 
 	sdhci_get_of_property(pdev);
+//	sdhci_read_caps(host);
 
-#if 0
-	sdhci_irq->pwr_pin =
-		of_get_named_gpio(np, "pwr-gpios", 0);
-
-	if (gpio_is_valid(sdhci_irq->pwr_pin)) {
-		if (devm_gpio_request(&pdev->dev, sdhci_irq->pwr_pin,
-				      "mmc_pwr")) {
-		}
-	}
-
-	sdhci_irq->pwr_sw_pin =
-		of_get_named_gpio(np, "pwr-sw-gpios", 0);
-
-	if (gpio_is_valid(sdhci_irq->pwr_sw_pin)) {
-		if (devm_gpio_request(&pdev->dev, sdhci_irq->pwr_sw_pin,
-				      "mmc_pwr")) {
-		}
-	}
-
-#endif
 	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
 
 	pnode = of_parse_phandle(np, "interrupt-parent", 0);
 	if (pnode)
 		memcpy(sdhci_irq, pnode->data, sizeof(struct aspeed_sdhci_irq));
 
+	sdhci_irq->pwr_pin = 
+		of_get_named_gpio(np, "power-gpio", 0);
+
+	if(sdhci_irq->pwr_pin >= 0) {
+		if (gpio_is_valid(sdhci_irq->pwr_pin)) {
+			if (devm_gpio_request(&pdev->dev, sdhci_irq->pwr_pin,
+					      "mmc_pwr")) {
+				printk("devm_gpio_request pwr fail \n");
+			}
+			gpio_direction_output(sdhci_irq->pwr_pin, 1);
+		}
+	} 
+
+	sdhci_irq->pwr_sw_pin =
+		of_get_named_gpio(np, "power-switch-gpio", 0);
+
+	if(sdhci_irq->pwr_sw_pin >= 0) {
+		if (gpio_is_valid(sdhci_irq->pwr_sw_pin)) {
+			if (devm_gpio_request(&pdev->dev, sdhci_irq->pwr_sw_pin,
+					      "mmc_pwr_sw")) {
+				printk("devm_gpio_request pwr sw fail \n");
+
+			}
+			gpio_direction_output(sdhci_irq->pwr_sw_pin, 1);
+		}
+	}
+	
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
 		goto err_sdhci_add;

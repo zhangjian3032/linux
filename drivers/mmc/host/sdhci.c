@@ -1954,7 +1954,9 @@ void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 					mmc_hostname(mmc));
 				ctrl_2 |= SDHCI_CTRL_DRV_TYPE_B;
 			}
-
+#ifdef CONFIG_MACH_ASPEED_G6
+			ctrl_2 |= SDHCI_CTRL_DRV_TYPE_D;
+#endif
 			sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
 		} else {
 			/*

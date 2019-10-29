@@ -424,6 +424,10 @@
 	status = "okay";
 };
 
+&sgpiom0 {
+        status = "okay";
+};
+
 &adc0 {
 	ref_voltage = <1200>;
 	status = "okay";
