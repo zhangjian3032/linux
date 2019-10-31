@@ -373,21 +373,12 @@
 	status = "okay";
 };
 
-#if 0
 &vhub {
 	status = "okay";
-
 	pinctrl-names = "default";
-#if 1
 	pinctrl-0 = <&pinctrl_usb2ad_default>;
-#else
-	pinctrl-0 = <&pinctrl_usb2adp_default>;
-#endif
 };
-#else
-&ehci0 {
-	status = "okay";
-};
+
 &ehci1 {
 	status = "okay";
 };
@@ -395,7 +386,6 @@
 &uhci {
 	status = "okay";
 };
-#endif
 
 #if 0
 &gfx {
