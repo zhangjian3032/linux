@@ -376,16 +376,28 @@
 &vhub {
 	status = "okay";
 	pinctrl-names = "default";
+#if 1
 	pinctrl-0 = <&pinctrl_usb2ad_default>;
+#else
+	pinctrl-0 = <&pinctrl_usb2adp_default>;
+#endif
 };
+
+#if 0
+&ehci0 {
+	status = "okay";
+};
+#endif
 
 &ehci1 {
 	status = "okay";
 };
 
+#if 0
 &uhci {
 	status = "okay";
 };
+#endif
 
 #if 0
 &gfx {
