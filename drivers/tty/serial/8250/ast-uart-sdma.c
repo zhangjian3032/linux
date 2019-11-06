@@ -450,6 +450,12 @@ ast_uart_sdma_irq(int irq, void *dev_id)
 	} else if (rx_sts & UART_SDMA11_INT) {
 		ast_uart_sdma_write(sdma, UART_SDMA11_INT, UART_RX_SDMA_ISR);
 		ast_sdma_bufffdone(&(sdma->dma_ch->rx_dma_info[11]));	
+	} else if (rx_sts & UART_SDMA12_INT) {
+		ast_uart_sdma_write(sdma, UART_SDMA12_INT, UART_RX_SDMA_ISR);
+		ast_sdma_bufffdone(&(sdma->dma_ch->rx_dma_info[12]));	
+	} else if (rx_sts & UART_SDMA13_INT) {
+		ast_uart_sdma_write(sdma, UART_SDMA13_INT, UART_RX_SDMA_ISR);
+		ast_sdma_bufffdone(&(sdma->dma_ch->rx_dma_info[13]));	
 	} else {
 	}
 
@@ -489,6 +495,12 @@ ast_uart_sdma_irq(int irq, void *dev_id)
 	} else if (tx_sts & UART_SDMA11_INT) {
 		ast_uart_sdma_write(sdma, UART_SDMA11_INT, UART_TX_SDMA_ISR);
 		ast_sdma_bufffdone(&(sdma->dma_ch->tx_dma_info[11]));	
+	} else if (tx_sts & UART_SDMA12_INT) {
+		ast_uart_sdma_write(sdma, UART_SDMA12_INT, UART_TX_SDMA_ISR);
+		ast_sdma_bufffdone(&(sdma->dma_ch->tx_dma_info[12]));	
+	} else if (tx_sts & UART_SDMA13_INT) {
+		ast_uart_sdma_write(sdma, UART_SDMA13_INT, UART_TX_SDMA_ISR);
+		ast_sdma_bufffdone(&(sdma->dma_ch->tx_dma_info[13]));	
 	} else {
 	}
 
