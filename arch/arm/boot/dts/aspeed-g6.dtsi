@@ -110,56 +110,83 @@
 			reg = <0x10000000 0x10000>;      // 64K
 		};
 
-		spi0: spi@1e620000 {
-			/* reg : cs0 : cs1 : cs2  */
-			reg = <0x1e620000 0x100 
-					0x20000000 0x20 
-					0x28000000 0x20>;
+		fmc: spi@1e620000 {
+			reg = < 0x1e620000 0xc4
+				0x20000000 0x10000000 >;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "aspeed,fmc-spi";
+			compatible = "aspeed,ast2600-fmc";
 			clocks = <&syscon ASPEED_CLK_AHB>;
-			status = "disable";
-			number_of_chip_select = /bits/ 16 <2>;
+			status = "disabled";
 			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+			flash@0 {
+				reg = < 0 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				status = "disabled";
+			};
+			flash@1 {
+				reg = < 1 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				status = "disabled";
+			};
+			flash@2 {
+				reg = < 2 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				status = "disabled";
+			};
 		};
 
-		spi1: spi1@1e630000 {
-			/* reg : cs0 : cs1 */
-			reg = <0x1e630000 0x100 
-					0x30000000 0x20 
-					0x32000000 0x20>;
+		spi1: spi@1e630000 {
+			reg = < 0x1e630000 0xc4
+				0x30000000 0x8000000 >;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "aspeed,fmc-spi";
+			compatible = "aspeed,ast2600-spi";
 			clocks = <&syscon ASPEED_CLK_AHB>;
-			status = "disable";
-			number_of_chip_select = /bits/ 8 <2>;
+			status = "disabled";
+			flash@0 {
+				reg = < 0 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				status = "disabled";
+			};
+			flash@1 {
+				reg = < 1 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				status = "disabled";
+			};
 		};
 
-		spi2: spi2@1e631000 {
-			/* reg : cs0 : cs1 */
-			reg = <0x1e631000 0x100 
-					0x38000000 0x20 
-					0x3A000000 0x20>;
+		spi2: spi@1e631000 {
+			reg = < 0x1e631000 0xc4
+				0x50000000 0x8000000 >;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "aspeed,fmc-spi";
+			compatible = "aspeed,ast2600-spi";
 			clocks = <&syscon ASPEED_CLK_AHB>;
-			status = "disable";
-			number_of_chip_select = /bits/ 8 <2>;
-		};
-
-		edac: sdram@1e6e0000 {
-			compatible = "aspeed,ast2600-sdram-edac";
-			reg = <0x1e6e0000 0x174>;
-			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
-		};
-
-		i3cdma: i3cdma@1e651000 {
-			compatible = "aspeed,ast2600-i3c-dma";
-			reg = <0x1e651000 0x1000>;
-			resets = <&syscon ASPEED_RESET_I3C>;
+			status = "disabled";
+			flash@0 {
+				reg = < 0 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				status = "disabled";
+			};
+			flash@1 {
+				reg = < 1 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				status = "disabled";
+			};
+			flash@2 {
+				reg = < 2 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				status = "disabled";
+			};
 		};
 
 		mdio0: mdio@1e650000 {
@@ -2267,4 +2294,38 @@
 		function = "SGPM1";
 		groups = "SGPM1";
 	};
+	pinctrl_spi1_default: spi1_default {
+		function = "SPI1";
+		groups = "SPI1";
+	};
+
+	pinctrl_spi1abr_default: spi1abr_default {
+		function = "SPI1ABR";
+		groups = "SPI1ABR";
+	};
+
+	pinctrl_spi1cs1_default: spi1cs1_default {
+		function = "SPI1CS1";
+		groups = "SPI1CS1";
+	};
+
+	pinctrl_spi1wp_default: spi1wp_default {
+		function = "SPI1WP";
+		groups = "SPI1WP";
+	};
+
+	pinctrl_spi2_default: spi2_default {
+		function = "SPI2";
+		groups = "SPI2";
+	};
+
+	pinctrl_spi2cs1_default: spi2cs1_default {
+		function = "SPI2CS1";
+		groups = "SPI2CS1";
+	};
+
+	pinctrl_spi2cs2_default: spi2cs2_default {
+		function = "SPI2CS2";
+		groups = "SPI2CS2";
+	};	
 };
