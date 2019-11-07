@@ -987,9 +987,13 @@ static int aspeed_pcie_probe(struct platform_device *pdev)
 		pcie_bus_configure_settings(child);
 	pci_bus_add_devices(bus);
 
-	devm_request_irq(dev, pcie->irq, aspeed_pcie_intr_handler,
+	err = devm_request_irq(dev, pcie->irq, aspeed_pcie_intr_handler,
 						   0,
 						   "aspeed-pcie", pcie);
+	if (err) {
+		dev_err(dev, "unable to request irq %d\n", pcie->irq);
+		return err;
+	}
 
 	return 0;
 
