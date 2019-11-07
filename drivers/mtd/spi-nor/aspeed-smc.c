@@ -191,6 +191,24 @@ static const struct aspeed_smc_info spi_2600_info = {
 	.segment_reg = aspeed_smc_segment_reg_ast2600,
 };
 
+static const struct aspeed_smc_info spi2_2600_info = {
+	.maxsize = 256 * 1024 * 1024,
+	.nce = 3,
+	.hastype = false,
+	.we0 = 16,
+	.ctl0 = 0x10,
+	.timing = 0x94,
+	.hclk_mask = 0xf0fff0ff,
+	.hdiv_max = 2,
+	.set_4b = aspeed_smc_chip_set_4b,
+	.optimize_read = aspeed_smc_optimize_read,
+	.calibrate = aspeed_smc_calibrate_reads_ast2600,
+	.chip_base = aspeed_smc_chip_base_ast2600,
+	.segment_start = aspeed_smc_segment_start_ast2600,
+	.segment_end = aspeed_smc_segment_end_ast2600,
+	.segment_reg = aspeed_smc_segment_reg_ast2600,
+};
+
 enum aspeed_smc_ctl_reg_value {
 	smc_base,		/* base value without mode for other commands */
 	smc_read,		/* command reg for (maybe fast) reads */
@@ -660,6 +678,7 @@ static const struct of_device_id aspeed_smc_matches[] = {
 	{ .compatible = "aspeed,ast2500-spi", .data = &spi_2500_info },
 	{ .compatible = "aspeed,ast2600-fmc", .data = &fmc_2600_info },
 	{ .compatible = "aspeed,ast2600-spi", .data = &spi_2600_info },
+	{ .compatible = "aspeed,ast2600-spi2", .data = &spi2_2600_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, aspeed_smc_matches);
@@ -1278,18 +1297,13 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 	struct device *dev = controller->dev;
 	struct device_node *child;
 	unsigned int cs;
-	u32 width;
+	u32 width = 0;
 	int ret = -ENODEV;
 
-	if (of_property_read_u32(np, "spi-rx-bus-width", &width))
-		width = 2;
+	of_property_read_u32(np, "spi-bus-width", &width);
 
 	if (width == 4)
 		hwcaps.mask |= SNOR_HWCAPS_READ_1_1_4;
-	else if (width == 2)
-		hwcaps.mask |= SNOR_HWCAPS_READ_1_1_2;
-	else if (width != 1)
-		return -EINVAL;
 
 	for_each_available_child_of_node(np, child) {
 		struct aspeed_smc_chip *chip;

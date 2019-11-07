@@ -498,4 +498,11 @@
                 label = "spi2:1";
                 spi-max-frequency = <50000000>;
         };
+
+	flash@2 {
+                status = "okay";
+                m25p,fast-read;
+                label = "spi2:2";
+                spi-max-frequency = <50000000>;
+        };
 };
