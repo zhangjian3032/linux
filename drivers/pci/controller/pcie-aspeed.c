@@ -665,6 +665,51 @@ static const struct irq_domain_ops msi_domain_ops = {
 	.map = aspeed_pcie_msi_map,
 };
 
+static void aspeed_h2x_intx_ack_irq(struct irq_data *d)
+{
+	struct irq_desc *desc = irq_to_desc(d->irq);
+	struct aspeed_pcie *pcie = irq_desc_get_chip_data(desc);
+
+#ifdef H2X_RC_L
+	writel(readl(pcie->h2xreg_base + 0x84) | BIT(d->hwirq), pcie->h2xreg_base + 0x84);
+#else
+	writel(readl(pcie->h2xreg_base + 0xC4) | BIT(d->hwirq), pcie->h2xreg_base + 0xC4);
+#endif
+}
+
+static void aspeed_h2x_intx_mask_irq(struct irq_data *d)
+{
+	struct irq_desc *desc = irq_to_desc(d->irq);
+	struct aspeed_pcie *pcie = irq_desc_get_chip_data(desc);
+
+	//disable irq
+#ifdef H2X_RC_L
+	writel(readl(pcie->h2xreg_base + 0x84) & ~BIT(d->hwirq), pcie->h2xreg_base + 0x84);
+#else	
+	writel(readl(pcie->h2xreg_base + 0xC4) & ~BIT(d->hwirq), pcie->h2xreg_base + 0xC4);
+#endif
+}
+
+static void aspeed_h2x_intx_unmask_irq(struct irq_data *d)
+{
+	struct irq_desc *desc = irq_to_desc(d->irq);
+	struct aspeed_pcie *pcie = irq_desc_get_chip_data(desc);
+
+	//Enable IRQ ..
+#ifdef H2X_RC_L
+	writel(readl(pcie->h2xreg_base + 0x84) | BIT(d->hwirq), pcie->h2xreg_base + 0x84);
+#else	
+	writel(readl(pcie->h2xreg_base + 0xC4) | BIT(d->hwirq), pcie->h2xreg_base + 0xC4);
+#endif
+}
+
+static struct irq_chip aspeed_h2x_intx_chip = {
+	.name		= "Aspeed IntX",
+	.irq_ack	= aspeed_h2x_intx_ack_irq,
+	.irq_mask	= aspeed_h2x_intx_mask_irq,
+	.irq_unmask	= aspeed_h2x_intx_unmask_irq,
+};
+
 /* INTx Functions */
 
 /**
@@ -678,7 +723,7 @@ static const struct irq_domain_ops msi_domain_ops = {
 static int aspeed_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
                                   irq_hw_number_t hwirq)
 {
-	irq_set_chip_and_handler(irq, &dummy_irq_chip, handle_simple_irq);
+	irq_set_chip_and_handler(irq, &aspeed_h2x_intx_chip, handle_level_irq);
 	irq_set_chip_data(irq, domain->host_data);
 
 	return 0;
@@ -687,7 +732,7 @@ static int aspeed_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 /* INTx IRQ Domain operations */
 static const struct irq_domain_ops intx_domain_ops = {
     .map = aspeed_pcie_intx_map,
-	.xlate = pci_irqd_intx_xlate,
+//	.xlate = pci_irqd_intx_xlate,
 };
 
 /* PCIe HW Functions */
@@ -707,8 +752,9 @@ static irqreturn_t aspeed_pcie_intr_handler(int irq, void *data)
 	u32 virq;
 	unsigned long status;
 #ifdef H2X_RC_L
+	unsigned long intx = readl(pcie->h2xreg_base + 0x88) & 0xf;
 #else
-	u32 intx = readl(pcie->h2xreg_base + 0xc8) & 0xf;
+	unsigned long intx = readl(pcie->h2xreg_base + 0xc8) & 0xf;
 #endif
 	int i;
 
@@ -726,7 +772,13 @@ static irqreturn_t aspeed_pcie_intr_handler(int irq, void *data)
 #else
 	//intx isr
 	if(intx) {
-		printk("intx %x ----------------\n", intx);
+		for_each_set_bit(bit, &intx, 32) {
+			virq = irq_find_mapping(pcie->leg_domain, bit);
+			if (virq)
+				generic_handle_irq(virq);
+			else
+				dev_err(pcie->dev, "unexpected Int - X\n");
+		}
 	}
 	//msi isr
 	for (i = 0; i < 2; i++) {
@@ -736,7 +788,7 @@ static irqreturn_t aspeed_pcie_intr_handler(int irq, void *data)
 //			printk("read  status %x \n", readl(pcie->h2xreg_base + 0xe8 + (i * 4)));
 			if (!status)
 					continue;
-			
+
 			for_each_set_bit(bit, &status, 32) {
 				if(i) {
 					bit += 32;
@@ -747,7 +799,6 @@ static irqreturn_t aspeed_pcie_intr_handler(int irq, void *data)
 					generic_handle_irq(virq);
 				else
 					dev_err(pcie->dev, "unexpected MSI\n");
-				
 			}
 	}
 
@@ -970,7 +1021,7 @@ static int aspeed_pcie_probe(struct platform_device *pdev)
 	bridge->busnr = 0;
 	bridge->ops = &aspeed_pcie_ops;
 	bridge->map_irq = of_irq_parse_and_map_pci;
-	bridge->swizzle_irq = pci_common_swizzle;
+//	bridge->swizzle_irq = pci_common_swizzle;
 
 #ifdef CONFIG_PCI_MSI
 	aspeed_pcie_msi_chip.dev = dev;
@@ -987,9 +1038,13 @@ static int aspeed_pcie_probe(struct platform_device *pdev)
 		pcie_bus_configure_settings(child);
 	pci_bus_add_devices(bus);
 
-	devm_request_irq(dev, pcie->irq, aspeed_pcie_intr_handler,
+	err = devm_request_irq(dev, pcie->irq, aspeed_pcie_intr_handler,
 						   0,
 						   "aspeed-pcie", pcie);
+	if (err) {
+		dev_err(dev, "unable to request irq %d\n", pcie->irq);
+		return err;
+	}
 
 	return 0;
 
