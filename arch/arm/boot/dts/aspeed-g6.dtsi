@@ -444,12 +444,9 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				#interrupt-cells = <1>;
-#if 0
-				ranges = < 0x02000000 0 0x60000000 0x60000000 0 0x10000000 >;
-#else
 				ranges = <0x01000000 0 0x00000000 0x00000000 0x0 0x10000   /* I/O */
-                                          0x02000000 0x0 0x70000000 0x70000000 0 0x10000000>; /* memory */
-#endif
+						  0x02000000 0x0 0x60010000 0x60010000 0 0x1fff0000>; /* memory */
+
 				interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 
 				status = "disabled";
