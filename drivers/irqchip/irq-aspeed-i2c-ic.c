@@ -15,11 +15,6 @@
 #include <linux/of_irq.h>
 #include <linux/io.h>
 
-
-/* 0x0C : I2CG SRAM Buffer Enable  */
-#define ASPEED_I2CG_SRAM_BUFFER_ENABLE		BIT(0)
-
-
 struct aspeed_i2c_ic {
 	void __iomem		*base;
 	int			parent_irq;
@@ -78,7 +73,6 @@ static int __init aspeed_i2c_ic_of_init(struct device_node *node,
 {
 	struct aspeed_i2c_ic *i2c_ic;
 	const struct of_device_id *match;
-	u32 bus_owner;
 	int ret = 0;
 
 	match = of_match_node(aspeed_i2c_ic_of_match, node);
@@ -100,16 +94,6 @@ static int __init aspeed_i2c_ic_of_init(struct device_node *node,
 	if (i2c_ic->parent_irq < 0) {
 		ret = i2c_ic->parent_irq;
 		goto err_iounmap;
-	}
-
-	writel(ASPEED_I2CG_SRAM_BUFFER_ENABLE, i2c_ic->base + ASPEED_I2CG_CTRL);
-	
-	if (!of_property_read_u32(node, "bus-owner", &bus_owner)) {
-		writel(bus_owner, i2c_ic->base + ASPEED_I2CG_OWNER);
-		i2c_ic->i2c_irq_mask = ~bus_owner;
-	} else {
-		writel(0, i2c_ic->base + ASPEED_I2CG_OWNER);
-		i2c_ic->i2c_irq_mask = 0xffffffff;
 	}
 
 	i2c_ic->irq_domain = irq_domain_add_linear(node, i2c_ic->bus_num,
