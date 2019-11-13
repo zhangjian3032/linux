@@ -110,16 +110,17 @@
 
 &i2c7 {
 	status = "okay";
-};
-
-&i2c8 {
-	status = "okay";
 
 	eeprom@50 {
 		compatible = "atmel,24c08";
 		reg = <0x50>;
 		pagesize = <16>;
 	};
+
+};
+
+&i2c8 {
+	status = "okay";
 
 	lm75@4d {
 		compatible = "national,lm75";
