@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Aspeed 24XX/25XX I2C Interrupt Controller.
+ *  Aspeed I2C Interrupt Controller.
  *
  *  Copyright (C) 2012-2017 ASPEED Technology Inc.
  *  Copyright 2017 IBM Corporation
  *  Copyright 2017 Google, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/irq.h>
@@ -19,12 +16,16 @@
 #include <linux/io.h>
 
 
-#define ASPEED_I2C_IC_NUM_BUS 14
+/* 0x0C : I2CG SRAM Buffer Enable  */
+#define ASPEED_I2CG_SRAM_BUFFER_ENABLE		BIT(0)
+
 
 struct aspeed_i2c_ic {
 	void __iomem		*base;
 	int			parent_irq;
+	u32			i2c_irq_mask;
 	struct irq_domain	*irq_domain;
+	int			bus_num;	
 };
 
 /*
@@ -41,7 +42,8 @@ static void aspeed_i2c_ic_irq_handler(struct irq_desc *desc)
 
 	chained_irq_enter(chip, desc);
 	status = readl(i2c_ic->base);
-	for_each_set_bit(bit, &status, ASPEED_I2C_IC_NUM_BUS) {
+	status &= i2c_ic->i2c_irq_mask;
+	for_each_set_bit(bit, &status, i2c_ic->bus_num) {
 		bus_irq = irq_find_mapping(i2c_ic->irq_domain, bit);
 		generic_handle_irq(bus_irq);
 	}
@@ -65,11 +67,23 @@ static const struct irq_domain_ops aspeed_i2c_ic_irq_domain_ops = {
 	.map = aspeed_i2c_ic_map_irq_domain,
 };
 
+static const struct of_device_id aspeed_i2c_ic_of_match[] = {
+	{ .compatible = "aspeed,ast2400-i2c-ic", .data = (void *) 14},
+	{ .compatible = "aspeed,ast2500-i2c-ic", .data = (void *) 14},
+	{},
+};
+
 static int __init aspeed_i2c_ic_of_init(struct device_node *node,
 					struct device_node *parent)
 {
 	struct aspeed_i2c_ic *i2c_ic;
+	const struct of_device_id *match;
+	u32 bus_owner;
 	int ret = 0;
+
+	match = of_match_node(aspeed_i2c_ic_of_match, node);
+	if (!match)
+		return -ENOMEM;
 
 	i2c_ic = kzalloc(sizeof(*i2c_ic), GFP_KERNEL);
 	if (!i2c_ic)
@@ -81,13 +95,24 @@ static int __init aspeed_i2c_ic_of_init(struct device_node *node,
 		goto err_free_ic;
 	}
 
+	i2c_ic->bus_num = (int) match->data;
 	i2c_ic->parent_irq = irq_of_parse_and_map(node, 0);
 	if (i2c_ic->parent_irq < 0) {
 		ret = i2c_ic->parent_irq;
 		goto err_iounmap;
 	}
 
-	i2c_ic->irq_domain = irq_domain_add_linear(node, ASPEED_I2C_IC_NUM_BUS,
+	writel(ASPEED_I2CG_SRAM_BUFFER_ENABLE, i2c_ic->base + ASPEED_I2CG_CTRL);
+	
+	if (!of_property_read_u32(node, "bus-owner", &bus_owner)) {
+		writel(bus_owner, i2c_ic->base + ASPEED_I2CG_OWNER);
+		i2c_ic->i2c_irq_mask = ~bus_owner;
+	} else {
+		writel(0, i2c_ic->base + ASPEED_I2CG_OWNER);
+		i2c_ic->i2c_irq_mask = 0xffffffff;
+	}
+
+	i2c_ic->irq_domain = irq_domain_add_linear(node, i2c_ic->bus_num,
 						   &aspeed_i2c_ic_irq_domain_ops,
 						   NULL);
 	if (!i2c_ic->irq_domain) {
