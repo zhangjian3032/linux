@@ -50,8 +50,6 @@ struct aspeed_i2c_ic {
 };
 
 static const struct of_device_id aspeed_i2c_ic_of_match[] = {
-	{ .compatible = "aspeed,ast2400-i2c-ic", .data = (void *) 14},
-	{ .compatible = "aspeed,ast2500-i2c-ic", .data = (void *) 14},
 	{ .compatible = "aspeed,ast2600-i2c-global", .data = (void *) 0},	
 	{},
 };
@@ -157,8 +155,6 @@ static const struct aspeed_i2c_base_clk i2c_base_clk[BASE_CLK_COUNT] = {
 	{  "base_clk2",	10000000 },	//10M
 	{  "base_clk3",	35000000 },	//35M
 };
-
-
 
 static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long	base_clk, struct device_node *node)
 {
