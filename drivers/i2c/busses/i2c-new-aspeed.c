@@ -25,6 +25,7 @@
 #include <linux/regmap.h>
 #include <linux/of_device.h>
 #include <linux/dma-mapping.h>
+#include "regs-ast2600-i2c-global.h"
 
 /***************************************************************************/
 //AST2600 reg
@@ -1404,12 +1405,12 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 	}
 
 	//get global control register
-	regmap_read(i2c_bus->global_reg, 0x0C, &global_ctrl);
+	regmap_read(i2c_bus->global_reg, ASPEED_I2CG_CTRL, &global_ctrl);
 
-	if(global_ctrl & BIT(1))
+	if(global_ctrl & ASPEED_I2CG_CTRL_NEW_CLK_DIV)
 		i2c_bus->clk_div_mode = 1;
 
-	if(!(global_ctrl & BIT(2))) {
+	if(!(global_ctrl & ASPEED_I2CG_CTRL_NEW_REG)) {
 		ret = -ENOENT;
 		dev_err(&pdev->dev, "i2c global is not set new mode\n");
 		goto free_mem;
