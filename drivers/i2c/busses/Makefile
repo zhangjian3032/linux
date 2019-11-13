@@ -33,8 +33,8 @@ obj-$(CONFIG_I2C_POWERMAC)	+= i2c-powermac.o
 
 # Embedded system I2C/SMBus host controller drivers
 obj-$(CONFIG_I2C_ALTERA)	+= i2c-altera.o
-obj-$(CONFIG_I2C_ASPEED)        += irq-aspeed-i2c-ic.o i2c-aspeed.o
-obj-$(CONFIG_I2C_NEW_ASPEED)	+= irq-aspeed-i2c-ic.o i2c-new-aspeed.o
+obj-$(CONFIG_I2C_ASPEED)        += i2c-aspeed.o
+obj-$(CONFIG_I2C_NEW_ASPEED)	+= i2c-new-aspeed.o irq-aspeed-i2c-ic.o 
 obj-$(CONFIG_I2C_AT91)		+= i2c-at91.o
 obj-$(CONFIG_I2C_AU1550)	+= i2c-au1550.o
 obj-$(CONFIG_I2C_AXXIA)		+= i2c-axxia.o
