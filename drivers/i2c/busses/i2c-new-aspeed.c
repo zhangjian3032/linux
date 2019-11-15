@@ -752,7 +752,7 @@ static int aspeed_i2c_wait_bus_not_busy(struct aspeed_new_i2c_bus *i2c_bus)
 	while (aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF) & AST_I2CC_BUS_BUSY_STS) {
 		if (timeout <= 0) {
 			dev_dbg(i2c_bus->dev, "%d-bus busy %x \n", i2c_bus->adap.nr,
-				aspeed_i2c_read(i2c_bus, AST_I2CM_CMD_STS));
+				aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
 			aspeed_i2c_bus_error_recover(i2c_bus);
 			return -EAGAIN;
 		}
@@ -1122,7 +1122,11 @@ int aspeed_new_i2c_master_handler(struct aspeed_new_i2c_bus *i2c_bus)
 				i2c_bus->cmd_err = AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP;
 				complete(&i2c_bus->cmd_complete);
 				break;
-
+			case AST_I2CM_PKT_ERROR | AST_I2CM_ARBIT_LOSS:
+				dev_dbg(i2c_bus->dev, "M AST_I2CM_PKT_ERROR | AST_I2CM_ARBIT_LOSS \n");
+				i2c_bus->cmd_err = AST_I2CM_PKT_ERROR | AST_I2CM_ARBIT_LOSS;
+				complete(&i2c_bus->cmd_complete);
+				break;
 			case AST_I2CM_TX_ACK | AST_I2CM_NORMAL_STOP:
 				dev_dbg(i2c_bus->dev,
 					"M clear isr: AST_I2CM_TX_ACK | AST_I2CM_NORMAL_STOP= %x\n",
