@@ -64,6 +64,8 @@
 /* UART_TX_SDMA_IER             0x30    */
 /* UART_TX_SDMA_ISR             0x34    */
 
+#define UART_SDMA13_INT                 (1 << 13)
+#define UART_SDMA12_INT                 (1 << 12)
 #define UART_SDMA11_INT                 (1 << 11)
 #define UART_SDMA10_INT                 (1 << 10)
 #define UART_SDMA9_INT                  (1 << 9)
