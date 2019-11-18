@@ -1249,7 +1249,8 @@ dtb-$(CONFIG_ARCH_MEDIATEK) += \
 dtb-$(CONFIG_ARCH_MILBEAUT) += milbeaut-m10v-evb.dtb
 dtb-$(CONFIG_ARCH_ZX) += zx296702-ad1.dtb
 dtb-$(CONFIG_ARCH_ASPEED) += \
-	aspeed-ast2600-evb.dtb \
+	aspeed-ast2600a0-evb.dtb \
+	aspeed-ast2600a1-evb.dtb \
 	aspeed-ast2600-fpga.dtb \
 	aspeed-ast2600-obmc-evb.dtb \
 	aspeed-ast2500-evb.dtb \
