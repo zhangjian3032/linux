@@ -54,6 +54,7 @@ static const struct sdhci_ops sdhci_pltfm_ops = {
 
 static bool sdhci_wp_inverted(struct device *dev)
 {
+printk("sdhci_wp_inverted -------------");
 	if (device_property_present(dev, "sdhci,wp-inverted") ||
 	    device_property_present(dev, "wp-inverted"))
 		return true;
@@ -83,7 +84,7 @@ static void sdhci_get_compatibility(struct platform_device *pdev)
 	    of_device_is_compatible(np, "fsl,t4240-esdhc") ||
 	    of_device_is_compatible(np, "fsl,mpc8536-esdhc"))
 		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
-	if (of_device_is_compatible(np, "aspeed,emmc-ast2600"))
+	if (of_device_is_compatible(np, "aspeed,ast2600-emmc"))
 		host->quirks |= SDHCI_QUIRK_BROKEN_DMA | SDHCI_QUIRK_BROKEN_ADMA;
 }
 #else
@@ -96,7 +97,7 @@ void sdhci_get_property(struct platform_device *pdev)
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	u32 bus_width;
-
+printk("sdhci_get_property --------------\n");
 	if (device_property_present(dev, "sdhci,auto-cmd12"))
 		host->quirks |= SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12;
 
