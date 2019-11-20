@@ -366,15 +366,25 @@
 };
 #endif
 
-#if 0
-&sdhci_slot0{
+&sdc {
 	status = "okay";
 };
 
-&sdhci_slot1{
+&sdhci0 {
 	status = "okay";
+
+	bus-width = <4>;
+	max-frequency = <52000000>;
+	sdhci,wp-inverted;
 };
-#endif
+
+&sdhci1 {
+	status = "okay";
+
+	bus-width = <4>;
+	max-frequency = <52000000>;
+	sdhci,wp-inverted;
+};
 
 &emmc_controller {
         status = "okay";

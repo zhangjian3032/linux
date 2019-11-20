@@ -532,26 +532,20 @@
 				status = "disabled";
 			};
 #endif
-#if 0
-			sdhci: sdhci@1e740000 {
-				#interrupt-cells = <1>;
-				compatible = "aspeed,aspeed-sdhci-irq", "simple-mfd";
-				reg = <0x1e740000 0x1000>;
-				interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-controller;
-				clocks = <&syscon ASPEED_CLK_GATE_SDCLK>, <&syscon ASPEED_CLK_GATE_SDEXTCLK>;
-				clock-names = "ctrlclk", "extclk";
+
+			sdc: sdc@1e740000 {
+				compatible = "aspeed,ast2600-sd-controller";
+				reg = <0x1e740000 0x100>;
 				#address-cells = <1>;
 				#size-cells = <1>;
-				ranges = <0x0 0x1e740000 0x1000>;
-				slot0-wp-inverse;
-				slot1-wp-inverse;
+				ranges = <0 0x1e740000 0x10000>;
+				clocks = <&syscon ASPEED_CLK_GATE_SDCLK>;
+				status = "disabled";
 
-				sdhci_slot0: sdhci_slot0@100 {
-					compatible = "aspeed,sdhci-ast2500";
+				sdhci0: sdhci@1e740100 {
+					compatible = "aspeed,ast2600-sdhci", "sdhci";
 					reg = <0x100 0x100>;
-					interrupts = <0>;
-					interrupt-parent = <&sdhci>;
+					interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 					sdhci,auto-cmd12;
 					clocks = <&syscon ASPEED_CLK_SDIO>;
 					power-gpio = <&gpio0 ASPEED_GPIO(V, 0) GPIO_ACTIVE_LOW>;
@@ -561,42 +555,39 @@
 					status = "disabled";
 				};
 
-				sdhci_slot1: sdhci_slot1@200 {
-					compatible = "aspeed,sdhci-ast2500";
+				sdhci1: sdhci@1e740200 {
+					compatible = "aspeed,ast2600-sdhci", "sdhci";
 					reg = <0x200 0x100>;
-					interrupts = <1>;
-					interrupt-parent = <&sdhci>;
+					interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 					sdhci,auto-cmd12;
 					clocks = <&syscon ASPEED_CLK_SDIO>;
 					power-gpio = <&gpio0 ASPEED_GPIO(V, 2) GPIO_ACTIVE_LOW>;
-                                        power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 3) GPIO_ACTIVE_LOW>;
+					power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 3) GPIO_ACTIVE_LOW>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_sd2_default>;
 					status = "disabled";
 				};
-
 			};
-#endif
 
-                        emmc_controller: sdc@1e750000 {
-                                compatible = "aspeed,ast2600-sd-controller";
-                                reg = <0x1e750000 0x100>;
-                                #address-cells = <1>;
-                                #size-cells = <1>;
-                                ranges = <0 0x1e750000 0x10000>;
-                                clocks = <&syscon ASPEED_CLK_GATE_EMMCCLK>;
-                                status = "disabled";
+			emmc_controller: sdc@1e750000 {
+			        compatible = "aspeed,ast2600-sd-controller";
+			        reg = <0x1e750000 0x100>;
+			        #address-cells = <1>;
+			        #size-cells = <1>;
+			        ranges = <0 0x1e750000 0x10000>;
+			        clocks = <&syscon ASPEED_CLK_GATE_EMMCCLK>;
+			        status = "disabled";
 
-                                emmc: sdhci@1e750100 {
-                                        compatible = "aspeed,ast2600-emmc";
-                                        reg = <0x100 0x100>;
-                                        sdhci,auto-cmd12;
-                                        interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-					clocks = <&syscon ASPEED_CLK_EMMC>;
-                                        pinctrl-names = "default";
-                                        pinctrl-0 = <&pinctrl_emmc_default>;
-                                };
-                        };
+			        emmc: sdhci@1e750100 {
+			                compatible = "aspeed,ast2600-emmc";
+			                reg = <0x100 0x100>;
+			                sdhci,auto-cmd12;
+			                interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+							clocks = <&syscon ASPEED_CLK_EMMC>;
+			                pinctrl-names = "default";
+			                pinctrl-0 = <&pinctrl_emmc_default>;
+			        };
+			};
 
 			gpio0: gpio@1e780000 {
 				#gpio-cells = <2>;
