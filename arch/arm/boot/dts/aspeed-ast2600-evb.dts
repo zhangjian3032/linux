@@ -150,7 +150,7 @@
 	phy-handle = <&ethphy0>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_mdio1_default>;
+	pinctrl-0 = <&pinctrl_rgmii1_default>;
 };
 #endif
 
@@ -170,7 +170,7 @@
 	phy-handle = <&ethphy1>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
+	pinctrl-0 = <&pinctrl_rgmii2_default>;
 };
 
 &mdio2 {
@@ -189,7 +189,7 @@
 	phy-handle = <&ethphy2>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_mdio3_default>;
+	pinctrl-0 = <&pinctrl_rgmii3_default>;
 };
 
 &mdio3 {
@@ -208,7 +208,7 @@
 	phy-handle = <&ethphy3>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_mdio4_default>;
+	pinctrl-0 = <&pinctrl_rgmii4_default>;
 };
 
 &pwm_tacho {
@@ -348,12 +348,11 @@
 &ehci0 {
 	status = "okay";
 };
-#endif
 
 &ehci1 {
 	status = "okay";
 };
-
+#endif
 #if 0
 &uhci {
 	status = "okay";
