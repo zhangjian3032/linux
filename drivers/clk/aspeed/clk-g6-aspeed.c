@@ -20,7 +20,7 @@
 #define ASPEED_G6_RESET_CTRL		0x40
 #define ASPEED_G6_RESET_CTRL2		0x50
 
-#define ASPEED_G6_CLK_SELECTION		0x300
+#define ASPEED_G6_CLK_SELECTION1	0x300
 #define ASPEED_G6_CLK_SELECTION2	0x304
 #define ASPEED_G6_CLK_SELECTION4	0x310
 #define ASPEED_G6_CLK_SELECTION5	0x314
@@ -49,26 +49,25 @@ static void __iomem *scu_g6_base;
 //64 ~ xx : 0x310 ext sd bit -> --- map to 65 -->0x41
 
 static struct aspeed_gate_data aspeed_g6_gates[] = {
-	/*				 			  		clk rst   					name			parent	flags */
-	[ASPEED_CLK_GATE_MCLK] 			= {  0, -1, 					"mclk-gate",	"mpll",	CLK_IS_CRITICAL }, 	/* SDRAM */
-	[ASPEED_CLK_GATE_ECLK] 			= {  1, -1, 					"eclk-gate",	"eclk",	0 }, 				/* Video Engine */
-	[ASPEED_CLK_GATE_GCLK] 			= {  2,  ASPEED_RESET_2D,		"gclk-gate",	NULL,	0 }, 				/* 2D engine */
+	/*  					     clk rst   			name		parent	flags */
+	[ASPEED_CLK_GATE_MCLK] 			= {  0, -1, 			"mclk-gate",	"mpll",	CLK_IS_CRITICAL }, 	/* SDRAM */
+	[ASPEED_CLK_GATE_ECLK] 			= {  1, -1, 			"eclk-gate",	"eclk",	0 }, 			/* Video Engine */
+	[ASPEED_CLK_GATE_GCLK] 			= {  2,  ASPEED_RESET_2D,	"gclk-gate",	NULL,	0 }, 			/* 2D engine */
 	//vclk parent - dclk/d1clk/hclk/mclk
-	[ASPEED_CLK_GATE_VCLK] 			= {  3,  ASPEED_RESET_VIDEO,	"vclk-gate",	NULL,	0 }, 				/* Video Capture */
+	[ASPEED_CLK_GATE_VCLK] 			= {  3,  ASPEED_RESET_VIDEO,	"vclk-gate",	NULL,	0 }, 			/* Video Capture */
 	[ASPEED_CLK_GATE_BCLK] 			= {  4,  ASPEED_RESET_PCI_VGA,	"bclk-gate",	"bclk",	CLK_IS_CRITICAL }, 	/* PCIe/PCI */
-	//from dpll
-	[ASPEED_CLK_GATE_DCLK] 			= {  5, -1, 					"dclk-gate",	NULL,	CLK_IS_CRITICAL }, 	/* DAC */
-	[ASPEED_CLK_GATE_REF0CLK] 		= {  6, -1, 					"ref0clk-gate",	"clkin", CLK_IS_CRITICAL },
-
-	[ASPEED_CLK_GATE_USBPORT2CLK] 	= {  7,  ASPEED_RESET_EHCI_P2, 	"usb-port2-gate",	NULL,	0 }, 			/* USB2.0 Host port 2 */
-									//reserved 8
-	[ASPEED_CLK_GATE_USBUHCICLK] 	= {  9,  ASPEED_RESET_UHCI, 	"usb-uhci-gate",	NULL,	0 }, 			/* USB1.1 (requires port 2 enabled) */
+	//From dpll
+	[ASPEED_CLK_GATE_DCLK] 			= {  5, -1, 			"dclk-gate",	NULL,	CLK_IS_CRITICAL }, 	/* DAC */
+	[ASPEED_CLK_GATE_REF0CLK] 		= {  6, -1, 			"ref0clk-gate",	"clkin", CLK_IS_CRITICAL },
+	[ASPEED_CLK_GATE_USBPORT2CLK] 		= {  7,  ASPEED_RESET_EHCI_P2, 	"usb-port2-gate",NULL,	0 }, 			/* USB2.0 Host port 2 */
+	//reserved 8
+	[ASPEED_CLK_GATE_USBUHCICLK] 		= {  9,  ASPEED_RESET_UHCI, 	"usb-uhci-gate", NULL,	0 }, 			/* USB1.1 (requires port 2 enabled) */
 	//from dpll/epll/40mhz usb p1 phy/gpioc6/dp phy pll
-	[ASPEED_CLK_GATE_D1CLK] 		= { 10,  ASPEED_RESET_CRT, 		"d1clk-gate",	"d1clk",	0 }, 			/* GFX CRT */
+	[ASPEED_CLK_GATE_D1CLK] 		= { 10,  ASPEED_RESET_CRT, 	"d1clk-gate",	"d1clk",0 }, 			/* GFX CRT */
 	//reserved 11/12
-	[ASPEED_CLK_GATE_YCLK] 			= { 13,  ASPEED_RESET_HACE, 	"yclk-gate",	NULL,	0 }, 				/* HAC */
-	[ASPEED_CLK_GATE_USBPORT1CLK] 	= { 14,  ASPEED_RESET_EHCI_P1, 	"usb-port1-gate",	NULL,	0 }, 			/* USB2 hub/USB2 host port 1/USB1.1 dev */
-	[ASPEED_CLK_GATE_UART5CLK] 		= { 15, -1, 					"uart5clk-gate", "uart",	0 }, 			/* UART5 */
+	[ASPEED_CLK_GATE_YCLK] 			= { 13,  ASPEED_RESET_HACE, 	"yclk-gate",	NULL,	0 }, 			/* HAC */
+	[ASPEED_CLK_GATE_USBPORT1CLK]		= { 14,  ASPEED_RESET_EHCI_P1, 	"usb-port1-gate",NULL,	0 }, 			/* USB2 hub/USB2 host port 1/USB1.1 dev */
+	[ASPEED_CLK_GATE_UART5CLK] 		= { 15, -1, 			"uart5clk-gate", "uart",	0 }, 			/* UART5 */
 	//reserved 16/19
 	[ASPEED_CLK_GATE_MAC1CLK] 		= { 20,  ASPEED_RESET_MAC1, 	"mac1clk-gate",	"mac12",	0 }, 			/* MAC1 */
 	[ASPEED_CLK_GATE_MAC2CLK] 		= { 21,  ASPEED_RESET_MAC2, 	"mac2clk-gate",	"mac12",	0 }, 			/* MAC2 */
@@ -76,10 +75,7 @@ static struct aspeed_gate_data aspeed_g6_gates[] = {
 	[ASPEED_CLK_GATE_RSACLK] 		= { 24,  ASPEED_RESET_HACE, 	"rsaclk-gate",	NULL,	0 }, 				/* HAC */
 	[ASPEED_CLK_GATE_RVASCLK] 		= { 25,  ASPEED_RESET_RVAS, 	"rvasclk-gate",	NULL,	0 }, 				/* RVAS */
 	//reserved 26
-	[ASPEED_CLK_GATE_EMMCEXTCLK] 	= { 27, -1, 					"emmcextclk-gate",	"emmc",	0 }, 			/* EMMC */
-	//reserved 28/29/30
-	[ASPEED_CLK_GATE_EMMCCLK] 		= { 64,  ASPEED_RESET_EMMC, 	"emmcclk-gate",		NULL,	0 }, 			/* For card clk */
-
+	[ASPEED_CLK_GATE_EMMCCLK]       = { 27, 16, "emmcclk-gate",     NULL,    0 },   /* For card clk */
 	//SCU90
 	[ASPEED_CLK_GATE_LCLK] 			= { 32,  ASPEED_RESET_LPC_ESPI, "lclk-gate",	NULL,	CLK_IS_CRITICAL }, 	/* LPC */
 	[ASPEED_CLK_GATE_ESPICLK] 		= { 33, -1, 					"espiclk-gate",	NULL,	CLK_IS_CRITICAL }, 	/* eSPI */
@@ -246,7 +242,7 @@ static int aspeed_g6_clk_is_enabled(struct clk_hw *hw)
 	if(clk_sel_flag) {
 		if (gate->clock_idx == 64) {
 			//ext emmc 
-			regmap_read(gate->map, ASPEED_G6_CLK_SELECTION, &reg);
+			regmap_read(gate->map, ASPEED_G6_CLK_SELECTION1, &reg);
 			printk("ext emmc 0x300 %x \n", reg);
 			return (reg & BIT(15)) ? 1 : 0;
 		} else if (gate->clock_idx == 65) {
@@ -330,10 +326,12 @@ static int aspeed_g6_clk_enable(struct clk_hw *hw)
 			/* sd ext clk */
 			printk("enable sd card clk xxxxx\n");
 			regmap_update_bits(gate->map, ASPEED_G6_CLK_SELECTION4, BIT(31), BIT(31));
+#if 0		
 		} else if(gate->clock_idx == aspeed_g6_gates[ASPEED_CLK_GATE_EMMCEXTCLK].clock_idx) {
 			/* emmc ext clk */
-			regmap_update_bits(gate->map, ASPEED_G6_CLK_SELECTION, BIT(15), BIT(15));
+			regmap_update_bits(gate->map, ASPEED_G6_CLK_SELECTION1, BIT(15), BIT(15));
 			printk("enable emmc card clk xxxxx\n");
+#endif			
 		} else {
 			enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? 0 : clk;
 			if(enval) {
@@ -384,7 +382,7 @@ static void aspeed_g6_clk_disable(struct clk_hw *hw)
 
 	if(clk_sel_flag) {
 		if(gate->clock_idx == 64) {
-			regmap_update_bits(gate->map, ASPEED_G6_CLK_SELECTION, BIT(15), 0);
+			regmap_update_bits(gate->map, ASPEED_G6_CLK_SELECTION1, BIT(15), 0);
 		} else if(gate->clock_idx == 65) {
 			regmap_update_bits(gate->map, ASPEED_G6_CLK_SELECTION4, BIT(31), 0);
 		} else 	
@@ -575,10 +573,17 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	aspeed_g6_clk_data->hws[ASPEED_CLK_HUXCLK] = hw;
 
 	/* EMMC ext clock divider */
-	hw = clk_hw_register_divider_table(dev, "emmc", "hpll", 0,
-			scu_g6_base + 0x300, 12, 3, 0,
-			soc_data->div_table,
-			&aspeed_clk_lock);
+	hw = clk_hw_register_gate(dev, "emmc_extclk_gate", "hpll", 0,
+					scu_g6_base + ASPEED_G6_CLK_SELECTION1, 15, 0,
+					&aspeed_clk_lock);
+	if (IS_ERR(hw))
+			return PTR_ERR(hw);
+	
+	//ast2600 emmc clk should under 200Mhz
+	hw = clk_hw_register_divider_table(dev, "emmc_extclk", "emmc_extclk_gate", 0,
+					scu_g6_base + ASPEED_G6_CLK_SELECTION1, 12, 3, 0,
+					ast2600_div_table,
+					&aspeed_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_EMMC] = hw;
@@ -614,7 +619,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 
 	/* LPC Host (LHCLK) clock divider */
 	hw = clk_hw_register_divider_table(dev, "lhclk", "hpll", 0,
-			scu_g6_base + ASPEED_G6_CLK_SELECTION, 20, 3, 0,
+			scu_g6_base + ASPEED_G6_CLK_SELECTION1, 20, 3, 0,
 			soc_data->div_table,
 			&aspeed_clk_lock);
 	if (IS_ERR(hw))
@@ -622,7 +627,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	aspeed_g6_clk_data->hws[ASPEED_CLK_LHCLK] = hw;
 
 	//gfx d1clk : use dp clk
-	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION, GENMASK(10, 8), BIT(10));
+	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(10, 8), BIT(10));
 	/* SoC Display clock selection */
 	hw = clk_hw_register_mux(dev, "d1clk", d1clk_parent_names,
 			ARRAY_SIZE(d1clk_parent_names), 0,
@@ -844,7 +849,7 @@ static void __init aspeed_ast2600_cc(struct regmap *map)
 	hw = clk_hw_register_fixed_factor(NULL, "ahb", "hpll", 0, 1, axi_div * ahb_div);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_AHB] = hw;
 
-	regmap_read(map, ASPEED_G6_CLK_SELECTION, &val);
+	regmap_read(map, ASPEED_G6_CLK_SELECTION1, &val);
 	val = (val >> 23) & 0x7;
 	div = 4 * (val + 1);
 	hw = clk_hw_register_fixed_factor(NULL, "apb1", "hpll", 0, 1, div);
