@@ -81,14 +81,12 @@ static struct aspeed_gate_data aspeed_g6_gates[] = {
 	[ASPEED_CLK_GATE_ESPICLK] 		= { 33, -1, 					"espiclk-gate",	NULL,	CLK_IS_CRITICAL }, 	/* eSPI */
 	[ASPEED_CLK_GATE_REF1CLK] 		= { 34, -1, 					"ref1clk-gate",		"clkin", CLK_IS_CRITICAL },	
 	//reserved 35
-	[ASPEED_CLK_GATE_SDCLK] 		= { 36,  ASPEED_RESET_SD, 		"sdclk-gate",		NULL,	0 }, 				/* SDIO/SD */
-	[ASPEED_CLK_GATE_SDEXTCLK] 		= { 65, -1, 					"sdextclk-gate",	"sdio",	0 }, /* For card clk scu310*/
-
-	[ASPEED_CLK_GATE_LHCCLK] 		= { 37, -1, 					"lhclk-gate",		"lhclk", 0 }, 				/* LPC master/LPC+ */
+	[ASPEED_CLK_GATE_SDCLK] 		= { 36,  ASPEED_RESET_SD,	"sdclk-gate",	NULL,	0 },			/* SDIO/SD */
+	[ASPEED_CLK_GATE_LHCCLK] 		= { 37, -1, 			"lhclk-gate",	"lhclk", 0 }, 			/* LPC master/LPC+ */
 	//reserved 38 rsa no ues anymore
-	[ASPEED_CLK_GATE_I3CDMACLK] 	= { 39,  ASPEED_RESET_I3C,		"i3cclk-gate",	NULL,	0 }, 				/* I3C_DMA */
-	[ASPEED_CLK_GATE_I3C0CLK] 		= { 40,  ASPEED_RESET_I3C0, 	"i3c0clk-gate",	"i3cclk",	0 }, 				/* I3C0 */
-	[ASPEED_CLK_GATE_I3C1CLK] 		= { 41,  ASPEED_RESET_I3C1, 	"i3c1clk-gate",	"i3cclk",	0 }, 				/* I3C1 */
+	[ASPEED_CLK_GATE_I3CDMACLK] 		= { 39,  ASPEED_RESET_I3C,	"i3cclk-gate",	NULL,	0 }, 			/* I3C_DMA */
+	[ASPEED_CLK_GATE_I3C0CLK] 		= { 40,  ASPEED_RESET_I3C0, 	"i3c0clk-gate",	"i3cclk",	0 }, 		/* I3C0 */
+	[ASPEED_CLK_GATE_I3C1CLK] 		= { 41,  ASPEED_RESET_I3C1, 	"i3c1clk-gate",	"i3cclk",	0 }, 		/* I3C1 */
 	[ASPEED_CLK_GATE_I3C2CLK] 		= { 42,  ASPEED_RESET_I3C2, 	"i3c2clk-gate",	"i3cclk",	0 }, 				/* I3C2 */
 	[ASPEED_CLK_GATE_I3C3CLK] 		= { 43,  ASPEED_RESET_I3C3, 	"i3c3clk-gate",	"i3cclk",	0 }, 				/* I3C3 */
 	[ASPEED_CLK_GATE_I3C4CLK] 		= { 44,  ASPEED_RESET_I3C4, 	"i3c4clk-gate",	"i3cclk",	0 }, 				/* I3C4 */
@@ -152,6 +150,18 @@ static const struct clk_div_table ast2600_div_table[] = {
 	{ 0x5, 24 },
 	{ 0x6, 28 },
 	{ 0x7, 32 },
+	{ 0 }
+};
+
+static const struct clk_div_table ast2600_sd_div_table[] = {
+	{ 0x0, 2 },
+	{ 0x1, 4 },
+	{ 0x2, 6 },
+	{ 0x3, 8 },
+	{ 0x4, 10 },
+	{ 0x5, 12 },
+	{ 0x6, 14 },
+	{ 0x7, 16 },
 	{ 0 }
 };
 
@@ -322,17 +332,17 @@ static int aspeed_g6_clk_enable(struct clk_hw *hw)
 		}
 
 		/* Enable clock */
+#if 0		
 		if(gate->clock_idx == aspeed_g6_gates[ASPEED_CLK_GATE_SDEXTCLK].clock_idx) {
 			/* sd ext clk */
 			printk("enable sd card clk xxxxx\n");
 			regmap_update_bits(gate->map, ASPEED_G6_CLK_SELECTION4, BIT(31), BIT(31));
-#if 0		
 		} else if(gate->clock_idx == aspeed_g6_gates[ASPEED_CLK_GATE_EMMCEXTCLK].clock_idx) {
 			/* emmc ext clk */
 			regmap_update_bits(gate->map, ASPEED_G6_CLK_SELECTION1, BIT(15), BIT(15));
 			printk("enable emmc card clk xxxxx\n");
-#endif			
 		} else {
+#endif			
 			enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? 0 : clk;
 			if(enval) {
 				if(gate->clock_idx & 0x20)
@@ -345,7 +355,7 @@ static int aspeed_g6_clk_enable(struct clk_hw *hw)
 				else
 					regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL + 0x04, clk);
 			}
-		}
+//		}
 
 		if (gate->reset_idx >= 0) {
 			/* A delay of 10ms is specified by the ASPEED docs */
@@ -588,13 +598,18 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_EMMC] = hw;
 
-	/* SD/SDIO ext clock divider */
-	hw = clk_hw_register_divider_table(dev, "sdio", "hpll", 0,
-			scu_g6_base + 0x310, 28, 3, 0,
-			soc_data->div_table,
-			&aspeed_clk_lock);
+	/* SD/SDIO clock divider and gate */
+	hw = clk_hw_register_gate(dev, "sd_extclk_gate", "hpll", 0,
+					scu_g6_base + ASPEED_G6_CLK_SELECTION4, 31, 0,
+					&aspeed_clk_lock);
 	if (IS_ERR(hw))
-		return PTR_ERR(hw);
+			return PTR_ERR(hw);
+	hw = clk_hw_register_divider_table(dev, "sd_extclk", "sd_extclk_gate",
+					0, scu_g6_base + ASPEED_G6_CLK_SELECTION4, 28, 3, 0,
+					ast2600_div_table,
+					&aspeed_clk_lock);
+	if (IS_ERR(hw))
+			return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_SDIO] = hw;
 
 	//mac12 clk - check
