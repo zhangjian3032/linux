@@ -532,7 +532,7 @@
 				status = "disabled";
 			};
 #endif
-
+#if 0
 			sdhci: sdhci@1e740000 {
 				#interrupt-cells = <1>;
 				compatible = "aspeed,aspeed-sdhci-irq", "simple-mfd";
@@ -576,32 +576,27 @@
 				};
 
 			};
+#endif
 
-			emmc: emmc@1e750000 {
-				#interrupt-cells = <1>;
-				compatible = "aspeed,aspeed-emmc-irq", "simple-mfd";
-				reg = <0x1e750000 0x1000>;
-				interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-controller;
-				clocks = <&syscon ASPEED_CLK_GATE_EMMCCLK>, <&syscon ASPEED_CLK_GATE_EMMCEXTCLK>;
-				clock-names = "ctrlclk", "extclk";
-				#address-cells = <1>;
-				#size-cells = <1>;
-				ranges = <0x0 0x1e750000 0x1000>;
+                        emmc_controller: sdc@1e750000 {
+                                compatible = "aspeed,ast2600-sd-controller";
+                                reg = <0x1e750000 0x100>;
+                                #address-cells = <1>;
+                                #size-cells = <1>;
+                                ranges = <0 0x1e750000 0x10000>;
+                                clocks = <&syscon ASPEED_CLK_GATE_EMMCCLK>;
+                                status = "disabled";
 
-				emmc_slot0: emmc_slot0@100 {
-					compatible = "aspeed,emmc-ast2600";
-					reg = <0x100 0x100>;
-					interrupts = <0>;
-					interrupt-parent = <&emmc>;
-					sdhci,auto-cmd12;
-					clocks = <&syscon ASPEED_CLK_GATE_EMMCEXTCLK>;
-					pinctrl-names = "default";
-					pinctrl-0 = <&pinctrl_emmc_default>;
-					status = "disabled";
-				};
-
-			};
+                                emmc: sdhci@1e750100 {
+                                        compatible = "aspeed,ast2600-emmc";
+                                        reg = <0x100 0x100>;
+                                        sdhci,auto-cmd12;
+                                        interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+					clocks = <&syscon ASPEED_CLK_EMMC>;
+                                        pinctrl-names = "default";
+                                        pinctrl-0 = <&pinctrl_emmc_default>;
+                                };
+                        };
 
 			gpio0: gpio@1e780000 {
 				#gpio-cells = <2>;

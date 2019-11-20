@@ -366,6 +366,7 @@
 };
 #endif
 
+#if 0
 &sdhci_slot0{
 	status = "okay";
 };
@@ -373,9 +374,16 @@
 &sdhci_slot1{
 	status = "okay";
 };
+#endif
 
-&emmc_slot0{
-	status = "okay";
+&emmc_controller {
+        status = "okay";
+};
+
+&emmc {
+        non-removable;
+        bus-width = <4>;
+        max-frequency = <100000000>;
 };
 
 &peci0 {
