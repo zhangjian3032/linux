@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
@@ -74,17 +75,10 @@ static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	}
 	div >>= 1;
 
+	//Issue : For ast2300, ast2400 couldn't set div = 0 means /1 , so set source is ~50Mhz up
 	clk = div << SDHCI_DIVIDER_SHIFT;
 
 	sdhci_enable_clk(host, clk);
-}
-
-static unsigned int aspeed_sdhci_get_max_clock(struct sdhci_host *host)
-{
-	if (host->mmc->f_max)
-		return host->mmc->f_max;
-
-	return sdhci_pltfm_clk_get_max_clock(host);
 }
 
 static void aspeed_sdhci_set_bus_width(struct sdhci_host *host, int width)
@@ -111,16 +105,110 @@ static void aspeed_sdhci_set_bus_width(struct sdhci_host *host, int width)
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 }
 
-static const struct sdhci_ops aspeed_sdhci_ops = {
+static u32 aspeed_sdhci_readl(struct sdhci_host *host, int reg) {
+	u32 val = readl(host->ioaddr + reg);
+
+	if (unlikely(reg == SDHCI_PRESENT_STATE) &&
+			(host->mmc->caps2 & MMC_CAP2_CD_ACTIVE_HIGH))
+		val ^= SDHCI_CARD_PRESENT;
+
+	return val;
+}
+
+static void sdhci_aspeed_set_power(struct sdhci_host *host, unsigned char mode,
+						   unsigned short vdd)
+{
+	struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
+	u8 pwr = 0;
+
+	printk("sdhci_aspeed_set_power \n");
+
+	if (mode != MMC_POWER_OFF) {
+			switch (1 << vdd) {
+			case MMC_VDD_165_195:
+			/*
+			 * Without a regulator, SDHCI does not support 2.0v
+			 * so we only get here if the driver deliberately
+			 * added the 2.0v range to ocr_avail. Map it to 1.8v
+			 * for the purpose of turning on the power.
+			 */
+			case MMC_VDD_20_21:
+					pwr = SDHCI_POWER_180;
+					break;
+			case MMC_VDD_29_30:
+			case MMC_VDD_30_31:
+					pwr = SDHCI_POWER_300;
+					break;
+			case MMC_VDD_32_33:
+			case MMC_VDD_33_34:
+					pwr = SDHCI_POWER_330;
+					break;
+			default:
+					WARN(1, "%s: Invalid vdd %#x\n",
+						 mmc_hostname(host->mmc), vdd);
+					break;
+			}
+	}
+
+    if (host->pwr == pwr)
+            return;
+
+    host->pwr = pwr;
+
+    if (pwr == 0) {
+            if(gpio_is_valid(pltfm_priv->pwr_pin))
+                    gpio_set_value(pltfm_priv->pwr_pin, 0);
+            sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
+    } else {
+            pwr |= SDHCI_POWER_ON;
+
+            if(pwr & SDHCI_POWER_ON) {
+                    if(gpio_is_valid(pltfm_priv->pwr_pin))
+                            gpio_set_value(pltfm_priv->pwr_pin, 1);
+            }
+
+            if (pwr & SDHCI_POWER_330) {
+                    if(gpio_is_valid(pltfm_priv->pwr_sw_pin))
+                            gpio_set_value(pltfm_priv->pwr_sw_pin, 1);
+            } else if (pwr & SDHCI_POWER_180) {
+                    if(gpio_is_valid(pltfm_priv->pwr_sw_pin))
+                            gpio_set_value(pltfm_priv->pwr_sw_pin, 0);
+            } else
+                    printk("todo fail check ~~ \n");
+
+            sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
+    }
+}
+
+static void aspeed_sdhci_voltage_switch(struct sdhci_host *host)
+{
+    struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
+	printk("aspeed_sdhci_voltage_switch \n");
+    if (gpio_is_valid(pltfm_priv->pwr_sw_pin))
+            gpio_set_value(pltfm_priv->pwr_sw_pin, 0);
+}
+
+/*
+	AST2300/AST2400 : SDMA/PIO
+	AST2500 : ADMA/SDMA/PIO
+*/
+static struct sdhci_ops aspeed_sdhci_ops = {
+	.read_l = aspeed_sdhci_readl,
+#if 1 //def CONFIG_MACH_ASPEED_G6
+	.set_clock = sdhci_set_clock,
+	.set_power = sdhci_aspeed_set_power,
+	.voltage_switch = aspeed_sdhci_voltage_switch,
+#else
 	.set_clock = aspeed_sdhci_set_clock,
-	.get_max_clock = aspeed_sdhci_get_max_clock,
+#endif	
+	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.set_bus_width = aspeed_sdhci_set_bus_width,
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
 	.reset = sdhci_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
-static const struct sdhci_pltfm_data aspeed_sdhci_pdata = {
+static struct sdhci_pltfm_data aspeed_sdhci_pdata = {
 	.ops = &aspeed_sdhci_ops,
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 };
@@ -146,12 +234,13 @@ static inline int aspeed_sdhci_calculate_slot(struct aspeed_sdhci *dev,
 static int aspeed_sdhci_probe(struct platform_device *pdev)
 {
 	struct sdhci_pltfm_host *pltfm_host;
+	struct device_node *np = pdev->dev.of_node;
 	struct aspeed_sdhci *dev;
 	struct sdhci_host *host;
 	struct resource *res;
 	int slot;
 	int ret;
-printk("aspeed_sdhci_probe ---------------------\n");
+
 	host = sdhci_pltfm_init(pdev, &aspeed_sdhci_pdata, sizeof(*dev));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
@@ -162,8 +251,6 @@ printk("aspeed_sdhci_probe ---------------------\n");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	slot = aspeed_sdhci_calculate_slot(dev, res);
-
-	printk("aspeed_sdhci_probe ---------------------slot %d \n", slot);
 
 	if (slot < 0)
 		return slot;
@@ -178,25 +265,46 @@ printk("aspeed_sdhci_probe ---------------------\n");
 	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pltfm_host->clk))
 		return PTR_ERR(pltfm_host->clk);
-printk("clk enable \n");
+
 	ret = clk_prepare_enable(pltfm_host->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to enable SDIO clock\n");
 		goto err_pltfm_free;
 	}
-	printk("aspeed_sdhci_probe --------------------- 2\n");
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
 		goto err_sdhci_add;
 
-	printk("aspeed_sdhci_probe --------------------- 3\n");
+	pltfm_host->pwr_pin = of_get_named_gpio(np, "power-gpio", 0);
+	
+	if(pltfm_host->pwr_pin >= 0) {
+		if (gpio_is_valid(pltfm_host->pwr_pin)) {
+			if (devm_gpio_request(&pdev->dev, pltfm_host->pwr_pin,
+								  "mmc_pwr")) {
+				printk("devm_gpio_request pwr fail \n");
+			}
+			gpio_direction_output(pltfm_host->pwr_pin, 1);
+		}
+	} else {
+		
+	}
+	
+	pltfm_host->pwr_sw_pin = of_get_named_gpio(np, "power-switch-gpio", 0);
+	
+	if(pltfm_host->pwr_sw_pin >= 0) {
+		if (gpio_is_valid(pltfm_host->pwr_sw_pin)) {
+			if (devm_gpio_request(&pdev->dev, pltfm_host->pwr_sw_pin,
+							  "mmc_pwr_sw")) {
+				printk("devm_gpio_request pwr sw fail \n");
+			}
+			gpio_direction_output(pltfm_host->pwr_sw_pin, 1);
+		}
+	}
 
 	ret = sdhci_add_host(host);
 	if (ret)
 		goto err_sdhci_add;
-
-	printk("aspeed_sdhci_probe --------------------- end \n");
 
 	return 0;
 

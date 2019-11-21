@@ -579,7 +579,7 @@
 			        status = "disabled";
 
 			        emmc: sdhci@1e750100 {
-			                compatible = "aspeed,ast2600-emmc";
+					compatible = "aspeed,ast2600-sdhci";
 			                reg = <0x100 0x100>;
 			                sdhci,auto-cmd12;
 			                interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
@@ -637,6 +637,7 @@
 				clocks = <&syscon ASPEED_CLK_APB1>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				status = "disabled";
 			};
 
 			rtc: rtc@1e781000 {

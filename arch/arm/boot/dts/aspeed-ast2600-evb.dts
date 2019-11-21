@@ -369,23 +369,37 @@
 &sdc {
 	status = "okay";
 };
-
+#if 1
 &sdhci0 {
 	status = "okay";
 
 	bus-width = <4>;
-	max-frequency = <52000000>;
+#if 0
+	max-frequency = <100000000>;
+#endif
+	
+	/* SDR104/DDR50/SDR50 bits in CAPA2 is not supported */
+#if 0
+	sdhci-caps-mask = <0x7 0x0>;
+#else
+	sdhci-caps-mask = <0x6 0x0>;
+#endif
+
 	sdhci,wp-inverted;
 };
-
+#if 0
 &sdhci1 {
 	status = "okay";
 
 	bus-width = <4>;
 	max-frequency = <52000000>;
+	sdhci-caps-mask = <0x7 0x0>;
 	sdhci,wp-inverted;
 };
+#endif
+#endif
 
+#if 0
 &emmc_controller {
         status = "okay";
 };
@@ -394,8 +408,11 @@
         non-removable;
         bus-width = <4>;
         max-frequency = <100000000>;
-};
+	/* AST2600 A0 only support PIO mode */
+	sdhci-caps-mask = <0x0 0x580000>;
 
+};
+#endif
 &peci0 {
 	status = "okay";
 };
