@@ -32,6 +32,8 @@ struct aspeed_sdc {
 struct aspeed_sdhci {
 	struct aspeed_sdc *parent;
 	u32 width_mask;
+	int	pwr_pin;
+	int	pwr_sw_pin;
 };
 
 static void aspeed_sdc_configure_8bit_mode(struct aspeed_sdc *sdc,
@@ -53,6 +55,9 @@ static void aspeed_sdc_configure_8bit_mode(struct aspeed_sdc *sdc,
 
 static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
+#ifdef CONFIG_MACH_ASPEED_G6
+	sdhci_set_clock(host, clock);
+#else
 	struct sdhci_pltfm_host *pltfm_host;
 	unsigned long parent;
 	int div;
@@ -79,6 +84,7 @@ static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	clk = div << SDHCI_DIVIDER_SHIFT;
 
 	sdhci_enable_clk(host, clk);
+#endif	
 }
 
 static void aspeed_sdhci_set_bus_width(struct sdhci_host *host, int width)
@@ -105,23 +111,18 @@ static void aspeed_sdhci_set_bus_width(struct sdhci_host *host, int width)
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 }
 
-static u32 aspeed_sdhci_readl(struct sdhci_host *host, int reg) {
-	u32 val = readl(host->ioaddr + reg);
-
-	if (unlikely(reg == SDHCI_PRESENT_STATE) &&
-			(host->mmc->caps2 & MMC_CAP2_CD_ACTIVE_HIGH))
-		val ^= SDHCI_CARD_PRESENT;
-
-	return val;
-}
-
 static void sdhci_aspeed_set_power(struct sdhci_host *host, unsigned char mode,
 						   unsigned short vdd)
 {
 	struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
+	struct aspeed_sdhci *dev = sdhci_pltfm_priv(pltfm_priv);
 	u8 pwr = 0;
 
-	printk("sdhci_aspeed_set_power \n");
+
+	if (dev->pwr_pin <= 0)
+		return sdhci_set_power(host, mode, vdd);
+
+	printk("sdhci_aspeed_set_power pltfm_priv->pwr_pin %d\n", dev->pwr_pin);
 
 	if (mode != MMC_POWER_OFF) {
 			switch (1 << vdd) {
@@ -156,23 +157,23 @@ static void sdhci_aspeed_set_power(struct sdhci_host *host, unsigned char mode,
     host->pwr = pwr;
 
     if (pwr == 0) {
-            if(gpio_is_valid(pltfm_priv->pwr_pin))
-                    gpio_set_value(pltfm_priv->pwr_pin, 0);
+            if(gpio_is_valid(dev->pwr_pin))
+                    gpio_set_value(dev->pwr_pin, 0);
             sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
     } else {
             pwr |= SDHCI_POWER_ON;
 
             if(pwr & SDHCI_POWER_ON) {
-                    if(gpio_is_valid(pltfm_priv->pwr_pin))
-                            gpio_set_value(pltfm_priv->pwr_pin, 1);
+                    if(gpio_is_valid(dev->pwr_pin))
+                            gpio_set_value(dev->pwr_pin, 1);
             }
 
             if (pwr & SDHCI_POWER_330) {
-                    if(gpio_is_valid(pltfm_priv->pwr_sw_pin))
-                            gpio_set_value(pltfm_priv->pwr_sw_pin, 1);
+                    if(gpio_is_valid(dev->pwr_sw_pin))
+                            gpio_set_value(dev->pwr_sw_pin, 1);
             } else if (pwr & SDHCI_POWER_180) {
-                    if(gpio_is_valid(pltfm_priv->pwr_sw_pin))
-                            gpio_set_value(pltfm_priv->pwr_sw_pin, 0);
+                    if(gpio_is_valid(dev->pwr_sw_pin))
+                            gpio_set_value(dev->pwr_sw_pin, 0);
             } else
                     printk("todo fail check ~~ \n");
 
@@ -183,9 +184,15 @@ static void sdhci_aspeed_set_power(struct sdhci_host *host, unsigned char mode,
 static void aspeed_sdhci_voltage_switch(struct sdhci_host *host)
 {
     struct sdhci_pltfm_host *pltfm_priv = sdhci_priv(host);
-	printk("aspeed_sdhci_voltage_switch \n");
-    if (gpio_is_valid(pltfm_priv->pwr_sw_pin))
-            gpio_set_value(pltfm_priv->pwr_sw_pin, 0);
+	struct aspeed_sdhci *dev = sdhci_pltfm_priv(pltfm_priv);
+
+	if (dev->pwr_sw_pin <= 0) {
+		return;
+	}
+	
+	printk("aspeed_sdhci_voltage_switch pltfm_priv->pwr_sw_pin %d \n", dev->pwr_sw_pin);
+    if (gpio_is_valid(dev->pwr_sw_pin))
+            gpio_set_value(dev->pwr_sw_pin, 0);
 }
 
 /*
@@ -193,14 +200,9 @@ static void aspeed_sdhci_voltage_switch(struct sdhci_host *host)
 	AST2500 : ADMA/SDMA/PIO
 */
 static struct sdhci_ops aspeed_sdhci_ops = {
-	.read_l = aspeed_sdhci_readl,
-#if 1 //def CONFIG_MACH_ASPEED_G6
-	.set_clock = sdhci_set_clock,
 	.set_power = sdhci_aspeed_set_power,
 	.voltage_switch = aspeed_sdhci_voltage_switch,
-#else
 	.set_clock = aspeed_sdhci_set_clock,
-#endif	
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.set_bus_width = aspeed_sdhci_set_bus_width,
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
@@ -241,6 +243,7 @@ static int aspeed_sdhci_probe(struct platform_device *pdev)
 	int slot;
 	int ret;
 
+	printk("aspeed_sdhci_probe =====================================\n");
 	host = sdhci_pltfm_init(pdev, &aspeed_sdhci_pdata, sizeof(*dev));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
@@ -276,29 +279,27 @@ static int aspeed_sdhci_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_sdhci_add;
 
-	pltfm_host->pwr_pin = of_get_named_gpio(np, "power-gpio", 0);
-	
-	if(pltfm_host->pwr_pin >= 0) {
-		if (gpio_is_valid(pltfm_host->pwr_pin)) {
-			if (devm_gpio_request(&pdev->dev, pltfm_host->pwr_pin,
+	dev->pwr_pin = of_get_named_gpio(np, "power-gpio", 0);
+	printk("dev->pwr_pin %d \n", dev->pwr_pin);
+	if(dev->pwr_pin >= 0) {
+		if (gpio_is_valid(dev->pwr_pin)) {
+			if (devm_gpio_request(&pdev->dev, dev->pwr_pin,
 								  "mmc_pwr")) {
 				printk("devm_gpio_request pwr fail \n");
 			}
-			gpio_direction_output(pltfm_host->pwr_pin, 1);
+			gpio_direction_output(dev->pwr_pin, 1);
 		}
-	} else {
-		
 	}
 	
-	pltfm_host->pwr_sw_pin = of_get_named_gpio(np, "power-switch-gpio", 0);
-	
-	if(pltfm_host->pwr_sw_pin >= 0) {
-		if (gpio_is_valid(pltfm_host->pwr_sw_pin)) {
-			if (devm_gpio_request(&pdev->dev, pltfm_host->pwr_sw_pin,
+	dev->pwr_sw_pin = of_get_named_gpio(np, "power-switch-gpio", 0);
+		printk("dev->pwr_sw_pin %d \n", dev->pwr_sw_pin);
+	if(dev->pwr_sw_pin >= 0) {
+		if (gpio_is_valid(dev->pwr_sw_pin)) {
+			if (devm_gpio_request(&pdev->dev, dev->pwr_sw_pin,
 							  "mmc_pwr_sw")) {
 				printk("devm_gpio_request pwr sw fail \n");
 			}
-			gpio_direction_output(pltfm_host->pwr_sw_pin, 1);
+			gpio_direction_output(dev->pwr_sw_pin, 1);
 		}
 	}
 
