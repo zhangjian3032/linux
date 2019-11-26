@@ -2070,6 +2070,26 @@
 		groups = "EMMC";
 	};
 
+	pinctrl_emmcdat4_default: emmcdat4_default {
+		function = "EMMCDAT4";
+		groups = "EMMCDAT4";
+	};
+
+	pinctrl_emmcdat5_default: emmcdat5_default {
+		function = "EMMCDAT5";
+		groups = "EMMCDAT5";
+	};
+
+	pinctrl_emmcdat6_default: emmcdat6_default {
+		function = "EMMCDAT6";
+		groups = "EMMCDAT6";
+    };
+
+	pinctrl_emmcdat7_default: emmcdat7_default {
+		function = "EMMCDAT7";
+		groups = "EMMCDAT7";
+    };
+
 	pinctrl_i2c1_default: i2c1_default {
 		function = "I2C1";
 		groups = "I2C1";
