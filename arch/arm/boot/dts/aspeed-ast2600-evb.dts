@@ -369,7 +369,7 @@
 &sdc {
 	status = "okay";
 };
-#if 1
+#if 0
 &sdhci0 {
 	status = "okay";
 
@@ -399,18 +399,19 @@
 #endif
 #endif
 
-#if 0
+#if 1
 &emmc_controller {
         status = "okay";
 };
 
 &emmc {
-        non-removable;
-        bus-width = <4>;
-        max-frequency = <100000000>;
+	status = "okay";
+
+	non-removable;
+	bus-width = <4>;
+	max-frequency = <100000000>;
 	/* AST2600 A0 only support PIO mode */
 	sdhci-caps-mask = <0x0 0x580000>;
-
 };
 #endif
 &peci0 {
