@@ -369,39 +369,9 @@
 &sdc {
 	status = "okay";
 };
-#if 0
-&sdhci0 {
-	status = "okay";
 
-	bus-width = <4>;
-#if 0
-	max-frequency = <100000000>;
-#endif
-	
-	/* SDR104/DDR50/SDR50 bits in CAPA2 is not supported */
-#if 0
-	sdhci-caps-mask = <0x7 0x0>;
-#else
-	sdhci-caps-mask = <0x6 0x0>;
-#endif
-
-	sdhci,wp-inverted;
-};
-#if 0
-&sdhci1 {
-	status = "okay";
-
-	bus-width = <4>;
-	max-frequency = <52000000>;
-	sdhci-caps-mask = <0x7 0x0>;
-	sdhci,wp-inverted;
-};
-#endif
-#endif
-
-#if 1
 &emmc_controller {
-        status = "okay";
+	status = "okay";
 };
 
 &emmc {
@@ -422,7 +392,27 @@
 			&pinctrl_emmcdat7_default>;
 #endif
 };
-#endif
+
+&sdhci0 {
+	status = "okay";
+
+	bus-width = <4>;
+	max-frequency = <100000000>;
+
+	/* SDR104/DDR50/SDR50 bits in CAPA2 is not supported */
+	sdhci-caps-mask = <0x7 0x0>;
+	sdhci,wp-inverted;
+};
+
+&sdhci1 {
+	status = "okay";
+
+	bus-width = <4>;
+	max-frequency = <100000000>;
+	sdhci-caps-mask = <0x7 0x0>;
+	sdhci,wp-inverted;
+};
+
 &peci0 {
 	status = "okay";
 };

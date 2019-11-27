@@ -51,6 +51,9 @@
 		serial14 = &vuart1;
 		serial15 = &vuart2;
 		serial16 = &vuart3;
+		mmc0 = &emmc;
+		mmc1 = &sdhci0;
+		mmc2 = &sdhci1;
 		peci0 = &peci0;
 	};
 

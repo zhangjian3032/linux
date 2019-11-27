@@ -65,7 +65,6 @@ static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	pltfm_host = sdhci_priv(host);
 	parent = clk_get_rate(pltfm_host->clk);
-	printk("parent rate %d set clk %d , max clk %d \n", parent, clock, host->max_clk);
 	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
 
 	if (clock == 0)
@@ -121,8 +120,6 @@ static void sdhci_aspeed_set_power(struct sdhci_host *host, unsigned char mode,
 
 	if (dev->pwr_pin <= 0)
 		return sdhci_set_power(host, mode, vdd);
-
-	printk("sdhci_aspeed_set_power pltfm_priv->pwr_pin %d\n", dev->pwr_pin);
 
 	if (mode != MMC_POWER_OFF) {
 			switch (1 << vdd) {
@@ -189,8 +186,6 @@ static void aspeed_sdhci_voltage_switch(struct sdhci_host *host)
 	if (dev->pwr_sw_pin <= 0) {
 		return;
 	}
-	
-	printk("aspeed_sdhci_voltage_switch pltfm_priv->pwr_sw_pin %d \n", dev->pwr_sw_pin);
     if (gpio_is_valid(dev->pwr_sw_pin))
             gpio_set_value(dev->pwr_sw_pin, 0);
 }
@@ -212,7 +207,10 @@ static struct sdhci_ops aspeed_sdhci_ops = {
 
 static struct sdhci_pltfm_data aspeed_sdhci_pdata = {
 	.ops = &aspeed_sdhci_ops,
+#ifndef CONFIG_MACH_ASPEED_G6
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN | SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
+#endif
 };
 
 static inline int aspeed_sdhci_calculate_slot(struct aspeed_sdhci *dev,
@@ -243,7 +241,6 @@ static int aspeed_sdhci_probe(struct platform_device *pdev)
 	int slot;
 	int ret;
 
-	printk("aspeed_sdhci_probe =====================================\n");
 	host = sdhci_pltfm_init(pdev, &aspeed_sdhci_pdata, sizeof(*dev));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
@@ -280,7 +277,6 @@ static int aspeed_sdhci_probe(struct platform_device *pdev)
 		goto err_sdhci_add;
 
 	dev->pwr_pin = of_get_named_gpio(np, "power-gpio", 0);
-	printk("dev->pwr_pin %d \n", dev->pwr_pin);
 	if(dev->pwr_pin >= 0) {
 		if (gpio_is_valid(dev->pwr_pin)) {
 			if (devm_gpio_request(&pdev->dev, dev->pwr_pin,
@@ -292,7 +288,7 @@ static int aspeed_sdhci_probe(struct platform_device *pdev)
 	}
 	
 	dev->pwr_sw_pin = of_get_named_gpio(np, "power-switch-gpio", 0);
-		printk("dev->pwr_sw_pin %d \n", dev->pwr_sw_pin);
+
 	if(dev->pwr_sw_pin >= 0) {
 		if (gpio_is_valid(dev->pwr_sw_pin)) {
 			if (devm_gpio_request(&pdev->dev, dev->pwr_sw_pin,
@@ -338,7 +334,6 @@ static const struct of_device_id aspeed_sdhci_of_match[] = {
 	{ .compatible = "aspeed,ast2400-sdhci", },
 	{ .compatible = "aspeed,ast2500-sdhci", },
 	{ .compatible = "aspeed,ast2600-sdhci", },
-	{ .compatible = "aspeed,ast2600-emmc", },
 	{ }
 };
 
