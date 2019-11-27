@@ -83,7 +83,7 @@ static void sdhci_get_compatibility(struct platform_device *pdev)
 	    of_device_is_compatible(np, "fsl,t4240-esdhc") ||
 	    of_device_is_compatible(np, "fsl,mpc8536-esdhc"))
 		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
-	if (of_device_is_compatible(np, "aspeed,emmc-ast2600"))
+	if (of_device_is_compatible(np, "aspeed,ast2600-emmc"))
 		host->quirks |= SDHCI_QUIRK_BROKEN_DMA | SDHCI_QUIRK_BROKEN_ADMA;
 }
 #else

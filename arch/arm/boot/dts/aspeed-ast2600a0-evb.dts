@@ -150,7 +150,7 @@
 	phy-handle = <&ethphy0>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_mdio1_default>;
+	pinctrl-0 = <&pinctrl_rgmii1_default>;
 };
 #endif
 
@@ -170,7 +170,7 @@
 	phy-handle = <&ethphy1>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
+	pinctrl-0 = <&pinctrl_rgmii2_default>;
 };
 
 &mdio2 {
@@ -189,7 +189,7 @@
 	phy-handle = <&ethphy2>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_mdio3_default>;
+	pinctrl-0 = <&pinctrl_rgmii3_default>;
 };
 
 &mdio3 {
@@ -208,7 +208,7 @@
 	phy-handle = <&ethphy3>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_mdio4_default>;
+	pinctrl-0 = <&pinctrl_rgmii4_default>;
 };
 
 &pwm_tacho {
@@ -348,12 +348,11 @@
 &ehci0 {
 	status = "okay";
 };
-#endif
 
 &ehci1 {
 	status = "okay";
 };
-
+#endif
 #if 0
 &uhci {
 	status = "okay";
@@ -367,16 +366,51 @@
 };
 #endif
 
-&sdhci_slot0{
+&sdc {
 	status = "okay";
 };
 
-&sdhci_slot1{
+&emmc_controller {
 	status = "okay";
 };
 
-&emmc_slot0{
+&emmc {
 	status = "okay";
+
+	non-removable;
+	max-frequency = <100000000>;
+	/* AST2600 A0 only support PIO mode */
+	sdhci-caps-mask = <0x0 0x580000>;
+#if 1
+	bus-width = <4>;
+#else
+	bus-width = <8>;
+	pinctrl-0 = <&pinctrl_emmc_default 
+			&pinctrl_emmcdat4_default 
+			&pinctrl_emmcdat5_default
+			&pinctrl_emmcdat6_default
+			&pinctrl_emmcdat7_default>;
+#endif
+};
+
+&sdhci0 {
+	status = "okay";
+
+	bus-width = <4>;
+	max-frequency = <100000000>;
+
+	/* SDR104/DDR50/SDR50 bits in CAPA2 is not supported */
+	sdhci-caps-mask = <0x7 0x0>;
+	sdhci,wp-inverted;
+};
+
+&sdhci1 {
+	status = "okay";
+
+	bus-width = <4>;
+	max-frequency = <100000000>;
+	sdhci-caps-mask = <0x7 0x0>;
+	sdhci,wp-inverted;
 };
 
 &peci0 {
