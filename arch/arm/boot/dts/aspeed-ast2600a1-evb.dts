@@ -69,7 +69,7 @@
     	};
 
 	ssp: secondary-service-processor {
-		compatible = "aspeed,ast-ssp";
+		compatible = "aspeed,ast2600-ssp";
 		#address-cells = <2>;
 		#size-cells = <0>;
 
