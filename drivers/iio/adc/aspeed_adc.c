@@ -376,7 +376,7 @@ static const struct aspeed_adc_model_data ast2500_model_data = {
 };
 
 static const struct aspeed_adc_model_data ast2600_model_data = {
-	.model_name = "ast2500-adc",
+	.model_name = "ast2600-adc",
 	.vref_voltage = 1800, // mV --> can be 1.2v or 2.5 or ext 1.55~2.7v, 0.9v ~1.65v
 	.min_sampling_rate = 1,
 	.max_sampling_rate = 1000000,
