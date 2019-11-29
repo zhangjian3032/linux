@@ -509,9 +509,12 @@
 				resets = <&syscon ASPEED_RESET_LPC_ESPI>;
 			};
 
-#if 0
 			video: video@1e700000 {
+#if 0
 				compatible = "aspeed,ast2600-video-engine";
+#else
+				compatible = "aspeed,ast2600-video";
+#endif
 				reg = <0x1e700000 0x1000>;
 				clocks = <&syscon ASPEED_CLK_GATE_VCLK>,
 					 <&syscon ASPEED_CLK_GATE_ECLK>;
@@ -519,19 +522,7 @@
 				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
-#else
-			video: video@1e700000 {
-				compatible = "aspeed,ast2600-video";
-				/* 184MB : 40MB*/
-				reg = <0x1e700000 0x300>;
-				clocks = <&syscon ASPEED_CLK_GATE_VCLK>, 
-				<&syscon ASPEED_CLK_GATE_ECLK>;
-				clock-names = "vclk", "eclk";
-				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
-				resets = <&syscon ASPEED_RESET_VIDEO>;
-				status = "disabled";
-			};
-#endif
+
 			emmc_controller: sdc@1e750000 {
 				compatible = "aspeed,ast2600-sd-controller";
 				reg = <0x1e750000 0x100>;
