@@ -1647,8 +1647,8 @@
 	};
 
 	pinctrl_uart12g0_default: uart12g0_default {
-        function = "UART12";
-        groups = "UART12G0";
+		function = "UART12";
+		groups = "UART12G0";
 	};
 
 	pinctrl_uart12g1_default: uart12g1_default {
@@ -2364,5 +2364,5 @@
 		function = "FSI2";
 		groups = "FSI2";
 	};
-	
+
 };
