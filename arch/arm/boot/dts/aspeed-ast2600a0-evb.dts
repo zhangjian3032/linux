@@ -45,11 +45,11 @@
 			reusable;
 		};
 
-		video_memory: video {
+		video_engine_memory: video {
 			size = <0x04000000>;
 			alignment = <0x01000000>;
 			compatible = "shared-dma-pool";
-			no-map;
+			reusable;
 		};
 
 	};
@@ -330,8 +330,8 @@
 };
 
 &video {
-	memory-region = <&video_memory>;
 	status = "okay";
+	memory-region = <&video_engine_memory>;
 };
 
 &vhub {

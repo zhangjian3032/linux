@@ -3209,7 +3209,7 @@ static int ast_video_probe(struct platform_device *pdev)
 
 	ast_video->reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(ast_video->reset)) {
-		dev_err(&pdev->dev, "can't get mctp reset\n");
+		dev_err(&pdev->dev, "can't get video reset\n");
 		return PTR_ERR(ast_video->reset);
 	}
 
