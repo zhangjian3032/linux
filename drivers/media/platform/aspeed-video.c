@@ -1705,6 +1705,7 @@ static int aspeed_video_remove(struct platform_device *pdev)
 static const struct of_device_id aspeed_video_of_match[] = {
 	{ .compatible = "aspeed,ast2400-video-engine" },
 	{ .compatible = "aspeed,ast2500-video-engine" },
+	{ .compatible = "aspeed,ast2600-video-engine" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, aspeed_video_of_match);
