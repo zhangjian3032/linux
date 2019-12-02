@@ -2378,4 +2378,14 @@
 		groups = "FSI2";
 	};
 
+	pinctrl_fwspi18_default: fwspi18_default {
+		function = "FWSPI18";
+		groups = "FWSPI18";
+	};
+
+	pinctrl_fwqspid_default: fwqspid_default {
+		function = "FWQSPID";
+		groups = "FWQSPID";
+	};
+
 };
