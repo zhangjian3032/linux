@@ -45,11 +45,11 @@
 			reusable;
 		};
 
-		video_memory: video {
+		video_engine_memory: video {
 			size = <0x04000000>;
 			alignment = <0x01000000>;
 			compatible = "shared-dma-pool";
-			no-map;
+			reusable;
 		};
 
 		ssp_memory: ssp_memory {
@@ -346,8 +346,8 @@
 };
 
 &video {
-	memory-region = <&video_memory>;
 	status = "okay";
+	memory-region = <&video_engine_memory>;
 };
 
 &vhub {
@@ -467,11 +467,13 @@
 
 &fmc {
 	status = "okay";
+
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
 		label = "bmc";
 		spi-max-frequency = <50000000>;
+		spi-bus-width = <4>;
 
 		partitions {
 			compatible = "fixed-partitions";
@@ -497,22 +499,26 @@
 	};
 
 	flash@1 {
-                status = "okay";
-                m25p,fast-read;
-                label = "fmc0:1";
-                spi-max-frequency = <50000000>;
-        };
+		status = "okay";
+		m25p,fast-read;
+		label = "fmc0:1";
+		spi-max-frequency = <50000000>;
+		spi-bus-width = <4>;
+	};
 
 	flash@2 {
-                status = "okay";
-                m25p,fast-read;
-                label = "fmc0:2";
-                spi-max-frequency = <50000000>;
-        };
+		status = "okay";
+		m25p,fast-read;
+		label = "fmc0:2";
+		spi-max-frequency = <50000000>;
+		spi-bus-width = <4>;
+	};
+
 };
 
 &spi1 {
 	status = "okay";
+
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default>;
 
@@ -521,39 +527,46 @@
 		m25p,fast-read;
 		label = "spi1:0";
 		spi-max-frequency = <50000000>;
+		spi-bus-width = <4>;
 	};
 
 	flash@1 {
-                status = "okay";
-                m25p,fast-read;
-                label = "spi1:1";
-                spi-max-frequency = <50000000>;
-        };
+		status = "okay";
+		m25p,fast-read;
+		label = "spi1:1";
+		spi-max-frequency = <50000000>;
+		spi-bus-width = <4>;
+	};
 };
 
 &spi2 {
 	status = "okay";
+
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default &pinctrl_spi2cs2_default>;
 
-        flash@0 {
-                status = "okay";
-                m25p,fast-read;
-                label = "spi2:0";
-                spi-max-frequency = <50000000>;
-        };
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "spi2:0";
+		spi-max-frequency = <50000000>;
+		spi-bus-width = <4>;
+	};
 
-        flash@1 {
-                status = "okay";
-                m25p,fast-read;
-                label = "spi2:1";
-                spi-max-frequency = <50000000>;
-        };
+	flash@1 {
+		status = "okay";
+		m25p,fast-read;
+		label = "spi2:1";
+		spi-max-frequency = <50000000>;
+		spi-bus-width = <4>;
+	};
 
 	flash@2 {
-                status = "okay";
-                m25p,fast-read;
-                label = "spi2:2";
-                spi-max-frequency = <50000000>;
-        };
+		status = "okay";
+		m25p,fast-read;
+		label = "spi2:2";
+		spi-max-frequency = <50000000>;
+		spi-bus-width = <4>;
+	};
+
 };
