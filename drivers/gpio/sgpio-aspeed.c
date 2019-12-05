@@ -1,79 +1,54 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
+ * Copyright 2019 American Megatrends International LLC.
+ *
+ * Author: Karthikeyan Mani <karthikeyanm@amiindia.co.in>
  */
 
-#include <asm/div64.h>
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/gpio/driver.h>
-#include <linux/gpio/aspeed.h>
 #include <linux/hashtable.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 
-/*
- * These two headers aren't meant to be used by GPIO drivers. We need
- * them in order to access gpio_chip_hwgpio() which we need to implement
- * the aspeed specific API which allows the coprocessor to request
- * access to some GPIOs and to arbitrate between coprocessor and ARM.
- */
-#include <linux/gpio/consumer.h>
-#include "gpiolib.h"
+#define MAX_NR_SGPIO			80
 
-struct aspeed_bank_props {
-	unsigned int bank;
-	u32 input;
-	u32 output;
-};
+#define ASPEED_SGPIO_CTRL		0x54
 
-struct aspeed_sgpio_config {
-	unsigned int nr_gpios;
-	const struct aspeed_bank_props *props;
-};
+#define ASPEED_SGPIO_PINS_MASK		GENMASK(9, 6)
+#define ASPEED_SGPIO_CLK_DIV_MASK	GENMASK(31, 16)
+#define ASPEED_SGPIO_ENABLE		BIT(0)
 
-struct aspeed_gpio {
+struct aspeed_sgpio {
 	struct gpio_chip chip;
-	struct irq_chip aspeed_sgpio_irqchip;
+	struct clk *pclk;
 	spinlock_t lock;
 	void __iomem *base;
+	uint32_t dir_in[3];
 	int irq;
-	const struct aspeed_sgpio_config *config;
-
-	unsigned int timer_users[4];
-	struct clk *clk;
-
-	u32 *dcache;
 };
 
 struct aspeed_sgpio_bank {
-	uint16_t	val_regs;	/* +0: Rd: read input value, Wr: set write latch
-					 * +4: Rd/Wr: Direction (0=in, 1=out)
-					 */
-	uint16_t	rdata_reg;	/*     Rd: read write latch, Wr: <none>  */
-	uint16_t	irq_regs;
-	uint16_t	tolerance_regs;
-	const char	names[4][3];
+	uint16_t    val_regs;
+	uint16_t    rdata_reg;
+	uint16_t    irq_regs;
+	uint16_t    tolerance_regs;
+	const char  names[4][3];
 };
 
 /*
- * Note: The "value" register returns the input value sampled on the
- *       line even when the GPIO is configured as an output. Since
- *       that input goes through synchronizers, writing, then reading
- *       back may not return the written value right away.
+ * Note: The "value" register returns the input value when the GPIO is
+ *	 configured as an input.
  *
- *       The "rdata" register returns the content of the write latch
- *       and thus can be used to read back what was last written
- *       reliably.
+ *	 The "rdata" register returns the output value when the GPIO is
+ *	 configured as an output.
  */
-
 static const struct aspeed_sgpio_bank aspeed_sgpio_banks[] = {
 	{
 		.val_regs = 0x0000,
@@ -92,16 +67,15 @@ static const struct aspeed_sgpio_bank aspeed_sgpio_banks[] = {
 	{
 		.val_regs = 0x0038,
 		.rdata_reg = 0x0078,
-		.irq_regs = 0x003c,
+		.irq_regs = 0x003C,
 		.tolerance_regs = 0x0050,
-		.names = { "I", "J", "", "" },
+		.names = { "I", "J" },
 	},
 };
 
 enum aspeed_sgpio_reg {
 	reg_val,
 	reg_rdata,
-	reg_dir,
 	reg_irq_enable,
 	reg_irq_type0,
 	reg_irq_type1,
@@ -110,17 +84,15 @@ enum aspeed_sgpio_reg {
 	reg_tolerance,
 };
 
-#define GPIO_VAL_VALUE	0x00
-#define GPIO_VAL_DIR	0x04
+#define GPIO_VAL_VALUE      0x00
+#define GPIO_IRQ_ENABLE     0x00
+#define GPIO_IRQ_TYPE0      0x04
+#define GPIO_IRQ_TYPE1      0x08
+#define GPIO_IRQ_TYPE2      0x0C
+#define GPIO_IRQ_STATUS     0x10
+#define GPIO_RESET_TOLERANT	0x18
 
-#define GPIO_IRQ_ENABLE	0x00
-#define GPIO_IRQ_TYPE0	0x04
-#define GPIO_IRQ_TYPE1	0x08
-#define GPIO_IRQ_TYPE2	0x0c
-#define GPIO_IRQ_STATUS	0x10
-
-/* This will be resolved at compile time */
-static inline void __iomem *bank_reg(struct aspeed_gpio *gpio,
+static void __iomem *bank_reg(struct aspeed_sgpio *gpio,
 				     const struct aspeed_sgpio_bank *bank,
 				     const enum aspeed_sgpio_reg reg)
 {
@@ -129,8 +101,6 @@ static inline void __iomem *bank_reg(struct aspeed_gpio *gpio,
 		return gpio->base + bank->val_regs + GPIO_VAL_VALUE;
 	case reg_rdata:
 		return gpio->base + bank->rdata_reg;
-	case reg_dir:
-		return gpio->base + bank->val_regs + GPIO_VAL_DIR;
 	case reg_irq_enable:
 		return gpio->base + bank->irq_regs + GPIO_IRQ_ENABLE;
 	case reg_irq_type0:
@@ -142,14 +112,16 @@ static inline void __iomem *bank_reg(struct aspeed_gpio *gpio,
 	case reg_irq_status:
 		return gpio->base + bank->irq_regs + GPIO_IRQ_STATUS;
 	case reg_tolerance:
-		return gpio->base + bank->tolerance_regs;
+		return gpio->base + bank->tolerance_regs+ GPIO_RESET_TOLERANT;
+	default:
+		/* acturally if code runs to here, it's an error case */
+		BUG_ON(1);
 	}
-	BUG();
 }
 
-#define GPIO_BANK(x)	((x) >> 5)
-#define GPIO_OFFSET(x)	((x) & 0x1f)
-#define GPIO_BIT(x)	BIT(GPIO_OFFSET(x))
+#define GPIO_BANK(x)    ((x) >> 5)
+#define GPIO_OFFSET(x)  ((x) & 0x1f)
+#define GPIO_BIT(x)     BIT(GPIO_OFFSET(x))
 
 static const struct aspeed_sgpio_bank *to_bank(unsigned int offset)
 {
@@ -159,132 +131,76 @@ static const struct aspeed_sgpio_bank *to_bank(unsigned int offset)
 	return &aspeed_sgpio_banks[bank];
 }
 
-static inline bool is_bank_props_sentinel(const struct aspeed_bank_props *props)
-{
-	return !(props->input || props->output);
-}
-
-static inline const struct aspeed_bank_props *find_bank_props(
-		struct aspeed_gpio *gpio, unsigned int offset)
-{
-	const struct aspeed_bank_props *props = gpio->config->props;
-
-	while (!is_bank_props_sentinel(props)) {
-		if (props->bank == GPIO_BANK(offset))
-			return props;
-		props++;
-	}
-
-	return NULL;
-}
-
-static inline bool have_gpio(struct aspeed_gpio *gpio, unsigned int offset)
-{
-	const struct aspeed_bank_props *props = find_bank_props(gpio, offset);
-	const struct aspeed_sgpio_bank *bank = to_bank(offset);
-	unsigned int group = GPIO_OFFSET(offset) / 8;
-
-	return bank->names[group][0] != '\0' &&
-		(!props || ((props->input | props->output) & GPIO_BIT(offset)));
-}
-
-static inline bool have_input(struct aspeed_gpio *gpio, unsigned int offset)
-{
-	const struct aspeed_bank_props *props = find_bank_props(gpio, offset);
-
-	return !props || (props->input & GPIO_BIT(offset));
-}
-
-#define have_irq(g, o) have_input((g), (o))
-#define have_debounce(g, o) have_input((g), (o))
-
-static inline bool have_output(struct aspeed_gpio *gpio, unsigned int offset)
-{
-	const struct aspeed_bank_props *props = find_bank_props(gpio, offset);
-
-	return !props || (props->output & GPIO_BIT(offset));
-}
-
 static int aspeed_sgpio_get(struct gpio_chip *gc, unsigned int offset)
 {
-	struct aspeed_gpio *gpio = gpiochip_get_data(gc);
+	struct aspeed_sgpio *gpio = gpiochip_get_data(gc);
 	const struct aspeed_sgpio_bank *bank = to_bank(offset);
+	unsigned long flags;
+	enum aspeed_sgpio_reg reg;
+	bool is_input;
+	int rc = 0;
 
-	return !!(ioread32(bank_reg(gpio, bank, reg_val)) & GPIO_BIT(offset));
+	spin_lock_irqsave(&gpio->lock, flags);
+
+	is_input = gpio->dir_in[GPIO_BANK(offset)] & GPIO_BIT(offset);
+	reg = is_input ? reg_val : reg_rdata;
+	rc = !!(ioread32(bank_reg(gpio, bank, reg)) & GPIO_BIT(offset));
+
+	spin_unlock_irqrestore(&gpio->lock, flags);
+
+	return rc;
 }
 
-static void __aspeed_sgpio_set(struct gpio_chip *gc, unsigned int offset,
-			      int val)
+static void sgpio_set_value(struct gpio_chip *gc, unsigned int offset, int val)
 {
-	struct aspeed_gpio *gpio = gpiochip_get_data(gc);
+	struct aspeed_sgpio *gpio = gpiochip_get_data(gc);
 	const struct aspeed_sgpio_bank *bank = to_bank(offset);
 	void __iomem *addr;
-	u32 reg;
+	u32 reg = 0;
+
 
 	addr = bank_reg(gpio, bank, reg_val);
-	reg = gpio->dcache[GPIO_BANK(offset)];
+	reg = ioread32(addr);
 
 	if (val)
 		reg |= GPIO_BIT(offset);
 	else
 		reg &= ~GPIO_BIT(offset);
-	gpio->dcache[GPIO_BANK(offset)] = reg;
 
 	iowrite32(reg, addr);
 }
 
-static void aspeed_sgpio_set(struct gpio_chip *gc, unsigned int offset,
-			    int val)
+static void aspeed_sgpio_set(struct gpio_chip *gc, unsigned int offset, int val)
 {
-	struct aspeed_gpio *gpio = gpiochip_get_data(gc);
+	struct aspeed_sgpio *gpio = gpiochip_get_data(gc);
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpio->lock, flags);
-	__aspeed_sgpio_set(gc, offset, val);
+
+	sgpio_set_value(gc, offset, val);
 	spin_unlock_irqrestore(&gpio->lock, flags);
 }
 
 static int aspeed_sgpio_dir_in(struct gpio_chip *gc, unsigned int offset)
 {
-	struct aspeed_gpio *gpio = gpiochip_get_data(gc);
-	const struct aspeed_sgpio_bank *bank = to_bank(offset);
-	void __iomem *addr = bank_reg(gpio, bank, reg_dir);
+	struct aspeed_sgpio *gpio = gpiochip_get_data(gc);
 	unsigned long flags;
-	u32 reg;
-
-	if (!have_input(gpio, offset))
-		return -ENOTSUPP;
 
 	spin_lock_irqsave(&gpio->lock, flags);
-
-	reg = ioread32(addr);
-	reg &= ~GPIO_BIT(offset);
-
+	gpio->dir_in[GPIO_BANK(offset)] |= GPIO_BIT(offset);
 	spin_unlock_irqrestore(&gpio->lock, flags);
 
 	return 0;
 }
 
-static int aspeed_sgpio_dir_out(struct gpio_chip *gc,
-			       unsigned int offset, int val)
+static int aspeed_sgpio_dir_out(struct gpio_chip *gc, unsigned int offset, int val)
 {
-	struct aspeed_gpio *gpio = gpiochip_get_data(gc);
-	const struct aspeed_sgpio_bank *bank = to_bank(offset);
-	void __iomem *addr = bank_reg(gpio, bank, reg_dir);
+	struct aspeed_sgpio *gpio = gpiochip_get_data(gc);
 	unsigned long flags;
-	u32 reg;
-
-	if (!have_output(gpio, offset))
-		return -ENOTSUPP;
 
 	spin_lock_irqsave(&gpio->lock, flags);
-
-	reg = ioread32(addr);
-	reg |= GPIO_BIT(offset);
-
-	__aspeed_sgpio_set(gc, offset, val);
-	iowrite32(reg, addr);
-
+	gpio->dir_in[GPIO_BANK(offset)] &= ~GPIO_BIT(offset);
+	sgpio_set_value(gc, offset, val);
 	spin_unlock_irqrestore(&gpio->lock, flags);
 
 	return 0;
@@ -292,61 +208,44 @@ static int aspeed_sgpio_dir_out(struct gpio_chip *gc,
 
 static int aspeed_sgpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 {
-	struct aspeed_gpio *gpio = gpiochip_get_data(gc);
-	const struct aspeed_sgpio_bank *bank = to_bank(offset);
+	int dir_status;
+	struct aspeed_sgpio *gpio = gpiochip_get_data(gc);
 	unsigned long flags;
-	u32 val;
-
-	if (!have_input(gpio, offset))
-		return 0;
-
-	if (!have_output(gpio, offset))
-		return 1;
 
 	spin_lock_irqsave(&gpio->lock, flags);
-
-	val = ioread32(bank_reg(gpio, bank, reg_dir)) & GPIO_BIT(offset);
-
+	dir_status = gpio->dir_in[GPIO_BANK(offset)] & GPIO_BIT(offset);
 	spin_unlock_irqrestore(&gpio->lock, flags);
 
-	return !val;
+	return dir_status;
 
 }
 
-static inline int irqd_to_aspeed_sgpio_data(struct irq_data *d,
-					   struct aspeed_gpio **gpio,
-					   const struct aspeed_sgpio_bank **bank,
-					   u32 *bit, int *offset)
+static void irqd_to_aspeed_sgpio_data(struct irq_data *d,
+					struct aspeed_sgpio **gpio,
+					const struct aspeed_sgpio_bank **bank,
+					u32 *bit, int *offset)
 {
-	struct aspeed_gpio *internal;
+	struct aspeed_sgpio *internal;
 
 	*offset = irqd_to_hwirq(d);
-
 	internal = irq_data_get_irq_chip_data(d);
-
-	/* This might be a bit of a questionable place to check */
-	if (!have_irq(internal, *offset))
-		return -ENOTSUPP;
+	WARN_ON(!internal);
 
 	*gpio = internal;
 	*bank = to_bank(*offset);
 	*bit = GPIO_BIT(*offset);
-
-	return 0;
 }
 
 static void aspeed_sgpio_irq_ack(struct irq_data *d)
 {
 	const struct aspeed_sgpio_bank *bank;
-	struct aspeed_gpio *gpio;
+	struct aspeed_sgpio *gpio;
 	unsigned long flags;
 	void __iomem *status_addr;
-	int rc, offset;
+	int offset;
 	u32 bit;
 
-	rc = irqd_to_aspeed_sgpio_data(d, &gpio, &bank, &bit, &offset);
-	if (rc)
-		return;
+	irqd_to_aspeed_sgpio_data(d, &gpio, &bank, &bit, &offset);
 
 	status_addr = bank_reg(gpio, bank, reg_irq_status);
 
@@ -360,16 +259,13 @@ static void aspeed_sgpio_irq_ack(struct irq_data *d)
 static void aspeed_sgpio_irq_set_mask(struct irq_data *d, bool set)
 {
 	const struct aspeed_sgpio_bank *bank;
-	struct aspeed_gpio *gpio;
+	struct aspeed_sgpio *gpio;
 	unsigned long flags;
 	u32 reg, bit;
 	void __iomem *addr;
-	int rc, offset;
+	int offset;
 
-	rc = irqd_to_aspeed_sgpio_data(d, &gpio, &bank, &bit, &offset);
-	if (rc)
-		return;
-
+	irqd_to_aspeed_sgpio_data(d, &gpio, &bank, &bit, &offset);
 	addr = bank_reg(gpio, bank, reg_irq_enable);
 
 	spin_lock_irqsave(&gpio->lock, flags);
@@ -402,14 +298,12 @@ static int aspeed_sgpio_set_type(struct irq_data *d, unsigned int type)
 	u32 bit, reg;
 	const struct aspeed_sgpio_bank *bank;
 	irq_flow_handler_t handler;
-	struct aspeed_gpio *gpio;
+	struct aspeed_sgpio *gpio;
 	unsigned long flags;
 	void __iomem *addr;
-	int rc, offset;
+	int offset;
 
-	rc = irqd_to_aspeed_sgpio_data(d, &gpio, &bank, &bit, &offset);
-	if (rc)
-		return -EINVAL;
+	irqd_to_aspeed_sgpio_data(d, &gpio, &bank, &bit, &offset);
 
 	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_EDGE_BOTH:
@@ -460,7 +354,7 @@ static void aspeed_sgpio_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct irq_chip *ic = irq_desc_get_chip(desc);
-	struct aspeed_gpio *data = gpiochip_get_data(gc);
+	struct aspeed_sgpio *data = gpiochip_get_data(gc);
 	unsigned int i, p, girq;
 	unsigned long reg;
 
@@ -475,56 +369,63 @@ static void aspeed_sgpio_irq_handler(struct irq_desc *desc)
 			girq = irq_find_mapping(gc->irq.domain, i * 32 + p);
 			generic_handle_irq(girq);
 		}
+		iowrite32(reg, bank_reg(data, bank, reg_irq_status));
 
 	}
 
 	chained_irq_exit(ic, desc);
 }
 
-static void set_irq_valid_mask(struct aspeed_gpio *gpio)
+static struct irq_chip aspeed_sgpio_irqchip = {
+	.name       = "aspeed-sgpiom",
+	.irq_ack    = aspeed_sgpio_irq_ack,
+	.irq_mask   = aspeed_sgpio_irq_mask,
+	.irq_unmask = aspeed_sgpio_irq_unmask,
+	.irq_set_type   = aspeed_sgpio_set_type,
+};
+
+static int aspeed_sgpio_setup_irqs(struct aspeed_sgpio *gpio,
+				   struct platform_device *pdev)
 {
-	const struct aspeed_bank_props *props = gpio->config->props;
-
-	while (!is_bank_props_sentinel(props)) {
-		unsigned int offset;
-		const unsigned long int input = props->input;
-
-		/* Pretty crummy approach, but similar to GPIO core */
-		for_each_clear_bit(offset, &input, 32) {
-			unsigned int i = props->bank * 32 + offset;
-
-			if (i >= gpio->config->nr_gpios)
-				break;
-
-			clear_bit(i, gpio->chip.irq.valid_mask);
-		}
-
-		props++;
-	}
-}
-
-static int aspeed_sgpio_setup_irqs(struct aspeed_gpio *gpio,
-		struct platform_device *pdev)
-{
-	int rc;
-
+	int rc, i;
+	const struct aspeed_sgpio_bank *bank;
+	struct gpio_irq_chip *irq;
 	rc = platform_get_irq(pdev, 0);
 	if (rc < 0)
 		return rc;
 
 	gpio->irq = rc;
 
-	set_irq_valid_mask(gpio);
-
-	rc = gpiochip_irqchip_add(&gpio->chip, &gpio->aspeed_sgpio_irqchip,
-			0, handle_bad_irq, IRQ_TYPE_NONE);
-	if (rc) {
-		dev_info(&pdev->dev, "Could not add irqchip\n");
-		return rc;
+	/* Disable IRQ and clear Interrupt status registers for all SPGIO Pins. */
+	for (i = 0; i < ARRAY_SIZE(aspeed_sgpio_banks); i++) {
+		bank =  &aspeed_sgpio_banks[i];
+		/* disable irq enable bits */
+		iowrite32(0x00000000, bank_reg(gpio, bank, reg_irq_enable));
+		/* clear status bits */
+		iowrite32(0xffffffff, bank_reg(gpio, bank, reg_irq_status));
 	}
 
-	gpiochip_set_chained_irqchip(&gpio->chip, &gpio->aspeed_sgpio_irqchip,
-				     gpio->irq, aspeed_sgpio_irq_handler);
+	irq = &gpio->chip.irq;
+	irq->chip = &aspeed_sgpio_irqchip;
+	irq->handler = handle_bad_irq;
+	irq->default_type = IRQ_TYPE_NONE;
+	irq->parent_handler = aspeed_sgpio_irq_handler;
+	irq->parent_handler_data = gpio;
+	irq->parents = &gpio->irq;
+	irq->num_parents = 1;
+
+	/* set IRQ settings and Enable Interrupt */
+	for (i = 0; i < ARRAY_SIZE(aspeed_sgpio_banks); i++) {
+		bank = &aspeed_sgpio_banks[i];
+		/* set falling or level-low irq */
+		iowrite32(0x00000000, bank_reg(gpio, bank, reg_irq_type0));
+		/* trigger type is edge */
+		iowrite32(0x00000000, bank_reg(gpio, bank, reg_irq_type1));
+		/* dual edge trigger mode. */
+		iowrite32(0x00000000, bank_reg(gpio, bank, reg_irq_type2));
+		/* enable irq */
+//		iowrite32(0xffffffff, bank_reg(gpio, bank, reg_irq_enable));
+	}
 
 	return 0;
 }
@@ -532,40 +433,27 @@ static int aspeed_sgpio_setup_irqs(struct aspeed_gpio *gpio,
 static int aspeed_sgpio_reset_tolerance(struct gpio_chip *chip,
 					unsigned int offset, bool enable)
 {
-	struct aspeed_gpio *gpio = gpiochip_get_data(chip);
+	struct aspeed_sgpio *gpio = gpiochip_get_data(chip);
 	unsigned long flags;
-	void __iomem *treg;
+	void __iomem *reg;
 	u32 val;
 
-	treg = bank_reg(gpio, to_bank(offset), reg_tolerance);
+	reg = bank_reg(gpio, to_bank(offset), reg_tolerance);
 
 	spin_lock_irqsave(&gpio->lock, flags);
 
-	val = readl(treg);
+	val = readl(reg);
 
 	if (enable)
 		val |= GPIO_BIT(offset);
 	else
 		val &= ~GPIO_BIT(offset);
 
-	writel(val, treg);
+	writel(val, reg);
 
 	spin_unlock_irqrestore(&gpio->lock, flags);
 
 	return 0;
-}
-
-static int aspeed_sgpio_request(struct gpio_chip *chip, unsigned int offset)
-{
-	if (!have_gpio(gpiochip_get_data(chip), offset))
-		return -ENODEV;
-
-	return pinctrl_gpio_request(chip->base + offset);
-}
-
-static void aspeed_sgpio_free(struct gpio_chip *chip, unsigned int offset)
-{
-	pinctrl_gpio_free(chip->base + offset);
 }
 
 static int aspeed_sgpio_set_config(struct gpio_chip *chip, unsigned int offset,
@@ -574,142 +462,107 @@ static int aspeed_sgpio_set_config(struct gpio_chip *chip, unsigned int offset,
 	unsigned long param = pinconf_to_config_param(config);
 	u32 arg = pinconf_to_config_argument(config);
 
-	if (param == PIN_CONFIG_BIAS_DISABLE ||
-			param == PIN_CONFIG_BIAS_PULL_DOWN ||
-			param == PIN_CONFIG_DRIVE_STRENGTH)
-		return pinctrl_gpio_set_config(offset, config);
-	else if (param == PIN_CONFIG_DRIVE_OPEN_DRAIN ||
-			param == PIN_CONFIG_DRIVE_OPEN_SOURCE)
-		/* Return -ENOTSUPP to trigger emulation, as per datasheet */
-		return -ENOTSUPP;
-	else if (param == PIN_CONFIG_PERSIST_STATE)
+	if (param == PIN_CONFIG_PERSIST_STATE)
 		return aspeed_sgpio_reset_tolerance(chip, offset, arg);
-
-	return -ENOTSUPP;
+	else
+		return -ENOTSUPP;
 }
 
-/*
- * Any banks not specified in a struct aspeed_bank_props array are assumed to
- * have the properties:
- *
- *     { .input = 0xffffffff, .output = 0xffffffff }
- */
-
-static const struct aspeed_bank_props ast2400_bank_props[] = {
-	/*     input	  output   */
-	{ 5, 0xffffffff, 0x0000ffff }, /* U/V/W/X */
-	{ 6, 0x0000000f, 0x0fffff0f }, /* Y/Z/AA/AB, two 4-GPIO holes */
-	{ },
-};
-
-static const struct aspeed_sgpio_config ast2400_config =
-	/* 220 for simplicity, really 216 with two 4-GPIO holes, four at end */
-	{ .nr_gpios = 80, .props = ast2400_bank_props, };
-
-static const struct aspeed_bank_props ast2500_bank_props[] = {
-	/*     input	  output   */
-	{ 5, 0xffffffff, 0x0000ffff }, /* U/V/W/X */
-	{ 6, 0x0fffffff, 0x0fffffff }, /* Y/Z/AA/AB, 4-GPIO hole */
-	{ },
-};
-
-static const struct aspeed_sgpio_config ast2500_config =
-	/* 232 for simplicity, actual number is 228 (4-GPIO hole in GPIOAB) */
-	{ .nr_gpios = 80, .props = ast2500_bank_props, };
-
-static const struct aspeed_bank_props ast2600_bank_props[] = {
-	/*     input	  output   */
-	{ 5, 0xffffffff, 0x0000ffff }, /* U/V/W/X */
-	{ 6, 0x0000ffff, 0x0000ffff }, /* Y/Z */
-	{ },
-};
-
-static const struct aspeed_sgpio_config ast2600_config =
-	/* 182 for simplicity, actual number is xx (4-GPIO hole in GPIOAB) */
-	{ .nr_gpios = 80, .props = ast2600_bank_props, };
-
-
 static const struct of_device_id aspeed_sgpio_of_table[] = {
-	{ .compatible = "aspeed,ast2400-sgpio", .data = &ast2400_config, },
-	{ .compatible = "aspeed,ast2500-sgpio", .data = &ast2500_config, },
-	{ .compatible = "aspeed,ast2600-sgpio", .data = &ast2600_config, },
+	{ .compatible = "aspeed,ast2400-sgpiom" },
+	{ .compatible = "aspeed,ast2500-sgpiom" },
+	{ .compatible = "aspeed,ast2600-sgpiom" },
 	{}
 };
+
 MODULE_DEVICE_TABLE(of, aspeed_sgpio_of_table);
 
 static int __init aspeed_sgpio_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *gpio_id;
-	struct aspeed_gpio *gpio;
-	struct resource *res;
-	int rc, i, banks;
+	struct aspeed_sgpio *gpio;
+	u32 nr_gpios, sgpio_freq, sgpio_clk_div;
+	int rc;
+	unsigned long apb_freq;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	gpio->base = devm_ioremap_resource(&pdev->dev, res);
+	gpio->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpio->base))
 		return PTR_ERR(gpio->base);
 
-	spin_lock_init(&gpio->lock);
-
-	gpio_id = of_match_node(aspeed_sgpio_of_table, pdev->dev.of_node);
-	if (!gpio_id)
+	rc = of_property_read_u32(pdev->dev.of_node, "ngpios", &nr_gpios);
+	if (rc < 0) {
+		dev_err(&pdev->dev, "Could not read ngpios property\n");
 		return -EINVAL;
-
-	gpio->clk = of_clk_get(pdev->dev.of_node, 0);
-	if (IS_ERR(gpio->clk)) {
-		dev_warn(&pdev->dev,
-				"Failed to get clock from devicetree, debouncing disabled\n");
-		gpio->clk = NULL;
+	} else if (nr_gpios > MAX_NR_SGPIO) {
+		dev_err(&pdev->dev, "Number of GPIOs exceeds the maximum of %d: %d\n",
+			MAX_NR_SGPIO, nr_gpios);
+		return -EINVAL;
 	}
 
-	gpio->config = gpio_id->data;
+	rc = of_property_read_u32(pdev->dev.of_node, "bus-frequency", &sgpio_freq);
+	if (rc < 0) {
+		dev_err(&pdev->dev, "Could not read bus-frequency property\n");
+		return -EINVAL;
+	}
+
+	gpio->pclk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(gpio->pclk)) {
+		dev_err(&pdev->dev, "devm_clk_get failed\n");
+		return PTR_ERR(gpio->pclk);
+	}
+
+	apb_freq = clk_get_rate(gpio->pclk);
+
+	/*
+	 * From the datasheet,
+	 *	SGPIO period = 1/PCLK * 2 * (GPIO254[31:16] + 1)
+	 *	period = 2 * (GPIO254[31:16] + 1) / PCLK
+	 *	frequency = 1 / (2 * (GPIO254[31:16] + 1) / PCLK)
+	 *	frequency = PCLK / (2 * (GPIO254[31:16] + 1))
+	 *	frequency * 2 * (GPIO254[31:16] + 1) = PCLK
+	 *	GPIO254[31:16] = PCLK / (frequency * 2) - 1
+	 */
+	if (sgpio_freq == 0)
+		return -EINVAL;
+
+	sgpio_clk_div = (apb_freq / (sgpio_freq * 2)) - 1;
+
+	if (sgpio_clk_div > (1 << 16) - 1)
+		return -EINVAL;
+
+	iowrite32(FIELD_PREP(ASPEED_SGPIO_CLK_DIV_MASK, sgpio_clk_div) |
+		  FIELD_PREP(ASPEED_SGPIO_PINS_MASK, (nr_gpios / 8)) |
+		  ASPEED_SGPIO_ENABLE,
+		  gpio->base + ASPEED_SGPIO_CTRL);
+
+	spin_lock_init(&gpio->lock);
 
 	gpio->chip.parent = &pdev->dev;
-	gpio->chip.ngpio = gpio->config->nr_gpios;
+	gpio->chip.ngpio = nr_gpios;
 	gpio->chip.direction_input = aspeed_sgpio_dir_in;
 	gpio->chip.direction_output = aspeed_sgpio_dir_out;
 	gpio->chip.get_direction = aspeed_sgpio_get_direction;
-	gpio->chip.request = aspeed_sgpio_request;
-	gpio->chip.free = aspeed_sgpio_free;
+	gpio->chip.request = NULL;
+	gpio->chip.free = NULL;
 	gpio->chip.get = aspeed_sgpio_get;
 	gpio->chip.set = aspeed_sgpio_set;
 	gpio->chip.set_config = aspeed_sgpio_set_config;
 	gpio->chip.label = dev_name(&pdev->dev);
 	gpio->chip.base = -1;
-	gpio->chip.irq.need_valid_mask = true;
 
-	gpio->aspeed_sgpio_irqchip.name = pdev->name;
-	gpio->aspeed_sgpio_irqchip.irq_ack = aspeed_sgpio_irq_ack;
-	gpio->aspeed_sgpio_irqchip.irq_mask	= aspeed_sgpio_irq_mask;
-	gpio->aspeed_sgpio_irqchip.irq_unmask = aspeed_sgpio_irq_unmask,
-	gpio->aspeed_sgpio_irqchip.irq_set_type	= aspeed_sgpio_set_type;
+	/* set all SGPIO pins as input (1). */
+	memset(gpio->dir_in, 0xff, sizeof(gpio->dir_in));
 
-	/* Allocate a cache of the output registers */
-	banks = gpio->config->nr_gpios >> 5;
-	gpio->dcache = devm_kcalloc(&pdev->dev,
-				    banks, sizeof(u32), GFP_KERNEL);
-	if (!gpio->dcache)
-		return -ENOMEM;
-
-	/*
-	 * Populate it with initial values read from the HW and switch
-	 * all command sources to the ARM by default
-	 */
-	for (i = 0; i < banks; i++) {
-		const struct aspeed_sgpio_bank *bank = &aspeed_sgpio_banks[i];
-		void __iomem *addr = bank_reg(gpio, bank, reg_rdata);
-		gpio->dcache[i] = ioread32(addr);
-	}
+	aspeed_sgpio_setup_irqs(gpio, pdev);
 
 	rc = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 	if (rc < 0)
 		return rc;
 
-	return aspeed_sgpio_setup_irqs(gpio, pdev);
+	return 0;
 }
 
 static struct platform_driver aspeed_sgpio_driver = {
@@ -720,6 +573,5 @@ static struct platform_driver aspeed_sgpio_driver = {
 };
 
 module_platform_driver_probe(aspeed_sgpio_driver, aspeed_sgpio_probe);
-
-MODULE_DESCRIPTION("Aspeed GPIO Driver");
+MODULE_DESCRIPTION("Aspeed Serial GPIO Driver");
 MODULE_LICENSE("GPL");

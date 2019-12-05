@@ -19,17 +19,3 @@
 	};
 
 };
-
-&spi0 {
-        status = "okay";
-        flash: m25p80@0 {
-                compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
-                reg = <0x0>;
-                #address-cells = <0x1>;
-                #size-cells = <0x1>;
-                spi-max-frequency = <50000000>;
-                m25p,fast-read;
-#include "openbmc-flash-layout.dtsi"
-        };
-};
-

@@ -28,6 +28,9 @@
 #include <asm/byteorder.h>
 #include <asm/memory.h>
 #include <asm-generic/pci_iomap.h>
+#if defined(CONFIG_PCI) && defined(CONFIG_PCIE_ASPEED)
+#include <linux/aspeed_pcie_io.h>
+#endif
 
 /*
  * ISA I/O bus memory addresses are 1:1 with the physical address.
@@ -253,6 +256,10 @@ void __iomem *pci_remap_cfgspace(resource_size_t res_cookie, size_t size);
  * The {in,out}[bwl] macros are for emulating x86-style PCI/ISA IO space.
  */
 #ifdef __io
+#if defined(CONFIG_PCI) && defined(CONFIG_PCIE_ASPEED)
+#define outb(v,p)	aspeed_pcie_outb(v,p)
+#define inb(p)	aspeed_pcie_inb(p)
+#else
 #define outb(v,p)	({ __iowmb(); __raw_writeb(v,__io(p)); })
 #define outw(v,p)	({ __iowmb(); __raw_writew((__force __u16) \
 					cpu_to_le16(v),__io(p)); })
@@ -272,6 +279,7 @@ void __iomem *pci_remap_cfgspace(resource_size_t res_cookie, size_t size);
 #define insb(p,d,l)		__raw_readsb(__io(p),d,l)
 #define insw(p,d,l)		__raw_readsw(__io(p),d,l)
 #define insl(p,d,l)		__raw_readsl(__io(p),d,l)
+#endif
 #endif
 
 /*

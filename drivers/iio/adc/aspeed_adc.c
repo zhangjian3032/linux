@@ -307,7 +307,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	if (ret)
 		goto clk_enable_error;
 
-	adc_engine_control_reg_val = GENMASK(31, 16) |
+	adc_engine_control_reg_val = eng_ctrl | GENMASK(31, 16) |
 		ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE;
 	writel(adc_engine_control_reg_val,
 		data->base + ASPEED_REG_ENGINE_CONTROL);
@@ -376,7 +376,7 @@ static const struct aspeed_adc_model_data ast2500_model_data = {
 };
 
 static const struct aspeed_adc_model_data ast2600_model_data = {
-	.model_name = "ast2500-adc",
+	.model_name = "ast2600-adc",
 	.vref_voltage = 1800, // mV --> can be 1.2v or 2.5 or ext 1.55~2.7v, 0.9v ~1.65v
 	.min_sampling_rate = 1,
 	.max_sampling_rate = 1000000,

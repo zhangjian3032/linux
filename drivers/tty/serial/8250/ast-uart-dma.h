@@ -103,7 +103,7 @@ struct ast_sdma_info {
 	ast_uart_dma_cbfn_t	 callback_fn;	/* buffer done callback */
 };
 
-#define AST_UART_SDMA_CH 		12
+#define AST_UART_SDMA_CH 		14
 
 struct ast_sdma_ch {
 	struct ast_sdma_info tx_dma_info[AST_UART_SDMA_CH];

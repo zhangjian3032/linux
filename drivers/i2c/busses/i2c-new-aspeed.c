@@ -25,6 +25,7 @@
 #include <linux/regmap.h>
 #include <linux/of_device.h>
 #include <linux/dma-mapping.h>
+#include "regs-ast2600-i2c-global.h"
 
 /***************************************************************************/
 //AST2600 reg
@@ -140,6 +141,8 @@
 #define AST_I2CS_IER			0x20	/* 0x20 : I2CS Slave Interrupt Control Register   */
 #define AST_I2CS_ISR			0x24	/* 0x24 : I2CS Slave Interrupt Status Register   */
 
+#define AST_I2CS_ADDR_INDICAT_MASK	(3 << 30)
+
 #define AST_I2CS_Wait_TX_DMA		BIT(25)
 #define AST_I2CS_Wait_RX_DMA		BIT(24)
 
@@ -148,6 +151,7 @@
 #define AST_I2CS_ADDR2_NAK			BIT(21)
 #define AST_I2CS_ADDR1_NAK			BIT(20)
 
+#define AST_I2CS_ADDR_MASK			(3 << 18)
 #define AST_I2CS_PKT_ERROR			BIT(17)
 #define AST_I2CS_PKT_DONE			BIT(16)
 #define AST_I2CS_INACTIVE_TO		BIT(15)
@@ -748,7 +752,7 @@ static int aspeed_i2c_wait_bus_not_busy(struct aspeed_new_i2c_bus *i2c_bus)
 	while (aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF) & AST_I2CC_BUS_BUSY_STS) {
 		if (timeout <= 0) {
 			dev_dbg(i2c_bus->dev, "%d-bus busy %x \n", i2c_bus->adap.nr,
-				aspeed_i2c_read(i2c_bus, AST_I2CM_CMD_STS));
+				aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
 			aspeed_i2c_bus_error_recover(i2c_bus);
 			return -EAGAIN;
 		}
@@ -788,6 +792,8 @@ int aspeed_new_i2c_slave_handler(struct aspeed_new_i2c_bus *i2c_bus)
 	if (!sts) return 0;
 	dev_dbg(i2c_bus->dev, "slave irq sts %x\n", sts);
 
+	sts &= ~AST_I2CS_ADDR_INDICAT_MASK;
+
 	if (AST_I2CS_ADDR1_NAK & sts) {
 		sts &= ~AST_I2CS_ADDR1_NAK;
 		isr_wc |= AST_I2CS_ADDR1_NAK;
@@ -801,6 +807,11 @@ int aspeed_new_i2c_slave_handler(struct aspeed_new_i2c_bus *i2c_bus)
 	if (AST_I2CS_ADDR1_NAK & sts) {
 		sts &= ~AST_I2CS_ADDR2_NAK;
 		isr_wc |= AST_I2CS_ADDR2_NAK;
+	}
+
+	if (AST_I2CS_ADDR_MASK & sts) {
+		sts &= ~AST_I2CS_ADDR_MASK;
+		isr_wc |= AST_I2CS_ADDR_MASK;
 	}
 
 	if (AST_I2CS_PKT_DONE & sts) {
@@ -817,7 +828,7 @@ int aspeed_new_i2c_slave_handler(struct aspeed_new_i2c_bus *i2c_bus)
 				}
 				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);				
 				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), AST_I2CS_DMA_LEN);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_PKT_MODE_EN | AST_I2CS_RX_DMA_EN, AST_I2CS_CMD_STS);
+				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_RX_DMA_EN, AST_I2CS_CMD_STS);
 				break;
 			//it is Mw data Mr coming -> it need send tx
 			case AST_I2CS_SLAVE_MATCH | AST_I2CS_RX_DONE | AST_I2CS_Wait_TX_DMA:
@@ -834,16 +845,22 @@ int aspeed_new_i2c_slave_handler(struct aspeed_new_i2c_bus *i2c_bus)
 				dev_dbg(i2c_bus->dev, "tx : [%x]", i2c_bus->slave_dma_buf[0]);
 				aspeed_i2c_write(i2c_bus, 0, AST_I2CS_DMA_LEN_STS);				
 				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(0), AST_I2CS_DMA_LEN);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_PKT_MODE_EN | AST_I2CS_TX_DMA_EN, AST_I2CS_CMD_STS);
+				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_TX_DMA_EN, AST_I2CS_CMD_STS);
 				break;
 			case AST_I2CS_SLAVE_MATCH | AST_I2CS_Wait_TX_DMA:
 				//First Start read
 				dev_dbg(i2c_bus->dev, "S: AST_I2CS_SLAVE_MATCH | AST_I2CS_Wait_TX_DMA\n");
-				//one byte send back
+#ifdef CONFIG_I2C_SLAVE_EEPROM	//one byte send back
 				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &i2c_bus->slave_dma_buf[0]);
 				dev_dbg(i2c_bus->dev, "tx: [%x]\n", i2c_bus->slave_dma_buf[0]);
 				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(0), AST_I2CS_DMA_LEN);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_PKT_MODE_EN | AST_I2CS_TX_DMA_EN, AST_I2CS_CMD_STS);			
+#else
+				printk("TODO for other slave tx");
+				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &i2c_bus->slave_dma_buf[0]);
+				dev_dbg(i2c_bus->dev, "tx: [%x]\n", i2c_bus->slave_dma_buf[0]);
+//				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(slave_tx_len - 1), AST_I2CS_DMA_LEN);
+#endif
+				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_TX_DMA_EN, AST_I2CS_CMD_STS);			
 				break;	
 			case AST_I2CS_Wait_TX_DMA:
 				//it should be next start read 
@@ -852,7 +869,7 @@ int aspeed_new_i2c_slave_handler(struct aspeed_new_i2c_bus *i2c_bus)
 				dev_dbg(i2c_bus->dev, "tx : [%x]", i2c_bus->slave_dma_buf[0]);
 				aspeed_i2c_write(i2c_bus, 0, AST_I2CS_DMA_LEN_STS);
 				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(0), AST_I2CS_DMA_LEN);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_PKT_MODE_EN | AST_I2CS_TX_DMA_EN, AST_I2CS_CMD_STS); 		
+				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_TX_DMA_EN, AST_I2CS_CMD_STS); 		
 				break;
 			case AST_I2CS_TX_NAK | AST_I2CS_STOP:
 				//it just tx complete
@@ -861,7 +878,7 @@ int aspeed_new_i2c_slave_handler(struct aspeed_new_i2c_bus *i2c_bus)
 				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);
 				aspeed_i2c_write(i2c_bus, 0, AST_I2CS_DMA_LEN_STS);
 				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), AST_I2CS_DMA_LEN);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_PKT_MODE_EN | AST_I2CS_RX_DMA_EN, AST_I2CS_CMD_STS);
+				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_RX_DMA_EN, AST_I2CS_CMD_STS);
 				break;
 #if 0
 			case AST_I2CS_SLAVE_MATCH | AST_I2CS_Wait_RX_DMA:
@@ -1111,7 +1128,11 @@ int aspeed_new_i2c_master_handler(struct aspeed_new_i2c_bus *i2c_bus)
 				i2c_bus->cmd_err = AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP;
 				complete(&i2c_bus->cmd_complete);
 				break;
-
+			case AST_I2CM_PKT_ERROR | AST_I2CM_ARBIT_LOSS:
+				dev_dbg(i2c_bus->dev, "M AST_I2CM_PKT_ERROR | AST_I2CM_ARBIT_LOSS \n");
+				i2c_bus->cmd_err = AST_I2CM_PKT_ERROR | AST_I2CM_ARBIT_LOSS;
+				complete(&i2c_bus->cmd_complete);
+				break;
 			case AST_I2CM_TX_ACK | AST_I2CM_NORMAL_STOP:
 				dev_dbg(i2c_bus->dev,
 					"M clear isr: AST_I2CM_TX_ACK | AST_I2CM_NORMAL_STOP= %x\n",
@@ -1326,7 +1347,7 @@ static int aspeed_new_i2c_reg_slave(struct i2c_client *client)
 	aspeed_i2c_write(i2c_bus, AST_I2CS_AUTO_NAK_EN, AST_I2CS_CMD_STS);
 	dev_dbg(i2c_bus->dev, "aspeed_new_i2c_reg_slave cmd sts %x \n", aspeed_i2c_read(i2c_bus, AST_I2CS_CMD_STS));
 	aspeed_i2c_write(i2c_bus, AST_I2CC_SLAVE_EN | aspeed_i2c_read(i2c_bus, AST_I2CC_FUN_CTRL), AST_I2CC_FUN_CTRL);
-	aspeed_i2c_write(i2c_bus, AST_I2CS_PKT_MODE_EN | AST_I2CS_RX_DMA_EN, AST_I2CS_CMD_STS);
+	aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_RX_DMA_EN, AST_I2CS_CMD_STS);
 
 	i2c_bus->slave = client;
 
@@ -1394,12 +1415,12 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 	}
 
 	//get global control register
-	regmap_read(i2c_bus->global_reg, 0x0C, &global_ctrl);
+	regmap_read(i2c_bus->global_reg, ASPEED_I2CG_CTRL, &global_ctrl);
 
-	if(global_ctrl & BIT(1))
+	if(global_ctrl & ASPEED_I2CG_CTRL_NEW_CLK_DIV)
 		i2c_bus->clk_div_mode = 1;
 
-	if(!(global_ctrl & BIT(2))) {
+	if(!(global_ctrl & ASPEED_I2CG_CTRL_NEW_REG)) {
 		ret = -ENOENT;
 		dev_err(&pdev->dev, "i2c global is not set new mode\n");
 		goto free_mem;

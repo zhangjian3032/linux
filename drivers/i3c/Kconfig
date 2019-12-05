@@ -21,4 +21,8 @@ menuconfig I3C
 
 if I3C
 source "drivers/i3c/master/Kconfig"
+
+config I3C_CHARDEV
+        tristate "I3C device interface"
+
 endif # I3C

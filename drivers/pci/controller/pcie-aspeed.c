@@ -39,6 +39,8 @@
 #include <linux/platform_device.h>
 #include <linux/irqchip/chained_irq.h>
 
+#include <linux/aspeed_pcie_io.h>
+
 #include "../pci.h"
 
 //#include "pcie-aspeed.h"
@@ -47,7 +49,7 @@
 #define MAX_LEGACY_IRQS			4
 #define MAX_MSI_HOST_IRQS		64
 
-
+//#define H2X_RC_L
 /* H2X Controller registers */
 
 /* reg 0x24 */
@@ -108,20 +110,6 @@
 /*	AST_PCIE_LINK			0xC0	*/
 #define PCIE_LINK_STS			BIT(5)
 
-
-
-#define AST_PCIE_WIN_BASE				0x70000000
-#define AST_PCIE_WIN_SIZE				0x10000000
-
-struct aspeed_msi {			/* MSI information */
-	struct irq_domain *msi_domain;
-	unsigned long *bitmap;
-	struct irq_domain *dev_domain;
-	struct mutex lock;		/* protect bitmap variable */
-	int irq_msi0;
-	int irq_msi1;
-};
-
 struct aspeed_pcie {
 	struct device *dev;
 
@@ -131,25 +119,75 @@ struct aspeed_pcie {
 
 	u8 txTag;
 
-
-	u8 last_busno;
-	u8 root_busno;
-
-
-	struct clk *free_ck;
-
 	struct resource mem;
-	const struct mtk_pcie_soc *soc;
 	unsigned int busnr;
 
 	u32 irq;
-	unsigned long msi_pages;
 	struct irq_domain *leg_domain;
-	struct aspeed_msi msi;
+	struct irq_domain *msi_domain;
 	struct list_head resources;
-	raw_spinlock_t leg_mask_lock;	
 	
 };
+
+static DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_HOST_IRQS);
+
+void __iomem *h2xreg_base;
+
+void aspeed_pcie_workaround(void)
+{
+	u32 timeout = 0;
+
+#ifdef H2X_RC_L	
+	writel(BIT(4) | readl(h2xreg_base + 0x80), h2xreg_base + 0x80);
+#else
+	writel(BIT(4) | readl(h2xreg_base + 0xc0), h2xreg_base + 0xc0);
+#endif
+
+	writel(0x74000001, h2xreg_base + 0x10);
+	writel(0x00400050, h2xreg_base + 0x14);
+	writel(0x00000000, h2xreg_base + 0x18);
+	writel(0x00000000, h2xreg_base + 0x1c);
+
+	writel(0x1a, h2xreg_base + 0x20);
+
+	//trigger tx
+	writel(PCIE_TRIGGER_TX, h2xreg_base + 0x24);
+
+	//wait tx idle
+	while(!(readl(h2xreg_base + 0x24) & BIT(31))) {
+		timeout++;
+		if(timeout > 1000) {
+			return;
+		}
+	};
+
+	//write clr tx idle
+	writel(1, h2xreg_base + 0x08);
+	timeout = 0;
+
+	//check tx status and clr rx done int
+#ifdef H2X_RC_L	
+	while(!(readl(h2xreg_base + 0x88) & PCIE_RC_RX_DONE_ISR)) {
+		timeout++;
+		if(timeout > 10) {
+			break;
+		}
+		mdelay(1);
+	}
+	writel(PCIE_RC_RX_DONE_ISR, h2xreg_base + 0x88);
+#else	
+	while(!(readl(h2xreg_base + 0xc8) & PCIE_RC_RX_DONE_ISR)) {
+		timeout++;
+		if(timeout > 10) {
+			break;
+		}
+		mdelay(1);
+	}
+	writel(PCIE_RC_RX_DONE_ISR, h2xreg_base + 0xc8);
+#endif	
+}
+
+EXPORT_SYMBOL(aspeed_pcie_workaround);
 
 static int
 aspeed_pcie_rd_conf(struct pci_bus *bus, unsigned int devfn, 
@@ -158,11 +196,19 @@ aspeed_pcie_rd_conf(struct pci_bus *bus, unsigned int devfn,
 	struct aspeed_pcie *pcie = bus->sysdata;
 	u32 timeout = 0;
 	u32 bdf_offset;
+	int rx_done_fail = 0;	
 	u32 type = 0;
 
 	//H2X80[4] (unlock) is write-only.
 	//Driver may set H2X80[4]=1 before triggering next TX config.
+#ifdef H2X_RC_L	
 	writel(BIT(4) | readl(pcie->h2xreg_base + 0x80), pcie->h2xreg_base + 0x80);
+#else
+	writel(BIT(4) | readl(pcie->h2xreg_base + 0xC0), pcie->h2xreg_base + 0xC0);
+#endif
+
+//	printk("cfg rd : %x:%x:%x => size = %d, where = %xh \n",
+//		bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn), size, where);
 
 	if(bus->number)
 		type = 1;
@@ -182,7 +228,7 @@ aspeed_pcie_rd_conf(struct pci_bus *bus, unsigned int devfn,
 	writel(0x00000000, pcie->h2xreg_base + 0x1c);
 
 	//trigger tx
-	writel(PCIE_TRIGGER_TX, pcie->h2xreg_base + 0x24);
+	writel((readl(pcie->h2xreg_base + 0x24) & 0xf) | PCIE_TRIGGER_TX, pcie->h2xreg_base + 0x24);
 
 	//wait tx idle
 	while(!(readl(pcie->h2xreg_base + 0x24) & PCIE_TX_IDLE)) {
@@ -197,23 +243,45 @@ aspeed_pcie_rd_conf(struct pci_bus *bus, unsigned int devfn,
 	//write clr tx idle
 	writel(1, pcie->h2xreg_base + 0x08);
 
+	timeout = 0;
 	//check tx status 
 	switch(readl(pcie->h2xreg_base + 0x24) & PCIE_STATUS_OF_TX) {
 		case PCIE_RC_L_TX_COMPLETE:
-			while(!(readl(pcie->h2xreg_base + 0x88) & PCIE_RC_RX_DONE_ISR));
-			if(readl(pcie->h2xreg_base + 0x88) & (PCIE_RC_CPLCA_ISR | PCIE_RC_CPLUR_ISR)) {
-				printk("return ffffffff \n");
-				*val = 0xffffffff;
-			} else
-				*val = readl(pcie->h2xreg_base + 0x8C);
+			while(!(readl(pcie->h2xreg_base + 0x88) & PCIE_RC_RX_DONE_ISR)) {
+				timeout++;
+				if(timeout > 10) {
+					rx_done_fail = 1;
+					*val = 0xffffffff;
+					break;
+				}
+				mdelay(1);
+			}
+			if(!rx_done_fail) {
+				if(readl(pcie->h2xreg_base + 0x94) & BIT(13)) {
+					*val = 0xffffffff;
+				} else
+					*val = readl(pcie->h2xreg_base + 0x8C);
+			}
+//			writel(BIT(4) | readl(pcie->h2xreg_base + 0x80), pcie->h2xreg_base + 0x80);
 			writel(readl(pcie->h2xreg_base + 0x88), pcie->h2xreg_base + 0x88);
 			break;
 		case PCIE_RC_H_TX_COMPLETE:
-			while(!(readl(pcie->h2xreg_base + 0xC8) & PCIE_RC_RX_DONE_ISR));
-			if(readl(pcie->h2xreg_base + 0xC8) & (PCIE_RC_CPLCA_ISR | PCIE_RC_CPLUR_ISR))
-				*val = 0xffffffff;
-			else
-				*val = readl(pcie->h2xreg_base + 0xCC);
+			while(!(readl(pcie->h2xreg_base + 0xC8) & PCIE_RC_RX_DONE_ISR)) {
+				timeout++;
+				if(timeout > 10) {
+					rx_done_fail = 1;
+					*val = 0xffffffff;
+					break;
+				}
+				mdelay(1);
+			}
+			if(!rx_done_fail) {
+				if(readl(pcie->h2xreg_base + 0x94) & BIT(13)) {
+					*val = 0xffffffff;
+				} else
+					*val = readl(pcie->h2xreg_base + 0xCC);
+			}
+//			writel(BIT(4) | readl(pcie->h2xreg_base + 0xC0), pcie->h2xreg_base + 0xC0);
 			writel(readl(pcie->h2xreg_base + 0xC8), pcie->h2xreg_base + 0xC8);
 			break;
 		default:	//read rc data
@@ -229,13 +297,11 @@ aspeed_pcie_rd_conf(struct pci_bus *bus, unsigned int devfn,
 			*val = (*val >> ((where & 2) * 8)) & 0xffff;
 			break;
 	}
-
 out:
 	pcie->txTag++;
 
 	return PCIBIOS_SUCCESSFUL;
 }
-
 
 static int
 aspeed_pcie_wr_conf(struct pci_bus *bus, unsigned int devfn, 
@@ -246,32 +312,17 @@ aspeed_pcie_wr_conf(struct pci_bus *bus, unsigned int devfn,
 	u32 shift = 8 * (where & 3);
 	u32 bdf_offset;
 	u8 byte_en = 0;
-
 	struct aspeed_pcie *pcie = bus->sysdata;
 
-
-//	printk("%x:%x:%x => size = %d, where = %xh, val = %xh\n",
-//		bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn), size, where, val);
-#if 1
-
+#ifdef H2X_RC_L	
 	writel(BIT(4) | readl(pcie->h2xreg_base + 0x80), pcie->h2xreg_base + 0x80);
+#else
+	writel(BIT(4) | readl(pcie->h2xreg_base + 0xC0), pcie->h2xreg_base + 0xC0);
+#endif
 
-#if 0
-	switch (size) {
-	case 1:
-		data32 = (value & 0xff) << shift;
-		byte_en = 1 << (where & 3);
-		break;
-	case 2:
-		data32 = (value & 0xffff) << shift;
-		byte_en = 3 << (where & 3);
-		break;
-	default:
-		data32 = value;
-		byte_en = 0xf;
-		break;
-	}
-#endif	
+//	printk("cfg w : %x:%x:%x => size = %d, where = %xh, val = %xh\n",
+//		bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn), size, where, val);
+	
 	switch (size) {
 	case 1:
 		switch(where % 4) {
@@ -324,7 +375,7 @@ aspeed_pcie_wr_conf(struct pci_bus *bus, unsigned int devfn,
 	writel(val, pcie->h2xreg_base + 0x20);
 	
 	//trigger tx
-	writel(1, pcie->h2xreg_base + 0x24); 
+	writel((readl(pcie->h2xreg_base + 0x24) & 0xf) | PCIE_TRIGGER_TX, pcie->h2xreg_base + 0x24); 
 	
 //wait tx idle
 	while(!(readl(pcie->h2xreg_base + 0x24) & BIT(31))) {
@@ -338,356 +389,483 @@ aspeed_pcie_wr_conf(struct pci_bus *bus, unsigned int devfn,
 	//write clr tx idle
 	writel(1, pcie->h2xreg_base + 0x08);
 
+	timeout = 0;
 	//check tx status and clr rx done int
 	switch(readl(pcie->h2xreg_base + 0x24) & PCIE_STATUS_OF_TX) {
 		case PCIE_RC_L_TX_COMPLETE:
-			while(!(readl(pcie->h2xreg_base + 0x88) & PCIE_RC_RX_DONE_ISR));
+			while(!(readl(pcie->h2xreg_base + 0x88) & PCIE_RC_RX_DONE_ISR)) {
+				timeout++;
+				if(timeout > 10) {
+					break;
+				}
+				mdelay(1);
+			}
 			writel(PCIE_RC_RX_DONE_ISR, pcie->h2xreg_base + 0x88);
 
 			break;
 		case PCIE_RC_H_TX_COMPLETE:
-			while(!(readl(pcie->h2xreg_base + 0xC8) & PCIE_RC_RX_DONE_ISR));
+			while(!(readl(pcie->h2xreg_base + 0xC8) & PCIE_RC_RX_DONE_ISR)) {
+				timeout++;
+				if(timeout > 10) {
+					break;
+				}
+				mdelay(1);
+			}
 			writel(PCIE_RC_RX_DONE_ISR, pcie->h2xreg_base + 0xC8);
-
 			break;
 	}
 
 out:
 	pcie->txTag++;
-#endif
+
 	return PCIBIOS_SUCCESSFUL;
 }
 
+u8 aspeed_pcie_inb(u32 addr)
+{
+	int timeout = 0;
 
+#ifdef H2X_RC_L	
+	writel(BIT(4) | readl(h2xreg_base + 0x80), h2xreg_base + 0x80);
+#else
+	writel(BIT(4) | readl(h2xreg_base + 0xC0), h2xreg_base + 0xC0);
+#endif
+
+	writel(0x02000001, h2xreg_base + 0x10);
+	writel(0x00002000 | (0x1 << (addr & 0x3)), h2xreg_base + 0x14);
+	writel(addr & (~0x3), h2xreg_base + 0x18);
+	writel(0x00000000, h2xreg_base + 0x1c);
+
+	//trigger
+	writel((readl(h2xreg_base + 0x24) & 0xf) | PCIE_TRIGGER_TX, h2xreg_base + 0x24); 	
+
+	//wait tx idle
+	while(!(readl(h2xreg_base + 0x24) & PCIE_TX_IDLE)) {
+		timeout++;
+		if(timeout > 10000) {
+			printk("aspeed_pcie_inb timeout\n");
+			return 0xff;
+		}
+	};
+
+	//write clr tx idle
+	writel(1, h2xreg_base + 0x08);
+
+	timeout = 0;
+#ifdef H2X_RC_L	
+	while(!(readl(h2xreg_base + 0x88) & PCIE_RC_RX_DONE_ISR)) {
+		timeout++;
+		if(timeout > 10) {
+			break;
+		}
+		mdelay(1);
+	}
+	writel(readl(h2xreg_base + 0x88), h2xreg_base + 0x88);
+//	writel(BIT(4) | readl(h2xreg_base + 0x80), h2xreg_base + 0x80);
+	return ((readl(h2xreg_base + 0x8C) >> ((addr & 0x3) * 8)) & 0xff);
+#else
+	while(!(readl(h2xreg_base + 0xc8) & PCIE_RC_RX_DONE_ISR)) {
+		timeout++;
+		if(timeout > 10) {
+			break;
+		}
+		mdelay(1);
+	}
+
+	writel(readl(h2xreg_base + 0xC8), h2xreg_base + 0xC8);
+//	writel(BIT(4) | readl(h2xreg_base + 0xC0), h2xreg_base + 0xC0);
+	return ((readl(h2xreg_base + 0xCC) >> ((addr & 0x3) * 8)) & 0xff);
+#endif
+
+}
+
+EXPORT_SYMBOL_GPL(aspeed_pcie_inb);
+
+void aspeed_pcie_outb(u8 value, u32 addr)
+{
+	int timeout = 0;
+	u32 wvalue = value;
+
+#ifdef H2X_RC_L	
+	writel(BIT(4) | readl(h2xreg_base + 0x80), h2xreg_base + 0x80);
+#else
+	writel(BIT(4) | readl(h2xreg_base + 0xC0), h2xreg_base + 0xC0);
+#endif
+
+	writel(0x42000001, h2xreg_base + 0x10);
+	writel(0x00002000 | (0x1 << (addr & 0x3)), h2xreg_base + 0x14);
+	writel(addr & (~0x3), h2xreg_base + 0x18);
+	writel(0x00000000, h2xreg_base + 0x1c);
+
+	writel((wvalue << (8 * (addr & 0x3))), h2xreg_base + 0x20);
+
+	//trigger
+	writel((readl(h2xreg_base + 0x24) & 0xf) | PCIE_TRIGGER_TX, h2xreg_base + 0x24); 		
+
+	//wait tx idle
+	while(!(readl(h2xreg_base + 0x24) & PCIE_TX_IDLE)) {
+		timeout++;
+		if(timeout > 10000) {
+			printk("aspeed_pcie_outb timeout\n");
+			return;
+		}
+	};
+
+	//write clr tx idle
+	writel(1, h2xreg_base + 0x08);
+
+#ifdef H2X_RC_L	
+	while(!(readl(h2xreg_base + 0x88) & PCIE_RC_RX_DONE_ISR));
+	writel(readl(h2xreg_base + 0x88), h2xreg_base + 0x88);
+	writel(BIT(4) | readl(h2xreg_base + 0x80), h2xreg_base + 0x80);
+#else
+	while(!(readl(h2xreg_base + 0xC8) & PCIE_RC_RX_DONE_ISR));
+	writel(readl(h2xreg_base + 0xC8), h2xreg_base + 0xC8);
+	writel(BIT(4) | readl(h2xreg_base + 0xC0), h2xreg_base + 0xC0);
+#endif
+}
+
+EXPORT_SYMBOL_GPL(aspeed_pcie_outb);
+
+
+/* PCIe operations */
 static struct pci_ops aspeed_pcie_ops = {
 	.read	= aspeed_pcie_rd_conf,
 	.write	= aspeed_pcie_wr_conf,
 };
 
-static irqreturn_t aspeed_pcie_misc_handler(int irq, void *data)
+/* MSI functions */
+
+/**
+ * aspeed_pcie_destroy_msi - Free MSI number
+ * @irq: IRQ to be freed
+ */
+static void aspeed_pcie_destroy_msi(unsigned int irq)
 {
-	struct aspeed_pcie *pcie = data;
-	struct device *dev = pcie->dev;
-	u32 misc_stat;
-	printk("aspeed_pcie_misc_handler\n");
+	struct msi_desc *msi;
+	struct aspeed_pcie *pcie;
+	struct irq_data *d = irq_get_irq_data(irq);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+
+	if (!test_bit(hwirq, msi_irq_in_use)) {
+		msi = irq_get_msi_desc(irq);
+		pcie = msi_desc_to_pci_sysdata(msi);
+		dev_err(pcie->dev, "Trying to free unused MSI#%d\n", irq);
+	} else {
+		clear_bit(hwirq, msi_irq_in_use);
+	}
+}
+
+/**
+ * aspeed_pcie_assign_msi - Allocate MSI number
+ *
+ * Return: A valid IRQ on success and error value on failure.
+ */
+static int aspeed_pcie_assign_msi(void)
+{
+	int pos;
+
+	pos = find_first_zero_bit(msi_irq_in_use, MAX_MSI_HOST_IRQS);
+	if (pos < MAX_MSI_HOST_IRQS)
+		set_bit(pos, msi_irq_in_use);
+	else
+		return -ENOSPC;
+
+	return pos;
+}
+
+/**
+ * aspeed_msi_teardown_irq - Destroy the MSI
+ * @chip: MSI Chip descriptor
+ * @irq: MSI IRQ to destroy
+ */
+static void aspeed_msi_teardown_irq(struct msi_controller *chip,
+				    unsigned int irq)
+{
+	aspeed_pcie_destroy_msi(irq);
+	irq_dispose_mapping(irq);
+}
+
+/**
+ * aspeed_pcie_msi_setup_irq - Setup MSI request
+ * @chip: MSI chip pointer
+ * @pdev: PCIe device pointer
+ * @desc: MSI descriptor pointer
+ *
+ * Return: '0' on success and error value on failure
+ */
+static int aspeed_pcie_msi_setup_irq(struct msi_controller *chip,
+				     struct pci_dev *pdev,
+				     struct msi_desc *desc)
+{
+	struct aspeed_pcie *pcie = pdev->bus->sysdata;
+	unsigned int irq;
+	int hwirq;
+	struct msi_msg msg;
+
+	hwirq = aspeed_pcie_assign_msi();
+	if (hwirq < 0)
+		return hwirq;
+
+	irq = irq_create_mapping(pcie->msi_domain, hwirq);
+	if (!irq)
+		return -EINVAL;
+
+	irq_set_msi_desc(irq, desc);
+
+	msg.address_hi = 0;
+#ifdef H2X_RC_L	
+	msg.address_lo = 0x1e770058;
+#else
+	msg.address_lo = 0x1e77005C;
+#endif
+//	msg.data = irq;
+	msg.data = hwirq;
+
+	pci_write_msi_msg(irq, &msg);
+
+	return 0;
+}
+
+
+/* MSI Chip Descriptor */
+static struct msi_controller aspeed_pcie_msi_chip = {
+	.setup_irq = aspeed_pcie_msi_setup_irq,
+	.teardown_irq = aspeed_msi_teardown_irq,
+};
+
+/* HW Interrupt Chip Descriptor */
+static struct irq_chip aspeed_msi_irq_chip = {
+	.name = "Aspeed PCIe MSI",
+	.irq_enable = pci_msi_unmask_irq,
+	.irq_disable = pci_msi_mask_irq,
+	.irq_mask = pci_msi_mask_irq,
+	.irq_unmask = pci_msi_unmask_irq,
+};
+
+/**
+ * aspeed_pcie_msi_map - Set the handler for the MSI and mark IRQ as valid
+ * @domain: IRQ domain
+ * @irq: Virtual IRQ number
+ * @hwirq: HW interrupt number
+ *
+ * Return: Always returns 0.
+ */
+static int aspeed_pcie_msi_map(struct irq_domain *domain, unsigned int irq,
+			       irq_hw_number_t hwirq)
+{
+	irq_set_chip_and_handler(irq, &aspeed_msi_irq_chip, handle_simple_irq);
+	irq_set_chip_data(irq, domain->host_data);
+
+	return 0;
+}
+
+/* IRQ Domain operations */
+static const struct irq_domain_ops msi_domain_ops = {
+	.map = aspeed_pcie_msi_map,
+};
+
+static void aspeed_h2x_intx_ack_irq(struct irq_data *d)
+{
+	struct irq_desc *desc = irq_to_desc(d->irq);
+	struct aspeed_pcie *pcie = irq_desc_get_chip_data(desc);
+
+#ifdef H2X_RC_L
+	writel(readl(pcie->h2xreg_base + 0x84) | BIT(d->hwirq), pcie->h2xreg_base + 0x84);
+#else
+	writel(readl(pcie->h2xreg_base + 0xC4) | BIT(d->hwirq), pcie->h2xreg_base + 0xC4);
+#endif
+}
+
+static void aspeed_h2x_intx_mask_irq(struct irq_data *d)
+{
+	struct irq_desc *desc = irq_to_desc(d->irq);
+	struct aspeed_pcie *pcie = irq_desc_get_chip_data(desc);
+
+	//disable irq
+#ifdef H2X_RC_L
+	writel(readl(pcie->h2xreg_base + 0x84) & ~BIT(d->hwirq), pcie->h2xreg_base + 0x84);
+#else	
+	writel(readl(pcie->h2xreg_base + 0xC4) & ~BIT(d->hwirq), pcie->h2xreg_base + 0xC4);
+#endif
+}
+
+static void aspeed_h2x_intx_unmask_irq(struct irq_data *d)
+{
+	struct irq_desc *desc = irq_to_desc(d->irq);
+	struct aspeed_pcie *pcie = irq_desc_get_chip_data(desc);
+
+	//Enable IRQ ..
+#ifdef H2X_RC_L
+	writel(readl(pcie->h2xreg_base + 0x84) | BIT(d->hwirq), pcie->h2xreg_base + 0x84);
+#else	
+	writel(readl(pcie->h2xreg_base + 0xC4) | BIT(d->hwirq), pcie->h2xreg_base + 0xC4);
+#endif
+}
+
+static struct irq_chip aspeed_h2x_intx_chip = {
+	.name		= "Aspeed IntX",
+	.irq_ack	= aspeed_h2x_intx_ack_irq,
+	.irq_mask	= aspeed_h2x_intx_mask_irq,
+	.irq_unmask	= aspeed_h2x_intx_unmask_irq,
+};
+
+/* INTx Functions */
+
+/**
+ * aspeed_pcie_intx_map - Set the handler for the INTx and mark IRQ as valid
+ * @domain: IRQ domain
+ * @irq: Virtual IRQ number
+ * @hwirq: HW interrupt number
+ *
+ * Return: Always returns 0.
+ */
+static int aspeed_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
+                                  irq_hw_number_t hwirq)
+{
+	irq_set_chip_and_handler(irq, &aspeed_h2x_intx_chip, handle_level_irq);
+	irq_set_chip_data(irq, domain->host_data);
+
+	return 0;
+}
+
+/* INTx IRQ Domain operations */
+static const struct irq_domain_ops intx_domain_ops = {
+    .map = aspeed_pcie_intx_map,
+//	.xlate = pci_irqd_intx_xlate,
+};
+
+/* PCIe HW Functions */
+
+/**
+ * aspeed_pcie_intr_handler - Interrupt Service Handler
+ * @irq: IRQ number
+ * @data: PCIe port information
+ *
+ * Return: IRQ_HANDLED on success and IRQ_NONE on failure
+ */
+ 
+static irqreturn_t aspeed_pcie_intr_handler(int irq, void *data)
+{
+	struct aspeed_pcie *pcie = (struct aspeed_pcie *)data;
+	u32 bit;	
+	u32 virq;
+	unsigned long status;
+#ifdef H2X_RC_L
+	unsigned long intx = readl(pcie->h2xreg_base + 0x88) & 0xf;
+#else
+	unsigned long intx = readl(pcie->h2xreg_base + 0xc8) & 0xf;
+#endif
+	int i;
+
+#ifdef H2X_RC_L
+	sts0 = readl(pcie->h2xreg_base + 0xc8);
+	sts1 = readl(pcie->h2xreg_base + 0xcc);
+
+	if(sts0) {
+		writel(sts0, pcie->h2xreg_base + 0xc8);
+	}
+
+	if(sts1) {
+		writel(sts1, pcie->h2xreg_base + 0xcc);
+	}
+#else
+	//intx isr
+	if(intx) {
+		for_each_set_bit(bit, &intx, 32) {
+			virq = irq_find_mapping(pcie->leg_domain, bit);
+			if (virq)
+				generic_handle_irq(virq);
+			else
+				dev_err(pcie->dev, "unexpected Int - X\n");
+		}
+	}
+	//msi isr
+	for (i = 0; i < 2; i++) {
+			status = readl(pcie->h2xreg_base + 0xe8 + (i * 4));
+//			printk("aspeed_pcie_intr_handler  status %lx \n", status);
+			writel(status, pcie->h2xreg_base + 0xe8 + (i * 4));
+//			printk("read  status %x \n", readl(pcie->h2xreg_base + 0xe8 + (i * 4)));
+			if (!status)
+					continue;
+
+			for_each_set_bit(bit, &status, 32) {
+				if(i) {
+					bit += 32;
+				}
+				virq = irq_find_mapping(pcie->msi_domain, bit);
+//				printk("[%d] : find bit %d mapping irq no %d \n", i, bit, virq);
+				if (virq)
+					generic_handle_irq(virq);
+				else
+					dev_err(pcie->dev, "unexpected MSI\n");
+			}
+	}
+
+#endif
 
 	return IRQ_HANDLED;
 }
 
-static void aspeed_pcie_leg_handler(struct irq_desc *desc)
-{
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct aspeed_pcie *pcie;
-	struct device *dev = pcie->dev;
-	unsigned long status;
-	u32 reg;
-	u32 bit;
-	u32 virq;
-
-	printk("aspeed_pcie_leg_handler \n");
-	chained_irq_enter(chip, desc);
-	pcie = irq_desc_get_handler_data(desc);
-
-	while ((status = readl(pcie->h2xreg_base + 0x88) &
-				0xf ) != 0) {
-		for_each_set_bit(bit, &status, PCI_NUM_INTX) {
-			printk("intx bit %d \n", bit);
-			virq = irq_find_mapping(pcie->leg_domain, bit);
-			if (virq)
-				generic_handle_irq(virq);
-		}
-	}
-
-	chained_irq_exit(chip, desc);
-}
-
-static void aspeed_pcie_handle_msi_irq(struct aspeed_pcie *pcie, u32 status_reg)
-{
-	struct aspeed_msi *msi;
-	unsigned long status;
-	u32 bit;
-	u32 virq;
-
-	msi = &pcie->msi;
-
-	while ((status = readl(pcie->h2xreg_base + status_reg)) != 0) {
-		for_each_set_bit(bit, &status, 32) {
-			writel(1 << bit, pcie->h2xreg_base + status_reg);
-			virq = irq_find_mapping(msi->dev_domain, bit);
-			if (virq)
-				generic_handle_irq(virq);
-		}
-	}
-}
-
-static void aspeed_pcie_msi_handler_high(struct irq_desc *desc)
-{
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct aspeed_pcie *pcie = irq_desc_get_handler_data(desc);
-
-	if(readl(pcie->h2xreg_base + 0x88) & BIT(10)) {
-		chained_irq_enter(chip, desc);
-		aspeed_pcie_handle_msi_irq(pcie, 0xAC);
-		chained_irq_exit(chip, desc);
-	}
-}
-
-static void aspeed_pcie_msi_handler_low(struct irq_desc *desc)
-{
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct aspeed_pcie *pcie = irq_desc_get_handler_data(desc);
-
-	if(readl(pcie->h2xreg_base + 0x88) & BIT(9)) {
-		chained_irq_enter(chip, desc);
-		aspeed_pcie_handle_msi_irq(pcie, 0xA8);
-		chained_irq_exit(chip, desc);
-	}
-}
-
-static void aspeed_mask_leg_irq(struct irq_data *data)
-{
-	struct irq_desc *desc = irq_to_desc(data->irq);
-	struct aspeed_pcie *pcie;
-	unsigned long flags;
-	u32 mask;
-	u32 val;
-
-	printk("aspeed_mask_leg_irq : data->hwirq %d \n", data->hwirq);
-	
-	pcie = irq_desc_get_chip_data(desc);
-	mask = 1 << (data->hwirq - 1);
-	raw_spin_lock_irqsave(&pcie->leg_mask_lock, flags);
-	writel((readl(pcie->h2xreg_base + 0x84) & ~mask), pcie->h2xreg_base + 0x84);
-	raw_spin_unlock_irqrestore(&pcie->leg_mask_lock, flags);
-}
-
-static void aspeed_unmask_leg_irq(struct irq_data *data)
-{
-	struct irq_desc *desc = irq_to_desc(data->irq);
-	struct aspeed_pcie *pcie;
-	unsigned long flags;
-	u32 mask;
-	u32 val;
-
-	printk("aspeed_unmask_leg_irq : data->hwirq %d \n", data->hwirq);
-	
-	pcie = irq_desc_get_chip_data(desc);
-	mask = 1 << (data->hwirq);
-	raw_spin_lock_irqsave(&pcie->leg_mask_lock, flags);
-	writel((readl(pcie->h2xreg_base + 0x84) | mask), pcie->h2xreg_base + 0x84);
-	raw_spin_unlock_irqrestore(&pcie->leg_mask_lock, flags);
-}
-
-static struct irq_chip aspeed_leg_irq_chip = {
-	.name = "pcie:intx",
-	.irq_enable = aspeed_unmask_leg_irq,
-	.irq_disable = aspeed_mask_leg_irq,
-	.irq_mask = aspeed_mask_leg_irq,
-	.irq_unmask = aspeed_unmask_leg_irq,
-};
-
-static int aspeed_legacy_map(struct irq_domain *domain, unsigned int irq,
-                                  irq_hw_number_t hwirq)
-{
-    irq_set_chip_and_handler(irq, &aspeed_leg_irq_chip, handle_level_irq);
-    irq_set_chip_data(irq, domain->host_data);
-	irq_set_status_flags(irq, IRQ_LEVEL);
-
-    return 0;
-}
-
-static const struct irq_domain_ops intx_domain_ops = {
-    .map = aspeed_legacy_map,
-	.xlate = pci_irqd_intx_xlate,
-};
-
-#ifdef CONFIG_PCI_MSI
-static struct irq_chip aspeed_msi_irq_chip = {
-	.name = "aspeed_pcie:msi",
-	.irq_enable = unmask_msi_irq,
-	.irq_disable = mask_msi_irq,
-	.irq_mask = mask_msi_irq,
-	.irq_unmask = unmask_msi_irq,
-
-};
-
-static struct msi_domain_info aspeed_msi_domain_info = {
-	.flags = (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_MULTI_PCI_MSI),
-	.chip = &aspeed_msi_irq_chip,
-};
-#endif
-
-static void aspeed_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
-{
-	struct aspeed_pcie *pcie = irq_data_get_irq_chip_data(data);
-//	phys_addr_t msi_addr = pcie->phys_pcie_reg_base;
-
-	msg->address_lo = 0x1e770058;//lower_32_bits(msi_addr);
-	msg->address_hi = 0;//upper_32_bits(msi_addr);
-	msg->data = data->hwirq;
-}
-
-static int aspeed_msi_set_affinity(struct irq_data *irq_data,
-				const struct cpumask *mask, bool force)
-{
-	return -EINVAL;
-}
-
-static struct irq_chip aspeed_irq_chip = {
-	.name = "ASPEED MSI",
-	.irq_compose_msi_msg = aspeed_compose_msi_msg,
-	.irq_set_affinity = aspeed_msi_set_affinity,
-};
-
-static int aspeed_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
-				unsigned int nr_irqs, void *args)
-{
-	struct aspeed_pcie *pcie = domain->host_data;
-	struct aspeed_msi *msi = &pcie->msi;
-	int bit;
-	int i;
-
-	mutex_lock(&msi->lock);
-	bit = bitmap_find_next_zero_area(msi->bitmap, MAX_MSI_HOST_IRQS, 0,
-					 nr_irqs, 0);
-	if (bit >= MAX_MSI_HOST_IRQS) {
-		mutex_unlock(&msi->lock);
-		return -ENOSPC;
-	}
-
-	bitmap_set(msi->bitmap, bit, nr_irqs);
-
-	for (i = 0; i < nr_irqs; i++) {
-		irq_domain_set_info(domain, virq + i, bit + i, &aspeed_irq_chip,
-				domain->host_data, handle_simple_irq,
-				NULL, NULL);
-	}
-	mutex_unlock(&msi->lock);
-	return 0;
-}
-
-static void aspeed_irq_domain_free(struct irq_domain *domain, unsigned int virq,
-					unsigned int nr_irqs)
-{
-	struct irq_data *data = irq_domain_get_irq_data(domain, virq);
-	struct aspeed_pcie *pcie = irq_data_get_irq_chip_data(data);
-	struct aspeed_msi *msi = &pcie->msi;
-printk("aspeed_irq_domain_free \n");
-	mutex_lock(&msi->lock);
-	bitmap_clear(msi->bitmap, data->hwirq, nr_irqs);
-	mutex_unlock(&msi->lock);
-}
-
-static const struct irq_domain_ops dev_msi_domain_ops = {
-	.alloc  = aspeed_irq_domain_alloc,
-	.free   = aspeed_irq_domain_free,
-};
-
-static int aspeed_pcie_init_msi_irq_domain(struct aspeed_pcie *pcie)
-{
-#ifdef CONFIG_PCI_MSI
-	struct device *dev = pcie->dev;
-	struct fwnode_handle *fwnode = of_node_to_fwnode(dev->of_node);
-	struct aspeed_msi *msi = &pcie->msi;
-
-	msi->dev_domain = irq_domain_add_linear(NULL, MAX_MSI_HOST_IRQS,
-						&dev_msi_domain_ops, pcie);
-	if (!msi->dev_domain) {
-		dev_err(dev, "failed to create dev IRQ domain\n");
-		return -ENOMEM;
-	}
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
-						    &aspeed_msi_domain_info,
-						    msi->dev_domain);
-	if (!msi->msi_domain) {
-		dev_err(dev, "failed to create msi IRQ domain\n");
-		irq_domain_remove(msi->dev_domain);
-		return -ENOMEM;
-	}
-#endif
-	return 0;
-}
-
+/**
+ * aspeed_pcie_init_irq_domain - Initialize IRQ domain
+ * @port: PCIe port information
+ *
+ * Return: '0' on success and error value on failure
+ */
 static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	struct device_node *node = dev->of_node;
-	struct device_node *legacy_intc_node;
+	struct device_node *pcie_intc_node;
 
-	legacy_intc_node = of_get_next_child(node, NULL);
-	if (!legacy_intc_node) {
-		dev_err(dev, "No legacy intc node found\n");
-		return -EINVAL;
+	/* Setup INTx */
+	pcie_intc_node = of_get_next_child(node, NULL);
+	if (!pcie_intc_node) {
+		dev_err(dev, "No PCIe Intc node found\n");
+		return -ENODEV;
 	}
 	
-	pcie->leg_domain = irq_domain_add_linear(legacy_intc_node, MAX_LEGACY_IRQS,
-											 &intx_domain_ops,
-											 pcie);
-	of_node_put(legacy_intc_node);
+	pcie->leg_domain = irq_domain_add_linear(pcie_intc_node, MAX_LEGACY_IRQS,
+						 &intx_domain_ops,
+						 pcie);
+	of_node_put(pcie_intc_node);
 	if (!pcie->leg_domain) {
 			dev_err(dev, "Failed to get a INTx IRQ domain\n");
 			return -ENODEV;
 	}
 
-	raw_spin_lock_init(&pcie->leg_mask_lock);
-	aspeed_pcie_init_msi_irq_domain(pcie);
-	return 0;
+	/* Setup MSI */
+	if (IS_ENABLED(CONFIG_PCI_MSI)) {
+		pcie->msi_domain = irq_domain_add_linear(node,
+								MAX_MSI_HOST_IRQS,
+								&msi_domain_ops,
+								&aspeed_pcie_msi_chip);
+		if (!pcie->msi_domain) {
+		dev_err(dev, "Failed to get a MSI IRQ domain\n");
+		return -ENODEV;
+		}
 
-}
-
-static int aspeed_pcie_enable_msi(struct aspeed_pcie *pcie)
-{
-	struct device *dev = pcie->dev;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct aspeed_msi *msi = &pcie->msi;
-	unsigned long base;
-	int ret;
-	int size = BITS_TO_LONGS(MAX_MSI_HOST_IRQS) * sizeof(long);
-
-	mutex_init(&msi->lock);
-
-	msi->bitmap = kzalloc(size, GFP_KERNEL);
-	if (!msi->bitmap)
-		return -ENOMEM;
-
-	/* Get msi_1 IRQ number */
-	irq_set_chained_handler_and_data(pcie->irq,
-					 aspeed_pcie_msi_handler_high, pcie);
-
-	/* Get msi_0 IRQ number */
-	irq_set_chained_handler_and_data(pcie->irq,
-					 aspeed_pcie_msi_handler_low, pcie);
-
-
-	/*
-	 * For high range MSI interrupts: disable, clear any pending,
-	 * and enable
-	 */
-	writel(readl(pcie->h2xreg_base + 0x84) | BIT(10), pcie->h2xreg_base + 0x84);	
-
-	/*
-	 * For low range MSI interrupts: disable, clear any pending,
-	 * and enable
-	 */
-	writel(readl(pcie->h2xreg_base + 0x84) | BIT(9), pcie->h2xreg_base + 0x84);	
-	
-
-	writel(readl(pcie->h2xreg_base + 0x84) | BIT(8), pcie->h2xreg_base + 0x84);
+		//enable all msi interrupt
+#ifdef H2X_RC_L
+		writel(0xffffffff, pcie->h2xreg_base + 0xa0);
+		writel(0xffffffff, pcie->h2xreg_base + 0xa4);
+#else
+		writel(0xffffffff, pcie->h2xreg_base + 0xe0);
+		writel(0xffffffff, pcie->h2xreg_base + 0xe4);
+#endif
+	}	
 
 	return 0;
-err:
-	kfree(msi->bitmap);
-	msi->bitmap = NULL;
-	return ret;
 }
 
-static void aspeed_pcie_bridge_init(struct aspeed_pcie *pcie)
-{
-	struct device *dev = pcie->dev;
-//	struct platform_device *pdev = to_platform_device(dev);
-//	int err;
+/**
+ * aspeed_pcie_init_port - Initialize hardware
+ * @port: PCIe port information
+ */
 
+static void aspeed_pcie_init_port(struct aspeed_pcie *pcie)
+{
 	//TODO : ahbc remap enable
 	//aspeed_ahbc_remap_enable(devfdt_get_addr_ptr(ahbc_dev));
 
@@ -702,22 +880,37 @@ static void aspeed_pcie_bridge_init(struct aspeed_pcie *pcie)
 	writel(0xe0006000, pcie->h2xreg_base + 0x60);
 	writel(0x00000000, pcie->h2xreg_base + 0x64);
 	writel(0xFFFFFFFF, pcie->h2xreg_base + 0x68);
-	
-//	writel( PCIE_RX_LINEAR | PCIE_RX_MSI_SEL | PCIE_RX_MSI_EN |
-//			PCIE_Wait_RX_TLP_CLR | PCIE_RC_RX_ENABLE | PCIE_RC_L,
-#if 1
+
+	//todo clr intx isr 
+#ifdef H2X_RC_L
+	writel(0x0, pcie->h2xreg_base + 0x84);
+
+	//clr msi isr 
+	writel(0xFFFFFFFF, pcie->h2xreg_base + 0xa8);
+	writel(0xFFFFFFFF, pcie->h2xreg_base + 0xac);
+
 	//rc_l
 	writel( PCIE_RX_LINEAR | PCIE_RX_MSI_EN |
 			PCIE_Wait_RX_TLP_CLR | PCIE_RC_RX_ENABLE | PCIE_RC_ENABLE,
 	pcie->h2xreg_base + 0x80);
-#else
-	//rc_h
-	writel( PCIE_RX_LINEAR | PCIE_RX_MSI_EN |
-			PCIE_Wait_RX_TLP_CLR | PCIE_RC_RX_ENABLE | PCIE_RC_ENABLE,
-	pcie->h2xreg_base + 0x80);
-#endif
 	//assign debug tx tag
 	writel(0x28, pcie->h2xreg_base + 0xBC);
+
+#else
+	writel(0x0, pcie->h2xreg_base + 0xC4);
+
+	//clr msi isr 
+	writel(0xFFFFFFFF, pcie->h2xreg_base + 0xe8);
+	writel(0xFFFFFFFF, pcie->h2xreg_base + 0xec);
+
+	//rc_h
+	writel( PCIE_RX_LINEAR | PCIE_RX_MSI_SEL | PCIE_RX_MSI_EN |
+			PCIE_Wait_RX_TLP_CLR | PCIE_RC_RX_ENABLE | PCIE_RC_ENABLE,
+	pcie->h2xreg_base + 0xC0);
+
+	//assign debug tx tag
+	writel(0x28, pcie->h2xreg_base + 0xFC);
+#endif
 		
 	//plda init
 	writel(PCIE_UNLOCK, pcie->pciereg_base + ASPEED_PCIE_LOCK);
@@ -731,21 +924,22 @@ static void aspeed_pcie_bridge_init(struct aspeed_pcie *pcie)
 		printk("PCIE- Link down\n");
 	}
 
-	return 0;
 }
 
-static int aspeed_pcie_parse_dt(struct aspeed_pcie *pcie,
-			     struct platform_device *pdev)
+/**
+ * aspeed_pcie_parse_dt - Parse Device tree
+ * @port: PCIe port information
+ *
+ * Return: '0' on success and error value on failure
+ */
+static int aspeed_pcie_parse_dt(struct aspeed_pcie *pcie, struct platform_device *pdev)
 {
 	struct device *dev = pcie->dev;
 	struct device_node *node = dev->of_node;	
 	struct resource *res;
-	int err;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pciebreg");
 	if(res) {
-		printk("res->start %x \n", res->start);
-		printk("res->end %x \n", res->end);
 		pcie->pciereg_base = devm_ioremap_resource(dev, res);
 		if (IS_ERR(pcie->pciereg_base))
 			return PTR_ERR(pcie->pciereg_base);
@@ -753,38 +947,26 @@ static int aspeed_pcie_parse_dt(struct aspeed_pcie *pcie,
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "h2xreg");
 	if(res) {
-		printk("res->start %x \n", res->start);
-		printk("res->end %x \n", res->end);
 		pcie->h2xreg_base = devm_ioremap_resource(dev, res);
+		h2xreg_base = pcie->h2xreg_base;
 		if (IS_ERR(pcie->h2xreg_base))
 			return PTR_ERR(pcie->h2xreg_base);
 	}
 
+	
 	pcie->irq = irq_of_parse_and_map(node, 0);
-	if (pcie->irq < 0) {
-		dev_err(dev, "failed to get IRQ %d\n", pcie->irq);
-		return pcie->irq;
-	}
-
-	err = devm_request_irq(dev, pcie->irq, aspeed_pcie_misc_handler,
-						   IRQF_SHARED,
-						   "aspeed-pcie:misc", pcie);
+#if 0
+	printk("request irq pcie->irq %d ---------------------- \n", pcie->irq);
+	err = devm_request_irq(dev, pcie->irq, aspeed_pcie_intr_handler,
+						   0,
+						   "aspeed-pcie", pcie);
 	if (err) {
 		dev_err(dev, "unable to request irq %d\n", pcie->irq);
 		return err;
 	}
-
-	irq_set_chained_handler_and_data(pcie->irq,
-					 aspeed_pcie_leg_handler, pcie);
-
-	printk("==================================== ***\n");
+#endif
 	return 0;
 }
-
-static const struct of_device_id aspeed_pcie_of_match[] = {
-	{ .compatible = "aspeed,ast2600-pcie", },
-	{},
-};
 
 static int aspeed_pcie_probe(struct platform_device *pdev)
 {
@@ -797,8 +979,6 @@ static int aspeed_pcie_probe(struct platform_device *pdev)
 	resource_size_t iobase = 0;
 	LIST_HEAD(res);
 
-	printk("aspeed_pcie_probe 0 =============================================\n");
-	
 	if (!dev->of_node)
 			 return -ENODEV;
 
@@ -816,42 +996,37 @@ static int aspeed_pcie_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	aspeed_pcie_bridge_init(pcie);
+	aspeed_pcie_init_port(pcie);
 
+	err = aspeed_pcie_init_irq_domain(pcie);
+	if (err) {
+		dev_err(dev, "Failed creating IRQ Domain\n");
+	   goto error;
+	}
 
 	err = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff, &res,
-												&iobase);
+						    &iobase);
 	if (err) {
-			dev_err(dev, "Getting bridge resources failed\n");
-			return err;
+		dev_err(dev, "Getting bridge resources failed\n");
+		return err;
 	}
 
 	err = devm_request_pci_bus_resources(dev, &res);
 	if (err)
-			goto error;
-	err = aspeed_pcie_init_irq_domain(pcie);
-	if (err) {
-	   dev_err(dev, "Failed creating IRQ Domain\n");
-	   goto error;
-	}
-	
-	list_splice_init(&res, &bridge->windows);
+		goto error;
 
+	list_splice_init(&res, &bridge->windows);
 	bridge->dev.parent = dev;
 	bridge->sysdata = pcie;
 	bridge->busnr = 0;
 	bridge->ops = &aspeed_pcie_ops;
 	bridge->map_irq = of_irq_parse_and_map_pci;
-	bridge->swizzle_irq = pci_common_swizzle;
+//	bridge->swizzle_irq = pci_common_swizzle;
 
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		err = aspeed_pcie_enable_msi(pcie);
-		if (err < 0) {
-			dev_err(dev, "failed to enable MSI support: %d\n", err);
-			goto error;
-		}
-	}
-
+#ifdef CONFIG_PCI_MSI
+	aspeed_pcie_msi_chip.dev = dev;
+	bridge->msi = &aspeed_pcie_msi_chip;
+#endif
 	err = pci_scan_root_bus_bridge(bridge);
 	if (err)
 		goto error;
@@ -862,19 +1037,33 @@ static int aspeed_pcie_probe(struct platform_device *pdev)
 	list_for_each_entry(child, &bus->children, node)
 		pcie_bus_configure_settings(child);
 	pci_bus_add_devices(bus);
-	printk("aspeed_pcie_probe end =============================================\n");	
+
+	err = devm_request_irq(dev, pcie->irq, aspeed_pcie_intr_handler,
+						   0,
+						   "aspeed-pcie", pcie);
+	if (err) {
+		dev_err(dev, "unable to request irq %d\n", pcie->irq);
+		return err;
+	}
+
 	return 0;
 
 error:
 	pci_free_resource_list(&res);
 	return err;
 }
+
+static const struct of_device_id aspeed_pcie_of_match[] = {
+	{ .compatible = "aspeed,ast2600-pcie", },
+	{},
+};
+
 static struct platform_driver aspeed_pcie_driver = {
-	.probe = aspeed_pcie_probe,
 	.driver = {
 		.name	= "aspeed-pcie",
 		.of_match_table = aspeed_pcie_of_match,
 	},
+	.probe = aspeed_pcie_probe,
 };
 
 builtin_platform_driver(aspeed_pcie_driver);
