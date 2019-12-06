@@ -665,7 +665,7 @@
 						<&gic  GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB1>;
 				clock-names = "PCLK";
-				status = "disabled"
+				status = "disabled";
 			};
 
 			uart1: serial@1e783000 {
