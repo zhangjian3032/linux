@@ -85,6 +85,13 @@
 		arm,cpu-registers-not-fw-configured;
 	};
 
+	edac: sdram@1e6e0000 {
+		compatible = "aspeed,ast2600-sdram-edac";
+		reg = <0x1e6e0000 0x174>;
+		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
 	ahb {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -522,7 +529,7 @@
 			};
 
 			video: video@1e700000 {
-#if 0
+#if 1
 				compatible = "aspeed,ast2600-video-engine";
 #else
 				compatible = "aspeed,ast2600-video";
