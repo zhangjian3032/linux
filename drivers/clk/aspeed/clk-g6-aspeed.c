@@ -888,10 +888,8 @@ static void __init aspeed_ast2600_cc(struct regmap *map)
 			div = val + 1;
 		else
 			div = val + 2;
-		printk("div --------------------- %d \n", div);
 		hw = clk_hw_register_fixed_factor(NULL, "i3cclk", "apll", 0, 1, div);
 	} else {
-		printk("div --------------------- %d xxxxxxxxxxxxxxxxxxxx \n", div);
 		hw = clk_hw_register_fixed_factor(NULL, "i3cclk", "ahb", 0, 1, 1);
 	}
 	aspeed_g6_clk_data->hws[ASPEED_CLK_I3C] = hw;	
