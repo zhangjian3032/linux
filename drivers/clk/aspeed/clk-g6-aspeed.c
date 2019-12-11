@@ -899,6 +899,7 @@ static void __init aspeed_ast2600_cc(struct regmap *map)
 static void __init aspeed_g6_cc_init(struct device_node *np)
 {
 	struct regmap *map;
+	u32 uart_clk_source = 0;
 	int ret;
 	int i;
 
@@ -923,6 +924,17 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 		pr_err("no syscon regmap\n");
 		return;
 	}
+
+	of_property_read_u32(np, "uart-clk-source", &uart_clk_source);
+
+	if (uart_clk_source) {
+		if(uart_clk_source & GENMASK(3, 0))
+			regmap_update_bits(map, ASPEED_G6_CLK_SELECTION4, GENMASK(3, 0), uart_clk_source & GENMASK(3, 0));
+
+		if(uart_clk_source & GENMASK(12, 6))
+			regmap_update_bits(map, ASPEED_G6_CLK_SELECTION5, GENMASK(12, 6), uart_clk_source & GENMASK(12, 6));
+	}
+	
 	/*
 	 * We check that the regmap works on this very first access,
 	 * but as this is an MMIO-backed regmap, subsequent regmap
