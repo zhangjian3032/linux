@@ -348,7 +348,7 @@
 				#size-cells = <1>;
 				#clock-cells = <1>;
 				#reset-cells = <1>;
-				uart-source = <0x0>; /* uart clock source selection: 0: uxclk 1: huxclk*/
+				uart-clk-source = <0x0>; /* uart clock source selection: 0: uxclk 1: huxclk*/
 
 				vga_scratch: scratch {
 					compatible = "aspeed,bmc-misc";
