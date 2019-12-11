@@ -928,8 +928,8 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 	of_property_read_u32(np, "uart-clk-source", &uart_clk_source);
 
 	if (uart_clk_source) {
-		if(uart_clk_source & GENMASK(3, 0))
-			regmap_update_bits(map, ASPEED_G6_CLK_SELECTION4, GENMASK(3, 0), uart_clk_source & GENMASK(3, 0));
+		if(uart_clk_source & GENMASK(5, 0))
+			regmap_update_bits(map, ASPEED_G6_CLK_SELECTION4, GENMASK(5, 0), uart_clk_source & GENMASK(5, 0));
 
 		if(uart_clk_source & GENMASK(12, 6))
 			regmap_update_bits(map, ASPEED_G6_CLK_SELECTION5, GENMASK(12, 6), uart_clk_source & GENMASK(12, 6));
