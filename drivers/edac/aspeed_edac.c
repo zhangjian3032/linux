@@ -124,7 +124,7 @@ extern u32 aspeed_get_vga_size(void)
 
 	regmap_read(aspeed_regmap, ASPEED_MCR_CONF, &reg04);
 
-	size = aspeed_vga_table[((reg04 & 0x3) >> 2)];
+	size = aspeed_vga_table[((reg04 & 0xC) >> 2)];
 	return size;
 }
 EXPORT_SYMBOL(aspeed_get_vga_size);
@@ -357,7 +357,6 @@ static int aspeed_probe(struct platform_device *pdev)
 	struct device_node *np;
 	struct resource *res;
 	void __iomem *regs;
-	u32 reg04;
 	int rc;
 
 	/* setup regmap */
