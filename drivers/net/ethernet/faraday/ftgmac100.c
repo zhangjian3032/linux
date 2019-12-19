@@ -1229,6 +1229,73 @@ static int ftgmac100_set_pauseparam(struct net_device *netdev,
 	return 0;
 }
 
+static int ftgmac100_run_loopback(struct net_device *netdev, uint32_t loopback_mode)
+{
+	struct ftgmac100 *priv = netdev_priv(netdev);
+	uint32_t reg;
+
+	switch (loopback_mode) {
+	case FTGMAC100_MAC_LOOPBACK:
+		reg = ioread32(priv->base + FTGMAC100_OFFSET_FEAR);
+		reg |= FTGMAC100_INTERNAL_LOOPBACK_EN;
+		iowrite32(reg, priv->base + FTGMAC100_OFFSET_FEAR);
+		break;
+	case FTGMAC100_PHY_LOOPBACK:
+		break;
+	case FTGMAC100_EXT_LOOPBACK:
+		break;
+	default:
+		break;
+	}
+}
+/* return strings of the test items */
+static const
+char ftgmac100_tests_str_tbl[FTGMAC100_NUM_TESTS][ETH_GSTRING_LEN] = {
+	"internal loopback (offline)     ",
+	"external loopback (offline)     ",
+};
+
+static void ftgmac100_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
+{
+	if (ETH_SS_TEST == stringset) {
+		memcpy(buf, ftgmac100_tests_str_tbl,
+		       FTGMAC100_NUM_TESTS * ETH_GSTRING_LEN);
+	}
+}
+
+/* return number of test items */
+static int ftgmac100_get_sset_count(struct net_device *netdev, int stringset)
+{
+	if (ETH_SS_TEST == stringset)
+		return FTGMAC100_NUM_TESTS;
+	else
+		return -EINVAL;
+}
+
+void ftgmac100_self_test(struct net_device *netdev,
+			 struct ethtool_test *etest, u64 *result) 
+{
+	printk("self test command: offline = %d, external lb = %d",
+	       (etest->flags & ETH_TEST_FL_OFFLINE),
+	       (etest->flags & ETH_TEST_FL_EXTERNAL_LB) >> 2);
+
+	if (0 == (etest->flags & ETH_TEST_FL_OFFLINE)) {
+		printk("no online test items\n");
+		etest->flags |= ETH_TEST_FL_FAILED;
+		return;
+	}
+
+	/* internal loopback */
+	result[0] = 0;
+	
+	/* external loopback */
+	if (etest->flags & ETH_TEST_FL_EXTERNAL_LB) {
+		etest->flags |= ETH_TEST_FL_EXTERNAL_LB_DONE;
+		result[1] = 0;
+	}
+}
+
+
 static const struct ethtool_ops ftgmac100_ethtool_ops = {
 	.get_drvinfo		= ftgmac100_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
@@ -1239,6 +1306,9 @@ static const struct ethtool_ops ftgmac100_ethtool_ops = {
 	.set_ringparam		= ftgmac100_set_ringparam,
 	.get_pauseparam		= ftgmac100_get_pauseparam,
 	.set_pauseparam		= ftgmac100_set_pauseparam,
+	.self_test 		= ftgmac100_self_test,
+	.get_strings		= ftgmac100_get_strings,
+	.get_sset_count		= ftgmac100_get_sset_count,
 };
 
 static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
