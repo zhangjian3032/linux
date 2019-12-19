@@ -1922,18 +1922,22 @@ static int ftgmac100_probe(struct platform_device *pdev)
 			goto err_ncsi_dev;
 	} else if (np && of_get_property(np, "phy-handle", NULL)) {
 		struct phy_device *phy;
+		bool is_fixed_phy = of_phy_is_fixed_link(pdev->dev.of_node);
 
 		phy = of_phy_get_and_connect(priv->netdev, np,
 					     &ftgmac100_adjust_link);
 		if (!phy) {
 			dev_err(&pdev->dev, "Failed to connect to phy\n");
+			if (is_fixed_phy)
+				of_phy_deregister_fixed_link(pdev->dev.of_node);
 			goto err_setup_mdio;
 		}
-
+		
 		/* Indicate that we support PAUSE frames (see comment in
 		 * Documentation/networking/phy.txt)
 		 */
-		phy_support_asym_pause(phy);
+		if (!is_fixed_phy)
+			phy_support_asym_pause(phy);
 
 		/* Display what we found */
 		phy_attached_info(phy);
@@ -2018,6 +2022,10 @@ static int ftgmac100_remove(struct platform_device *pdev)
 	release_resource(priv->res);
 
 	netif_napi_del(&priv->napi);
+	
+	if (of_phy_is_fixed_link(pdev->dev.of_node))
+		of_phy_deregister_fixed_link(pdev->dev.of_node);
+
 	free_netdev(netdev);
 	return 0;
 }
