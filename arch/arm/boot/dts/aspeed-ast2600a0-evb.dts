@@ -438,6 +438,10 @@
 	status = "okay";
 };
 
+&h2x {
+	status = "okay";
+};
+
 &sgpiom0 {
         status = "okay";
 };
