@@ -145,22 +145,6 @@ static int aspeed_pcie_msi_setup_irq(struct msi_controller *chip,
 	return 0;
 }
 
-
-/* MSI Chip Descriptor */
-static struct msi_controller aspeed_pcie_msi_chip = {
-	.setup_irq = aspeed_pcie_msi_setup_irq,
-	.teardown_irq = aspeed_msi_teardown_irq,
-};
-
-/* HW Interrupt Chip Descriptor */
-static struct irq_chip aspeed_msi_irq_chip = {
-	.name = "Aspeed PCIe MSI",
-	.irq_enable = pci_msi_unmask_irq,
-	.irq_disable = pci_msi_mask_irq,
-	.irq_mask = pci_msi_mask_irq,
-	.irq_unmask = pci_msi_unmask_irq,
-};
-
 /**
  * aspeed_pcie_msi_map - Set the handler for the MSI and mark IRQ as valid
  * @domain: IRQ domain
@@ -172,16 +156,13 @@ static struct irq_chip aspeed_msi_irq_chip = {
 static int aspeed_pcie_msi_map(struct irq_domain *domain, unsigned int irq,
 			       irq_hw_number_t hwirq)
 {
-	irq_set_chip_and_handler(irq, &aspeed_msi_irq_chip, handle_simple_irq);
+	struct aspeed_pcie *pcie = (struct aspeed_pcie *)domain->host_data;
+
+	irq_set_chip_and_handler(irq, &pcie->aspeed_msi_irq_chip, handle_simple_irq);
 	irq_set_chip_data(irq, domain->host_data);
 
 	return 0;
 }
-
-/* IRQ Domain operations */
-static const struct irq_domain_ops msi_domain_ops = {
-	.map = aspeed_pcie_msi_map,
-};
 
 /**
  * aspeed_pcie_intx_map - Set the handler for the INTx and mark IRQ as valid
@@ -237,11 +218,7 @@ static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
 		return -ENODEV;
 	}
 
-//	strlcpy(pcie->aspeed_h2x_intx_chip.name, pdev->name, sizeof(bus->adap.name));
-//	snprintf(pcie->aspeed_h2x_intx_chip.name, sizeof(i2c_bus->adap.name), "intx.%u",
-//			 bus_nr);
-
-	pcie->aspeed_h2x_intx_chip.name = "Aspeed IntX";
+	pcie->aspeed_h2x_intx_chip.name = "IntX";
 	pcie->aspeed_h2x_intx_chip.irq_ack	= aspeed_h2x_intx_ack_irq;
 	pcie->aspeed_h2x_intx_chip.irq_mask	= aspeed_h2x_intx_mask_irq;
 	pcie->aspeed_h2x_intx_chip.irq_unmask = aspeed_h2x_intx_unmask_irq;
@@ -255,12 +232,22 @@ static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
 			return -ENODEV;
 	}
 
+	/* MSI Domain operations */
+	pcie->msi_domain_ops.map = aspeed_pcie_msi_map;
+	pcie->aspeed_pcie_msi_chip.setup_irq = aspeed_pcie_msi_setup_irq;
+	pcie->aspeed_pcie_msi_chip.teardown_irq = aspeed_msi_teardown_irq;
+	pcie->aspeed_msi_irq_chip.name = "MSI";
+	pcie->aspeed_msi_irq_chip.irq_enable = pci_msi_unmask_irq;
+	pcie->aspeed_msi_irq_chip.irq_disable = pci_msi_mask_irq;
+	pcie->aspeed_msi_irq_chip.irq_mask = pci_msi_mask_irq;
+	pcie->aspeed_msi_irq_chip.irq_unmask = pci_msi_unmask_irq;
+
 	/* Setup MSI */
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		pcie->msi_domain = irq_domain_add_linear(node,
 								MAX_MSI_HOST_IRQS,
-								&msi_domain_ops,
-								&aspeed_pcie_msi_chip);
+								&pcie->msi_domain_ops,
+								pcie);
 		if (!pcie->msi_domain) {
 		dev_err(dev, "Failed to get a MSI IRQ domain\n");
 		return -ENODEV;

@@ -1,28 +1,9 @@
 #ifndef __H2X_ASPEED_H_INCLUDED
 #define __H2X_ASPEED_H_INCLUDED
 
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/platform_device.h>
-#include <linux/interrupt.h>
-
-#include <linux/delay.h>
-
-#include <linux/pci.h>
-#include <linux/irq.h>
-#include <linux/spinlock.h>
-#include <linux/msi.h>
-
-#include <linux/of_pci.h>
-#include <linux/of_irq.h>
-#include <linux/of_address.h>
-#include <linux/of_platform.h>
-#include <linux/module.h>
-#include <linux/init.h>
 #include <linux/irqdomain.h>
 #include <linux/aspeed_pcie_io.h>
 
-#if 1
 struct aspeed_pcie {
 	struct device *dev;
 
@@ -48,38 +29,8 @@ struct aspeed_pcie {
 	struct msi_controller aspeed_pcie_msi_chip;
 	struct irq_chip aspeed_msi_irq_chip;
 	struct irq_domain_ops msi_domain_ops;
-	
-	struct list_head resources;
-	
 };
 
-#else
-struct aspeed_pcie {
-	struct device *dev;
-
-	void __iomem *pciereg_base;
-	void __iomem *h2x_rc_base;
-	u32 rc_offset;
-	u32 msi_address;	
-
-	struct resource mem;
-	unsigned int busnr;
-
-	u32 irq;
-	struct irq_domain *msi_domain;
-
-	
-	struct list_head resources;
-	
-};
-
-
-
-
-
-
-
-#endif
 extern void aspeed_h2x_intx_ack_irq(struct irq_data *d);
 extern void aspeed_h2x_intx_mask_irq(struct irq_data *d);
 extern void aspeed_h2x_intx_unmask_irq(struct irq_data *d);

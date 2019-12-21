@@ -5,45 +5,17 @@
  */
 #include <linux/init.h>
 
-#include <linux/miscdevice.h>
-#include <linux/completion.h>
-#include <linux/interrupt.h>
-#include <linux/module.h>
-#include <linux/reset.h>
-#include <linux/slab.h>
-#include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/of_pci.h>
+#include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/io.h>
 #include <asm/uaccess.h>
-
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/platform_device.h>
-#include <linux/interrupt.h>
-
 #include <linux/delay.h>
-
-#include <linux/pci.h>
-#include <linux/irq.h>
-#include <linux/spinlock.h>
-#include <linux/of_address.h>
-#include <linux/of_pci.h>
-#include <linux/module.h>
-
-#include <linux/slab.h>
-
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/of_address.h>
-#include <linux/of_pci.h>
-#include <linux/of_platform.h>
-#include <linux/of_irq.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/irqchip/chained_irq.h>
-#include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <asm/io.h>
 
