@@ -427,7 +427,7 @@ extern void aspeed_h2x_msi_enable(struct aspeed_pcie *pcie)
 	writel(0xffffffff, pcie->h2x_rc_base + 0x20);
 	writel(0xffffffff, pcie->h2x_rc_base + 0x24);
 }
-#if 0
+
 extern void aspeed_h2x_rc_intr_handler(struct aspeed_pcie *pcie)
 {
 	u32 bit;	
@@ -468,7 +468,7 @@ extern void aspeed_h2x_rc_intr_handler(struct aspeed_pcie *pcie)
 			}
 	}
 }
-#endif
+
 extern void aspeed_h2x_workaround(struct aspeed_pcie *pcie)
 {
 	u32 timeout = 0;
@@ -512,7 +512,6 @@ EXPORT_SYMBOL(aspeed_h2x_workaround);
 
 extern void aspeed_h2x_rc_init(struct aspeed_pcie *pcie)
 {
-	pcie->h2xreg_base = aspeed_h2x->reg_base;
 	pcie->h2x_rc_base = aspeed_h2x->reg_base + pcie->rc_offset;
 
 	//todo clr intx isr 

@@ -2,7 +2,6 @@
 /*
  * PCIE driver for the Aspeed SoC
  *
- * Author: Ryan Chen <ryan_chen@aspeedtech.com>
  */
 
 #include <linux/kernel.h>
@@ -16,65 +15,20 @@
 #include <linux/irq.h>
 #include <linux/spinlock.h>
 #include <linux/msi.h>
-#include <linux/of_address.h>
-#include <linux/of_pci.h>
-#include <linux/module.h>
 
-#include <linux/slab.h>
-#include <linux/msi.h>
-#include <linux/pci.h>
-
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/irqdomain.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/msi.h>
-#include <linux/of_address.h>
 #include <linux/of_pci.h>
-#include <linux/of_platform.h>
 #include <linux/of_irq.h>
-#include <linux/pci.h>
-#include <linux/platform_device.h>
-#include <linux/irqchip/chained_irq.h>
-
+#include <linux/of_address.h>
+#include <linux/of_platform.h>
+#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/irqdomain.h>
 
 #include "h2x-ast2600.h"
 #include "../pci.h"
 
-//#include "pcie-aspeed.h"
-//#include <linux/aspeed-sdmc.h>
-
 #define MAX_LEGACY_IRQS			4
 #define MAX_MSI_HOST_IRQS		64
-
-//#define H2X_RC_L
-/* H2X Controller registers */
-
-/* reg 0x24 */
-#define PCIE_TX_IDLE			BIT(31)
-
-#define PCIE_STATUS_OF_TX		GENMASK(25, 24)
-#define	PCIE_RC_TX_COMPLETE		0
-#define	PCIE_RC_L_TX_COMPLETE	BIT(24)		
-#define	PCIE_RC_H_TX_COMPLETE	BIT(25)
-
-#define PCIE_TRIGGER_TX			BIT(0)
-
-
-
-/* reg 0x88, 0xC8 : RC ISR */
-
-#define PCIE_RC_CPLCA_ISR		BIT(6)
-#define PCIE_RC_CPLUR_ISR		BIT(5)
-#define PCIE_RC_RX_DONE_ISR		BIT(4)
-
-#define PCIE_RC_INTD_ISR		BIT(3)
-#define PCIE_RC_INTC_ISR		BIT(2)
-#define PCIE_RC_INTB_ISR		BIT(1)
-#define PCIE_RC_INTA_ISR		BIT(0)
-
 
 /* PCI Host Controller registers */
 
@@ -182,11 +136,7 @@ static int aspeed_pcie_msi_setup_irq(struct msi_controller *chip,
 	irq_set_msi_desc(irq, desc);
 
 	msg.address_hi = 0;
-#ifdef H2X_RC_L	
-	msg.address_lo = 0x1e770058;
-#else
-	msg.address_lo = 0x1e77005C;
-#endif
+	msg.address_lo = pcie->msi_address;
 //	msg.data = irq;
 	msg.data = hwirq;
 
@@ -263,62 +213,8 @@ static int aspeed_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 static irqreturn_t aspeed_pcie_intr_handler(int irq, void *data)
 {
 	struct aspeed_pcie *pcie = (struct aspeed_pcie *)data;
-	u32 bit;	
-	u32 virq;
-	unsigned long status;
-#ifdef H2X_RC_L
-	unsigned long intx = readl(pcie->h2xreg_base + 0x88) & 0xf;
-#else
-	unsigned long intx = readl(pcie->h2xreg_base + 0xc8) & 0xf;
-#endif
-	int i;
 
-#ifdef H2X_RC_L
-	sts0 = readl(pcie->h2xreg_base + 0xc8);
-	sts1 = readl(pcie->h2xreg_base + 0xcc);
-
-	if(sts0) {
-		writel(sts0, pcie->h2xreg_base + 0xc8);
-	}
-
-	if(sts1) {
-		writel(sts1, pcie->h2xreg_base + 0xcc);
-	}
-#else
-	//intx isr
-	if(intx) {
-		for_each_set_bit(bit, &intx, 32) {
-			virq = irq_find_mapping(pcie->leg_domain, bit);
-			if (virq)
-				generic_handle_irq(virq);
-			else
-				dev_err(pcie->dev, "unexpected Int - X\n");
-		}
-	}
-	//msi isr
-	for (i = 0; i < 2; i++) {
-			status = readl(pcie->h2xreg_base + 0xe8 + (i * 4));
-//			printk("aspeed_pcie_intr_handler  status %lx \n", status);
-			writel(status, pcie->h2xreg_base + 0xe8 + (i * 4));
-//			printk("read  status %x \n", readl(pcie->h2xreg_base + 0xe8 + (i * 4)));
-			if (!status)
-					continue;
-
-			for_each_set_bit(bit, &status, 32) {
-				if(i) {
-					bit += 32;
-				}
-				virq = irq_find_mapping(pcie->msi_domain, bit);
-//				printk("[%d] : find bit %d mapping irq no %d \n", i, bit, virq);
-				if (virq)
-					generic_handle_irq(virq);
-				else
-					dev_err(pcie->dev, "unexpected MSI\n");
-			}
-	}
-
-#endif
-
+	aspeed_h2x_rc_intr_handler(pcie);
 	return IRQ_HANDLED;
 }
 
@@ -419,7 +315,6 @@ static int aspeed_pcie_parse_dt(struct aspeed_pcie *pcie, struct platform_device
 	struct resource *res;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	printk("res->start %x \n", res->start);
 	if(res) {
 		pcie->pciereg_base = devm_ioremap_resource(dev, res);
 		if (IS_ERR(pcie->pciereg_base))
@@ -429,9 +324,7 @@ static int aspeed_pcie_parse_dt(struct aspeed_pcie *pcie, struct platform_device
 	pcie->irq = irq_of_parse_and_map(node, 0);
 
 	of_property_read_u32(node, "rc_offset", &pcie->rc_offset);
-	printk("%x ================ \n", pcie->rc_offset);
 	of_property_read_u32(node, "msi_address", &pcie->msi_address);
-	printk("%x ================ \n", pcie->msi_address);
 	return 0;
 }
 
