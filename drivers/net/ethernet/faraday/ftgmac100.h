@@ -268,6 +268,5 @@ struct ftgmac100_rxdes {
 #define FTGMAC100_NUM_TESTS		2
 
 #define FTGMAC100_MAC_LOOPBACK		0
-#define FTGMAC100_PHY_LOOPBACK		1
-#define FTGMAC100_EXT_LOOPBACK		2
+#define FTGMAC100_EXT_LOOPBACK		1
 #endif /* __FTGMAC100_H */
