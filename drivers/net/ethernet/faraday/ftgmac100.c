@@ -1309,7 +1309,7 @@ static int ftgmac100_run_loopback(struct net_device *netdev, uint32_t loopback_m
 	udelay(10);
 
 	/**
-	 * receive engress packet
+	 * receive ingress packet
 	*/
 	pointer = priv->rx_pointer;
 	rxdes = &priv->rxdes[pointer];
@@ -1352,16 +1352,16 @@ static int ftgmac100_run_loopback(struct net_device *netdev, uint32_t loopback_m
 		goto fail;
 	}
 
-	if (0 != memcmp(txskb->data, rxskb->data, pkt_size)) {
-		err = -EIO;
-		goto fail;
-	}
-
 	if (0) {
 		txpkt = txskb->data;
 		rxpkt = rxskb->data;
 		for (i = 0; i < rx_size; i++)
 			printk("%02x %02x\n", *txpkt++, *rxpkt++);
+	}
+
+	if (0 != memcmp(txskb->data, rxskb->data, pkt_size)) {
+		err = -EIO;
+		goto fail;
 	}
 
 	err = 0;
