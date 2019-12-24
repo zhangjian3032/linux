@@ -332,21 +332,6 @@ static void fmc_spi_cleanup(struct spi_device *spi)
         spin_unlock_irqrestore(&host->lock, flags);
 }
 
-#if 0
-static int fmc_spi_flash_read(struct spi_device *spi,
-				 struct spi_flash_read_message *msg)
-{
-//	struct fmc_spi_host 	*host = spi_master_get_devdata(spi->master);
-	int ret = 0;
-
-//	printk("read msg->from %x,  msg->len %x , msg->buf %x , msg->addr_width %d , msg->dummy_bytes %x , msg->read_opcode %x \n", msg->from, msg->len, msg->buf, msg->addr_width, msg->dummy_bytes, msg->read_opcode);
-
-//	memcpy_fromio(msg->buf, b53spi->mmio_base + msg->from, msg->len);
-	msg->retlen = msg->len;
-
-	return ret;
-}
-#endif
 
 static int fmc_spi_probe(struct platform_device *pdev)
 {
@@ -402,7 +387,7 @@ static int fmc_spi_probe(struct platform_device *pdev)
 	}
 	host->ahb_clk = clk_get_rate(clk);
 
-	dev_dbg(&pdev->dev, "remap phy %x, virt %x \n",(u32)res->start, (u32)host->base);
+	dev_dbg(&pdev->dev, "remap phy %x, virt %x hclk : %d\n",(u32)res->start, (u32)host->base, host->ahb_clk);
 
 	host->master = spi_master_get(master);
 
@@ -433,7 +418,6 @@ static int fmc_spi_probe(struct platform_device *pdev)
 	host->master->setup = fmc_spi_setup;
 	host->master->transfer = fmc_spi_transfer;
 	host->master->cleanup = fmc_spi_cleanup;
-//	host->master->spi_flash_read = fmc_spi_flash_read;
 
 	platform_set_drvdata(pdev, host);
 
@@ -486,23 +470,6 @@ fmc_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int 
-fmc_spi_suspend(struct platform_device *pdev, pm_message_t msg)
-{
-	return 0;
-}
-
-static int
-fmc_spi_resume(struct platform_device *pdev)
-{
-	return 0;
-}
-#else
-#define fmc_spi_suspend NULL
-#define fmc_spi_resume NULL
-#endif
-
 static const struct of_device_id fmc_spi_of_match[] = {
 	{ .compatible = "aspeed,fmc-spi" },
 	{ },
@@ -511,10 +478,6 @@ static const struct of_device_id fmc_spi_of_match[] = {
 static struct platform_driver fmc_spi_driver = {
 	.probe = fmc_spi_probe,
 	.remove = fmc_spi_remove,
-#ifdef CONFIG_PM
-	.suspend = fmc_spi_suspend,
-	.resume = fmc_spi_resume,
-#endif
 	.driver = {
 		.name		= KBUILD_MODNAME,
 		.of_match_table = fmc_spi_of_match,
