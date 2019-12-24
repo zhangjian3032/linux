@@ -68,6 +68,7 @@ struct aspeed_h2x_info *aspeed_h2x;
 extern u8 aspeed_pcie_inb(u32 addr)
 {
 	int timeout = 0;
+	printk("aspeed_pcie_inb addr %x \n", addr);
 	void __iomem *pcie_rc_base = aspeed_h2x->reg_base + 0xc0;
 
 	writel(BIT(4) | readl(pcie_rc_base), pcie_rc_base);
@@ -114,6 +115,7 @@ extern void aspeed_pcie_outb(u8 value, u32 addr)
 	int timeout = 0;
 	u32 wvalue = value;
 	void __iomem *pcie_rc_base = aspeed_h2x->reg_base + 0xc0;
+	printk("aspeed_pcie_outb addr %x \n", addr);
 
 	writel(BIT(4) | readl(pcie_rc_base), pcie_rc_base);
 
@@ -532,6 +534,7 @@ static int aspeed_h2x_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't get h2x reset\n");
 		return PTR_ERR(aspeed_h2x->reset);
 	}
+	aspeed_h2x->txTag = 0;
 
 	//scu init
 	reset_control_assert(aspeed_h2x->reset);
@@ -544,9 +547,6 @@ static int aspeed_h2x_probe(struct platform_device *pdev)
 	writel(0xe0006000, aspeed_h2x->reg_base + 0x60);
 	writel(0x00000000, aspeed_h2x->reg_base + 0x64);
 	writel(0xFFFFFFFF, aspeed_h2x->reg_base + 0x68);
-
-	printk("aspeed_h2x_probe ******************************************** done \n");
-
 	return 0;
 }
 

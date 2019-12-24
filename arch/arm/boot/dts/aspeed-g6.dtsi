@@ -469,8 +469,8 @@
 
 				#address-cells = <3>;
 				#size-cells = <2>;
-				ranges = <0x01000000 0 0x00000000 0x00000000 0x0 0x10000   /* I/O */
-						  0x02000000 0x0 0x60010000 0x60010000 0 0x1fff0000>; /* memory */
+				ranges = <0x01000000 0 0x00010000 0x00010000 0x0 0x10000   /* I/O */
+					  0x02000000 0x0 0x70000000 0x70000000 0 0x0fffffff>; /* memory */
 
 				interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 				#interrupt-cells = <1>;
