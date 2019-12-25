@@ -1252,6 +1252,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-ast2600a0-evb.dtb \
 	aspeed-ast2600a1-evb.dtb \
 	aspeed-ast2600-fpga.dtb \
+	aspeed-ast2600-slt.dtb \
 	aspeed-ast2600-obmc-evb.dtb \
 	aspeed-ast2500-evb.dtb \
 	aspeed-bmc-arm-centriq2400-rep.dtb \
