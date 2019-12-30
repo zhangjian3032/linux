@@ -203,7 +203,7 @@
 			#size-cells = <0>;
 #if 1
 			reg = < 0x1e631000 0xc4
-				0x50000000 0x10000000 >
+				0x50000000 0x10000000 >;
 			compatible = "aspeed,ast2600-spi2";
 #else
 			/* reg : cs0 : cs1 */
@@ -418,6 +418,13 @@
 				reg = <0x1e785000 0x40>;
 			};
 
+			rng: hwrng@1e6e2520 {
+				compatible = "timeriomem_rng";
+				reg = <0x1e6e2078 0x4>;
+				period = <1>;
+				quality = <100>;
+			};
+
 			hace: hace@1e6d0000 {
 				compatible = "aspeed,ast2600-hace";
 				reg = <0x1e6d0000 0x200>;
@@ -558,14 +565,51 @@
 			};
 
 			espi: espi@1e6ee000 {
-				compatible = "aspeed,ast2600-espi";
-				reg = <0x1e6ee000 0x200>;
-				interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>, <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
-				resets = <&syscon ASPEED_RESET_LPC_ESPI>;
+				compatible = "aspeed,aspeed-espi", "simple-mfd";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				ranges = <0x0 0x1e6ee000 0x200>;
+				espi_slave: espi-slave@0 {
+					compatible = "aspeed,ast2600-espi", "simple-mfd", "syscon";
+					reg = <0x0 0x200>;
+					interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>, <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
+					resets = <&syscon ASPEED_RESET_LPC_ESPI>;
+                    espi_intc: legacy-interrupt-controller {
+                            interrupt-controller;
+	                        #interrupt-cells = <1>;
+        	        };
+
+				};
+
+				peripheral: peripheral-channel@0 {
+					compatible = "aspeed,ast2600-espi-peripheral", "syscon";
+					reg = <0x0 0x200>;
+					interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+					dma-mode;
+				};
+
+				virtial_wire: vw-channel@0 {
+					compatible = "aspeed,ast2600-espi-virtial-wire", "syscon";
+					reg = <0x0 0x200>;
+					interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				oob: oob-channel@0 {
+					compatible = "aspeed,ast2600-espi-oob", "syscon";
+					reg = <0x0 0x200>;
+					interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+					dma-mode;
+				};
+				flash: flash-channel@0 {
+					compatible = "aspeed,ast2600-espi-flash", "syscon";
+					reg = <0x0 0x200>;
+					interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+				};
 			};
 
 			video: video@1e700000 {
-#if 1
+#if 0
 				compatible = "aspeed,ast2600-video-engine";
 #else
 				compatible = "aspeed,ast2600-video";
