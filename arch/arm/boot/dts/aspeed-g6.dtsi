@@ -565,21 +565,16 @@
 			};
 
 			espi: espi@1e6ee000 {
-				compatible = "aspeed,aspeed-espi", "simple-mfd";
+				compatible = "aspeed,ast2600-espi", "simple-mfd", "syscon";
+				reg = <0x1e6ee000 0x200>;
+				interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>, <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
+				resets = <&syscon ASPEED_RESET_LPC_ESPI>;
+				ranges = <0x0 0x1e6ee000 0x200>;
 				#address-cells = <1>;
 				#size-cells = <1>;
-
-				ranges = <0x0 0x1e6ee000 0x200>;
-				espi_slave: espi-slave@0 {
-					compatible = "aspeed,ast2600-espi", "simple-mfd", "syscon";
-					reg = <0x0 0x200>;
-					interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>, <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
-					resets = <&syscon ASPEED_RESET_LPC_ESPI>;
-					espi_intc: legacy-interrupt-controller {
-						interrupt-controller;
-						#interrupt-cells = <1>;
-					};
-
+				espi_intc: legacy-interrupt-controller {
+					interrupt-controller;
+					#interrupt-cells = <1>;
 				};
 
 				peripheral: peripheral-channel@0 {
