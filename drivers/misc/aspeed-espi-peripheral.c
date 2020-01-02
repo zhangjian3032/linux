@@ -295,6 +295,190 @@ static int espi_peripheral_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static ssize_t show_fatal_err(struct device *dev,
+							  struct device_attribute *attr, char *buf)
+{
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(dev);
+	return sprintf(buf, "%s\n", aspeed_espi_peripheral_read(espi_peripheral, ASPEED_ESPI_SYS_EVENT) & ESPI_FATEL_ERR ? "0" : "1");
+}
+
+static ssize_t store_fatal_err(struct device *dev,
+							   struct device_attribute *attr, const char *buf, size_t count)
+{
+	u32 val;
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(dev);
+
+	val = simple_strtoul(buf, NULL, 5);
+	
+	if (val)
+		regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_SYS_EVENT, ESPI_FATEL_ERR, ESPI_FATEL_ERR);
+	else
+		regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_SYS_EVENT, ESPI_FATEL_ERR, 0);
+
+	return count;
+}
+
+static DEVICE_ATTR(fatal_err, S_IWUSR | S_IWUSR, show_fatal_err, store_fatal_err);
+
+static ssize_t show_nfatal_err(struct device *dev,
+							   struct device_attribute *attr, char *buf)
+{
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(dev);
+	return sprintf(buf, "%s\n", aspeed_espi_peripheral_read(espi_peripheral, ASPEED_ESPI_SYS_EVENT) & ESPI_NFATEL_ERR ? "0" : "1");
+}
+
+static ssize_t store_nfatal_err(struct device *dev,
+								struct device_attribute *attr, const char *buf, size_t count)
+{
+	u32 val;
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(dev);
+
+	val = simple_strtoul(buf, NULL, 5);
+	if (val)
+		regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_SYS_EVENT, ESPI_NFATEL_ERR, ESPI_NFATEL_ERR);
+	else
+		regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_SYS_EVENT, ESPI_NFATEL_ERR, 0);
+
+	return count;
+}
+
+static DEVICE_ATTR(nfatal_err, S_IWUSR | S_IWUSR, show_nfatal_err, store_nfatal_err);
+
+static ssize_t show_rest_cpu(struct device *dev,
+							 struct device_attribute *attr, char *buf)
+{
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(dev);
+	return sprintf(buf, "%s\n", aspeed_espi_peripheral_read(espi_peripheral, ASPEED_ESPI_SYS_EVENT) & ESPI_REST_CPU_INIT ? "0" : "1");
+}
+
+static ssize_t store_rest_cpu(struct device *dev,
+							  struct device_attribute *attr, const char *buf, size_t count)
+{
+	u32 val;
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(dev);
+
+	val = simple_strtoul(buf, NULL, 5);
+	if (val)
+		regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_SYS_EVENT, ESPI_REST_CPU_INIT, ESPI_REST_CPU_INIT);
+	else
+		regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_SYS_EVENT, ESPI_REST_CPU_INIT, 0);
+
+	return count;
+}
+
+static DEVICE_ATTR(rest_cpu,  S_IWUSR | S_IWUSR, show_rest_cpu, store_rest_cpu);
+
+static ssize_t show_host_rest_ack(struct device *dev,
+								  struct device_attribute *attr, char *buf)
+{
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(dev);
+	return sprintf(buf, "%s\n", aspeed_espi_peripheral_read(espi_peripheral, ASPEED_ESPI_SYS_EVENT) & ESPI_HOST_REST_ACK ? "0" : "1");
+}
+
+static ssize_t store_host_rest_ack(struct device *dev,
+								   struct device_attribute *attr, const char *buf, size_t count)
+{
+	u32 val;
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(dev);
+
+	val = simple_strtoul(buf, NULL, 5);
+	if (val)
+		regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_SYS_EVENT, ESPI_HOST_REST_ACK, ESPI_HOST_REST_ACK);
+	else
+		regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_SYS_EVENT, ESPI_HOST_REST_ACK, 0);
+
+	return count;
+}
+
+static DEVICE_ATTR(host_rest_ack, S_IWUSR | S_IWUSR, show_host_rest_ack, store_host_rest_ack);
+
+static ssize_t show_oob_rest_ack(struct device *dev,
+								 struct device_attribute *attr, char *buf)
+{
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(dev);
+	return sprintf(buf, "%s\n", aspeed_espi_peripheral_read(espi_peripheral, ASPEED_ESPI_SYS_EVENT) & ESPI_OOB_REST_ACK ? "0" : "1");
+}
+
+static ssize_t store_oob_rest_ack(struct device *dev,
+								  struct device_attribute *attr, const char *buf, size_t count)
+{
+	u32 val;
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(dev);
+
+	val = simple_strtoul(buf, NULL, 5);
+	if (val)
+		regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_SYS_EVENT, ESPI_OOB_REST_ACK, ESPI_OOB_REST_ACK);
+	else
+		regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_SYS_EVENT, ESPI_OOB_REST_ACK, 0);
+
+	return count;
+}
+
+static DEVICE_ATTR(oob_rest_ack, S_IWUSR | S_IWUSR, show_oob_rest_ack, store_oob_rest_ack);
+
+static ssize_t show_boot_sts(struct device *dev,
+							 struct device_attribute *attr, char *buf)
+{
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(dev);
+	return sprintf(buf, "%s\n", aspeed_espi_peripheral_read(espi_peripheral, ASPEED_ESPI_SYS_EVENT) & ESPI_BOOT_STS ? "0" : "1");
+}
+
+static ssize_t store_boot_sts(struct device *dev,
+							  struct device_attribute *attr, const char *buf, size_t count)
+{
+	u32 val;
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(dev);
+
+	val = simple_strtoul(buf, NULL, 5);
+	if (val)
+		regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_SYS_EVENT, ESPI_BOOT_STS, ESPI_BOOT_STS);
+	else
+		regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_SYS_EVENT, ESPI_BOOT_STS, 0);
+
+	return count;
+}
+
+static DEVICE_ATTR(boot_sts, S_IWUSR | S_IWUSR, show_boot_sts, store_boot_sts);
+
+static ssize_t show_boot_dwn(struct device *dev,
+							 struct device_attribute *attr, char *buf)
+{
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(dev);
+	return sprintf(buf, "%s\n", aspeed_espi_peripheral_read(espi_peripheral, ASPEED_ESPI_SYS_EVENT) & ESPI_BOOT_DWN ? "0" : "1");
+}
+
+static ssize_t store_boot_dwn(struct device *dev,
+							  struct device_attribute *attr, const char *buf, size_t count)
+{
+	u32 val;
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(dev);
+
+	val = simple_strtoul(buf, NULL, 5);
+	if (val)
+		regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_SYS_EVENT, ESPI_BOOT_DWN, ESPI_BOOT_DWN);
+	else
+		regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_SYS_EVENT, ESPI_BOOT_DWN, 0);
+
+	return count;
+}
+
+static DEVICE_ATTR(boot_dwn, S_IWUSR | S_IWUSR, show_boot_dwn, store_boot_dwn);
+
+static struct attribute *espi_peripheral_sysfs_entries[] = {
+	&dev_attr_boot_sts.attr,
+	&dev_attr_boot_dwn.attr,
+	&dev_attr_oob_rest_ack.attr,
+	&dev_attr_fatal_err.attr,
+	&dev_attr_nfatal_err.attr,
+	&dev_attr_rest_cpu.attr,
+	&dev_attr_host_rest_ack.attr,
+	NULL
+};
+
+static struct attribute_group espi_peripheral_attribute_group = {
+	.attrs = espi_peripheral_sysfs_entries,
+};
+
 static const struct file_operations aspeed_espi_peripheral_fops = {
 	.owner			= THIS_MODULE,
 	.unlocked_ioctl		= espi_peripheral_ioctl,
@@ -320,9 +504,8 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct aspeed_espi_peripheral *espi_peripheral;
 	const struct of_device_id *dev_id;	
-	int rc, i;
-	int irq;
-printk("aspeed_espi_peripheral_probe \n");
+	int rc;
+
 	espi_peripheral = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_espi_peripheral), GFP_KERNEL);
 	if (!espi_peripheral)
 		return -ENOMEM;
@@ -341,15 +524,13 @@ printk("aspeed_espi_peripheral_probe \n");
 		dev_err(dev, "Couldn't get regmap\n");
 		return -ENODEV;
 	}
-#if 0
+
 	rc = sysfs_create_group(&pdev->dev.kobj, &espi_peripheral_attribute_group);
 	if (rc) {
 		printk(KERN_ERR "aspeed_espi_peripheral: failed to create sysfs device attributes.\n");
 		return -1;
 	}
-#endif	
-///
-	printk("espi flash read %x \n", aspeed_espi_peripheral_read(espi_peripheral, 0x0));
+
 	dev_set_drvdata(dev, espi_peripheral);
 
 	if(espi_peripheral->dma_mode) {
@@ -379,8 +560,6 @@ printk("aspeed_espi_peripheral_probe \n");
 		
 	}
 
-
-printk("request p isr ******************************************************\n");
 	espi_peripheral->irq = platform_get_irq(pdev, 0);
 	if (espi_peripheral->irq < 0) {
 		dev_err(&pdev->dev, "no irq specified\n");
@@ -394,7 +573,7 @@ printk("request p isr ******************************************************\n")
 		printk("espi oob Unable to get IRQ \n");
 		return rc;
 	}
-printk("request p ira ******************************************************1\n");	
+
 	rc = misc_register(&aspeed_espi_peripheral_misc);
 	if (rc) {
 		dev_err(dev, "Unable to register device\n");
@@ -408,7 +587,7 @@ printk("request p ira ******************************************************1\n"
 
 static int aspeed_espi_peripheral_remove(struct platform_device *pdev)
 {
-	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(&pdev->dev);
+//	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(&pdev->dev);
 
 	misc_deregister(&aspeed_espi_peripheral_misc);
 

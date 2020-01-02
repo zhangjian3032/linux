@@ -35,7 +35,6 @@
 #define OOB_BUFF_SIZE		256
 #define ESPI_OOB_MESSAGE			0x21
 
-
 struct aspeed_oob_rx_cmd {
 	dma_addr_t dma_addr;
 	u32	cmd;
@@ -266,9 +265,6 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 	struct aspeed_espi_oob *espi_oob;
 	const struct of_device_id *dev_id;	
 	int rc, i;
-	int irq;
-
-	printk("aspeed_espi_oob_probe \n");
 
 	espi_oob = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_espi_oob), GFP_KERNEL);
 	if (!espi_oob)
@@ -313,9 +309,6 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 	
 	dev_set_drvdata(dev, espi_oob);
 	
-///
-	printk("oob read %x \n", aspeed_espi_oob_read(espi_oob, 0x0));
-
 	//aspeed_oob_channel_init
 	if(espi_oob->dma_mode) {
 		if(espi_oob->espi_version == 6) {
@@ -369,7 +362,6 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 		espi_oob->oob_tx_buff = espi_oob->oob_rx_buff + MAX_XFER_BUFF_SIZE;
 	}
 
-printk("request oob irq ******************************************************\n");
 	espi_oob->irq = platform_get_irq(pdev, 0);
 	if (espi_oob->irq < 0) {
 		dev_err(&pdev->dev, "no irq specified\n");
@@ -383,7 +375,7 @@ printk("request oob irq ******************************************************\n
 		printk("espi oob Unable to get IRQ \n");
 		return rc;
 	}
-printk("request oob irq done ******************************************************1\n");	
+
 	rc = misc_register(&espi_oob->miscdev);
 	if (rc) {
 		dev_err(dev, "Unable to register device\n");

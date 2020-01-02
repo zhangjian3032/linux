@@ -31,8 +31,8 @@
 
 #define ESPIFIOC_BASE       'F'
 
-#define ASPEED_ESPI_FLASH_IOCRX			_IOWR(ESPIFIOC_BASE, 0x15, struct aspeed_espi_xfer)
-#define ASPEED_ESPI_FLASH_IOCTX			_IOW(ESPIFIOC_BASE, 0x16, struct aspeed_espi_xfer)
+#define ASPEED_ESPI_FLASH_IOCRX			_IOWR(ESPIFIOC_BASE, 0x0, struct aspeed_espi_xfer)
+#define ASPEED_ESPI_FLASH_IOCTX			_IOW(ESPIFIOC_BASE, 0x1, struct aspeed_espi_xfer)
 
 struct aspeed_espi_flash {
 
@@ -240,7 +240,6 @@ static int espi_flash_release(struct inode *inode, struct file *file)
 	spin_lock(&espi_flash_state_lock);
 
 	espi_flash->is_open = false;
-//	espi_fasync(-1, file, 0);
 	spin_unlock(&espi_flash_state_lock);
 
 	return 0;
@@ -305,9 +304,8 @@ static int aspeed_espi_flash_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct aspeed_espi_flash *espi_flash;
 	const struct of_device_id *dev_id;	
-	int rc, i;
-	int irq;
-printk("aspeed_espi_flash_probe \n");
+	int rc;
+	
 	espi_flash = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_espi_flash), GFP_KERNEL);
 	if (!espi_flash)
 		return -ENOMEM;
@@ -332,9 +330,7 @@ printk("aspeed_espi_flash_probe \n");
 		printk(KERN_ERR "aspeed_espi_flash: failed to create sysfs device attributes.\n");
 		return -1;
 	}
-	
-///
-	printk("espi flash read %x \n", aspeed_espi_flash_read(espi_flash, 0x0));
+
 	dev_set_drvdata(dev, espi_flash);
 
 	if(espi_flash->dma_mode) {
@@ -355,8 +351,6 @@ printk("aspeed_espi_flash_probe \n");
 		espi_flash->flash_tx_channel.buff = espi_flash->flash_rx_channel.buff + MAX_XFER_BUFF_SIZE;
 	}
 
-
-printk("request flash isr ******************************************************\n");
 	espi_flash->irq = platform_get_irq(pdev, 0);
 	if (espi_flash->irq < 0) {
 		dev_err(&pdev->dev, "no irq specified\n");
@@ -370,7 +364,7 @@ printk("request flash isr ******************************************************
 		printk("espi flash Unable to get IRQ \n");
 		return rc;
 	}
-printk("request flash ira ******************************************************1\n");	
+
 	rc = misc_register(&aspeed_espi_flash_misc);
 	if (rc) {
 		dev_err(dev, "Unable to register device\n");
@@ -384,7 +378,7 @@ printk("request flash ira ******************************************************
 
 static int aspeed_espi_flash_remove(struct platform_device *pdev)
 {
-	struct aspeed_espi_flash *espi_flash = dev_get_drvdata(&pdev->dev);
+//	struct aspeed_espi_flash *espi_flash = dev_get_drvdata(&pdev->dev);
 
 	misc_deregister(&aspeed_espi_flash_misc);
 

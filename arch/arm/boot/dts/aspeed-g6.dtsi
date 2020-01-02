@@ -575,10 +575,10 @@
 					reg = <0x0 0x200>;
 					interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>, <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
 					resets = <&syscon ASPEED_RESET_LPC_ESPI>;
-                    espi_intc: legacy-interrupt-controller {
-                            interrupt-controller;
-	                        #interrupt-cells = <1>;
-        	        };
+					espi_intc: legacy-interrupt-controller {
+						interrupt-controller;
+						#interrupt-cells = <1>;
+					};
 
 				};
 

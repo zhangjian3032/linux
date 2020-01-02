@@ -219,7 +219,6 @@ static int espi_vw_release(struct inode *inode, struct file *file)
 	spin_lock(&espi_vw_state_lock);
 
 	espi_vw->is_open = false;
-//	espi_fasync(-1, file, 0);
 	spin_unlock(&espi_vw_state_lock);
 
 	return 0;
@@ -284,9 +283,8 @@ static int aspeed_espi_vw_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct aspeed_espi_vw *espi_vw;
 	const struct of_device_id *dev_id;	
-	int rc, i;
-	int irq;
-printk("aspeed_espi_vw_probe \n");
+	int rc;
+
 	espi_vw = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_espi_vw), GFP_KERNEL);
 	if (!espi_vw)
 		return -ENOMEM;
@@ -309,11 +307,8 @@ printk("aspeed_espi_vw_probe \n");
 		return -1;
 	}
 	
-///
-	printk("espi vw read %x \n", aspeed_espi_vw_read(espi_vw, 0x0));
 	dev_set_drvdata(dev, espi_vw);
 
-printk("request vw isr ******************************************************\n");
 	espi_vw->irq = platform_get_irq(pdev, 0);
 	if (espi_vw->irq < 0) {
 		dev_err(&pdev->dev, "no irq specified\n");
@@ -327,7 +322,7 @@ printk("request vw isr ******************************************************\n"
 		printk("espi oob Unable to get IRQ \n");
 		return rc;
 	}
-printk("request vw ira ******************************************************1\n");	
+
 	rc = misc_register(&aspeed_espi_vw_misc);
 	if (rc) {
 		dev_err(dev, "Unable to register device\n");
@@ -341,7 +336,7 @@ printk("request vw ira ******************************************************1\n
 
 static int aspeed_espi_vw_remove(struct platform_device *pdev)
 {
-	struct aspeed_espi_vw *espi_vw = dev_get_drvdata(&pdev->dev);
+//	struct aspeed_espi_vw *espi_vw = dev_get_drvdata(&pdev->dev);
 
 	misc_deregister(&aspeed_espi_vw_misc);
 
