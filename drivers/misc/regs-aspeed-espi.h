@@ -87,11 +87,6 @@ struct espi_ch_data {
 #define ASPEED_ESPI_OOB_TX_WRITE_PT		0x148
 
 
-
-
-
-
-
 /* ASPEED_ESPI_CTRL	-	0x00	:Engine Control */
 #define ESPI_CTRL_FLASH_TX_SW_RESET		BIT(31)
 #define ESPI_CTRL_FLASH_RX_SW_RESET		BIT(30)

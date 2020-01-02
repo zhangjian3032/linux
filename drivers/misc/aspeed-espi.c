@@ -18,6 +18,13 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
+#include <linux/irq.h>
+#include <linux/irqchip.h>
+#include <linux/irqchip/chained_irq.h>
+
+#include <linux/io.h>
+#include <linux/module.h>
+
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
@@ -56,7 +63,6 @@
 #define ASPEED_ESPI_RX_IOCSTS			_IOR(ESPIIOC_BASE, 0x0, unsigned int)
 /*************************************************************************************/
 #define MAX_XFER_BUFF_SIZE	0x80		//128
-
 /*
 ast2500 dma/pio mode only support 1 fifo 
 ast2600 pio mode support 1 fifo 
@@ -84,6 +90,7 @@ struct aspeed_espi_data {
 	struct reset_control 	*reset;
 	u32 					irq_sts;
 	bool 					is_open;
+	u32 					espi_bus_rest_ier;
 
 	struct irq_domain *irq_domain;
 	
@@ -139,14 +146,12 @@ static void aspeed_espi_ctrl_init(struct aspeed_espi_data *aspeed_espi)
 	if (aspeed_espi->espi_version == 5)
 		aspeed_espi_write(aspeed_espi, ESPI_HOST_RST_WARN | ESPI_OOB_RST_WARN, ASPEED_ESPI_SYS_INT_T2);
 
-	aspeed_espi_write(aspeed_espi, 0xffffffff, ASPEED_ESPI_IER);
+	regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, BIT(31), BIT(31));
 	aspeed_espi_write(aspeed_espi, 0xffffffff, ASPEED_ESPI_SYS_IER);
 
 	//A1
 	aspeed_espi_write(aspeed_espi, 0x1, ASPEED_ESPI_SYS1_IER);
 	aspeed_espi_write(aspeed_espi, 0x1, ASPEED_ESPI_SYS1_INT_T0);
-
-
 
 }
 
@@ -154,6 +159,8 @@ static irqreturn_t aspeed_espi_reset_isr(int this_irq, void *dev_id)
 {
 	u32 sw_mode = 0;
 	struct aspeed_espi_data *aspeed_espi = dev_id;
+	int i = 0;
+	unsigned int bus_irq;
 
 	ESPI_DBUG("aspeed_espi_reset_isr\n");
 
@@ -173,29 +180,141 @@ static irqreturn_t aspeed_espi_reset_isr(int this_irq, void *dev_id)
 
 	aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) | sw_mode, ASPEED_ESPI_CTRL);
 
+	for(i = 4; i < 8; i++) {
+		bus_irq = irq_find_mapping(aspeed_espi->irq_domain, i);
+		generic_handle_irq(bus_irq);
+	}
+
 	return IRQ_HANDLED;
 }
-static irqreturn_t aspeed_espi_isr(int this_irq, void *dev_id)
-{
-	struct aspeed_espi_data *aspeed_espi = dev_id;
-	u32 sts = aspeed_espi_read(aspeed_espi, ASPEED_ESPI_ISR);
-	ESPI_DBUG("sts : %x\n", sts);
 
-	if (sts & ESPI_ISR_HW_RESET) {
+static void aspeed_espi_handler(struct irq_desc *desc)
+{
+	struct aspeed_espi_data *aspeed_espi = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	unsigned long status;
+	unsigned int bus_irq;
+
+	chained_irq_enter(chip, desc);
+	status = aspeed_espi_read(aspeed_espi, ASPEED_ESPI_ISR);
+
+	if (status & ESPI_ISR_HW_RESET) {
 		printk("ESPI_ISR_HW_RESET \n");
 		aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_SYS_EVENT) | ESPI_BOOT_STS | ESPI_BOOT_DWN, ASPEED_ESPI_SYS_EVENT);
 
 		//6:flash ready ,4: oob ready , 0: perp ready
-//		aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) |BIT(4) | BIT(6), ASPEED_ESPI_CTRL);
+//		aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) | BIT(4) | BIT(6), ASPEED_ESPI_CTRL);
 		aspeed_espi_write(aspeed_espi, ESPI_ISR_HW_RESET, ASPEED_ESPI_ISR);
 	}
 
-	aspeed_espi->irq_sts |= sts;
-	if (aspeed_espi->async_queue)
-		kill_fasync(&aspeed_espi->async_queue, SIGIO, POLL_IN);
+	if (status & (GENMASK(17, 16) | GENMASK(13, 10))) {
+		bus_irq = irq_find_mapping(aspeed_espi->irq_domain, 0);
+		generic_handle_irq(bus_irq);
+	}
 
-	return IRQ_HANDLED;
+	if (status & (BIT(22) | GENMASK(9, 8))) {
+		bus_irq = irq_find_mapping(aspeed_espi->irq_domain, 1);
+		generic_handle_irq(bus_irq);
+	}
+
+	if (status & (BIT(23) | BIT(20) | BIT(18) | BIT(14) | GENMASK(5, 4))) {
+		bus_irq = irq_find_mapping(aspeed_espi->irq_domain, 2);
+		generic_handle_irq(bus_irq);
+	}
+	
+	if (status & (BIT(21) | BIT(19) | BIT(15) | GENMASK(7, 6))) {
+		bus_irq = irq_find_mapping(aspeed_espi->irq_domain, 3);
+		generic_handle_irq(bus_irq);
+	}
+	
+	chained_irq_exit(chip, desc);
 }
+
+static void aspeed_espi_mask_irq(struct irq_data *data)
+{
+	struct aspeed_espi_data *aspeed_espi = irq_data_get_irq_chip_data(data);
+//	unsigned int sbit = BIT(data->hwirq);
+	printk("aspeed_espi_mask_irq data->hwirq %d \n", data->hwirq);
+
+	switch(data->hwirq) {
+		case 0:	//peripheral channel
+			regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, GENMASK(17, 16) | GENMASK(13, 10), 0);
+			break;
+		case 1:	//virtual wire
+			regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, BIT(22) | GENMASK(9, 8), 0);
+			break;
+		case 2:	//oob
+			regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, BIT(23) | BIT(20) | BIT(18) | BIT(14) | GENMASK(5, 4), 0);
+			break;
+		case 3: //flash
+			regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, BIT(21) | BIT(19) | BIT(15) | GENMASK(7, 6), 0);
+			break;		
+		case 4: //peripheral channel reset
+			aspeed_espi->espi_bus_rest_ier &= ~BIT(0);
+			break;
+		case 5: //virtual wire
+			aspeed_espi->espi_bus_rest_ier &= ~BIT(1);
+			break;
+		case 6: //oob
+			aspeed_espi->espi_bus_rest_ier &= ~BIT(2);
+			break;
+		case 7: //flash 
+			aspeed_espi->espi_bus_rest_ier &= ~BIT(3);
+			break;
+	}
+}
+
+static void aspeed_espi_unmask_irq(struct irq_data *data)
+{
+	struct aspeed_espi_data *aspeed_espi = irq_data_get_irq_chip_data(data);
+	unsigned int sbit = BIT(data->hwirq);
+printk("aspeed_espi_unmask_irq data->hwirq %d \n", data->hwirq);
+	switch(data->hwirq) {
+		case 0:	//peripheral channel
+			regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, GENMASK(17, 16) | GENMASK(13, 10), GENMASK(17, 16) | GENMASK(13, 10));
+			break;
+		case 1:	//virtual wire
+			regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, BIT(22) | GENMASK(9, 8), BIT(22) | GENMASK(9, 8));
+			break;
+		case 2:	//oob
+			regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, BIT(23) | BIT(20) | BIT(18) | BIT(14) | GENMASK(5, 4), BIT(23) | BIT(20) | BIT(18) | BIT(14) | GENMASK(5, 4));
+			break;
+		case 3: //flash
+			regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, BIT(21) | BIT(19) | BIT(15) | GENMASK(7, 6), BIT(21) | BIT(19) | BIT(15) | GENMASK(7, 6));
+			break;
+		case 4: //peripheral channel reset
+			aspeed_espi->espi_bus_rest_ier |= BIT(0);
+			break;
+		case 5: //virtual wire
+			aspeed_espi->espi_bus_rest_ier |= BIT(1);
+			break;
+		case 6: //oob
+			aspeed_espi->espi_bus_rest_ier |= BIT(2);
+			break;
+		case 7: //flash 
+			aspeed_espi->espi_bus_rest_ier |= BIT(3);
+			break;
+	}
+}
+
+struct irq_chip aspeed_espi_irq_chip = {
+	.name		= "espi-irq",
+	.irq_mask	= aspeed_espi_mask_irq,
+	.irq_unmask	= aspeed_espi_unmask_irq,
+};
+
+static int aspeed_espi_map_irq_domain(struct irq_domain *domain,
+				  unsigned int irq, irq_hw_number_t hwirq)
+{
+	irq_set_chip_and_handler(irq, &aspeed_espi_irq_chip, handle_simple_irq);
+	irq_set_chip_data(irq, domain->host_data);
+
+	return 0;
+}
+
+static const struct irq_domain_ops aspeed_espi_irq_domain_ops = {
+	.map = aspeed_espi_map_irq_domain,
+};
 
 static long
 espi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -348,9 +467,7 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 {
 	static struct aspeed_espi_data *aspeed_espi;
 	const struct of_device_id *dev_id;
-	struct resource *res;
-	void __iomem *regs;
-	int ret = 0, i = 0;
+	int ret = 0;
 
 	ESPI_DBUG("\n");
 	
@@ -386,14 +503,18 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no irq specified\n");
 		return aspeed_espi->irq;
 	}
-#if 1
-	ret = devm_request_irq(&pdev->dev, aspeed_espi->irq, aspeed_espi_isr,
-						   IRQF_SHARED, dev_name(&pdev->dev), aspeed_espi);
-	if (ret) {
-		printk("AST ESPI Unable to get IRQ");
-		return ret;
+
+	aspeed_espi->irq_domain = irq_domain_add_linear(
+					pdev->dev.of_node, 4,
+					&aspeed_espi_irq_domain_ops, aspeed_espi);
+	if (!aspeed_espi->irq_domain) {
+		ret = -ENOMEM;
+
 	}
-#endif
+
+	irq_set_chained_handler_and_data(aspeed_espi->irq,
+					 aspeed_espi_handler, aspeed_espi);
+
 	aspeed_espi->reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(aspeed_espi->reset)) {
 		dev_err(&pdev->dev, "can't get espi reset\n");
@@ -411,18 +532,6 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 
 	aspeed_espi_ctrl_init(aspeed_espi);
 
-#if 0
-	aspeed_espi->irq_domain = irq_domain_add_linear(
-					pdev->dev.of_node , 4,
-					&aspeed_espi_irq_domain_ops, aspeed_espi->irq);
-	if (!aspeed_espi->irq_domain) {
-		ret = -ENOMEM;
-		printk("irq_domain fail ---------------- \n");
-	}
-
-	irq_set_chained_handler_and_data(aspeed_espi->irq,
-					 aspeed_espi_irq_handler, aspeed_espi);
-#endif
 	ret = misc_register(&aspeed_espi_misc);
 	if (ret) {
 		printk(KERN_ERR "ESPI : failed misc_register\n");

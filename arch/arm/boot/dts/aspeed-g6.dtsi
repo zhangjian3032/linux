@@ -572,34 +572,32 @@
 				ranges = <0x0 0x1e6ee000 0x200>;
 				#address-cells = <1>;
 				#size-cells = <1>;
-				espi_intc: legacy-interrupt-controller {
 					interrupt-controller;
 					#interrupt-cells = <1>;
-				};
 
 				peripheral: peripheral-channel@0 {
 					compatible = "aspeed,ast2600-espi-peripheral", "syscon";
 					reg = <0x0 0x200>;
-					interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+					interrupts-extended = <&espi 0>, <&espi 4>;
 					dma-mode;
 				};
 
 				virtial_wire: vw-channel@0 {
 					compatible = "aspeed,ast2600-espi-virtial-wire", "syscon";
 					reg = <0x0 0x200>;
-					interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+					interrupts-extended = <&espi 1>, <&espi 5>;
 				};
 
 				oob: oob-channel@0 {
 					compatible = "aspeed,ast2600-espi-oob", "syscon";
 					reg = <0x0 0x200>;
-					interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+					interrupts-extended = <&espi 2>, <&espi 6>;
 					dma-mode;
 				};
 				flash: flash-channel@0 {
 					compatible = "aspeed,ast2600-espi-flash", "syscon";
 					reg = <0x0 0x200>;
-					interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+					interrupts-extended = <&espi 3>, <&espi 7>;
 				};
 			};
 
