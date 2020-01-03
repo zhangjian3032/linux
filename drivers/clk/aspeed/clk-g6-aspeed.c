@@ -25,6 +25,19 @@
 #define ASPEED_G6_CLK_SELECTION4	0x310
 #define ASPEED_G6_CLK_SELECTION5	0x314
 
+#define ASPEED_G6_MAC12_CLK_CTRL0	0x340
+#define ASPEED_G6_MAC12_CLK_CTRL1	0x348
+#define ASPEED_G6_MAC12_CLK_CTRL2	0x34C
+
+#define ASPEED_G6_MAC34_CLK_CTRL0	0x350
+#define ASPEED_G6_MAC34_CLK_CTRL1	0x358
+#define ASPEED_G6_MAC34_CLK_CTRL2	0x35C
+
+#define ASPEED_G6_MAC34_DRIVING_CTRL	0x458
+
+#define ASPEED_G6_DEF_MAC12_DELAY	0x00410410
+#define ASPEED_G6_DEF_MAC34_DELAY	0x00104208
+
 #define ASPEED_G6_CLK_STOP_CTRL		0x80
 #define ASPEED_G6_CLK_STOP_CTRL2	0x90
 
@@ -935,7 +948,32 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 		if(uart_clk_source & GENMASK(12, 6))
 			regmap_update_bits(map, ASPEED_G6_CLK_SELECTION5, GENMASK(12, 6), uart_clk_source & GENMASK(12, 6));
 	}
-	
+
+	/* fixed settings for RGMII/RMII clock generator */
+	/* MAC1/2 RGMII 125MHz = EPLL / 8 */
+	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION2, GENMASK(23, 20),
+			   (0x7 << 20));
+
+	/* MAC3/4 RMII 50MHz = HCLK / 4 */
+	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION4, GENMASK(18, 16),
+			   (0x3 << 16));
+
+	/* BIT[31]: MAC1/2 RGMII 125M source = internal PLL
+	 * BIT[28]: RGMIICK pad direction = output
+	 */
+	regmap_write(map, ASPEED_G6_MAC12_CLK_CTRL0,
+		     BIT(31) | BIT(28) | ASPEED_G6_DEF_MAC12_DELAY);
+	regmap_write(map, ASPEED_G6_MAC12_CLK_CTRL1, ASPEED_G6_DEF_MAC12_DELAY);
+	regmap_write(map, ASPEED_G6_MAC12_CLK_CTRL2, ASPEED_G6_DEF_MAC12_DELAY);
+
+	/* MAC3/4 RGMII 125M source = RGMIICK pad */
+	regmap_write(map, ASPEED_G6_MAC34_CLK_CTRL0, ASPEED_G6_DEF_MAC34_DELAY);
+	regmap_write(map, ASPEED_G6_MAC34_CLK_CTRL1, ASPEED_G6_DEF_MAC34_DELAY);
+	regmap_write(map, ASPEED_G6_MAC34_CLK_CTRL2, ASPEED_G6_DEF_MAC34_DELAY);
+
+	/* MAC3/4 default pad driving strength */
+	regmap_write(map, ASPEED_G6_MAC34_DRIVING_CTRL, 0x0000000a);
+
 	/*
 	 * We check that the regmap works on this very first access,
 	 * but as this is an MMIO-backed regmap, subsequent regmap
