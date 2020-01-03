@@ -10,6 +10,7 @@
 #include <linux/of_mdio.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 
 #define DRV_NAME "mdio-aspeed"
 
@@ -100,6 +101,7 @@ u16 val) {
 static int aspeed_mdio_probe(struct platform_device *pdev) {
 	struct aspeed_mdio *ctx;
 	struct mii_bus *bus;
+	struct reset_control *rst;
 	int rc;
 
 	bus = devm_mdiobus_alloc_size(&pdev->dev, sizeof(*ctx));
@@ -110,6 +112,14 @@ static int aspeed_mdio_probe(struct platform_device *pdev) {
 	ctx->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctx->base))
 		return PTR_ERR(ctx->base);
+
+	rst = devm_reset_control_get_shared(&pdev->dev, NULL);
+	if (IS_ERR(rst)) {
+		dev_err(&pdev->dev,
+			"missing or invalid reset controller device tree entry\n");
+		return PTR_ERR(rst);
+	}
+	reset_control_deassert(rst);
 
 	bus->name = DRV_NAME;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s%d", pdev->name, pdev->id);
