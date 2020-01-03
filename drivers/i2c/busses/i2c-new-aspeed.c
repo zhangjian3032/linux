@@ -963,8 +963,6 @@ static void aspeed_new_i2c_master_xfer(struct aspeed_new_i2c_bus *i2c_bus)
 						i2c_bus->master_msgs->len, DMA_FROM_DEVICE);
 		aspeed_i2c_write(i2c_bus, i2c_bus->master_dma_addr, AST_I2CM_RX_DMA);
 	} else {
-		cmd |= AST_I2CM_TX_CMD | AST_I2CM_TX_DMA_EN;
-
 		if (i2c_bus->master_msgs->len > ASPEED_I2C_DMA_SIZE) {
 			i2c_bus->master_xfer_len = ASPEED_I2C_DMA_SIZE;
 		} else {
@@ -976,6 +974,7 @@ static void aspeed_new_i2c_master_xfer(struct aspeed_new_i2c_bus *i2c_bus)
 		}
 
 		if(i2c_bus->master_xfer_len) {
+			cmd |= AST_I2CM_TX_DMA_EN | AST_I2CM_TX_CMD;
 			aspeed_i2c_write(i2c_bus, AST_I2CM_SET_TX_DMA_LEN(i2c_bus->master_xfer_len - 1), AST_I2CM_DMA_LEN);
 			i2c_bus->master_dma_addr = dma_map_single(i2c_bus->dev, i2c_bus->master_msgs->buf,
 							i2c_bus->master_msgs->len, DMA_TO_DEVICE);
@@ -1151,13 +1150,11 @@ int aspeed_new_i2c_master_handler(struct aspeed_new_i2c_bus *i2c_bus)
 					"M clear isr: AST_I2CM_RX_DONE | AST_I2CM_NORMAL_STOP = %x\n", sts);
 				aspeed_new_i2c_master_xfer_done(i2c_bus);
 				break;
-#if 0
 			case AST_I2CM_NORMAL_STOP:
 				dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CM_NORMAL_STOP = %x\n", sts);
 				aspeed_i2c_write(i2c_bus, AST_I2CM_NORMAL_STOP, AST_I2CM_ISR);
-				i2c_bus->cmd_err = 0;
+				complete(&i2c_bus->cmd_complete);
 				break;
-#endif
 			default:
 				printk("TODO care -- > sts %x \n", sts);
 //				aspeed_i2c_write(i2c_bus, aspeed_i2c_read(i2c_bus, AST_I2CM_ISR), AST_I2CM_ISR);
