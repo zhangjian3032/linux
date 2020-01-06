@@ -660,14 +660,13 @@ aspeed_i2c_bus_error_recover(struct aspeed_new_i2c_bus *i2c_bus)
 	u32 ctrl;
 	u32 sts;
 	int r;
-	u32 i = 0;
+//	u32 i = 0;
 	dev_dbg(i2c_bus->dev, "aspeed_i2c_bus_error_recover \n");
 
 	ctrl = aspeed_i2c_read(i2c_bus, AST_I2CC_FUN_CTRL);
 
 	aspeed_i2c_write(i2c_bus, ctrl & ~(AST_I2CC_MASTER_EN | AST_I2CC_SLAVE_EN),
 		      AST_I2CC_FUN_CTRL);
-
 	aspeed_i2c_write(i2c_bus, ctrl, AST_I2CC_FUN_CTRL);
 	
 	//Check 0x14's SDA and SCL status
@@ -683,60 +682,55 @@ aspeed_i2c_bus_error_recover(struct aspeed_new_i2c_bus *i2c_bus)
 	dev_dbg(i2c_bus->dev, "ERROR!! I2C(%d) bus hanged, try to recovery it!\n",
 		i2c_bus->adap.nr);
 
-
 	if ((sts & AST_I2CC_SDA_LINE_STS) && !(sts & AST_I2CC_SCL_LINE_STS)) {
 		//if SDA == 1 and SCL == 0, it means the master is locking the bus.
 		//Send a stop command to unlock the bus.
 		dev_dbg(i2c_bus->dev, "I2C's master is locking the bus, try to stop it.\n");
 //
-		init_completion(&i2c_bus->cmd_complete);
+		reinit_completion(&i2c_bus->cmd_complete);
 		i2c_bus->cmd_err = 0;
 
 		aspeed_i2c_write(i2c_bus, AST_I2CM_STOP_CMD, AST_I2CM_CMD_STS);
 
 		r = wait_for_completion_timeout(&i2c_bus->cmd_complete,
-						i2c_bus->adap.timeout * HZ);
-
-		if (i2c_bus->cmd_err) {
-			dev_dbg(i2c_bus->dev, "recovery error \n");
-			return -1;
-		}
-
+						i2c_bus->adap.timeout);
 		if (r == 0) {
 			dev_dbg(i2c_bus->dev, "recovery timed out\n");
 			return -1;
 		} else {
-			dev_dbg(i2c_bus->dev, "Recovery successfully\n");
-			return 0;
+			if (i2c_bus->cmd_err) {
+				dev_dbg(i2c_bus->dev, "recovery error \n");
+				return -1;
+			}
 		}
-
-
 	} else if (!(sts & AST_I2CC_SDA_LINE_STS)) {
 		//else if SDA == 0, the device is dead. We need to reset the bus
 		//And do the recovery command.
 		dev_dbg(i2c_bus->dev, "I2C's slave is dead, try to recover it\n");
 		//Let's retry 10 times
-		for (i = 0; i < 10; i++) {
-			//Do the recovery command BIT11
-			init_completion(&i2c_bus->cmd_complete);
-			aspeed_i2c_write(i2c_bus, AST_I2CM_RECOVER_CMD_EN, AST_I2CM_CMD_STS);
-			i2c_bus->bus_recover = 1;
-			r = wait_for_completion_timeout(&i2c_bus->cmd_complete,
-							i2c_bus->adap.timeout * HZ);
-			if (i2c_bus->cmd_err != 0) {
-				dev_dbg(i2c_bus->dev, "ERROR!! Failed to do recovery command(0x%08x)\n",
-					i2c_bus->cmd_err);
+		//Do the recovery command BIT11
+		reinit_completion(&i2c_bus->cmd_complete);
+		i2c_bus->bus_recover = 1;
+		i2c_bus->cmd_err = 0;
+		aspeed_i2c_write(i2c_bus, AST_I2CM_RECOVER_CMD_EN, AST_I2CM_CMD_STS);
+		r = wait_for_completion_timeout(&i2c_bus->cmd_complete,
+						i2c_bus->adap.timeout);
+		if (r == 0) {
+			dev_dbg(i2c_bus->dev, "recovery timed out\n");
+			return -1;
+		} else {
+			if (i2c_bus->cmd_err) {
+				dev_dbg(i2c_bus->dev, "recovery error \n");
 				return -1;
 			}
-			//Check 0x14's SDA and SCL status
-			sts = aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF);
-			if (sts & AST_I2CC_SDA_LINE_STS) //Recover OK
-				break;
 		}
-		if (i == 10) {
-			dev_dbg(i2c_bus->dev, "ERROR!! recover failed\n");
-			return -1;
+		//Check 0x14's SDA and SCL status
+		sts = aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF);
+		if (sts & AST_I2CC_SDA_LINE_STS) {
+			dev_dbg(i2c_bus->dev, "AST_I2CC_SDA_LINE_STS recovery successfully\n");
+			return 0;
 		}
+
 	} else {
 		dev_dbg(i2c_bus->dev, "Don't know how to handle this case?!\n");
 		return -1;
@@ -817,6 +811,15 @@ int aspeed_new_i2c_slave_handler(struct aspeed_new_i2c_bus *i2c_bus)
 	if (AST_I2CS_PKT_DONE & sts) {
 		sts &= ~(AST_I2CS_PKT_DONE | AST_I2CS_PKT_ERROR);
 		switch (sts) {
+			case AST_I2CS_SLAVE_MATCH | AST_I2CS_STOP:
+				dev_dbg(i2c_bus->dev, "S : Sw | P \n");
+				i2c_bus->slave_event = I2C_SLAVE_START_WRITE_STOP;
+//				i2c_bus->slave_rx_len = AST_I2C_GET_RX_DMA_LEN(aspeed_i2c_read(i2c_bus, AST_I2CS_DMA_LEN_STS));
+				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);				
+				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), AST_I2CS_DMA_LEN);
+				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_RX_DMA_EN, AST_I2CS_CMD_STS);
+				break;
+			
 			case AST_I2CS_SLAVE_MATCH | AST_I2CS_RX_DONE | AST_I2CS_STOP:
 				dev_dbg(i2c_bus->dev, "S : Sw|D|P \n");
 				i2c_bus->slave_event = I2C_SLAVE_START_WRITE_STOP;
@@ -960,8 +963,6 @@ static void aspeed_new_i2c_master_xfer(struct aspeed_new_i2c_bus *i2c_bus)
 						i2c_bus->master_msgs->len, DMA_FROM_DEVICE);
 		aspeed_i2c_write(i2c_bus, i2c_bus->master_dma_addr, AST_I2CM_RX_DMA);
 	} else {
-		cmd |= AST_I2CM_TX_CMD | AST_I2CM_TX_DMA_EN;
-
 		if (i2c_bus->master_msgs->len > ASPEED_I2C_DMA_SIZE) {
 			i2c_bus->master_xfer_len = ASPEED_I2C_DMA_SIZE;
 		} else {
@@ -973,6 +974,7 @@ static void aspeed_new_i2c_master_xfer(struct aspeed_new_i2c_bus *i2c_bus)
 		}
 
 		if(i2c_bus->master_xfer_len) {
+			cmd |= AST_I2CM_TX_DMA_EN | AST_I2CM_TX_CMD;
 			aspeed_i2c_write(i2c_bus, AST_I2CM_SET_TX_DMA_LEN(i2c_bus->master_xfer_len - 1), AST_I2CM_DMA_LEN);
 			i2c_bus->master_dma_addr = dma_map_single(i2c_bus->dev, i2c_bus->master_msgs->buf,
 							i2c_bus->master_msgs->len, DMA_TO_DEVICE);
@@ -1148,13 +1150,11 @@ int aspeed_new_i2c_master_handler(struct aspeed_new_i2c_bus *i2c_bus)
 					"M clear isr: AST_I2CM_RX_DONE | AST_I2CM_NORMAL_STOP = %x\n", sts);
 				aspeed_new_i2c_master_xfer_done(i2c_bus);
 				break;
-#if 0
 			case AST_I2CM_NORMAL_STOP:
 				dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CM_NORMAL_STOP = %x\n", sts);
 				aspeed_i2c_write(i2c_bus, AST_I2CM_NORMAL_STOP, AST_I2CM_ISR);
-				i2c_bus->cmd_err = 0;
+				complete(&i2c_bus->cmd_complete);
 				break;
-#endif
 			default:
 				printk("TODO care -- > sts %x \n", sts);
 //				aspeed_i2c_write(i2c_bus, aspeed_i2c_read(i2c_bus, AST_I2CM_ISR), AST_I2CM_ISR);
@@ -1315,7 +1315,7 @@ static void aspeed_new_i2c_bus_init(struct aspeed_new_i2c_bus *i2c_bus)
 #endif
 
 	/* Set interrupt generation of I2C master controller */
-	aspeed_i2c_write(i2c_bus, AST_I2CM_PKT_DONE |
+	aspeed_i2c_write(i2c_bus, AST_I2CM_PKT_DONE | AST_I2CM_BUS_RECOVER |
 				AST_I2CM_SMBUS_ALT, AST_I2CM_IER);
 
 	aspeed_i2c_write(i2c_bus, 0xfffffff, AST_I2CS_ISR);

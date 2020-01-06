@@ -11,9 +11,6 @@ config ASPEED_BMC_MISC
 config ASPEED_HID
 	tristate "ASPEED HID"
 
-config ASPEED_ESPI
-	tristate "ASPEED eSPI"
-
 config AST_VIDEO
 	tristate "ASPEED Video Engine driver"
 	default n

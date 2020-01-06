@@ -128,14 +128,24 @@
 		};
 
 		fmc: spi@1e620000 {
-			reg = < 0x1e620000 0xc4
-				0x20000000 0x10000000 >;
 			#address-cells = <1>;
 			#size-cells = <0>;
+#if 1
+			reg = < 0x1e620000 0xc4
+				0x20000000 0x10000000 >;
 			compatible = "aspeed,ast2600-fmc";
+#else
+			/* reg : cs0 : cs1 : cs2 : cs3 : cs4 : cs5 */
+			reg = <0x1e620000 0x100
+				0x20000000 0x20
+				0x28000000 0x20>;
+			compatible = "aspeed,fmc-spi";
+			number_of_chip_select = /bits/ 16 <1>;
+#endif
 			clocks = <&syscon ASPEED_CLK_AHB>;
 			status = "disabled";
 			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+#if 1
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
@@ -154,14 +164,24 @@
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
+#endif
 		};
 
 		spi1: spi@1e630000 {
-			reg = < 0x1e630000 0xc4
-				0x30000000 0x10000000 >;
 			#address-cells = <1>;
 			#size-cells = <0>;
+#if 1
+			reg = < 0x1e630000 0xc4
+				0x30000000 0x10000000 >;
 			compatible = "aspeed,ast2600-spi";
+#else
+			/* reg : cs0 : cs1 */
+			reg = <0x1e630000 0x100
+				0x30000000 0x20
+				0x32000000 0x20>;
+			compatible = "aspeed,fmc-spi";
+			number_of_chip_select = /bits/ 8 <2>;
+#endif
 			clocks = <&syscon ASPEED_CLK_AHB>;
 			status = "disabled";
 			flash@0 {
@@ -179,11 +199,20 @@
 		};
 
 		spi2: spi@1e631000 {
-			reg = < 0x1e631000 0xc4
-				0x50000000 0x10000000 >;
 			#address-cells = <1>;
 			#size-cells = <0>;
+#if 1
+			reg = < 0x1e631000 0xc4
+				0x50000000 0x10000000 >;
 			compatible = "aspeed,ast2600-spi2";
+#else
+			/* reg : cs0 : cs1 */
+			reg = <0x1e631000 0x100
+				0x38000000 0x20
+				0x3A000000 0x20>;
+			compatible = "aspeed,fmc-spi";
+			number_of_chip_select = /bits/ 8 <2>;
+#endif
 			clocks = <&syscon ASPEED_CLK_AHB>;
 			status = "disabled";
 			flash@0 {
@@ -397,6 +426,13 @@
 				reg = <0x1e785000 0x40>;
 			};
 
+			rng: hwrng@1e6e2520 {
+				compatible = "timeriomem_rng";
+				reg = <0x1e6e2078 0x4>;
+				period = <1>;
+				quality = <100>;
+			};
+
 			hace: hace@1e6d0000 {
 				compatible = "aspeed,ast2600-hace";
 				reg = <0x1e6d0000 0x200>;
@@ -537,14 +573,44 @@
 			};
 
 			espi: espi@1e6ee000 {
-				compatible = "aspeed,ast2600-espi";
+				compatible = "aspeed,ast2600-espi", "simple-mfd", "syscon";
 				reg = <0x1e6ee000 0x200>;
 				interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>, <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
 				resets = <&syscon ASPEED_RESET_LPC_ESPI>;
+				ranges = <0x0 0x1e6ee000 0x200>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+					interrupt-controller;
+					#interrupt-cells = <1>;
+
+				peripheral: peripheral-channel@0 {
+					compatible = "aspeed,ast2600-espi-peripheral", "syscon";
+					reg = <0x0 0x200>;
+					interrupts-extended = <&espi 0>, <&espi 4>;
+					dma-mode;
+				};
+
+				virtial_wire: vw-channel@0 {
+					compatible = "aspeed,ast2600-espi-virtial-wire", "syscon";
+					reg = <0x0 0x200>;
+					interrupts-extended = <&espi 1>, <&espi 5>;
+				};
+
+				oob: oob-channel@0 {
+					compatible = "aspeed,ast2600-espi-oob", "syscon";
+					reg = <0x0 0x200>;
+					interrupts-extended = <&espi 2>, <&espi 6>;
+					dma-mode;
+				};
+				flash: flash-channel@0 {
+					compatible = "aspeed,ast2600-espi-flash", "syscon";
+					reg = <0x0 0x200>;
+					interrupts-extended = <&espi 3>, <&espi 7>;
+				};
 			};
 
 			video: video@1e700000 {
-#if 1
+#if 0
 				compatible = "aspeed,ast2600-video-engine";
 #else
 				compatible = "aspeed,ast2600-video";
