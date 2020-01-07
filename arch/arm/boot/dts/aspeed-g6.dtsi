@@ -1346,7 +1346,7 @@
 		resets = <&syscon ASPEED_RESET_I2C>;
 	};
 
-	i2c0: i2c-bus@40 {
+	i2c0: i2c-bus@80 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
