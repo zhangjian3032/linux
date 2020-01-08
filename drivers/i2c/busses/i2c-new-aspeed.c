@@ -858,10 +858,12 @@ int aspeed_new_i2c_slave_handler(struct aspeed_new_i2c_bus *i2c_bus)
 				dev_dbg(i2c_bus->dev, "tx: [%x]\n", i2c_bus->slave_dma_buf[0]);
 				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(0), AST_I2CS_DMA_LEN);
 #else
-				printk("TODO for other slave tx");
 				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &i2c_bus->slave_dma_buf[0]);
-				dev_dbg(i2c_bus->dev, "tx: [%x]\n", i2c_bus->slave_dma_buf[0]);
-//				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(slave_tx_len - 1), AST_I2CS_DMA_LEN);
+				dev_dbg(i2c_bus->dev, "ssif tx len: [%x]\n", i2c_bus->slave_dma_buf[0]);
+				for( i = 1; i < i2c_bus->slave_dma_buf[0] + 1; i++) {
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_PROCESSED, &i2c_bus->slave_dma_buf[i]);
+				}
+				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(i2c_bus->slave_dma_buf[0] - 1), AST_I2CS_DMA_LEN);
 #endif
 				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_TX_DMA_EN, AST_I2CS_CMD_STS);			
 				break;	
