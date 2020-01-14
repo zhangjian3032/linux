@@ -162,7 +162,7 @@ static irqreturn_t aspeed_espi_reset_isr(int this_irq, void *dev_id)
 	int i = 0;
 	unsigned int bus_irq;
 
-	ESPI_DBUG("aspeed_espi_reset_isr\n");
+	printk("aspeed_espi_reset_isr\n");
 
 	sw_mode = aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) & ESPI_CTRL_SW_FLASH_READ;
 
@@ -197,7 +197,7 @@ static void aspeed_espi_handler(struct irq_desc *desc)
 
 	chained_irq_enter(chip, desc);
 	status = aspeed_espi_read(aspeed_espi, ASPEED_ESPI_ISR);
-
+	printk("isr status %x \n", status);
 	if (status & ESPI_ISR_HW_RESET) {
 		printk("ESPI_ISR_HW_RESET \n");
 		aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_SYS_EVENT) | ESPI_BOOT_STS | ESPI_BOOT_DWN, ASPEED_ESPI_SYS_EVENT);
