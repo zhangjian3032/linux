@@ -1376,8 +1376,16 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 		 * by of property.
 		 */
 		ret = spi_nor_scan(nor, NULL, &hwcaps);
-		if (ret)
-			break;
+		if (ret) {
+			/* Skip if current flash does not exist. */
+			if (nor->info == NULL) {
+				dev_info(dev, "chip %d does not exist.\n", cs);
+				devm_kfree(controller->dev, chip);
+				ret = 0;
+				continue;
+			} else
+				break;
+		}
 
 		ret = aspeed_smc_chip_setup_finish(chip);
 		if (ret)
