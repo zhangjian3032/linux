@@ -370,19 +370,6 @@
 	status = "okay";
 };
 
-#if 0
-&uhci {
-	status = "okay";
-};
-#endif
-
-#if 0
-&gfx {
-	status = "okay";
-	memory-region = <&gfx_memory>;
-};
-#endif
-
 &sdc {
 	status = "okay";
 };
