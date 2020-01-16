@@ -777,7 +777,7 @@
 			};
 
 			uart1: serial@1e783000 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "ns16550a";
 				reg = <0x1e783000 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
@@ -792,7 +792,7 @@
 			};
 
 			uart5: serial@1e784000 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "ns16550a";
 				reg = <0x1e784000 0x1000>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
@@ -982,7 +982,7 @@
 			};
 
 			uart2: serial@1e78d000 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "ns16550a";
 				reg = <0x1e78d000 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
@@ -997,7 +997,7 @@
 			};
 
 			uart3: serial@1e78e000 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "ns16550a";
 				reg = <0x1e78e000 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
@@ -1012,7 +1012,7 @@
 			};
 
 			uart4: serial@1e78f000 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "ns16550a";
 				reg = <0x1e78f000 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
@@ -1034,7 +1034,7 @@
 			};
 
 			uart6: serial@1e790000 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "ns16550a";
 				reg = <0x1e790000 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
@@ -1048,7 +1048,7 @@
 			};
 
 			uart7: serial@1e790100 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "ns16550a";
 				reg = <0x1e790100 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
@@ -1062,7 +1062,7 @@
 			};
 
 			uart8: serial@1e790200 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "ns16550a";
 				reg = <0x1e790200 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
@@ -1076,7 +1076,7 @@
 			};
 
 			uart9: serial@1e790300 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "ns16550a";
 				reg = <0x1e790300 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
@@ -1090,7 +1090,7 @@
 			};
 
 			uart10: serial@1e790400 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "ns16550a";
 				reg = <0x1e790400 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
@@ -1104,7 +1104,7 @@
 			};
 
 			uart11: serial@1e790500 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "ns16550a";
 				reg = <0x1e790500 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
@@ -1118,7 +1118,7 @@
 			};
 
 			uart12: serial@1e790600 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "ns16550a";
 				reg = <0x1e790600 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;
@@ -1132,7 +1132,7 @@
 			};
 
 			uart13: serial@1e790700 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "ns16550a";
 				reg = <0x1e790700 0x20>;
 				reg-shift = <2>;
 				reg-io-width = <4>;

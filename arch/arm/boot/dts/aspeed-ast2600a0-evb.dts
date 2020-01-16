@@ -4,8 +4,9 @@
 #include "aspeed-g6.dtsi"
 
 / {
-	model = "AST2600 EVB";
+	model = "AST2600 A0 EVB";
 	compatible = "aspeed,ast2600";
+
 
 	aliases {
 		serial0 = &uart1;
@@ -81,30 +82,38 @@
 };
 
 &uart1 {
+	// A0 workaround for UART devices
+	compatible = "snps,dw-apb-uart";
 	status = "okay";
 };
 
 &uart2 {
+	compatible = "snps,dw-apb-uart";
 	status = "okay";
 };
 
 &uart3 {
+	compatible = "snps,dw-apb-uart";
 	status = "okay";
 };
 
 &uart4 {
+	compatible = "snps,dw-apb-uart";
 	status = "okay";
 };
 
 &uart5 {
+	compatible = "snps,dw-apb-uart";
 	status = "okay";
 };
 
 &uart10 {
+	compatible = "snps,dw-apb-uart";
 	status = "okay";
 };
 
 &uart11 {
+	compatible = "snps,dw-apb-uart";
 	status = "okay";
 };
 
