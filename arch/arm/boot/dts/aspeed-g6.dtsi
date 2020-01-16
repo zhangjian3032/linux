@@ -1639,8 +1639,6 @@
 		resets = <&syscon ASPEED_RESET_I3C2>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_i3c3_default>;
 
 		status = "disabled";
 	};
@@ -1656,8 +1654,6 @@
 		resets = <&syscon ASPEED_RESET_I3C3>;
 		bus-frequency = <100000>;
 		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_i3c4_default>;
 
 		status = "disabled";
 	};
@@ -2404,34 +2400,44 @@
 	};
 
 	pinctrl_i3c1_default: i3c1_default {
-                function = "I3C1";
-                groups = "I3C1";
-        };
+		function = "I3C1";
+		groups = "I3C1";
+	};
 
 	pinctrl_i3c2_default: i3c2_default {
-                function = "I3C2";
-                groups = "I3C2";
-        };
+		function = "I3C2";
+		groups = "I3C2";
+	};
 
 	pinctrl_i3c3_default: i3c3_default {
-                function = "I3C3";
-                groups = "I3C3";
-        };
+		function = "I3C3";
+		groups = "I3C3";
+	};
+
+	pinctrl_hvi3c3_default: hvi3c3_default {
+		function = "I3C3";
+		groups = "HVI3C3";
+	};
 
 	pinctrl_i3c4_default: i3c4_default {
-                function = "I3C4";
-                groups = "I3C4";
-        };
+		function = "I3C4";
+		groups = "I3C4";
+	};
+
+	pinctrl_hvi3c4_default: hvi3c4_default {
+		function = "I3C4";
+		groups = "HVI3C4";
+	};
 
 	pinctrl_i3c5_default: i3c5_default {
-                function = "I3C5";
-                groups = "I3C5";
-        };
+		function = "I3C5";
+		groups = "I3C5";
+	};
 
 	pinctrl_i3c6_default: i3c6_default {
-                function = "I3C6";
-                groups = "I3C6";
-        };
+		function = "I3C6";
+		groups = "I3C6";
+	};
 
 	pinctrl_jtagm_default: jtagm_default {
 		function = "JTAGM";
