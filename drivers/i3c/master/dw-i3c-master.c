@@ -199,7 +199,7 @@
 #define I3C_BUS_I2C_FMP_TLOW_MIN_NS	500
 #define I3C_BUS_THIGH_MAX_NS		41
 
-#define XFER_TIMEOUT (msecs_to_jiffies(10000))
+#define XFER_TIMEOUT (msecs_to_jiffies(1000))
 
 struct dw_i3c_master_caps {
 	u8 cmdfifodepth;
@@ -453,34 +453,25 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 	struct dw_i3c_xfer *xfer = master->xferqueue.cur;
 	int i, ret = 0;
 	u32 nresp;
-	u8 *buf;
-	
+
 	if (!xfer)
 		return;
 
 	nresp = readl(master->regs + QUEUE_STATUS_LEVEL);
 	nresp = QUEUE_STATUS_LEVEL_RESP(nresp);
-	printk("nresp %x  \n", nresp);
+
 	for (i = 0; i < nresp; i++) {
 		struct dw_i3c_cmd *cmd;
 		u32 resp;
 
 		resp = readl(master->regs + RESPONSE_QUEUE_PORT);
-		printk("[%d] resp %x \n", i, resp);
-		
+
 		cmd = &xfer->cmds[RESPONSE_PORT_TID(resp)];
 		cmd->rx_len = RESPONSE_PORT_DATA_LEN(resp);
 		cmd->error = RESPONSE_PORT_ERR_STATUS(resp);
-		buf = cmd->rx_buf;
-		printk("cmd->error %x , cmd->rx_len %d \n", cmd->error, cmd->rx_len);
-		if (cmd->rx_len && !cmd->error) {
+		if (cmd->rx_len && !cmd->error)
 			dw_i3c_master_read_rx_fifo(master, cmd->rx_buf,
 						   cmd->rx_len);
-			printk("fifo data\n");
-			for(i = 0; i < cmd->rx_len; i++)
-				printk("%x ", buf[i]);
-			printk("\n");
-		}
 	}
 
 	for (i = 0; i < nresp; i++) {
@@ -506,12 +497,10 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 	}
 
 	xfer->ret = ret;
-	printk("xfer->ret %x sts %x \n", xfer->ret, (readl(master->regs + PRESENT_STATE) >> 16) & 0x3f);
 	complete(&xfer->comp);
 
 	if (ret < 0) {
 		dw_i3c_master_dequeue_xfer_locked(master, xfer);
-		printk("go to resume ==== \n");
 		writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_RESUME,
 		       master->regs + DEVICE_CTRL);
 	}
@@ -607,7 +596,6 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	struct i3c_device_info info = { };
 	u32 thld_ctrl;
 	int ret;
-	printk("*** %s : bus mode [%d] ***\n", __FUNCTION__, bus->mode);
 
 	switch (bus->mode) {
 	case I3C_BUS_MODE_MIXED_FAST:
@@ -675,14 +663,9 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 {
 	struct dw_i3c_xfer *xfer;
 	struct dw_i3c_cmd *cmd;
-	int ret = 0, pos = 0;
-	u8 *buff;
-	int i;
-
-	printk("dw_i3c_ccc_set ccc->rnw %d, ccc->id [%x], ccc->ndests %d\n", ccc->rnw, ccc->id, ccc->ndests);
+	int ret, pos = 0;
 
 	if (ccc->id & I3C_CCC_DIRECT) {
-		printk("I3C_CCC_DIRECT -> \n");
 		pos = dw_i3c_master_get_addr_pos(master, ccc->dests[0].addr);
 		if (pos < 0)
 			return pos;
@@ -696,13 +679,6 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 	cmd->tx_buf = ccc->dests[0].payload.data;
 	cmd->tx_len = ccc->dests[0].payload.len;
 
-	buff = cmd->tx_buf;
-
-	printk("cmd->tx_len %d \n", cmd->tx_len);
-	for(i = 0; i < cmd->tx_len; i++) {
-		printk("buff %x \n", buff[i]);
-	}
-	
 	cmd->cmd_hi = COMMAND_PORT_ARG_DATA_LEN(ccc->dests[0].payload.len) |
 		      COMMAND_PORT_TRANSFER_ARG;
 
@@ -713,10 +689,8 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 		      COMMAND_PORT_ROC;
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
-		printk("wait_for_completion_timeout --\n");
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
 		dw_i3c_master_dequeue_xfer(master, xfer);
-	}
 
 	ret = xfer->ret;
 	if (xfer->cmds[0].error == RESPONSE_ERROR_IBA_NACK)
@@ -732,8 +706,6 @@ static int dw_i3c_ccc_get(struct dw_i3c_master *master, struct i3c_ccc_cmd *ccc)
 	struct dw_i3c_xfer *xfer;
 	struct dw_i3c_cmd *cmd;
 	int ret, pos;
-
-printk("dw_i3c_ccc_get ccc->rnw %d, ccc->id [%x], ccc->ndests %d\n", ccc->rnw, ccc->id, ccc->ndests);
 
 	pos = dw_i3c_master_get_addr_pos(master, ccc->dests[0].addr);
 	if (pos < 0)
@@ -758,10 +730,8 @@ printk("dw_i3c_ccc_get ccc->rnw %d, ccc->id [%x], ccc->ndests %d\n", ccc->rnw, c
 		      COMMAND_PORT_ROC;
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
-		printk("wait_for_completion_timeout -\n");
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
 		dw_i3c_master_dequeue_xfer(master, xfer);
-	}
 
 	ret = xfer->ret;
 	if (xfer->cmds[0].error == RESPONSE_ERROR_IBA_NACK)
@@ -776,27 +746,10 @@ static int dw_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	int ret = 0;
-	
-	u32 ctrl;
-	u32 master_status = (readl(master->regs + PRESENT_STATE) >> 16) & 0x3f;
 
-	printk("*** %s *** ccc->id %d, master status %x ccc->rnw %d \n", __FUNCTION__, ccc->id, master_status, ccc->rnw);	
-//	if (ccc->id == I3C_CCC_ENTDAA)
-//		return -EINVAL;
+	if (ccc->id == I3C_CCC_ENTDAA)
+		return -EINVAL;
 
-	printk("---------------------------- \n");
-	printk("bus status  %x \n", master_status);
-	printk("---------------------------- \n");
-
-	if(master_status) {
-			ctrl = readl(master->regs + DEVICE_CTRL);
-			writel(ctrl | DEV_CTRL_RESUME,
-				   master->regs + DEVICE_CTRL);
-			writel(ctrl | DEV_CTRL_RESUME,
-					   master->regs + DEVICE_CTRL);
-	}
-	
-	
 	if (ccc->rnw)
 		ret = dw_i3c_ccc_get(master, ccc);
 	else
@@ -1009,7 +962,7 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 	unsigned int nrxwords = 0, ntxwords = 0;
 	struct dw_i3c_xfer *xfer;
 	int i, ret = 0;
-printk("dw_i3c_master_i2c_xfers @@@@\n");
+
 	if (!i2c_nxfers)
 		return 0;
 
@@ -1060,7 +1013,6 @@ printk("dw_i3c_master_i2c_xfers @@@@\n");
 
 	ret = xfer->ret;
 	dw_i3c_master_free_xfer(xfer);
-	printk("dw_i3c_master_i2c_xfers @@@@ end\n");
 
 	return ret;
 }
