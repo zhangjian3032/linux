@@ -58,6 +58,7 @@
 			compatible = "shared-dma-pool";
 			no-map;
 		};
+
 	};
 
 	iio-hwmon {
@@ -358,8 +359,8 @@
 };
 
 &video {
-	memory-region = <&video_engine_memory>;
 	status = "okay";
+	memory-region = <&video_engine_memory>;
 };
 
 &vhub {
@@ -523,6 +524,7 @@
 
 &spi1 {
 	status = "okay";
+
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default>;
 
@@ -545,6 +547,7 @@
 
 &spi2 {
 	status = "okay";
+
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default &pinctrl_spi2cs2_default>;
 
@@ -571,4 +574,5 @@
 		spi-max-frequency = <50000000>;
 		spi-bus-width = <4>;
 	};
+
 };
