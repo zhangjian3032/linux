@@ -1418,7 +1418,7 @@ void ftgmac100_self_test(struct net_device *netdev,
 		etest->flags |= ETH_TEST_FL_FAILED;
 		return;
 	}
-	
+
 	if (0 == (etest->flags & ETH_TEST_FL_OFFLINE)) {
 		netdev_warn(netdev, "no online test items\n");
 		etest->flags |= ETH_TEST_FL_FAILED;
@@ -2123,6 +2123,8 @@ static int ftgmac100_probe(struct platform_device *pdev)
 		netdev->hw_features &= ~NETIF_F_HW_CSUM;
 	if (np && of_get_property(np, "no-hw-checksum", NULL))
 		netdev->hw_features &= ~(NETIF_F_HW_CSUM | NETIF_F_RXCSUM);
+	if (np && of_get_property(np, "no-hw-sg", NULL))
+		netdev->hw_features &= ~NETIF_F_SG;
 	netdev->features |= netdev->hw_features;
 
 	/* register network device */
