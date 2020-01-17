@@ -207,6 +207,7 @@
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_mac1link_default>;
+	no-hw-sg;
 };
 
 &mdio1 {
@@ -226,6 +227,7 @@
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mac2link_default>;
+	no-hw-sg;
 };
 
 &mdio2 {
