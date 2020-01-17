@@ -415,10 +415,12 @@
 	status = "okay";
 };
 
+#if 0
 &gfx {
 	status = "okay";
 	memory-region = <&gfx_memory>;
 };
+#endif
 
 &sdc {
 	status = "okay";
@@ -507,11 +509,13 @@
 
 &fmc {
 	status = "okay";
+
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
 		label = "bmc";
 		spi-max-frequency = <50000000>;
+		spi-bus-width = <4>;
 
 		partitions {
 			compatible = "fixed-partitions";
@@ -532,6 +536,7 @@
 				reg = <0x100000 0x1f60000>;
 				label = "fit";
 			};
+
 		};
 	};
 
@@ -540,6 +545,7 @@
 		m25p,fast-read;
 		label = "fmc0:1";
 		spi-max-frequency = <50000000>;
+		spi-bus-width = <4>;
 	};
 
 	flash@2 {
@@ -547,6 +553,7 @@
 		m25p,fast-read;
 		label = "fmc0:2";
 		spi-max-frequency = <50000000>;
+		spi-bus-width = <4>;
 	};
 };
 
