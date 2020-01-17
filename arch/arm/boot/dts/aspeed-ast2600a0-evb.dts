@@ -7,7 +7,6 @@
 	model = "AST2600 A0 EVB";
 	compatible = "aspeed,ast2600";
 
-
 	aliases {
 		serial0 = &uart1;
 		serial1 = &uart2;
@@ -114,10 +113,6 @@
 
 &uart11 {
 	compatible = "snps,dw-apb-uart";
-	status = "okay";
-};
-
-&i3c0 {
 	status = "okay";
 };
 
