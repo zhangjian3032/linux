@@ -214,7 +214,7 @@ extern int aspeed_h2x_rd_conf(struct pci_bus *bus, unsigned int devfn,
 				} else
 					*val = readl(aspeed_h2x->reg_base + 0x8C);
 			}
-//			writel(BIT(4) | readl(aspeed_h2x->reg_base + 0x80), aspeed_h2x->reg_base + 0x80);
+			writel(BIT(4) | readl(aspeed_h2x->reg_base + 0x80), aspeed_h2x->reg_base + 0x80);
 			writel(readl(aspeed_h2x->reg_base + 0x88), aspeed_h2x->reg_base + 0x88);
 			break;
 		case PCIE_RC_H_TX_COMPLETE:
@@ -228,12 +228,12 @@ extern int aspeed_h2x_rd_conf(struct pci_bus *bus, unsigned int devfn,
 				mdelay(1);
 			}
 			if(!rx_done_fail) {
-				if(readl(aspeed_h2x->reg_base + 0x94) & BIT(13)) {
+				if(readl(aspeed_h2x->reg_base + 0xD4) & BIT(13)) {
 					*val = 0xffffffff;
 				} else
 					*val = readl(aspeed_h2x->reg_base + 0xCC);
 			}
-//			writel(BIT(4) | readl(aspeed_h2x->reg_base + 0xC0), aspeed_h2x->reg_base + 0xC0);
+			writel(BIT(4) | readl(aspeed_h2x->reg_base + 0xC0), aspeed_h2x->reg_base + 0xC0);
 			writel(readl(aspeed_h2x->reg_base + 0xC8), aspeed_h2x->reg_base + 0xC8);
 			break;
 		default:	//read rc data
