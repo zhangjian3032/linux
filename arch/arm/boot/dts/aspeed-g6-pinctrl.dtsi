@@ -856,12 +856,7 @@
 		function = "SD1";
 		groups = "SD1";
 	};
-#if 0
-	pinctrl_sd1_8bits_default: sd1_8bits_default {
-		function = "SD1_8BITS";
-		groups = "SD1_8BITS";
-	};
-#endif
+
 	pinctrl_sd2_default: sd2_default {
 		function = "SD2";
 		groups = "SD2";
@@ -869,29 +864,13 @@
 
 	pinctrl_emmc_default: emmc_default {
 		function = "EMMC";
-		groups = "EMMC";
+		groups = "EMMCG4";
 	};
 
-	pinctrl_emmcdat4_default: emmcdat4_default {
-		function = "EMMCDAT4";
-		groups = "EMMCDAT4";
+	pinctrl_emmcg8_default: emmcg8_default {
+		function = "EMMC";
+		groups = "EMMCG8";
 	};
-
-	pinctrl_emmcdat5_default: emmcdat5_default {
-		function = "EMMCDAT5";
-		groups = "EMMCDAT5";
-	};
-
-	pinctrl_emmcdat6_default: emmcdat6_default {
-		function = "EMMCDAT6";
-		groups = "EMMCDAT6";
-    };
-
-	pinctrl_emmcdat7_default: emmcdat7_default {
-		function = "EMMCDAT7";
-		groups = "EMMCDAT7";
-    };
-
 
 	pinctrl_sgpm1_default: sgpm1_default {
 		function = "SGPM1";
