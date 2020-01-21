@@ -392,7 +392,7 @@
 				};
 
 				pinctrl: pinctrl {
-					compatible = "aspeed,g6-pinctrl";
+					compatible = "aspeed,ast2600-pinctrl";
 				};
 
 				scu_ic0: interrupt-controller@0 {
@@ -622,64 +622,6 @@
 				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 				resets = <&syscon ASPEED_RESET_VIDEO>;
 				status = "disabled";
-			};
-
-			emmc_controller: sdc@1e750000 {
-				compatible = "aspeed,ast2600-sd-controller";
-				reg = <0x1e750000 0x100>;
-				#address-cells = <1>;
-				#size-cells = <1>;
-				ranges = <0 0x1e750000 0x10000>;
-				clocks = <&syscon ASPEED_CLK_GATE_EMMCCLK>;
-				status = "disabled";
-
-				emmc: sdhci@1e750100 {
-					compatible = "aspeed,ast2600-sdhci";
-					reg = <0x100 0x100>;
-					sdhci,auto-cmd12;
-					interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-					clocks = <&syscon ASPEED_CLK_EMMC>;
-					pinctrl-names = "default";
-					pinctrl-0 = <&pinctrl_emmc_default>;
-					status = "disabled";
-				};
-			};
-
-
-			sdc: sdc@1e740000 {
-				compatible = "aspeed,ast2600-sd-controller";
-				reg = <0x1e740000 0x100>;
-				#address-cells = <1>;
-				#size-cells = <1>;
-				ranges = <0 0x1e740000 0x10000>;
-				clocks = <&syscon ASPEED_CLK_GATE_SDCLK>;
-				status = "disabled";
-
-				sdhci0: sdhci@1e740100 {
-					compatible = "aspeed,ast2600-sdhci", "sdhci";
-					reg = <0x100 0x100>;
-					interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
-					sdhci,auto-cmd12;
-					clocks = <&syscon ASPEED_CLK_SDIO>;
-					power-gpio = <&gpio0 ASPEED_GPIO(V, 0) GPIO_ACTIVE_LOW>;
-					power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 1) GPIO_ACTIVE_LOW>;
-					pinctrl-names = "default";
-					pinctrl-0 = <&pinctrl_sd1_default>;
-					status = "disabled";
-				};
-
-				sdhci1: sdhci@1e740200 {
-					compatible = "aspeed,ast2600-sdhci", "sdhci";
-					reg = <0x200 0x100>;
-					interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
-					sdhci,auto-cmd12;
-					clocks = <&syscon ASPEED_CLK_SDIO>;
-					power-gpio = <&gpio0 ASPEED_GPIO(V, 2) GPIO_ACTIVE_LOW>;
-					power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 3) GPIO_ACTIVE_LOW>;
-					pinctrl-names = "default";
-					pinctrl-0 = <&pinctrl_sd2_default>;
-					status = "disabled";
-				};
 			};
 
                         h2x: h2x@1e770000 {
@@ -971,6 +913,64 @@
 					};
 				};
 			};
+
+			sdc: sdc@1e740000 {
+				compatible = "aspeed,ast2600-sd-controller";
+				reg = <0x1e740000 0x100>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e740000 0x10000>;
+				clocks = <&syscon ASPEED_CLK_GATE_SDCLK>;
+				status = "disabled";
+
+				sdhci0: sdhci@1e740100 {
+					compatible = "aspeed,ast2600-sdhci", "sdhci";
+					reg = <0x100 0x100>;
+					interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+					sdhci,auto-cmd12;
+					clocks = <&syscon ASPEED_CLK_SDIO>;
+					power-gpio = <&gpio0 ASPEED_GPIO(V, 0) GPIO_ACTIVE_LOW>;
+					power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 1) GPIO_ACTIVE_LOW>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_sd1_default>;
+					status = "disabled";
+				};
+
+				sdhci1: sdhci@1e740200 {
+					compatible = "aspeed,ast2600-sdhci", "sdhci";
+					reg = <0x200 0x100>;
+					interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+					sdhci,auto-cmd12;
+					clocks = <&syscon ASPEED_CLK_SDIO>;
+					power-gpio = <&gpio0 ASPEED_GPIO(V, 2) GPIO_ACTIVE_LOW>;
+					power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 3) GPIO_ACTIVE_LOW>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_sd2_default>;
+					status = "disabled";
+				};
+			};
+
+			emmc_controller: sdc@1e750000 {
+				compatible = "aspeed,ast2600-sd-controller";
+				reg = <0x1e750000 0x100>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e750000 0x10000>;
+				clocks = <&syscon ASPEED_CLK_GATE_EMMCCLK>;
+				status = "disabled";
+
+				emmc: sdhci@1e750100 {
+					compatible = "aspeed,ast2600-sdhci";
+					reg = <0x100 0x100>;
+					sdhci,auto-cmd12;
+					interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+					clocks = <&syscon ASPEED_CLK_EMMC>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_emmc_default>;
+					status = "disabled";
+				};
+			};
+
 
 			peci: bus@1e78b000 {
 				compatible = "simple-bus";
