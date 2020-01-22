@@ -159,7 +159,6 @@ static irqreturn_t aspeed_espi_reset_isr(int this_irq, void *dev_id)
 {
 	u32 sw_mode = 0;
 	struct aspeed_espi_data *aspeed_espi = dev_id;
-	int i = 0;
 	unsigned int bus_irq;
 
 	printk("aspeed_espi_reset_isr\n");
@@ -180,10 +179,9 @@ static irqreturn_t aspeed_espi_reset_isr(int this_irq, void *dev_id)
 
 	aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) | sw_mode, ASPEED_ESPI_CTRL);
 
-	for(i = 4; i < 8; i++) {
-		bus_irq = irq_find_mapping(aspeed_espi->irq_domain, i);
-		generic_handle_irq(bus_irq);
-	}
+	//for all channel reset 
+	bus_irq = irq_find_mapping(aspeed_espi->irq_domain, 4);
+	generic_handle_irq(bus_irq);
 
 	return IRQ_HANDLED;
 }
@@ -192,12 +190,13 @@ static void aspeed_espi_handler(struct irq_desc *desc)
 {
 	struct aspeed_espi_data *aspeed_espi = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	unsigned long status;
+	u32 status;
 	unsigned int bus_irq;
 
 	chained_irq_enter(chip, desc);
 	status = aspeed_espi_read(aspeed_espi, ASPEED_ESPI_ISR);
 	printk("isr status %x \n", status);
+
 	if (status & ESPI_ISR_HW_RESET) {
 		printk("ESPI_ISR_HW_RESET \n");
 		aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_SYS_EVENT) | ESPI_BOOT_STS | ESPI_BOOT_DWN, ASPEED_ESPI_SYS_EVENT);
@@ -233,8 +232,6 @@ static void aspeed_espi_handler(struct irq_desc *desc)
 static void aspeed_espi_mask_irq(struct irq_data *data)
 {
 	struct aspeed_espi_data *aspeed_espi = irq_data_get_irq_chip_data(data);
-//	unsigned int sbit = BIT(data->hwirq);
-	printk("aspeed_espi_mask_irq data->hwirq %d \n", data->hwirq);
 
 	switch(data->hwirq) {
 		case 0:	//peripheral channel
@@ -249,17 +246,8 @@ static void aspeed_espi_mask_irq(struct irq_data *data)
 		case 3: //flash
 			regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, BIT(21) | BIT(19) | BIT(15) | GENMASK(7, 6), 0);
 			break;		
-		case 4: //peripheral channel reset
-			aspeed_espi->espi_bus_rest_ier &= ~BIT(0);
-			break;
-		case 5: //virtual wire
-			aspeed_espi->espi_bus_rest_ier &= ~BIT(1);
-			break;
-		case 6: //oob
-			aspeed_espi->espi_bus_rest_ier &= ~BIT(2);
-			break;
-		case 7: //flash 
-			aspeed_espi->espi_bus_rest_ier &= ~BIT(3);
+		case 4: //espi channel reset
+			aspeed_espi->espi_bus_rest_ier = 0;
 			break;
 	}
 }
@@ -267,8 +255,7 @@ static void aspeed_espi_mask_irq(struct irq_data *data)
 static void aspeed_espi_unmask_irq(struct irq_data *data)
 {
 	struct aspeed_espi_data *aspeed_espi = irq_data_get_irq_chip_data(data);
-	unsigned int sbit = BIT(data->hwirq);
-printk("aspeed_espi_unmask_irq data->hwirq %d \n", data->hwirq);
+
 	switch(data->hwirq) {
 		case 0:	//peripheral channel
 			regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, GENMASK(17, 16) | GENMASK(13, 10), GENMASK(17, 16) | GENMASK(13, 10));
@@ -282,17 +269,8 @@ printk("aspeed_espi_unmask_irq data->hwirq %d \n", data->hwirq);
 		case 3: //flash
 			regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, BIT(21) | BIT(19) | BIT(15) | GENMASK(7, 6), BIT(21) | BIT(19) | BIT(15) | GENMASK(7, 6));
 			break;
-		case 4: //peripheral channel reset
-			aspeed_espi->espi_bus_rest_ier |= BIT(0);
-			break;
-		case 5: //virtual wire
-			aspeed_espi->espi_bus_rest_ier |= BIT(1);
-			break;
-		case 6: //oob
-			aspeed_espi->espi_bus_rest_ier |= BIT(2);
-			break;
-		case 7: //flash 
-			aspeed_espi->espi_bus_rest_ier |= BIT(3);
+		case 4: //espi bus reset
+			aspeed_espi->espi_bus_rest_ier = 1;
 			break;
 	}
 }
@@ -505,7 +483,7 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 	}
 
 	aspeed_espi->irq_domain = irq_domain_add_linear(
-					pdev->dev.of_node, 4,
+					pdev->dev.of_node, 8,
 					&aspeed_espi_irq_domain_ops, aspeed_espi);
 	if (!aspeed_espi->irq_domain) {
 		ret = -ENOMEM;
