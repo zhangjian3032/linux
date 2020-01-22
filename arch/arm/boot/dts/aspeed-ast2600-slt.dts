@@ -4,7 +4,7 @@
 #include "aspeed-g6.dtsi"
 
 / {
-	model = "AST2600 EVB";
+	model = "AST2600 A1 SLT";
 	compatible = "aspeed,ast2600";
 
 	aliases {
@@ -64,9 +64,9 @@
 	iio-hwmon {
 		compatible = "iio-hwmon";
 		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
-					<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
-					<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
-					<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
+				<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
+				<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
+				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
 	};
 
 	ssp: secondary-service-processor {
@@ -76,8 +76,23 @@
 
 		memory-region = <&ssp_memory>;
 		aspeed,cvic = <&cvic>;
+		interrupts = 	<GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>;
 	};
-
 };
 
 &uart1 {
@@ -108,9 +123,37 @@
 	status = "okay";
 };
 
+#if 0
 &i3c0 {
 	status = "okay";
 };
+
+&i3c1 {
+	status = "okay";
+};
+
+&i3c2 {
+        status = "okay";
+
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_hvi3c3_default>;
+};
+
+&i3c3 {
+        status = "okay";
+
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_hvi3c4_default>;
+};
+
+&i3c4 {
+	status = "okay";
+};
+
+&i3c5 {
+	status = "okay";
+};
+#endif
 
 &i2c4 {
 	status = "okay";
@@ -149,7 +192,6 @@
 	status = "okay";
 };
 
-#if 0
 &mdio0 {
 	status = "okay";
 
@@ -166,9 +208,9 @@
 	phy-handle = <&ethphy0>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii1_default>;
+	pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_mac1link_default>;
+	no-hw-sg;
 };
-#endif
 
 &mdio1 {
 	status = "okay";
@@ -186,7 +228,8 @@
 	phy-handle = <&ethphy1>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default>;
+	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mac2link_default>;
+	no-hw-sg;
 };
 
 &mdio2 {
@@ -205,7 +248,7 @@
 	phy-handle = <&ethphy2>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii3_default>;
+	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_mac3link_default>;
 };
 
 &mdio3 {
@@ -224,7 +267,7 @@
 	phy-handle = <&ethphy3>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii4_default>;
+	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_mac4link_default>;
 };
 
 &pwm_tacho {
@@ -370,11 +413,9 @@
 	status = "okay";
 };
 
-#if 0
 &uhci {
 	status = "okay";
 };
-#endif
 
 #if 0
 &gfx {
@@ -383,6 +424,7 @@
 };
 #endif
 
+#if 0
 &sdc {
 	status = "okay";
 };
@@ -396,8 +438,6 @@
 
 	non-removable;
 	max-frequency = <100000000>;
-	/* AST2600 A0 only support PIO mode */
-	sdhci-caps-mask = <0x0 0x580000>;
 #if 1
 	bus-width = <4>;
 #else
@@ -429,6 +469,7 @@
 	sdhci-caps-mask = <0x7 0x0>;
 	sdhci,wp-inverted;
 };
+#endif
 
 &peci0 {
 	status = "okay";
@@ -486,17 +527,17 @@
 			#size-cells = <1>;
 
 			u-boot@0 {
-				reg = <0x0 0x90000>;
+				reg = <0x0 0xF0000>;
 				label = "u-boot";
 			};
 
 			u-boot-env@e0000 {
-				reg = <0x90000 0x10000>; 
+				reg = <0xF0000 0x10000>;
 				label = "u-boot-env";
 			};
 
 			fit@100000 {
-				reg = <0xa0000 0x1f60000>;
+				reg = <0x100000 0x1f60000>;
 				label = "fit";
 			};
 
@@ -518,7 +559,6 @@
 		spi-max-frequency = <50000000>;
 		spi-bus-width = <4>;
 	};
-
 };
 
 &spi1 {
