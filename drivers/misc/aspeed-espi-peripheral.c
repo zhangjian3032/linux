@@ -3,29 +3,19 @@
  * Copyright (C) ASPEED Technology Inc.
  */
 
-#include <linux/atomic.h>
-#include <linux/errno.h>
-#include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/mfd/syscon.h>
+#include <linux/poll.h>
+#include <linux/slab.h>
+#include <linux/regmap.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/interrupt.h>
+#include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-
-#include <linux/poll.h>
-#include <linux/regmap.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/timer.h>
 #include <linux/miscdevice.h>
-#include <linux/device.h>
 #include <linux/of_device.h>
-
-#include <linux/of.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/sysfs.h>
+#include <linux/of_address.h>
+#include <linux/module.h>
 
 #include "regs-aspeed-espi.h"
 
@@ -52,6 +42,9 @@ struct aspeed_espi_peripheral {
 	int 					irq;					//LPC IRQ number	
 	int 					rest_irq;					//espi reset irq
 	int						dma_mode;		/* o:disable , 1:enable */	
+
+	phys_addr_t			mapping_mem_base;
+	resource_size_t		mapping_mem_size;
 };
 
 static void
@@ -151,12 +144,36 @@ static irqreturn_t aspeed_espi_peripheral_irq(int irq, void *arg)
 
 }
 
+static struct aspeed_espi_peripheral *file_aspeed_espi_peripherial(struct file *file)
+{
+	return container_of(file->private_data, struct aspeed_espi_peripheral,
+			miscdev);
+}
+
+static int aspeed_espi_peripheral_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct aspeed_espi_peripheral *espi_peripheral = file_aspeed_espi_peripherial(file);
+	unsigned long vsize = vma->vm_end - vma->vm_start;
+	pgprot_t prot = vma->vm_page_prot;
+
+	if (vma->vm_pgoff + vsize > espi_peripheral->mapping_mem_base + espi_peripheral->mapping_mem_size)
+		return -EINVAL;
+
+	prot = pgprot_noncached(prot);
+
+	if (remap_pfn_range(vma, vma->vm_start,
+		(espi_peripheral->mapping_mem_base >> PAGE_SHIFT) + vma->vm_pgoff,
+		vsize, prot))
+		return -EAGAIN;
+
+	return 0;
+}
+
 static long
-espi_peripheral_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+aspeed_espi_peripheral_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
-	struct miscdevice *c = file->private_data;
-	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(c->this_device);
+	struct aspeed_espi_peripheral *espi_peripheral = file_aspeed_espi_peripherial(file);
 	struct aspeed_espi_xfer xfer;
 
 	if (copy_from_user(&xfer, (void*)arg, sizeof(struct aspeed_espi_xfer)))
@@ -406,7 +423,8 @@ static struct attribute_group espi_peripheral_attribute_group = {
 
 static const struct file_operations aspeed_espi_peripheral_fops = {
 	.owner			= THIS_MODULE,
-	.unlocked_ioctl	= espi_peripheral_ioctl,
+	.mmap			= aspeed_espi_peripheral_mmap,		
+	.unlocked_ioctl	= aspeed_espi_peripheral_ioctl,
 };
 
 static const struct of_device_id aspeed_espi_peripheral_match[] = {
@@ -419,6 +437,8 @@ MODULE_DEVICE_TABLE(of, aspeed_espi_peripheral_match);
 static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct resource resm;	
+	struct device_node *node;	
 	struct aspeed_espi_peripheral *espi_peripheral;
 	const struct of_device_id *dev_id;	
 	int rc;
@@ -433,7 +453,24 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 
 	if (of_property_read_bool(pdev->dev.of_node, "dma-mode"))
 		espi_peripheral->dma_mode = 1;
+///
+	/* If memory-region is described in device tree then store */
+	node = of_parse_phandle(dev->of_node, "memory-region", 0);
+	if (!node) {
+		dev_dbg(dev, "Didn't find reserved memory\n");
+	} else {
+		rc = of_address_to_resource(node, 0, &resm);
+		of_node_put(node);
+		if (rc) {
+			dev_err(dev, "Couldn't address to resource for reserved memory\n");
+			return -ENOMEM;
+		}
 
+		espi_peripheral->mapping_mem_size = resource_size(&resm);
+		espi_peripheral->mapping_mem_base = resm.start;
+	}
+
+////
 	espi_peripheral->map = syscon_node_to_regmap(dev->parent->of_node);	
 	if (IS_ERR(espi_peripheral->map)) {
 		dev_err(dev, "Couldn't get regmap\n");
