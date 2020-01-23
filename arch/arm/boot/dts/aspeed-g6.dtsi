@@ -575,37 +575,46 @@
 			espi: espi@1e6ee000 {
 				compatible = "aspeed,ast2600-espi", "simple-mfd", "syscon";
 				reg = <0x1e6ee000 0x200>;
+				reg-io-width = <4>;
+
 				interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>, <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
-				resets = <&syscon ASPEED_RESET_LPC_ESPI>;
-				ranges = <0x0 0x1e6ee000 0x200>;
+				status = "disabled";
+
 				#address-cells = <1>;
 				#size-cells = <1>;
-					interrupt-controller;
-					#interrupt-cells = <1>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+
+				ranges = <0x0 0x1e6ee000 0x200>;
 
 				peripheral: peripheral-channel@0 {
-					compatible = "aspeed,ast2600-espi-peripheral", "syscon";
+					compatible = "aspeed,ast2600-espi-peripheral";
 					reg = <0x0 0x200>;
 					interrupts-extended = <&espi 0>, <&espi 4>;
 					dma-mode;
+					status = "disabled";
 				};
 
 				virtial_wire: vw-channel@0 {
-					compatible = "aspeed,ast2600-espi-virtial-wire", "syscon";
+					compatible = "aspeed,ast2600-espi-virtial-wire";
 					reg = <0x0 0x200>;
-					interrupts-extended = <&espi 1>, <&espi 5>;
+					interrupts-extended = <&espi 1>, <&espi 4>;
+					status = "disabled";
 				};
 
 				oob: oob-channel@0 {
-					compatible = "aspeed,ast2600-espi-oob", "syscon";
+					compatible = "aspeed,ast2600-espi-oob";
 					reg = <0x0 0x200>;
-					interrupts-extended = <&espi 2>, <&espi 6>;
+					interrupts-extended = <&espi 2>, <&espi 4>;
 					dma-mode;
+					status = "disabled";
 				};
+
 				flash: flash-channel@0 {
-					compatible = "aspeed,ast2600-espi-flash", "syscon";
+					compatible = "aspeed,ast2600-espi-flash";
 					reg = <0x0 0x200>;
-					interrupts-extended = <&espi 3>, <&espi 7>;
+					interrupts-extended = <&espi 3>, <&espi 4>;
+					status = "disabled";
 				};
 			};
 

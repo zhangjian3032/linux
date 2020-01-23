@@ -80,6 +80,64 @@
 
 };
 
+
+&mdio1 {
+	status = "okay";
+
+	ethphy1: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mac1 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mac2link_default>;
+};
+
+&mdio2 {
+	status = "okay";
+
+	ethphy2: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mac2 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy2>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_mac3link_default>;
+};
+
+&mdio3 {
+	status = "okay";
+
+	ethphy3: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mac3 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy3>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_mac4link_default>;
+};
+
 &uart1 {
 	// A0 workaround for UART devices
 	compatible = "snps,dw-apb-uart";
@@ -153,63 +211,6 @@
 	status = "okay";
 };
 
-
-&mdio1 {
-	status = "okay";
-
-	ethphy1: ethernet-phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
-	};
-};
-
-&mac1 {
-	status = "okay";
-
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy1>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mac2link_default>;
-};
-
-&mdio2 {
-	status = "okay";
-
-	ethphy2: ethernet-phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
-	};
-};
-
-&mac2 {
-	status = "okay";
-
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy2>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_mac3link_default>;
-};
-
-&mdio3 {
-	status = "okay";
-
-	ethphy3: ethernet-phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
-	};
-};
-
-&mac3 {
-	status = "okay";
-
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy3>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_mac4link_default>;
-};
 
 &pwm_tacho {
 	status = "okay";
@@ -586,4 +587,27 @@
 		spi-bus-width = <4>;
 	};
 
+};
+
+&espi {
+	status = "okay";
+	
+	resets = <&syscon ASPEED_RESET_LPC_ESPI>;
+	
+};
+
+&peripheral {
+	status = "okay";
+};
+
+&virtial_wire {
+	status = "okay";
+};
+
+&oob {
+	status = "okay";
+};
+
+&flash {
+	status = "okay";
 };
