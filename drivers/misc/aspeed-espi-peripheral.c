@@ -547,7 +547,7 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	pr_info("aspeed espi peripheral loaded \n");
+	pr_info("aspeed espi-peripheral loaded \n");
 
 	return 0;
 }

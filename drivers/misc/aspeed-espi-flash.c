@@ -223,12 +223,6 @@ static const struct file_operations aspeed_espi_flash_fops = {
 	.unlocked_ioctl		= espi_flash_ioctl,
 };
 
-struct miscdevice aspeed_espi_flash_misc = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "espi-flash",
-	.fops = &aspeed_espi_flash_fops,
-};
-
 static const struct of_device_id aspeed_espi_flash_match[] = {
 	{ .compatible = "aspeed,ast2600-espi-flash", .data = (void *) 6, },
 	{ .compatible = "aspeed,ast2500-espi-flash", .data = (void *) 5, },
@@ -256,7 +250,7 @@ static int aspeed_espi_flash_probe(struct platform_device *pdev)
 	if (of_property_read_bool(pdev->dev.of_node, "dma-mode"))
 		espi_flash->dma_mode = 1;
 
-	espi_flash->map = syscon_node_to_regmap(pdev->dev.of_node);
+	espi_flash->map = syscon_node_to_regmap(dev->parent->of_node);
 	if (IS_ERR(espi_flash->map)) {
 		dev_err(dev, "Couldn't get regmap\n");
 		return -ENODEV;
@@ -312,30 +306,33 @@ static int aspeed_espi_flash_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	rc = misc_register(&aspeed_espi_flash_misc);
+	espi_flash->miscdev.minor = MISC_DYNAMIC_MINOR;
+	espi_flash->miscdev.name = DEVICE_NAME;
+	espi_flash->miscdev.fops = &aspeed_espi_flash_fops;
+	espi_flash->miscdev.parent = dev;
+	rc = misc_register(&espi_flash->miscdev);
 	if (rc) {
 		dev_err(dev, "Unable to register device\n");
 		return rc;
 	}
 
-	pr_info("aspeed espi flash loaded \n");
+	pr_info("aspeed espi-flash loaded \n");
 
 	return 0;
 }
 
 static int aspeed_espi_flash_remove(struct platform_device *pdev)
 {
-//	struct aspeed_espi_flash *espi_flash = dev_get_drvdata(&pdev->dev);
+	struct aspeed_espi_flash *espi_flash = dev_get_drvdata(&pdev->dev);
 
-	misc_deregister(&aspeed_espi_flash_misc);
-
+	misc_deregister(&espi_flash->miscdev);
 	return 0;
 }
 
 
 static struct platform_driver aspeed_espi_flash_driver = {
 	.driver = {
-		.name           = "aspeed-espi-flash",
+		.name           = DEVICE_NAME,
 		.of_match_table = aspeed_espi_flash_match,
 	},
 	.probe  = aspeed_espi_flash_probe,

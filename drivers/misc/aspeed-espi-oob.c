@@ -248,14 +248,14 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 	if (of_property_read_bool(pdev->dev.of_node, "dma-mode"))
 		espi_oob->dma_mode = 1;
 
-	espi_oob->map = syscon_node_to_regmap(pdev->dev.of_node);
+	espi_oob->map = syscon_node_to_regmap(dev->parent->of_node);
 	if (IS_ERR(espi_oob->map)) {
 		dev_err(dev, "Couldn't get regmap\n");
 		return -ENODEV;
 	}
 
 	sysfs_bin_attr_init(&espi_oob->bin);
-	espi_oob->bin.attr.name = "espi-oob";
+	espi_oob->bin.attr.name = DEVICE_NAME;
 	espi_oob->bin.attr.mode = S_IRUSR | S_IWUSR;
 	espi_oob->bin.read = aspeed_oob_channel_rx;
 	espi_oob->bin.write = aspeed_oob_channel_tx;
