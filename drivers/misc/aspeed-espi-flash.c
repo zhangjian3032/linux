@@ -224,8 +224,8 @@ static const struct file_operations aspeed_espi_flash_fops = {
 };
 
 static const struct of_device_id aspeed_espi_flash_match[] = {
-	{ .compatible = "aspeed,ast2600-espi-flash", .data = (void *) 6, },
-	{ .compatible = "aspeed,ast2500-espi-flash", .data = (void *) 5, },
+	{ .compatible = "aspeed,ast2600-espi-flash", .data = (void *) ESPI_AST2600, },
+	{ .compatible = "aspeed,ast2500-espi-flash", .data = (void *) ESPI_AST2500, },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, aspeed_espi_flash_match);

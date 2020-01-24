@@ -147,7 +147,7 @@ aspeed_espi_oob_rx(struct aspeed_espi_oob *espi_oob)
 	u32 ctrl = 0;
 	u32 rx_buf;
 
-	if ((espi_oob->dma_mode == 1) && (espi_oob->espi_version == 6)) {
+	if ((espi_oob->dma_mode == 1) && (espi_oob->espi_version == ESPI_AST2600)) {
 
 	} else {
 		//old ast2500
@@ -221,8 +221,8 @@ static irqreturn_t aspeed_espi_oob_irq(int irq, void *arg)
 }
 
 static const struct of_device_id aspeed_espi_oob_match[] = {
-	{ .compatible = "aspeed,ast2600-espi-oob", .data = (void *) 6, },
-	{ .compatible = "aspeed,ast2500-espi-oob", .data = (void *) 5, },
+	{ .compatible = "aspeed,ast2600-espi-oob", .data = (void *) ESPI_AST2600, },
+	{ .compatible = "aspeed,ast2500-espi-oob", .data = (void *) ESPI_AST2500, },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, aspeed_espi_oob_match);
@@ -277,7 +277,7 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 	
 	//aspeed_oob_channel_init
 	if(espi_oob->dma_mode) {
-		if(espi_oob->espi_version == 6) {
+		if(espi_oob->espi_version == ESPI_AST2600) {
 			espi_oob->oob_tx_cmd = dma_alloc_coherent(NULL,
 										  ((OOB_TX_BUF_NUM + OOB_RX_BUF_NUM) * OOB_BUFF_SIZE) + 
 										  (sizeof(struct aspeed_oob_tx_cmd) * OOB_TXCMD_DESC_NUM) + 

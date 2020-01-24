@@ -57,6 +57,8 @@
 
 #include "regs-aspeed-espi.h"
 
+#define DEVICE_NAME "aspeed-espi"
+
 /*************************************************************************************/
 #define ESPIIOC_BASE       'E'
 
@@ -71,7 +73,8 @@ ast2600 dma mode support 8 fifo
 
 struct aspeed_espi_data {
 	struct device			*dev;
-	struct regmap		*map;	
+	struct regmap			*map;	
+	struct miscdevice 		miscdev;	
 	
 	int 					irq;					//LPC IRQ number
 	int 					gpio_irq;					//GPIO IRQ number	
@@ -81,15 +84,13 @@ struct aspeed_espi_data {
 	u32 					espi_bus_rest_ier;
 
 	struct irq_domain *irq_domain;
-	
-	
 	struct fasync_struct 	*async_queue;
 };
 
 static void aspeed_espi_ctrl_init(struct aspeed_espi_data *aspeed_espi)
 {
 	//ast2600 a0 workaround for oob free init before espi reset 
-	if(aspeed_espi->espi_version == 6)
+	if(aspeed_espi->espi_version == ESPI_AST2600)
 		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, 0xef, 0xef); 
 	else
 		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, 0xff, 0xff); 
@@ -98,7 +99,7 @@ static void aspeed_espi_ctrl_init(struct aspeed_espi_data *aspeed_espi)
 	regmap_write(aspeed_espi->map, ASPEED_ESPI_SYS_INT_T0, 0);
 	regmap_write(aspeed_espi->map, ASPEED_ESPI_SYS_INT_T1, 0);
 
-	if (aspeed_espi->espi_version == 5)
+	if (aspeed_espi->espi_version == ESPI_AST2500)
 		regmap_write(aspeed_espi->map, ASPEED_ESPI_SYS_INT_T2, ESPI_HOST_RST_WARN | ESPI_OOB_RST_WARN);
 
 	regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, BIT(31), BIT(31));
@@ -127,7 +128,7 @@ static irqreturn_t aspeed_espi_reset_isr(int this_irq, void *dev_id)
 #endif
 
 	//ast2600 a0 workaround for oob free init before espi reset 
-	if(aspeed_espi->espi_version == 6)
+	if(aspeed_espi->espi_version == ESPI_AST2600)
 		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, ESPI_CTRL_OOB_FW_RDY, ESPI_CTRL_OOB_FW_RDY); 
 
 	aspeed_espi_ctrl_init(aspeed_espi);
@@ -352,15 +353,9 @@ static const struct file_operations aspeed_espi_fops = {
 	.fasync			= espi_fasync,
 };
 
-struct miscdevice aspeed_espi_misc = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "aspeed-espi",
-	.fops = &aspeed_espi_fops,
-};
-
 static const struct of_device_id aspeed_espi_of_matches[] = {
-	{ .compatible = "aspeed,ast2500-espi", .data = (void *) 5, },
-	{ .compatible = "aspeed,ast2600-espi", .data = (void *) 6, },
+	{ .compatible = "aspeed,ast2500-espi", .data = (void *) ESPI_AST2500, },
+	{ .compatible = "aspeed,ast2600-espi", .data = (void *) ESPI_AST2600, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, aspeed_espi_of_matches);
@@ -369,6 +364,7 @@ MODULE_DEVICE_TABLE(of, aspeed_espi_of_matches);
 static int aspeed_espi_probe(struct platform_device *pdev)
 {
 	static struct aspeed_espi_data *aspeed_espi;
+	struct device *dev = &pdev->dev;	
 	const struct of_device_id *dev_id;
 	int ret = 0;
 
@@ -427,14 +423,17 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 
 	aspeed_espi_ctrl_init(aspeed_espi);
 
-	ret = misc_register(&aspeed_espi_misc);
+	aspeed_espi->miscdev.minor = MISC_DYNAMIC_MINOR;
+	aspeed_espi->miscdev.name = DEVICE_NAME;
+	aspeed_espi->miscdev.fops = &aspeed_espi_fops;
+	aspeed_espi->miscdev.parent = dev;
+	ret = misc_register(&aspeed_espi->miscdev);
 	if (ret) {
 		printk(KERN_ERR "ESPI : failed misc_register\n");
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, aspeed_espi);
-	dev_set_drvdata(aspeed_espi_misc.this_device, aspeed_espi);
+	dev_set_drvdata(dev, aspeed_espi);
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &espi_attribute_group);
 	if (ret) {
@@ -449,19 +448,12 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 
 static int aspeed_espi_remove(struct platform_device *pdev)
 {
-	struct aspeed_espi_data *aspeed_espi;
-	struct resource *res;
+	struct aspeed_espi_data *aspeed_espi = dev_get_drvdata(&pdev->dev);
 
-	aspeed_espi = platform_get_drvdata(pdev);
-	if (aspeed_espi == NULL)
-		return -ENODEV;
-
+	misc_deregister(&aspeed_espi->miscdev);
 	free_irq(aspeed_espi->gpio_irq, aspeed_espi);
 	free_irq(aspeed_espi->irq, aspeed_espi);
 	sysfs_remove_group(&pdev->dev.kobj, &espi_attribute_group);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
 
 	kfree(aspeed_espi);
 	return 0;

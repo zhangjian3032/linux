@@ -63,7 +63,7 @@ static irqreturn_t aspeed_espi_vw_irq(int irq, void *arg)
 			
 			printk("event isr %x, sys_event %x\n", sys_evt_isr, sys_evt);
 			
-			if (espi_vw->espi_version == 5) {
+			if (espi_vw->espi_version == ESPI_AST2500) {
 				if (sys_evt_isr & ESPI_HOST_RST_WARN) {
 					if (sys_evt & ESPI_HOST_RST_WARN)
 						regmap_update_bits(espi_vw->map, ASPEED_ESPI_SYS_EVENT, ESPI_HOST_REST_ACK, ESPI_HOST_REST_ACK);
@@ -181,8 +181,8 @@ static const struct file_operations aspeed_espi_vw_fops = {
 };
 
 static const struct of_device_id aspeed_espi_vw_match[] = {
-	{ .compatible = "aspeed,ast2600-espi-virtial-wire", .data = (void *) 6, },
-	{ .compatible = "aspeed,ast2500-espi-virtial-wire", .data = (void *) 5, },
+	{ .compatible = "aspeed,ast2600-espi-virtial-wire", .data = (void *) ESPI_AST2600, },
+	{ .compatible = "aspeed,ast2500-espi-virtial-wire", .data = (void *) ESPI_AST2500, },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, aspeed_espi_vw_match);

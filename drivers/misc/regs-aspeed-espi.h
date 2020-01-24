@@ -1,6 +1,11 @@
 #ifndef __ESPI_ASPEED_H_INCLUDED
 #define __ESPI_ASPEED_H_INCLUDED
 
+enum aspeed_espi_version {
+	ESPI_AST2500,
+	ESPI_AST2600,
+};
+
 struct aspeed_espi_xfer {
 	unsigned int header;		//[23:12] len, [11:8] tag, [7:0] cycle type
 	unsigned int buf_len;		//xfer buff len
@@ -239,8 +244,6 @@ struct espi_ch_data {
 #define GET_GCAP_IO_MODE(x)		((x >> 26) & 0x3)
 #define GET_GCAP_OP_FREQ(x)		((x >> 20) & 0x7)
 #define GET_GCAP_CH_SUPPORT(x)	(x & 0xf)
-
-
 
 #endif
 
