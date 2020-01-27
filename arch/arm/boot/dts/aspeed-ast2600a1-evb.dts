@@ -59,6 +59,17 @@
 			no-map;
 		};
 
+		espi_peripheral_memory: espi_peripheral_memory {
+			no-map;
+			reg = <0x98000000 0x04000000>; /* 64M */
+#if 0
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+#endif
+		};
+
 	};
 
 	iio-hwmon {
@@ -622,6 +633,8 @@
 
 &peripheral {
 	status = "okay";
+
+	memory-region = <&espi_peripheral_memory>;
 };
 
 &virtial_wire {

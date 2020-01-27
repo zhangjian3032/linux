@@ -19,14 +19,22 @@
 
 #include "regs-aspeed-espi.h"
 
-#define DEVICE_NAME     "espi-peripheral"
+#define DEVICE_NAME		"espi-peripheral"
 
-#define ESPIPIOC_BASE       'P'
-
+#define ESPIPIOC_BASE	'P'
 
 #define ASPEED_ESPI_PERIPHERAL_IOCRX			_IOWR(ESPIPIOC_BASE, 0x0, struct aspeed_espi_xfer)			//post rx
 #define ASPEED_ESPI_PERIPHERAL_IOCTX			_IOW(ESPIPIOC_BASE, 0x1, struct aspeed_espi_xfer)				//post tx
 #define ASPEED_ESPI_PERINP_IOCTX				_IOW(ESPIPIOC_BASE, 0x2, struct aspeed_espi_xfer)				//non-post tx
+
+#define MQ_MSGBUF_SIZE		4096
+#define MQ_QUEUE_SIZE		16
+#define MQ_QUEUE_NEXT(x)	(((x) + 1) & (MQ_QUEUE_SIZE - 1))
+
+struct mq_msg {
+	int	len;
+	u8	*buf;
+};
 
 struct aspeed_espi_peripheral {
 	struct regmap 			*map;
@@ -45,6 +53,17 @@ struct aspeed_espi_peripheral {
 
 	phys_addr_t			mapping_mem_base;
 	resource_size_t		mapping_mem_size;
+
+	struct mq_msg		*write_curr;
+	int			wtruncated; /* drop current if truncated */
+	struct mq_msg		write_queue[MQ_QUEUE_SIZE];
+	spinlock_t wbuffer_lock;	/* spinlock for queue index handling */
+
+	struct mq_msg		*read_curr;
+	int			rtruncated; /* drop current if truncated */
+	struct mq_msg		read_queue[MQ_QUEUE_SIZE];
+	spinlock_t rbuffer_lock;	/* spinlock for queue index handling */
+	
 };
 
 static void
@@ -214,6 +233,38 @@ aspeed_espi_peripheral_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	}
 
 	return ret;
+}
+
+/* for sw mode memory read */
+static ssize_t aspeed_espi_peripheral_bin_read(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+{
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(container_of(kobj, struct device, kobj));
+	unsigned long flags;
+
+	printk("aspeed_espi_peripheral_bin_read\n");
+
+	spin_lock_irqsave(&espi_peripheral->rbuffer_lock, flags);
+//	memcpy(buf, &espi_peripheral->buffer[off], count);
+	spin_unlock_irqrestore(&espi_peripheral->rbuffer_lock, flags);
+
+	return count;
+}
+
+/* for sw mode memory write */
+static ssize_t aspeed_espi_peripheral_bin_write(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+{
+	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(container_of(kobj, struct device, kobj));
+	unsigned long flags;
+
+	printk("aspeed_espi_peripheral_bin_write\n");
+
+	spin_lock_irqsave(&espi_peripheral->wbuffer_lock, flags);
+//	memcpy(&espi_peripheral->buffer[off], buf, count);
+	spin_unlock_irqrestore(&espi_peripheral->wbuffer_lock, flags);
+
+	return count;
 }
 
 static ssize_t show_fatal_err(struct device *dev,
@@ -453,7 +504,13 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 
 	if (of_property_read_bool(pdev->dev.of_node, "dma-mode"))
 		espi_peripheral->dma_mode = 1;
-///
+
+	espi_peripheral->map = syscon_node_to_regmap(dev->parent->of_node);	
+	if (IS_ERR(espi_peripheral->map)) {
+		dev_err(dev, "Couldn't get regmap\n");
+		return -ENODEV;
+	}
+
 	/* If memory-region is described in device tree then store */
 	node = of_parse_phandle(dev->of_node, "memory-region", 0);
 	if (!node) {
@@ -468,13 +525,9 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 
 		espi_peripheral->mapping_mem_size = resource_size(&resm);
 		espi_peripheral->mapping_mem_base = resm.start;
-	}
-
-////
-	espi_peripheral->map = syscon_node_to_regmap(dev->parent->of_node);	
-	if (IS_ERR(espi_peripheral->map)) {
-		dev_err(dev, "Couldn't get regmap\n");
-		return -ENODEV;
+		//unlock
+		regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_TADDRM, 0xFEDC756E);
+		regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_TADDR, espi_peripheral->mapping_mem_base);
 	}
 
 	rc = sysfs_create_group(&pdev->dev.kobj, &espi_peripheral_attribute_group);
@@ -536,6 +589,17 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 		printk("espi peripheral Unable to get reset IRQ \n");
 		return rc;
 	}
+
+	sysfs_bin_attr_init(&espi_peripheral->bin);
+	espi_peripheral->bin.attr.name = "espi-channel0";
+	espi_peripheral->bin.attr.mode = S_IRUSR | S_IWUSR;
+	espi_peripheral->bin.read = aspeed_espi_peripheral_bin_read;
+	espi_peripheral->bin.write = aspeed_espi_peripheral_bin_write;
+	espi_peripheral->bin.size = MQ_MSGBUF_SIZE * MQ_QUEUE_SIZE;;
+
+	rc = sysfs_create_bin_file(&pdev->dev.kobj, &espi_peripheral->bin);
+	if (rc)
+		return rc;
 
 	espi_peripheral->miscdev.minor = MISC_DYNAMIC_MINOR;
 	espi_peripheral->miscdev.name = DEVICE_NAME;
