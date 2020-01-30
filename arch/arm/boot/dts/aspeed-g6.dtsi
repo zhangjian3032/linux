@@ -2468,6 +2468,11 @@
 		groups = "SPI1WP";
 	};
 
+	pinctrl_spi1quad_default: spi1quad_default {
+		function = "SPI1";
+		groups = "QSPI1";
+	};
+
 	pinctrl_spi2_default: spi2_default {
 		function = "SPI2";
 		groups = "SPI2";
@@ -2481,6 +2486,11 @@
 	pinctrl_spi2cs2_default: spi2cs2_default {
 		function = "SPI2CS2";
 		groups = "SPI2CS2";
+	};
+
+	pinctrl_spi2quad_default: spi2quad_default {
+		function = "SPI2";
+		groups = "QSPI2";
 	};
 
 	pinctrl_fsi1_default: fsi1_default {
