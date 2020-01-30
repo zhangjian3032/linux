@@ -246,4 +246,3 @@ struct espi_ch_data {
 #define GET_GCAP_CH_SUPPORT(x)	(x & 0xf)
 
 #endif
-
