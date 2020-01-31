@@ -3,164 +3,114 @@
  * Copyright (C) ASPEED Technology Inc.
  */
 
-#include <linux/atomic.h>
-#include <linux/errno.h>
-#include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/mfd/syscon.h>
+#include <linux/poll.h>
+#include <linux/slab.h>
+#include <linux/regmap.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/interrupt.h>
+#include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-
-#include <linux/poll.h>
-#include <linux/regmap.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/timer.h>
 #include <linux/miscdevice.h>
-#include <linux/device.h>
 #include <linux/of_device.h>
-
-#include <linux/of.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/sysfs.h>
+#include <linux/of_address.h>
+#include <linux/module.h>
 
 #include "regs-aspeed-espi.h"
 
-#define ESPIVWFIOC_BASE       'V'
+#define DEVICE_NAME     "espi-vw"
 
+#define ESPIVWFIOC_BASE       'V'
 
 #define ASPEED_ESPI_VW_GPIO_IOCRX			_IOWR(ESPIVWFIOC_BASE, 0, unsigned int)
 #define ASPEED_ESPI_VW_SYS_IOCRX			_IOW(ESPIVWFIOC_BASE, 1, unsigned int)
 
 struct aspeed_espi_vw {
-	struct regmap *map;
-	bool 					is_open;
-	u32 					vw_gpio;
-	u32						sys_event;
-	int 					irq;					//LPC IRQ number	
-	int		espi_version;
-
+	struct regmap 	*map;
+	struct miscdevice       miscdev;
+	u32 			vw_gpio;
+	u32				sys_event;
+	int 			irq;					//LPC IRQ number	
+//	int				rest_irq;
+	int				espi_version;
 };
-
-static u32 aspeed_espi_vw_read(struct aspeed_espi_vw *espi_vw, u32 reg)
-{
-
-	u32 val = 0;
-	int rc;
-
-	rc = regmap_read(espi_vw->map, reg, &val);
-	WARN(rc != 0, "regmap_read() failed: %d\n", rc);
-
-	return rc == 0 ? val : 0;
-}
-
-static void aspeed_espi_vw_write(struct aspeed_espi_vw *espi_vw, u32 reg, u32 data)
-{
-
-	int rc;
-
-	rc = regmap_write(espi_vw->map, reg, data);
-	WARN(rc != 0, "regmap_write() failed: %d\n", rc);
-}
-
-static void
-aspeed_sys_event(struct aspeed_espi_vw *espi_vw)
-{
-	u32 sts = aspeed_espi_vw_read(espi_vw, ASPEED_ESPI_SYS_EVENT_ISR);
-	u32 sys_event = aspeed_espi_vw_read(espi_vw, ASPEED_ESPI_SYS_EVENT);
-	printk("sts %x, sys_event %x\n", sts, sys_event);
-
-	if (espi_vw->espi_version == 5) {
-		if (sts & ESPI_HOST_RST_WARN) {
-			if (sys_event & ESPI_HOST_RST_WARN)
-				aspeed_espi_vw_write(espi_vw, ASPEED_ESPI_SYS_EVENT, sys_event | ESPI_HOST_REST_ACK);
-			else
-				aspeed_espi_vw_write(espi_vw, ASPEED_ESPI_SYS_EVENT, sys_event & ~ESPI_HOST_REST_ACK);
-			aspeed_espi_vw_write(espi_vw, ASPEED_ESPI_SYS_EVENT_ISR, ESPI_HOST_RST_WARN);
-		}
-
-		if (sts & ESPI_OOB_RST_WARN) {
-			if (sys_event & ESPI_OOB_RST_WARN)
-				aspeed_espi_vw_write(espi_vw, ASPEED_ESPI_SYS_EVENT, sys_event | ESPI_OOB_REST_ACK);
-			else
-				aspeed_espi_vw_write(espi_vw, ASPEED_ESPI_SYS_EVENT, sys_event & ~ESPI_OOB_REST_ACK);
-			aspeed_espi_vw_write(espi_vw, ASPEED_ESPI_SYS_EVENT_ISR, ESPI_OOB_RST_WARN);
-		}
-
-		if (sts & ~(ESPI_OOB_RST_WARN | ESPI_HOST_RST_WARN)) {
-			printk("new sts %x \n", sts);
-			aspeed_espi_vw_write(espi_vw, ASPEED_ESPI_SYS_EVENT_ISR, sts);
-		}
-
-	} else {
-		printk("new sts %x \n", sts);
-		aspeed_espi_vw_write(espi_vw, ASPEED_ESPI_SYS_EVENT_ISR, sts);
-	}
-
-}
-
-static void
-aspeed_sys1_event(struct aspeed_espi_vw *espi_vw)
-{
-	u32 sts = aspeed_espi_vw_read(espi_vw, ASPEED_ESPI_SYS1_INT_STS);
-	if (sts & ESPI_SYS_SUS_WARN) {
-		aspeed_espi_vw_write(espi_vw, ASPEED_ESPI_SYS1_EVENT, aspeed_espi_vw_read(espi_vw, ASPEED_ESPI_SYS1_EVENT) | ESPI_SYS_SUS_ACK);
-		//TODO  polling bit 20 is 1
-		aspeed_espi_vw_write(espi_vw, ASPEED_ESPI_SYS1_INT_STS, ESPI_SYS_SUS_WARN);
-	}
-
-	if (sts & ~(ESPI_SYS_SUS_WARN)) {
-		printk("new sys1 sts %x \n", sts);
-		aspeed_espi_vw_write(espi_vw, ASPEED_ESPI_SYS1_INT_STS, sts);
-	}
-
-}
 
 static irqreturn_t aspeed_espi_vw_irq(int irq, void *arg)
 {
+	u32 sys1_isr;
+	u32 sts, vw_isr;
+	u32 sys_evt_isr, sys_evt; 
+	
 	struct aspeed_espi_vw *espi_vw = arg;
 
-	u32 sts = aspeed_espi_vw_read(espi_vw, ASPEED_ESPI_ISR);
-	printk("aspeed_espi_vw_irq %x\n", sts);
-
-	if (sts & (ESPI_ISR_VIRTW_GPIO | ESPI_ISR_VIRTW_SYS | ESPI_ISR_VIRTW_SYS1)) {
-		if (sts & ESPI_ISR_VIRTW_GPIO) {
-			printk("ESPI_ISR_VIRTW_GPIO \n");
-			espi_vw->vw_gpio = aspeed_espi_vw_read(espi_vw, ASPEED_ESPI_GPIO_VIRTCH);
-			aspeed_espi_vw_write(espi_vw, ASPEED_ESPI_ISR, ESPI_ISR_VIRTW_GPIO);
-		}
+	regmap_read(espi_vw->map, ASPEED_ESPI_ISR, &sts);
+	vw_isr = sts & (ESPI_ISR_VIRTW_GPIO | ESPI_ISR_VIRTW_SYS | ESPI_ISR_VIRTW_SYS1);
 	
-		if (sts & ESPI_ISR_VIRTW_SYS) {
+	printk("aspeed_espi_vw_irq %x\n", vw_isr);
+
+	if (vw_isr) {
+		if (vw_isr & ESPI_ISR_VIRTW_GPIO) {
+			printk("ESPI_ISR_VIRTW_GPIO \n");
+			regmap_read(espi_vw->map, ASPEED_ESPI_GPIO_VIRTCH, &espi_vw->vw_gpio);
+		}
+
+		//sys event
+		if (vw_isr & ESPI_ISR_VIRTW_SYS) {
 			printk("ESPI_ISR_VIRTW_SYS \n");
-	//		aspeed_espi->sys_event = aspeed_espi_read(aspeed_espi, ASPEED_ESPI_SYS_EVENT);
-			aspeed_sys_event(espi_vw);
-			aspeed_espi_vw_write(espi_vw, ASPEED_ESPI_ISR, ESPI_ISR_VIRTW_SYS);
+			regmap_read(espi_vw->map, ASPEED_ESPI_SYS_EVENT_ISR, &sys_evt_isr);
+			regmap_read(espi_vw->map, ASPEED_ESPI_SYS_EVENT, &sys_evt);
+			
+			printk("event isr %x, sys_event %x\n", sys_evt_isr, sys_evt);
+			
+			if (espi_vw->espi_version == ESPI_AST2500) {
+				if (sys_evt_isr & ESPI_HOST_RST_WARN) {
+					if (sys_evt & ESPI_HOST_RST_WARN)
+						regmap_update_bits(espi_vw->map, ASPEED_ESPI_SYS_EVENT, ESPI_HOST_REST_ACK, ESPI_HOST_REST_ACK);
+					else
+						regmap_update_bits(espi_vw->map, ASPEED_ESPI_SYS_EVENT, ESPI_HOST_REST_ACK, 0);
+				}
+			
+				if (sys_evt_isr & ESPI_OOB_RST_WARN) {
+					if (sys_evt & ESPI_OOB_RST_WARN)
+						regmap_update_bits(espi_vw->map, ASPEED_ESPI_SYS_EVENT, ESPI_OOB_REST_ACK, ESPI_OOB_REST_ACK);
+					else
+						regmap_update_bits(espi_vw->map, ASPEED_ESPI_SYS_EVENT, ESPI_OOB_REST_ACK, 0);
+				}
+			
+				if (sys_evt_isr & ~(ESPI_OOB_RST_WARN | ESPI_HOST_RST_WARN)) {
+					printk("new sts %x \n", sys_evt_isr);
+				}
+				regmap_write(espi_vw->map, ASPEED_ESPI_SYS_EVENT_ISR, sys_evt_isr);
+			} else {
+				printk("new sts %x \n", sys_evt_isr);
+				regmap_write(espi_vw->map, ASPEED_ESPI_SYS_EVENT_ISR, sys_evt_isr);
+			}
+
 		}
 	
 		//AST2500 A1
-		if (sts & ESPI_ISR_VIRTW_SYS1) {
+		if (vw_isr & ESPI_ISR_VIRTW_SYS1) {
 			printk("ESPI_ISR_VIRTW_SYS1 \n");
-			aspeed_sys1_event(espi_vw);
-			aspeed_espi_vw_write(espi_vw, ASPEED_ESPI_ISR, ESPI_ISR_VIRTW_SYS1);
+			regmap_read(espi_vw->map, ASPEED_ESPI_SYS1_INT_STS, &sys1_isr);
+				
+			if (sys1_isr & ESPI_SYS_SUS_WARN) {
+				regmap_update_bits(espi_vw->map, ASPEED_ESPI_SYS1_EVENT, ESPI_SYS_SUS_ACK, ESPI_SYS_SUS_ACK);
+			}
+			
+			if (sys1_isr & ~(ESPI_SYS_SUS_WARN)) {
+				printk("new sys1 sts %x \n", sts);
+
+			}
+			regmap_write(espi_vw->map, ASPEED_ESPI_SYS1_INT_STS, sys1_isr);	
 		}
-	
+
+		regmap_write(espi_vw->map, ASPEED_ESPI_ISR, vw_isr);
 		return IRQ_HANDLED;		
 	} else 
 		return IRQ_NONE;
 
 }
-
-static void
-aspeed_espi_vw_init(struct aspeed_espi_vw *espi_vw) {
-
-//controller init 
-}
-
-static DEFINE_SPINLOCK(espi_vw_state_lock);
-
 
 static long
 espi_vw_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -171,14 +121,12 @@ espi_vw_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case ASPEED_ESPI_VW_GPIO_IOCRX:
-		printk(" \n");
-		espi_vw->vw_gpio = aspeed_espi_vw_read(espi_vw, ASPEED_ESPI_GPIO_VIRTCH);
+		regmap_read(espi_vw->map, ASPEED_ESPI_GPIO_VIRTCH, &espi_vw->vw_gpio);
 		ret = __put_user(espi_vw->vw_gpio, (u32 __user *)arg);
 		espi_vw->vw_gpio = 0;
 		break;
 	case ASPEED_ESPI_VW_SYS_IOCRX:
-		printk(" \n");
-		espi_vw->sys_event = aspeed_espi_vw_read(espi_vw, ASPEED_ESPI_SYS_EVENT) & 0xffff;
+		regmap_read(espi_vw->map, ASPEED_ESPI_SYS_EVENT, &espi_vw->sys_event);
 		ret = __put_user(espi_vw->sys_event, (u32 __user *)arg);
 		espi_vw->sys_event = 0;
 		break;
@@ -190,46 +138,15 @@ espi_vw_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
-static int espi_vw_open(struct inode *inode, struct file *file)
-{
-	struct miscdevice *c = file->private_data;
-	struct aspeed_espi_vw *espi_vw = dev_get_drvdata(c->this_device);
-
-	printk("\n");
-	spin_lock(&espi_vw_state_lock);
-
-	if (espi_vw->is_open) {
-		spin_unlock(&espi_vw_state_lock);
-		return -EBUSY;
-	}
-
-	espi_vw->is_open = true;
-
-	spin_unlock(&espi_vw_state_lock);
-
-	return 0;
-}
-
-static int espi_vw_release(struct inode *inode, struct file *file)
-{
-	struct miscdevice *c = file->private_data;
-	struct aspeed_espi_vw *espi_vw = dev_get_drvdata(c->this_device);
-
-	printk("\n");
-	spin_lock(&espi_vw_state_lock);
-
-	espi_vw->is_open = false;
-	spin_unlock(&espi_vw_state_lock);
-
-	return 0;
-}
-
 static ssize_t show_sw_gpio(struct device *dev,
 							struct device_attribute *attr, char *buf)
 {
+	u32 espi_ctrl;
 	struct aspeed_espi_vw *espi_vw = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s Mode\n", aspeed_espi_vw_read(espi_vw, ASPEED_ESPI_CTRL) & ESPI_CTRL_SW_GPIO_VIRTCH ? "1:SW" : "0:HW");
+	regmap_read(espi_vw->map, ASPEED_ESPI_CTRL, &espi_ctrl);
+
+	return sprintf(buf, "%s Mode\n", espi_ctrl & ESPI_CTRL_SW_GPIO_VIRTCH ? "1:SW" : "0:HW");
 }
 
 static ssize_t store_sw_gpio(struct device *dev,
@@ -261,19 +178,11 @@ static struct attribute_group espi_vw_attribute_group = {
 static const struct file_operations aspeed_espi_vw_fops = {
 	.owner			= THIS_MODULE,
 	.unlocked_ioctl		= espi_vw_ioctl,
-	.open			= espi_vw_open,
-	.release			= espi_vw_release,
-};
-
-struct miscdevice aspeed_espi_vw_misc = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "espi-vw",
-	.fops = &aspeed_espi_vw_fops,
 };
 
 static const struct of_device_id aspeed_espi_vw_match[] = {
-	{ .compatible = "aspeed,ast2600-espi-virtial-wire", .data = (void *) 6, },
-	{ .compatible = "aspeed,ast2500-espi-virtial-wire", .data = (void *) 5, },
+	{ .compatible = "aspeed,ast2600-espi-virtial-wire", .data = (void *) ESPI_AST2600, },
+	{ .compatible = "aspeed,ast2500-espi-virtial-wire", .data = (void *) ESPI_AST2500, },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, aspeed_espi_vw_match);
@@ -295,7 +204,7 @@ static int aspeed_espi_vw_probe(struct platform_device *pdev)
 
 	espi_vw->espi_version = (unsigned long)dev_id->data;
 
-	espi_vw->map = syscon_node_to_regmap(pdev->dev.of_node);
+	espi_vw->map = syscon_node_to_regmap(dev->parent->of_node);
 	if (IS_ERR(espi_vw->map)) {
 		dev_err(dev, "Couldn't get regmap\n");
 		return -ENODEV;
@@ -317,36 +226,50 @@ static int aspeed_espi_vw_probe(struct platform_device *pdev)
 	
 	rc = devm_request_irq(&pdev->dev, espi_vw->irq, aspeed_espi_vw_irq, IRQF_SHARED,
 				dev_name(&pdev->dev), espi_vw);
-
 	if (rc) {
-		printk("espi oob Unable to get IRQ \n");
+		printk("espi vw Unable to get IRQ \n");
 		return rc;
 	}
-
-	rc = misc_register(&aspeed_espi_vw_misc);
+#if 0
+	espi_vw->rest_irq = platform_get_irq(pdev, 1);
+	if (espi_vw->rest_irq < 0) {
+		dev_err(&pdev->dev, "no irq specified\n");
+		return espi_vw->irq;
+	}
+	rc = devm_request_irq(&pdev->dev, espi_vw->rest_irq, aspeed_espi_vw_reset_irq, IRQF_SHARED,
+				dev_name(&pdev->dev), espi_vw);
+	if (rc) {
+		printk("espi vw Unable to get reset IRQ \n");
+		return rc;
+	}
+#endif
+	espi_vw->miscdev.minor = MISC_DYNAMIC_MINOR;
+	espi_vw->miscdev.name = DEVICE_NAME;
+	espi_vw->miscdev.fops = &aspeed_espi_vw_fops;
+	espi_vw->miscdev.parent = dev;
+	rc = misc_register(&espi_vw->miscdev);
 	if (rc) {
 		dev_err(dev, "Unable to register device\n");
 		return rc;
 	}
 
-	pr_info("aspeed espi vw loaded \n");
+	pr_info("aspeed espi-vw loaded \n");
 
 	return 0;
 }
 
 static int aspeed_espi_vw_remove(struct platform_device *pdev)
 {
-//	struct aspeed_espi_vw *espi_vw = dev_get_drvdata(&pdev->dev);
+	struct aspeed_espi_vw *espi_vw = dev_get_drvdata(&pdev->dev);
 
-	misc_deregister(&aspeed_espi_vw_misc);
-
+	misc_deregister(&espi_vw->miscdev);
 	return 0;
 }
 
 
 static struct platform_driver aspeed_espi_vw_driver = {
 	.driver = {
-		.name           = "aspeed-espi-vw",
+		.name           = DEVICE_NAME,
 		.of_match_table = aspeed_espi_vw_match,
 	},
 	.probe  = aspeed_espi_vw_probe,

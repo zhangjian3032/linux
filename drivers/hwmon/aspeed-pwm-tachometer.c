@@ -64,6 +64,9 @@
 #define  PWM_RISING_FALLING_BIT			(8)	//pwm falling point bit [7:0]
 #define  PWM_RISING_RISING_BIT			(0)	//pwm rising point bit [7:0]
 
+#define  DEF_PWM_PERIOD 0xff
+
+
 #define ASPEED_TECHO_CTRL		0x08	//TACH0 General Register
 #define ASPEED_TECHO_CTRL_CH(x)			((x * 0x10) + 0x08)
 #define  TECHO_IER						BIT(31)	//enable tacho interrupt
@@ -103,208 +106,175 @@
 #define MAX_CDEV_NAME_LEN 16
 
 struct aspeed_pwm_channel_params {
+	int target_freq;
 	int load_wdt_rising_falling_pt;
 	int load_wdt_selection;		//0: rising , 1: falling
 	int load_wdt_enable;
 	int	duty_sync_enable;
 	int invert_pin;
-	u8	divide_h;
-	u8	divide_l;
-	u8	period;
 	u8	rising;
 	u8	falling;
 };
 
 static struct aspeed_pwm_channel_params default_pwm_params[] = {
 	[0] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 1,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
+		
 	},
 	[1] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
 	[2] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
 	[3] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
 	[4] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
 	[5] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
 	[6] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
 	[7] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
 	[8] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
 	[9] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
 	[10] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
 	[11] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
 	[12] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
 	[13] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
 	[14] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
 	[15] = {
+		.target_freq = 25000,
 		.load_wdt_rising_falling_pt = 0x10,	
 		.load_wdt_selection = 0,
 		.load_wdt_enable = 0,
 		.duty_sync_enable = 0,
 		.invert_pin = 0,
-		.divide_h = 0x5,
-		.divide_l = 0x6,
-		.period = 0x13,	//5% ~~
 		.rising = 0x00,
 		.falling = 0x0a,
 	},
@@ -537,18 +507,36 @@ static void aspeed_set_fan_tach_ch_enable(struct aspeed_pwm_tachometer_data *pri
 		regmap_update_bits(priv->regmap, ASPEED_TECHO_CTRL_CH(fan_tach_ch),  TECHO_ENABLE, 0);
 }
 
+/*
+ * The PWM frequency = HCLK(asumption 200Mhz) / (clock division L bit *
+ * clock division H bit * (period bit + 1))
+ */
 static void aspeed_set_pwm_channel_fan_ctrl(struct aspeed_pwm_tachometer_data *priv,
 					 u8 index, u8 fan_ctrl)
 {
 	u32 duty_value,	ctrl_value;
+	u32 div_h, div_l, cal_freq;
 
 	if (fan_ctrl == 0) {
 		aspeed_set_pwm_channel_enable(priv->regmap, index, false);
 	} else {
-		duty_value = (priv->pwm_channel[index].period << PWM_PERIOD_BIT) | 
+		cal_freq = priv->clk_freq / (DEF_PWM_PERIOD + 1);
+		//calculate for target frequence 25khz
+		for(div_l = 0; div_l < 0x100; div_l++) {
+			for(div_h = 0; div_h < 0x10; div_h++) {
+//				printk("div h %x, l : %x , freq %ld \n", div_h, div_l, (cal_freq / (BIT(div_h) * (div_l + 1))));
+				if((cal_freq / (BIT(div_h) * (div_l + 1))) < priv->pwm_channel[index].target_freq)
+					break;
+			}
+			if((cal_freq / (BIT(div_h) * (div_l + 1))) < priv->pwm_channel[index].target_freq)
+				break;
+		}
+
+//		printk("div h %x, l : %x \n", div_h, div_l);
+		duty_value = (DEF_PWM_PERIOD << PWM_PERIOD_BIT) | 
 					(0 << PWM_RISING_RISING_BIT) | (fan_ctrl << PWM_RISING_FALLING_BIT);
 
-		ctrl_value = (priv->pwm_channel[index].divide_h << 8) | priv->pwm_channel[index].divide_l;
+		ctrl_value = (div_h << 8) | div_l;
 
 		if (priv->pwm_channel[index].load_wdt_enable) {
 			ctrl_value |= PWM_DUTY_LOAD_AS_WDT_EN;
@@ -563,7 +551,7 @@ static void aspeed_set_pwm_channel_fan_ctrl(struct aspeed_pwm_tachometer_data *p
 		regmap_write(priv->regmap, ASPEED_PWM_DUTY_CYCLE_CH(index), duty_value);
 
 		regmap_write(priv->regmap, ASPEED_PWM_CTRL_CH(index), ctrl_value);
-//		printk("pwm clk is %d \n", priv->clk_freq / (priv->pwm_channel[index].period + 1));
+//		printk("pwm clk is %d \n", priv->clk_freq / (DEF_PWM_PERIOD + 1));
 		aspeed_set_pwm_channel_enable(priv->regmap, index, true);
 	}
 }
@@ -586,6 +574,8 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_pwm_tachometer_data *priv,
 	raw_data = val & TACHO_VALUE_MASK;
 	if(raw_data == 0xfffff)
 		return 0;
+
+	raw_data += 1;
 
 	tach_div = priv->techo_channel[fan_tach_ch].divide;
 	/*
@@ -619,7 +609,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	if (ret != 0)
 		return ret;
 
-	if (fan_ctrl < 0 || fan_ctrl > priv->pwm_channel[index].period)
+	if (fan_ctrl < 0 || fan_ctrl > DEF_PWM_PERIOD)
 		return -EINVAL;
 
 	if (priv->pwm_channel[index].falling == fan_ctrl)

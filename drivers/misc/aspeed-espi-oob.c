@@ -3,30 +3,23 @@
  * Copyright (C) ASPEED Technology Inc.
  */
 
-#include <linux/atomic.h>
-#include <linux/errno.h>
-#include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/mfd/syscon.h>
+#include <linux/poll.h>
+#include <linux/slab.h>
+#include <linux/regmap.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/interrupt.h>
+#include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-
-#include <linux/poll.h>
-#include <linux/regmap.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/timer.h>
 #include <linux/miscdevice.h>
-#include <linux/device.h>
 #include <linux/of_device.h>
+#include <linux/of_address.h>
+#include <linux/module.h>
 
-#include <linux/of.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/sysfs.h>
 #include "regs-aspeed-espi.h"
+
+#define DEVICE_NAME     "espi-oob"
 
 #define OOB_TXCMD_DESC_NUM	2
 #define OOB_RXCMD_DESC_NUM	8
@@ -48,12 +41,12 @@ struct aspeed_oob_tx_cmd {
 };
 
 struct aspeed_espi_oob {
-
 	struct regmap *map;
 	struct miscdevice miscdev;	
 	struct bin_attribute	bin;
 	struct kernfs_node	*kn;	
-	int 					irq;					//LPC IRQ number	
+	int 				irq;					//LPC IRQ number	
+	int					rest_irq;
 	int		espi_version;
 	int						dma_mode;		/* o:disable , 1:enable */	
 
@@ -71,35 +64,16 @@ struct aspeed_espi_oob {
 
 };
 
-static u32 aspeed_espi_oob_read(struct aspeed_espi_oob *espi_oob, u32 reg)
-{
-
-	u32 val = 0;
-	int rc;
-
-	rc = regmap_read(espi_oob->map, reg, &val);
-	WARN(rc != 0, "regmap_read() failed: %d\n", rc);
-
-	return rc == 0 ? val : 0;
-}
-
-static void aspeed_espi_oob_write(struct aspeed_espi_oob *espi_oob, u32 reg, u32 data)
-{
-
-	int rc;
-
-	rc = regmap_write(espi_oob->map, reg, data);
-	WARN(rc != 0, "regmap_write() failed: %d\n", rc);
-}
-
 static ssize_t aspeed_oob_channel_rx(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
+	u32 write_pt;
 	struct aspeed_espi_oob *espi_oob = dev_get_drvdata(container_of(kobj, struct device, kobj));
 
 	if((espi_oob->espi_version == 6) && (espi_oob->dma_mode == 1)) {
-		u32 write_pt = (aspeed_espi_oob_read(espi_oob, ASPEED_ESPI_OOB_RX_WRITE_PT) & 0x3ff);
-		
+		regmap_read(espi_oob->map, ASPEED_ESPI_OOB_RX_WRITE_PT, &write_pt);
+		write_pt &= 0x3ff;
+
 		if(espi_oob->oob_rx_cmd[write_pt].cmd & BIT(31)) {
 			u8	*rx_buff = &espi_oob->oob_rx_buff[write_pt * OOB_BUFF_SIZE];
 			u32 rx_len = (espi_oob->oob_rx_cmd[write_pt].cmd >> 12) & 0xfff;
@@ -107,7 +81,7 @@ static ssize_t aspeed_oob_channel_rx(struct file *filp, struct kobject *kobj,
 			count = rx_len;
 			write_pt++;
 			write_pt %= OOB_RX_BUF_NUM;
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_RX_WRITE_PT, BIT(31) | (write_pt << 16) | write_pt);
+			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_RX_WRITE_PT, BIT(31) | (write_pt << 16) | write_pt);
 		} else {
 			printk("rx empty \n");
 			return 0;			
@@ -117,7 +91,7 @@ static ssize_t aspeed_oob_channel_rx(struct file *filp, struct kobject *kobj,
 			count = espi_oob->oob_rx_full;
 			memcpy(buf, espi_oob->oob_rx_buff, count);
 			espi_oob->oob_rx_full = 0;
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_RX_CTRL, ESPI_TRIGGER_PACKAGE);
+			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_RX_CTRL, ESPI_TRIGGER_PACKAGE);
 		} else {
 			count = 0;
 		}
@@ -128,15 +102,16 @@ static ssize_t aspeed_oob_channel_rx(struct file *filp, struct kobject *kobj,
 static ssize_t aspeed_oob_channel_tx(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
-	struct aspeed_espi_oob *espi_oob = dev_get_drvdata(container_of(kobj, struct device, kobj));
-
 	int i = 0;
 	int tag = 0;
 	u8 *tx_buff = 0;
+	u32 tx_rd_pt, tx_ctrl;
+	struct aspeed_espi_oob *espi_oob = dev_get_drvdata(container_of(kobj, struct device, kobj));
 
 	if((espi_oob->espi_version == 6) && (espi_oob->dma_mode == 1)) {
 		//ast2600 tx dma
-		if(((espi_oob->oob_tx_idx + 1) % OOB_TX_BUF_NUM) == aspeed_espi_oob_read(espi_oob, ASPEED_ESPI_OOB_TX_READ_PT)) {
+		regmap_read(espi_oob->map, ASPEED_ESPI_OOB_TX_READ_PT, &tx_rd_pt);
+		if(((espi_oob->oob_tx_idx + 1) % OOB_TX_BUF_NUM) == tx_rd_pt) {
 			printk("TX full \n");
 			return 0;
 		} else {
@@ -145,115 +120,109 @@ static ssize_t aspeed_oob_channel_tx(struct file *filp, struct kobject *kobj,
 			espi_oob->oob_rx_cmd[espi_oob->oob_tx_idx].cmd = (0x4 << 24) | (count << 12) | (tag << 8) | ESPI_OOB_MESSAGE;			
 			espi_oob->oob_tx_idx++;
 			espi_oob->oob_tx_idx %= OOB_TX_BUF_NUM;
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_TX_WRITE_PT, espi_oob->oob_tx_idx | BIT(31));
+			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_WRITE_PT, espi_oob->oob_tx_idx | BIT(31));
 		}
 	} else {
-		if(aspeed_espi_oob_read(espi_oob, ASPEED_ESPI_OOB_TX_CTRL) & ESPI_TRIGGER_PACKAGE)
+		regmap_read(espi_oob->map, ASPEED_ESPI_OOB_TX_CTRL, &tx_ctrl);
+		if(tx_ctrl & ESPI_TRIGGER_PACKAGE)
 			return 0;
 		else {
 			if(espi_oob->dma_mode) {
 				memcpy(espi_oob->oob_tx_buff, buf, count);
-				aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_TX_DMA, espi_oob->oob_tx_buff_dma);
+				regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_DMA, espi_oob->oob_tx_buff_dma);
 			} else {
 				for (i = 0; i < count; i++)
-					aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_TX_DATA, buf[i]);
+					regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_DATA, buf[i]);
 			}
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_TX_CTRL, ESPI_TRIGGER_PACKAGE |  (count << 12) | (tag << 8) | ESPI_OOB_MESSAGE);
+			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_CTRL, ESPI_TRIGGER_PACKAGE |  (count << 12) | (tag << 8) | ESPI_OOB_MESSAGE);
 		}
 	}
 	return count;
 }
-
-
 
 static void
 aspeed_espi_oob_rx(struct aspeed_espi_oob *espi_oob)
 {
 	int i = 0;
 	u32 ctrl = 0;
+	u32 rx_buf;
 
-	if ((espi_oob->dma_mode == 1) && (espi_oob->espi_version == 6)) {
+	if ((espi_oob->dma_mode == 1) && (espi_oob->espi_version == ESPI_AST2600)) {
 
 	} else {
 		//old ast2500
-		ctrl = aspeed_espi_oob_read(espi_oob, ASPEED_ESPI_OOB_RX_CTRL);
+		regmap_read(espi_oob->map, ASPEED_ESPI_OOB_RX_CTRL, &ctrl);
 		printk("cycle type = %x , tag = %x, len = %d byte \n", ESPI_GET_CYCLE_TYPE(ctrl), ESPI_GET_TAG(ctrl), ESPI_GET_LEN(ctrl));
 		espi_oob->oob_rx_full = ESPI_GET_LEN(ctrl);
 		
 		if(!espi_oob->dma_mode) {
-			for (i = 0; i < ESPI_GET_LEN(ctrl); i++)
-				espi_oob->oob_rx_buff[i] = aspeed_espi_oob_read(espi_oob, ASPEED_ESPI_OOB_RX_DATA);
+			for (i = 0; i < ESPI_GET_LEN(ctrl); i++) {
+				regmap_read(espi_oob->map, ASPEED_ESPI_OOB_RX_DATA, &rx_buf);
+				espi_oob->oob_rx_buff[i] = rx_buf;
+			}
 		}		
 	}
-	aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_ISR, ESPI_ISR_OOB_RX_COMP);
-
 }
 
-
-
-static irqreturn_t aspeed_espi_oob_irq(int irq, void *arg)
+static irqreturn_t aspeed_espi_oob_reset_irq(int irq, void *arg)
 {
 	struct aspeed_espi_oob *espi_oob = arg;
 
+	if(espi_oob->dma_mode) {
+		regmap_write(espi_oob->map, ASPEED_ESPI_OOB_RX_DMA, espi_oob->oob_rx_cmd_dma);
+		regmap_write(espi_oob->map, ASPEED_ESPI_OOB_RX_RING_SIZE, OOB_RXCMD_DESC_NUM);
+		regmap_write(espi_oob->map, ASPEED_ESPI_OOB_RX_WRITE_PT, BIT(31));
 
-	u32 sts = aspeed_espi_oob_read(espi_oob, ASPEED_ESPI_ISR);
+		regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_DMA, espi_oob->oob_tx_cmd_dma);
+		regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_RING_SIZE, OOB_TXCMD_DESC_NUM);
+
+		espi_oob->oob_rx_buff = espi_oob->oob_tx_buff + (OOB_BUFF_SIZE * OOB_TX_BUF_NUM);
+		espi_oob->oob_rx_buff_dma = espi_oob->oob_tx_buff_dma + (OOB_BUFF_SIZE * OOB_TX_BUF_NUM);
+		regmap_update_bits(espi_oob->map, ASPEED_ESPI_CTRL, GENMASK(21, 20), ESPI_CTRL_OOB_RX_DMA | ESPI_CTRL_OOB_TX_DMA);
+	}
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t aspeed_espi_oob_irq(int irq, void *arg)
+{
+	u32 sts, oob_isr;
+	struct aspeed_espi_oob *espi_oob = arg;
+
+	regmap_read(espi_oob->map, ASPEED_ESPI_ISR, &sts);
 	printk("aspeed_espi_oob_irq %x\n", sts);
 
-	if (sts & (ESPI_ISR_OOB_TX_ERR | ESPI_ISR_OOB_TX_ABORT | ESPI_ISR_OOB_RX_ABORT | ESPI_ISR_OOB_TX_COMP | ESPI_ISR_OOB_RX_COMP)) {
+	oob_isr = sts & (ESPI_ISR_OOB_TX_ERR | ESPI_ISR_OOB_TX_ABORT | ESPI_ISR_OOB_RX_ABORT | ESPI_ISR_OOB_TX_COMP | ESPI_ISR_OOB_RX_COMP);
+	if (oob_isr) {
 		if (sts & ESPI_ISR_OOB_TX_ERR) {
 			printk("ESPI_ISR_OOB_TX_ERR \n");
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_ISR, ESPI_ISR_OOB_TX_ERR);
 		}
 
 		if (sts & ESPI_ISR_OOB_TX_ABORT) {
 			printk("ESPI_ISR_OOB_TX_ABORT \n");
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_ISR, ESPI_ISR_OOB_TX_ABORT);
 		}
 
 		if (sts & ESPI_ISR_OOB_RX_ABORT) {
 			printk("ESPI_ISR_OOB_RX_ABORT");
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_ISR, ESPI_ISR_OOB_RX_ABORT);
 		}
 
 		if (sts & ESPI_ISR_OOB_TX_COMP) {
 			printk("ESPI_ISR_OOB_TX_COMP \n");
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_ISR, ESPI_ISR_OOB_TX_COMP);
 		}
 
 		if (sts & ESPI_ISR_OOB_RX_COMP) {
 			printk("ESPI_ISR_OOB_RX_COMP \n");
 			aspeed_espi_oob_rx(espi_oob);
 		}
-		
+		regmap_write(espi_oob->map, ASPEED_ESPI_ISR, oob_isr);
 		return IRQ_HANDLED;		
 	} else 
 		return IRQ_NONE;
 
 }
 
-static void
-aspeed_espi_oob_init(struct aspeed_espi_oob *espi_oob) {
-
-//controller init 
-	if(espi_oob->dma_mode) {
-		aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_RX_DMA, espi_oob->oob_rx_cmd_dma);
-		aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_RX_RING_SIZE, OOB_RXCMD_DESC_NUM);
-		aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_RX_WRITE_PT, BIT(31));
-
-		aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_TX_DMA, espi_oob->oob_tx_cmd_dma);
-		aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_TX_RING_SIZE, OOB_TXCMD_DESC_NUM);
-
-		espi_oob->oob_rx_buff = espi_oob->oob_tx_buff + (OOB_BUFF_SIZE * OOB_TX_BUF_NUM);
-		espi_oob->oob_rx_buff_dma = espi_oob->oob_tx_buff_dma + (OOB_BUFF_SIZE * OOB_TX_BUF_NUM);
-
-
-		regmap_update_bits(espi_oob->map, ASPEED_ESPI_CTRL, GENMASK(21, 20), ESPI_CTRL_OOB_RX_DMA | ESPI_CTRL_OOB_TX_DMA);
-	}
-}
-
 static const struct of_device_id aspeed_espi_oob_match[] = {
-	{ .compatible = "aspeed,ast2600-espi-oob", .data = (void *) 6, },
-	{ .compatible = "aspeed,ast2500-espi-oob", .data = (void *) 5, },
+	{ .compatible = "aspeed,ast2600-espi-oob", .data = (void *) ESPI_AST2600, },
+	{ .compatible = "aspeed,ast2500-espi-oob", .data = (void *) ESPI_AST2500, },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, aspeed_espi_oob_match);
@@ -279,17 +248,14 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 	if (of_property_read_bool(pdev->dev.of_node, "dma-mode"))
 		espi_oob->dma_mode = 1;
 
-	espi_oob->map = syscon_node_to_regmap(pdev->dev.of_node);
+	espi_oob->map = syscon_node_to_regmap(dev->parent->of_node);
 	if (IS_ERR(espi_oob->map)) {
 		dev_err(dev, "Couldn't get regmap\n");
 		return -ENODEV;
 	}
 
-	espi_oob->miscdev.minor = MISC_DYNAMIC_MINOR;
-	espi_oob->miscdev.name = "espi-oob";
-///
 	sysfs_bin_attr_init(&espi_oob->bin);
-	espi_oob->bin.attr.name = "espi-oob";
+	espi_oob->bin.attr.name = DEVICE_NAME;
 	espi_oob->bin.attr.mode = S_IRUSR | S_IWUSR;
 	espi_oob->bin.read = aspeed_oob_channel_rx;
 	espi_oob->bin.write = aspeed_oob_channel_tx;
@@ -311,7 +277,7 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 	
 	//aspeed_oob_channel_init
 	if(espi_oob->dma_mode) {
-		if(espi_oob->espi_version == 6) {
+		if(espi_oob->espi_version == ESPI_AST2600) {
 			espi_oob->oob_tx_cmd = dma_alloc_coherent(NULL,
 										  ((OOB_TX_BUF_NUM + OOB_RX_BUF_NUM) * OOB_BUFF_SIZE) + 
 										  (sizeof(struct aspeed_oob_tx_cmd) * OOB_TXCMD_DESC_NUM) + 
@@ -328,8 +294,8 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 			for(i = 0; i < OOB_TXCMD_DESC_NUM; i++) {
 				espi_oob->oob_tx_cmd[i].dma_addr = espi_oob->oob_tx_cmd_dma + (i * OOB_BUFF_SIZE);
 			}
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_TX_DMA, espi_oob->oob_tx_cmd_dma);
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_TX_RING_SIZE, OOB_TXCMD_DESC_NUM);
+			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_DMA, espi_oob->oob_tx_cmd_dma);
+			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_RING_SIZE, OOB_TXCMD_DESC_NUM);
 			
 			espi_oob->oob_rx_buff = espi_oob->oob_tx_buff + (OOB_BUFF_SIZE * OOB_TX_BUF_NUM);
 			espi_oob->oob_rx_buff_dma = espi_oob->oob_tx_buff_dma + (OOB_BUFF_SIZE * OOB_TX_BUF_NUM);
@@ -337,9 +303,9 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 			for(i = 0; i < OOB_RXCMD_DESC_NUM; i++) {
 				espi_oob->oob_rx_cmd[i].dma_addr = espi_oob->oob_rx_cmd_dma + (i * OOB_BUFF_SIZE);
 			}
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_RX_DMA, espi_oob->oob_rx_cmd_dma);
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_RX_RING_SIZE, OOB_RXCMD_DESC_NUM);
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_RX_WRITE_PT, BIT(31));
+			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_RX_DMA, espi_oob->oob_rx_cmd_dma);
+			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_RX_RING_SIZE, OOB_RXCMD_DESC_NUM);
+			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_RX_WRITE_PT, BIT(31));
 
 		} else {
 			espi_oob->oob_tx_buff = dma_alloc_coherent(NULL,
@@ -349,8 +315,8 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 			espi_oob->oob_rx_buff = espi_oob->oob_tx_buff + MAX_XFER_BUFF_SIZE;
 			espi_oob->oob_rx_buff_dma = espi_oob->oob_tx_buff_dma + MAX_XFER_BUFF_SIZE;
 
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_RX_DMA, espi_oob->oob_rx_buff_dma);
-			aspeed_espi_oob_write(espi_oob, ASPEED_ESPI_OOB_TX_DMA, espi_oob->oob_tx_buff_dma);
+			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_RX_DMA, espi_oob->oob_rx_buff_dma);
+			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_DMA, espi_oob->oob_tx_buff_dma);
 		}
 		espi_oob->oob_rx_full = 0;
 		
@@ -367,15 +333,29 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no irq specified\n");
 		return espi_oob->irq;
 	}
-	
 	rc = devm_request_irq(&pdev->dev, espi_oob->irq, aspeed_espi_oob_irq, IRQF_SHARED,
 				dev_name(&pdev->dev), espi_oob);
-
 	if (rc) {
 		printk("espi oob Unable to get IRQ \n");
 		return rc;
 	}
 
+	espi_oob->rest_irq = platform_get_irq(pdev, 1);
+	if (espi_oob->rest_irq < 0) {
+		dev_err(&pdev->dev, "no irq specified\n");
+		return espi_oob->rest_irq;
+	}
+	rc = devm_request_irq(&pdev->dev, espi_oob->rest_irq, aspeed_espi_oob_reset_irq, IRQF_SHARED,
+				dev_name(&pdev->dev), espi_oob);
+	if (rc) {
+		printk("espi peripheral Unable to get reset IRQ \n");
+		return rc;
+	}
+
+	espi_oob->miscdev.minor = MISC_DYNAMIC_MINOR;
+	espi_oob->miscdev.name = DEVICE_NAME;
+//	espi_oob->miscdev.fops = &aspeed_espi_oob_fops;
+	espi_oob->miscdev.parent = dev;
 	rc = misc_register(&espi_oob->miscdev);
 	if (rc) {
 		dev_err(dev, "Unable to register device\n");
@@ -392,14 +372,13 @@ static int aspeed_espi_oob_remove(struct platform_device *pdev)
 	struct aspeed_espi_oob *espi_oob = dev_get_drvdata(&pdev->dev);
 
 	misc_deregister(&espi_oob->miscdev);
-
 	return 0;
 }
 
 
 static struct platform_driver aspeed_espi_oob_driver = {
 	.driver = {
-		.name           = "aspeed-espi-oob",
+		.name           = DEVICE_NAME,
 		.of_match_table = aspeed_espi_oob_match,
 	},
 	.probe  = aspeed_espi_oob_probe,
