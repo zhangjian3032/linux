@@ -2060,7 +2060,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 		priv->txdes0_edotr_mask = BIT(30);
 		priv->is_aspeed = true;
 		if (of_device_is_compatible(np, "aspeed,ast2600-mac"))
-			priv->tm_reg_mask = 0x18000000;
+			priv->tm_reg_mask = FTGMAC100_TM_RQ_TX_VALID_DIS | FTGMAC100_TM_RQ_RR_IDLE_PREV;
 	} else {
 		priv->rxdes0_edorr_mask = BIT(15);
 		priv->txdes0_edotr_mask = BIT(15);
