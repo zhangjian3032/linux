@@ -108,6 +108,7 @@ struct ftgmac100 {
 	/* Misc */
 	volatile bool need_mac_restart;
 	bool is_aspeed;
+	u32 tm_reg_mask;
 };
 
 static int ftgmac100_reset_mac(struct ftgmac100 *priv, u32 maccr)
@@ -302,6 +303,10 @@ static void ftgmac100_init_hw(struct ftgmac100 *priv)
 	reg |= (tfifo_sz << 27);
 	reg |= (rfifo_sz << 24);
 	iowrite32(reg, priv->base + FTGMAC100_OFFSET_TPAFCR);
+
+	iowrite32(priv->tm_reg_mask |
+		      ioread32(priv->base + FTGMAC100_OFFSET_TM),
+		  priv->base + FTGMAC100_OFFSET_TM);
 }
 
 static void ftgmac100_start_hw(struct ftgmac100 *priv)
@@ -2054,9 +2059,12 @@ static int ftgmac100_probe(struct platform_device *pdev)
 		priv->rxdes0_edorr_mask = BIT(30);
 		priv->txdes0_edotr_mask = BIT(30);
 		priv->is_aspeed = true;
+		if (of_device_is_compatible(np, "aspeed,ast2600-mac"))
+			priv->tm_reg_mask = 0x18000000;
 	} else {
 		priv->rxdes0_edorr_mask = BIT(15);
 		priv->txdes0_edotr_mask = BIT(15);
+		priv->tm_reg_mask = 0;
 	}
 
 	if (np && of_get_property(np, "use-ncsi", NULL)) {
@@ -2123,8 +2131,6 @@ static int ftgmac100_probe(struct platform_device *pdev)
 		netdev->hw_features &= ~NETIF_F_HW_CSUM;
 	if (np && of_get_property(np, "no-hw-checksum", NULL))
 		netdev->hw_features &= ~(NETIF_F_HW_CSUM | NETIF_F_RXCSUM);
-	if (np && of_get_property(np, "no-hw-sg", NULL))
-		netdev->hw_features &= ~NETIF_F_SG;
 	netdev->features |= netdev->hw_features;
 
 	/* register network device */
