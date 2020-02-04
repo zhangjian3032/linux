@@ -51,14 +51,6 @@
 			compatible = "shared-dma-pool";
 			reusable;
 		};
-
-		ssp_memory: ssp_memory {
-			size = <0x00200000>;
-			alignment = <0x00100000>;
-			compatible = "shared-dma-pool";
-			no-map;
-		};
-
 	};
 
 	iio-hwmon {
