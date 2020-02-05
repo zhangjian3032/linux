@@ -21,6 +21,9 @@
 		serial10 = &uart11;
 		serial11 = &uart12;
 		serial12 = &uart13;
+		mmc0 = &emmc;
+		mmc1 = &sdhci0;
+		mmc2 = &sdhci1;
 	};
 
 	chosen {
