@@ -281,7 +281,6 @@ static const struct file_operations i3cdev_fops = {
 	.read		= i3cdev_read,
 	.write		= i3cdev_write,
 	.unlocked_ioctl	= i3cdev_ioctl,
-	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= i3cdev_open,
 	.release	= i3cdev_release,
 };
