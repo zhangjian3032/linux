@@ -511,13 +511,12 @@ static void aspeed_set_fan_tach_ch_enable(struct aspeed_pwm_tachometer_data *pri
 					break;
 
 			}
-			i--;
 		} else {
 			i = 0;
 			divide_val = 1;
 		}
 		priv->techo_channel[fan_tach_ch].divide = divide_val;
-//		printk("i : %d ,target_div %d, divide_val %d, priv->clk_freq/divide_val %ld ", i, target_div, divide_val, priv->clk_freq/divide_val);		
+		printk("i : %d ,target_div %d, divide_val %d, priv->clk_freq/divide_val %ld ", i, target_div, divide_val, priv->clk_freq/divide_val);		
 
 		reg_value = TECHO_ENABLE | 
 				(priv->techo_channel[fan_tach_ch].tacho_edge << TECHIO_EDGE_BIT) |
@@ -818,43 +817,17 @@ static void aspeed_create_pwm_channel(struct aspeed_pwm_tachometer_data *priv,
 	aspeed_set_pwm_channel_fan_ctrl(priv, pwm_channel, priv->pwm_channel[pwm_channel].falling);
 }
 
-#if 0
 static void aspeed_create_fan_tach_channel(struct aspeed_pwm_tachometer_data *priv,
-					   u8 *fan_tach_ch, int count,
-					   u32 *min_rpm, int rpm_count)
-{
-	u8 val, index;
-
-	if(count == rpm_count) {
-		for (val = 0; val < count; val++) {
-			index = fan_tach_ch[val];
-			priv->fan_tach_present[index] = true;
-			priv->techo_channel[index].min_rpm = min_rpm[index];
-			printk("index %d, min_rpm[index] %d \n", index, min_rpm[index]);
-			aspeed_set_fan_tach_ch_enable(priv, index, true);
-		}
-	} else {
-		//use default min_rpm = 2900
-		for (val = 0; val < count; val++) {
-			index = fan_tach_ch[val];
-			priv->fan_tach_present[index] = true;
-			priv->techo_channel[index].min_rpm = 2900;		
-			aspeed_set_fan_tach_ch_enable(priv, index, true);
-		}
-	}
-#else
-static void aspeed_create_fan_tach_channel(struct aspeed_pwm_tachometer_data *priv,
-					   u8 *fan_tach_ch, int count)
+					   u8 *fan_tach_ch, int count, u32 min_rpm)
 {
 	u8 val, index;
 
 	for (val = 0; val < count; val++) {
 		index = fan_tach_ch[val];
 		priv->fan_tach_present[index] = true;
+		priv->techo_channel[index].min_rpm = min_rpm;
 		aspeed_set_fan_tach_ch_enable(priv, index, true);
 	}
-
-#endif
 }
 
 static int
@@ -949,11 +922,11 @@ static int aspeed_pwm_create_fan(struct device *dev,
 			     struct device_node *child,
 			     struct aspeed_pwm_tachometer_data *priv)
 {
-	u32 *fan_min_rpm;
 	u8 *fan_tach_ch;
+	u32 fan_min_rpm = 0;	
 	u32 pwm_channel;
 	u32 target_pwm_freq = DEFAULT_TARGET_PWM_FREQ;
-	int ret, count, rpm_count = 0;
+	int ret, count;
 
 	ret = of_property_read_u32(child, "reg", &pwm_channel);
 	if (ret)
@@ -986,21 +959,11 @@ static int aspeed_pwm_create_fan(struct device *dev,
 					fan_tach_ch, count);
 	if (ret)
 		return ret;
-#if 0
-	rpm_count = of_property_count_u32_elems(child, "aspeed,min_rpm");
-	if(rpm_count == count) {
-		fan_min_rpm = devm_kzalloc(dev, sizeof(*fan_min_rpm) * rpm_count,
-					   GFP_KERNEL);
-		if (fan_min_rpm) {
-			ret = of_property_read_u32_array(child, "aspeed,min_rpm",
-							fan_min_rpm, rpm_count);
-		}
-	}
+	
+	ret = of_property_read_u32(child, "aspeed,min_rpm", &fan_min_rpm);
+	
+	aspeed_create_fan_tach_channel(priv, fan_tach_ch, count, fan_min_rpm);
 
-	aspeed_create_fan_tach_channel(priv, fan_tach_ch, count, fan_min_rpm, rpm_count);
-#else
-	aspeed_create_fan_tach_channel(priv, fan_tach_ch, count);
-#endif
 	return 0;
 }
 
