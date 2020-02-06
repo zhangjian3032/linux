@@ -282,99 +282,130 @@
 
 	fan@0 {
 		reg = <0x00>;
-		period = /bits/ 8 <>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@1 {
 		reg = <0x01>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x01>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@2 {
 		reg = <0x02>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x02>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@3 {
 		reg = <0x03>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x03>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@4 {
 		reg = <0x04>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x04>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@5 {
 		reg = <0x05>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x05>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@6 {
 		reg = <0x06>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x06>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@7 {
 		reg = <0x07>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x07>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@8 {
 		reg = <0x08>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x08>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@9 {
 		reg = <0x09>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x09>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@10 {
 		reg = <0x0a>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0a>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@11 {
 		reg = <0x0b>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0b>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@12 {
 		reg = <0x0c>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0c>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@13 {
 		reg = <0x0d>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0d>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@14 {
 		reg = <0x0e>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0e>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@15 {
 		reg = <0x0f>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0f>;
+		aspeed,min_rpm = <2000>;
 	};
 };
 
