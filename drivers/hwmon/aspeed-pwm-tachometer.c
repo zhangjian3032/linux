@@ -306,7 +306,6 @@ struct aspeed_techo_channel_params {
 static struct aspeed_techo_channel_params default_techo_params[] = {
 	[0] = {
 		.min_rpm = 2900,
-//		.min_rpm = 750000,
 		.limited_inverse = 0,
 		.threshold = 0,
 		.tacho_edge = F2F_EDGES,
@@ -503,7 +502,7 @@ static void aspeed_set_fan_tach_ch_enable(struct aspeed_pwm_tachometer_data *pri
 		//4 ^ n
 //		printk("=== %ld \n", (priv->clk_freq * 60 / priv->techo_channel[fan_tach_ch].min_rpm * 2));
 		target_div = (priv->clk_freq * 60 / priv->techo_channel[fan_tach_ch].min_rpm * 2) / (0xfffff + 1);
-		printk("min_rpm %d , target_div %d \n", priv->techo_channel[fan_tach_ch].min_rpm, target_div);
+//		printk("min_rpm %d , target_div %d \n", priv->techo_channel[fan_tach_ch].min_rpm, target_div);
 		if(target_div) {
 			for(i = 0; i < 12; i++) {
 				divide_val = BIT(i) * BIT(i);
@@ -516,7 +515,7 @@ static void aspeed_set_fan_tach_ch_enable(struct aspeed_pwm_tachometer_data *pri
 			divide_val = 1;
 		}
 		priv->techo_channel[fan_tach_ch].divide = divide_val;
-		printk("i : %d ,target_div %d, divide_val %d, priv->clk_freq/divide_val %ld ", i, target_div, divide_val, priv->clk_freq/divide_val);		
+//		printk("i : %d ,target_div %d, divide_val %d, priv->clk_freq/divide_val %ld ", i, target_div, divide_val, priv->clk_freq/divide_val);		
 
 		reg_value = TECHO_ENABLE | 
 				(priv->techo_channel[fan_tach_ch].tacho_edge << TECHIO_EDGE_BIT) |
@@ -561,7 +560,7 @@ static void aspeed_set_pwm_channel_fan_ctrl(struct aspeed_pwm_tachometer_data *p
 
 		priv->pwm_channel[index].pwm_freq = cal_freq / (BIT(div_h) * (div_l + 1));
 //		printk("div h %x, l : %x pwm out clk %d \n", div_h, div_l, priv->pwm_channel[index].pwm_freq);
-		printk("hclk %ld, target pwm freq %d, real pwm freq %d\n", priv->clk_freq, priv->pwm_channel[index].target_freq, priv->pwm_channel[index].pwm_freq);
+//		printk("hclk %ld, target pwm freq %d, real pwm freq %d\n", priv->clk_freq, priv->pwm_channel[index].target_freq, priv->pwm_channel[index].pwm_freq);
 
 		ctrl_value = (div_h << 8) | div_l;
 
@@ -610,7 +609,7 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_pwm_tachometer_data *priv,
 	 */
 	tach_div = raw_data * (priv->techo_channel[fan_tach_ch].divide) * (two_plus);
 
-	printk("clk %ld, raw_data %d , tach_div %d  \n", priv->clk_freq, raw_data, tach_div);
+//	printk("clk %ld, raw_data %d , tach_div %d  \n", priv->clk_freq, raw_data, tach_div);
 	
 	clk_source = priv->clk_freq;
 
@@ -918,6 +917,8 @@ static int aspeed_create_pwm_cooling(struct device *dev,
 }
 
 #define DEFAULT_TARGET_PWM_FREQ		25000
+#define DEFAULT_MIN_RPM				4000
+
 static int aspeed_pwm_create_fan(struct device *dev,
 			     struct device_node *child,
 			     struct aspeed_pwm_tachometer_data *priv)
@@ -925,7 +926,7 @@ static int aspeed_pwm_create_fan(struct device *dev,
 	u8 *fan_tach_ch;
 	u32 fan_min_rpm = 0;	
 	u32 pwm_channel;
-	u32 target_pwm_freq = DEFAULT_TARGET_PWM_FREQ;
+	u32 target_pwm_freq = 0;
 	int ret, count;
 
 	ret = of_property_read_u32(child, "reg", &pwm_channel);
@@ -933,9 +934,8 @@ static int aspeed_pwm_create_fan(struct device *dev,
 		return ret;
 
 	ret = of_property_read_u32(child, "aspeed,target_pwm", &target_pwm_freq);
-	if (!ret) {
-		priv->pwm_channel[pwm_channel].target_freq = target_pwm_freq;
-	}
+	if (ret)
+		target_pwm_freq = DEFAULT_TARGET_PWM_FREQ;
 
 	aspeed_create_pwm_channel(priv, (u8)pwm_channel);
 
@@ -961,6 +961,8 @@ static int aspeed_pwm_create_fan(struct device *dev,
 		return ret;
 	
 	ret = of_property_read_u32(child, "aspeed,min_rpm", &fan_min_rpm);
+	if (ret)
+		fan_min_rpm = DEFAULT_MIN_RPM;
 	
 	aspeed_create_fan_tach_channel(priv, fan_tach_ch, count, fan_min_rpm);
 
