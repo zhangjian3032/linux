@@ -616,7 +616,7 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_pwm_tachometer_data *priv,
 	if (raw_data == 0)
 		return 0;
 
-	return ((clk_source * 60) / (tach_div));
+	return ((clk_source / tach_div) * 60);
 
 }
 
@@ -628,6 +628,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	int ret;
 	struct aspeed_pwm_tachometer_data *priv = dev_get_drvdata(dev);
 	long fan_ctrl;
+	u8 org_falling = priv->pwm_channel[index].falling;
 
 	ret = kstrtol(buf, 10, &fan_ctrl);
 	if (ret != 0)
@@ -641,7 +642,13 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 
 	priv->pwm_channel[index].falling = fan_ctrl;
 
-	regmap_update_bits(priv->regmap, ASPEED_PWM_DUTY_CYCLE_CH(index), GENMASK(15, 8), (fan_ctrl << PWM_RISING_FALLING_BIT));
+	if(fan_ctrl == 0)
+		aspeed_set_pwm_channel_enable(priv->regmap, index, false);
+	else
+		regmap_update_bits(priv->regmap, ASPEED_PWM_DUTY_CYCLE_CH(index), GENMASK(15, 8), (fan_ctrl << PWM_RISING_FALLING_BIT));
+
+	if(org_falling == 0)
+		aspeed_set_pwm_channel_enable(priv->regmap, index, true);
 
 	return count;
 }
@@ -917,7 +924,7 @@ static int aspeed_create_pwm_cooling(struct device *dev,
 }
 
 #define DEFAULT_TARGET_PWM_FREQ		25000
-#define DEFAULT_MIN_RPM				4000
+#define DEFAULT_MIN_RPM				2900
 
 static int aspeed_pwm_create_fan(struct device *dev,
 			     struct device_node *child,
