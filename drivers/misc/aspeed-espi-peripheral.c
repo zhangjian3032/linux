@@ -39,6 +39,7 @@ struct mq_msg {
 struct aspeed_espi_peripheral {
 	struct regmap 			*map;
 	struct miscdevice       miscdev;
+	int						espi_version;
 
 	struct bin_attribute	bin;
 	struct kernfs_node		*kn;	
@@ -51,6 +52,7 @@ struct aspeed_espi_peripheral {
 	int 					rest_irq;					//espi reset irq
 	int						dma_mode;		/* o:disable , 1:enable */	
 
+	phys_addr_t			host_mapping_mem_base;
 	phys_addr_t			mapping_mem_base;
 	resource_size_t		mapping_mem_size;
 
@@ -479,8 +481,8 @@ static const struct file_operations aspeed_espi_peripheral_fops = {
 };
 
 static const struct of_device_id aspeed_espi_peripheral_match[] = {
-	{ .compatible = "aspeed,ast2600-espi-peripheral",	},
-	{ .compatible = "aspeed,ast2500-espi-peripheral",	},
+	{ .compatible = "aspeed,ast2600-espi-peripheral",	.data = (void *) ESPI_AST2600, },
+	{ .compatible = "aspeed,ast2500-espi-peripheral",	.data = (void *) ESPI_AST2500, },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, aspeed_espi_peripheral_match);
@@ -502,6 +504,13 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 	if (!dev_id)
 		return -EINVAL;
 
+	dev_id = of_match_device(aspeed_espi_peripheral_match, &pdev->dev);
+	if (!dev_id)
+		return -EINVAL;
+
+	espi_peripheral->espi_version = (unsigned long)dev_id->data;
+
+
 	if (of_property_read_bool(pdev->dev.of_node, "dma-mode"))
 		espi_peripheral->dma_mode = 1;
 
@@ -516,18 +525,29 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 	if (!node) {
 		dev_dbg(dev, "Didn't find reserved memory\n");
 	} else {
+		rc = of_property_read_u32(dev->of_node, "host-map-addr", &espi_peripheral->host_mapping_mem_base);
+		if (!rc) {
+			printk("no host mapping address \n");
+		}
+	
 		rc = of_address_to_resource(node, 0, &resm);
 		of_node_put(node);
-		if (rc) {
-			dev_err(dev, "Couldn't address to resource for reserved memory\n");
-			return -ENOMEM;
+		if (!rc) {
+			espi_peripheral->mapping_mem_size = resource_size(&resm);
+			espi_peripheral->mapping_mem_base = resm.start;
 		}
-
-		espi_peripheral->mapping_mem_size = resource_size(&resm);
-		espi_peripheral->mapping_mem_base = resm.start;
-		//unlock
-		regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_TADDRM, 0xFEDC756E);
-		regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_TADDR, espi_peripheral->mapping_mem_base);
+		
+		if(espi_peripheral->espi_version == ESPI_AST2500) {
+			regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_TADDRM, 0xFEDC756E);
+			regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_SADDR, espi_peripheral->host_mapping_mem_base);
+			regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_TADDR, espi_peripheral->mapping_mem_base);
+		} else {
+			regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_SADDR, espi_peripheral->host_mapping_mem_base);
+			regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_TADDR, espi_peripheral->mapping_mem_base);
+			regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_CTRL2, 
+					ESPI_DISABLE_PERP_MEM_READ | ESPI_DISABLE_PERP_MEM_WRITE, 
+					ESPI_DISABLE_PERP_MEM_READ | ESPI_DISABLE_PERP_MEM_WRITE);
+		}
 	}
 
 	rc = sysfs_create_group(&pdev->dev.kobj, &espi_peripheral_attribute_group);

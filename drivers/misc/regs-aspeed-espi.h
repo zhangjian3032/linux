@@ -50,6 +50,7 @@ struct espi_ch_data {
 #define ASPEED_ESPI_FLASH_TX_DMA	0x70		/* DMA Address of Flash Channel Tx Package */
 #define ASPEED_ESPI_FLASH_TX_CTRL	0x74		/* Control of Flash Channel Tx Package */
 #define ASPEED_ESPI_FLASH_TX_DATA	0x78		/* Date port of Flash Channel Tx Package */
+#define ASPEED_ESPI_CTRL2			0x80		/* Engine Control 2 */
 #define ASPEED_ESPI_PC_RX_SADDR		0x84		/* Mapping Source Address of Peripheral Channel Rx Package */
 #define ASPEED_ESPI_PC_RX_TADDR		0x88		/* Mapping Target Address of Peripheral Channel Rx Package */
 #define ASPEED_ESPI_PC_RX_TADDRM	0x8c		/* Mapping Target Address Mask of Peripheral Channel Rx Package */
@@ -208,6 +209,10 @@ struct espi_ch_data {
 
 
 #define  ESPI_TRIGGER_PACKAGE			BIT(31)
+
+/* #define ASPEED_ESPI_CTRL2			0x80		Engine Control 2 */
+#define ESPI_DISABLE_PERP_MEM_READ		BIT(6)
+#define ESPI_DISABLE_PERP_MEM_WRITE		BIT(4)
 
 
 /* ASPEED_ESPI_SYS1_EVENT			0x104 : Interrupt enable of System Event from Master */
