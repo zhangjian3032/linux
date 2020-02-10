@@ -449,9 +449,9 @@
 				reg = <0x1e785000 0x40>;
 			};
 
-			rng: hwrng@1e6e2520 {
+			rng: hwrng@1e6e2524 {
 				compatible = "timeriomem_rng";
-				reg = <0x1e6e2078 0x4>;
+				reg = <0x1e6e2524 0x4>;
 				period = <1>;
 				quality = <100>;
 			};
