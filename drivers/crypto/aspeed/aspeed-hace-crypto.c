@@ -369,6 +369,7 @@ int aspeed_hace_skcipher_trigger(struct aspeed_hace_dev *hace_dev)
 	return aspeed_sk_cpu_start(hace_dev);
 }
 
+#if 0
 static int aspeed_rc4_crypt(struct skcipher_request *req, u32 cmd)
 {
 	struct aspeed_cipher_ctx *ctx = crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
@@ -425,7 +426,7 @@ static int aspeed_rc4_encrypt(struct skcipher_request *req)
 	CIPHER_DBG("\n");
 	return aspeed_rc4_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_RC4);
 }
-
+#endif
 
 static int aspeed_des_crypt(struct skcipher_request *req, u32 cmd)
 {
@@ -1418,6 +1419,7 @@ struct aspeed_hace_alg aspeed_crypto_algs[] = {
 			}
 		}
 	},
+#if 0
 	{
 		.alg.skcipher = {
 			.min_keysize	= 1,
@@ -1439,6 +1441,7 @@ struct aspeed_hace_alg aspeed_crypto_algs[] = {
 			}
 		}
 	}
+#endif
 };
 
 struct aspeed_hace_alg aspeed_crypto_algs_g6[] = {
