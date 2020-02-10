@@ -104,6 +104,8 @@ struct espi_ch_data {
 #define ESPI_CTRL_PCP_RX_SW_RESET		BIT(24)
 #define ESPI_CTRL_FLASH_TX_DMA			BIT(23)
 #define ESPI_CTRL_FLASH_RX_DMA			BIT(22)
+#define ESPI_CTRL_OOB_TX_DMA			BIT(21)
+#define ESPI_CTRL_OOB_RX_DMA			BIT(20)
 #define ESPI_CTRL_PCNP_TX_DMA			BIT(19)
 /* */
 #define ESPI_CTRL_PCP_TX_DMA			BIT(17)
@@ -111,74 +113,10 @@ struct espi_ch_data {
 /* */
 #define ESPI_CTRL_DIR_RESET				BIT(13)
 #define ESPI_CTRL_VAL_RESET				BIT(12)
-#define ESPI_CTRL_SW_FLASH_READ		BIT(10)
+#define ESPI_CTRL_SW_FLASH_READ			BIT(10)
 #define ESPI_CTRL_SW_GPIO_VIRTCH		BIT(9)
 
 #define ESPI_CTRL_OOB_FW_RDY			BIT(4)
-
-/* ASPEED_ESPI_ISR	- 0x08 : Interrupt Status */
-#define ESPI_ISR_HW_RESET				BIT(31)
-/* */
-#define ESPI_ISR_VIRTW_SYS1				BIT(22)
-
-#define ESPI_ISR_PCNP_TX_ABORT			BIT(17)
-#define ESPI_ISR_PCP_TX_ABORT			BIT(16)
-#define ESPI_ISR_FLASH_RX_ABORT			BIT(15)
-
-#define ESPI_ISR_PCNP_RX_ABORT			BIT(13)
-#define ESPI_ISR_PCP_RX_ABORT			BIT(12)
-#define ESPI_ISR_PCNP_TX_ERR			BIT(11)
-#define ESPI_ISR_PCP_TX_ERR				BIT(10)
-#define ESPI_ISR_VIRTW_GPIO				BIT(9)
-#define ESPI_ISR_VIRTW_SYS				BIT(8)
-#define ESPI_ISR_PCNP_TX_COMP			BIT(3)
-/* */
-#define ESPI_ISR_PCP_TX_COMP			BIT(1)
-#define ESPI_ISR_PCP_RX_COMP			BIT(0)
-
-
-/* ASPEED_ESPI_PCP_RX_CTRL	-0x14	:	Control of Peripheral Channel Posted Rx Package */
-#define ESPI_TRIGGER_PACKAGE			BIT(31)
-
-#define ESPI_GET_CYCLE_TYPE(x)			(x & 0xff)
-#define ESPI_GET_TAG(x)					((x >> 8) & 0xf)
-#define ESPI_GET_LEN(x)					((x >> 12) & 0xfff)
-
-
-
-/* #define ASPEED_ESPI_CTRL			0x00		Engine Control */
-#define  ESPI_CTRL_FLASH_TX_SW_RESET	BIT(31)
-#define  ESPI_CTRL_FLASH_RX_SW_RESET	BIT(30)
-#define  ESPI_CTRL_OOB_TX_SW_RESET		BIT(29)
-#define  ESPI_CTRL_OOB_RX_SW_RESET		BIT(28)
-#define  ESPI_CTRL_PCNP_TX_SW_RESET		BIT(27)
-#define  ESPI_CTRL_PCNP_RX_SW_RESET		BIT(26)
-#define  ESPI_CTRL_PCP_TX_SW_RESET		BIT(25)
-#define  ESPI_CTRL_PCP_RX_SW_RESET		BIT(24)
-#define  ESPI_CTRL_FLASH_TX_DMA			BIT(23)
-#define  ESPI_CTRL_FLASH_RX_DMA			BIT(22)
-#define  ESPI_CTRL_OOB_TX_DMA			BIT(21)
-#define  ESPI_CTRL_OOB_RX_DMA			BIT(20)
-#define  ESPI_CTRL_PCNP_TX_DMA			BIT(19)
-/* */
-#define  ESPI_CTRL_PCP_TX_DMA			BIT(17)
-#define  ESPI_CTRL_PCP_RX_DMA			BIT(16)
-/* */
-#define  ESPI_CTRL_DIR_RESET			BIT(13)
-#define  ESPI_CTRL_VAL_RESET			BIT(12)
-#define  ESPI_CTRL_SW_FLASH_READ		BIT(10)
-#define  ESPI_CTRL_SW_GPIO_VIRTCH		BIT(9)
-#define  ESPI_CTRL_OOB_FW_RDY			BIT(4)
-
-
-
-/* ASPEED_ESPI_PCP_RX_CTRL	-0x14	:	Control of Peripheral Channel Posted Rx Package */
-#define ESPI_TRIGGER_PACKAGE			BIT(31)
-
-#define ESPI_GET_CYCLE_TYPE(x)			(x & 0xff)
-#define ESPI_GET_TAG(x)					((x >> 8) & 0xf)
-#define ESPI_GET_LEN(x)					((x >> 12) & 0xfff)
-
 
 /* #define ASPEED_ESPI_ISR				0x08		Interrupt Status */
 #define  ESPI_ISR_HW_RESET				BIT(31)
@@ -207,8 +145,15 @@ struct espi_ch_data {
 #define  ESPI_ISR_PCP_TX_COMP			BIT(1)
 #define  ESPI_ISR_PCP_RX_COMP			BIT(0)
 
-
 #define  ESPI_TRIGGER_PACKAGE			BIT(31)
+
+/* ASPEED_ESPI_PCP_RX_CTRL	-0x14	:	Control of Peripheral Channel Posted Rx Package */
+#define ESPI_TRIGGER_PACKAGE			BIT(31)
+
+#define ESPI_GET_CYCLE_TYPE(x)			(x & 0xff)
+#define ESPI_GET_TAG(x)					((x >> 8) & 0xf)
+#define ESPI_GET_LEN(x)					((x >> 12) & 0xfff)
+
 
 /* #define ASPEED_ESPI_CTRL2			0x80		Engine Control 2 */
 #define ESPI_DISABLE_PERP_MEM_READ		BIT(6)
