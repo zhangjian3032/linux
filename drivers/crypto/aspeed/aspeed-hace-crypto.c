@@ -268,7 +268,10 @@ static int aspeed_sk_g6_start(struct aspeed_hace_dev *hace_dev)
 		return -EINVAL;
 
 	if (req->dst == req->src) {
+		dst_list = src_list;
 		dst_dma_addr = src_dma_addr;
+		// dummy read for a1
+		READ_ONCE(src_list[ctx->src_sg_len]);
 	} else {
 		dst_list = (struct aspeed_sg_list *) crypto_engine->dst_sg_addr;
 		dst_dma_addr = crypto_engine->dst_sg_dma_addr;
@@ -287,6 +290,9 @@ static int aspeed_sk_g6_start(struct aspeed_hace_dev *hace_dev)
 		}
 		dst_list[ctx->dst_sg_len].phy_addr = 0;
 		dst_list[ctx->dst_sg_len].len = 0;
+		// dummy read for a1
+		READ_ONCE(src_list[ctx->src_sg_len]);
+		READ_ONCE(dst_list[ctx->dst_sg_len]);
 	}
 	if (total != 0)
 		return -EINVAL;
