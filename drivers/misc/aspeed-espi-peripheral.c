@@ -545,8 +545,7 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 			regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_SADDR, espi_peripheral->host_mapping_mem_base);
 			regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_TADDR, espi_peripheral->mapping_mem_base);
 			regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_CTRL2, 
-					ESPI_DISABLE_PERP_MEM_READ | ESPI_DISABLE_PERP_MEM_WRITE, 
-					ESPI_DISABLE_PERP_MEM_READ | ESPI_DISABLE_PERP_MEM_WRITE);
+					ESPI_DISABLE_PERP_MEM_READ | ESPI_DISABLE_PERP_MEM_WRITE, 0 );
 		}
 	}
 
