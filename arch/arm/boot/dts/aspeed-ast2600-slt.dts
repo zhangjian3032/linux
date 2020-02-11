@@ -496,7 +496,6 @@
 };
 #endif
 
-#if 0
 &sdc {
 	status = "okay";
 };
@@ -510,18 +509,12 @@
 
 	non-removable;
 	max-frequency = <100000000>;
-#if 1
-	bus-width = <4>;
-#else
 	bus-width = <8>;
 	pinctrl-0 = <&pinctrl_emmc_default 
-			&pinctrl_emmcdat4_default 
-			&pinctrl_emmcdat5_default
-			&pinctrl_emmcdat6_default
-			&pinctrl_emmcdat7_default>;
-#endif
+			&pinctrl_emmcg8_default>;
 };
 
+#if 0
 &sdhci0 {
 	status = "okay";
 
