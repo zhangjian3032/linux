@@ -21,6 +21,9 @@
 		serial10 = &uart11;
 		serial11 = &uart12;
 		serial12 = &uart13;
+		mmc0 = &emmc;
+		mmc1 = &sdhci0;
+		mmc2 = &sdhci1;
 	};
 
 	chosen {
@@ -51,14 +54,6 @@
 			compatible = "shared-dma-pool";
 			reusable;
 		};
-
-		ssp_memory: ssp_memory {
-			size = <0x00200000>;
-			alignment = <0x00100000>;
-			compatible = "shared-dma-pool";
-			no-map;
-		};
-
 	};
 
 	iio-hwmon {
@@ -67,17 +62,65 @@
 				<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
 				<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
 				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
+	};	
+};
+
+
+&mdio1 {
+	status = "okay";
+
+	ethphy1: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
 	};
+};
 
-	ssp: secondary-service-processor {
-		compatible = "aspeed,ast2600-ssp";
-		#address-cells = <2>;
-		#size-cells = <0>;
+&mac1 {
+	status = "okay";
 
-		memory-region = <&ssp_memory>;
-		aspeed,cvic = <&cvic>;
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mac2link_default>;
+};
+
+&mdio2 {
+	status = "okay";
+
+	ethphy2: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
 	};
+};
 
+&mac2 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy2>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_mac3link_default>;
+};
+
+&mdio3 {
+	status = "okay";
+
+	ethphy3: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mac3 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy3>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_mac4link_default>;
 };
 
 &uart1 {
@@ -153,63 +196,6 @@
 	status = "okay";
 };
 
-
-&mdio1 {
-	status = "okay";
-
-	ethphy1: ethernet-phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
-	};
-};
-
-&mac1 {
-	status = "okay";
-
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy1>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mac2link_default>;
-};
-
-&mdio2 {
-	status = "okay";
-
-	ethphy2: ethernet-phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
-	};
-};
-
-&mac2 {
-	status = "okay";
-
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy2>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_mac3link_default>;
-};
-
-&mdio3 {
-	status = "okay";
-
-	ethphy3: ethernet-phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
-	};
-};
-
-&mac3 {
-	status = "okay";
-
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy3>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_mac4link_default>;
-};
 
 &pwm_tacho {
 	status = "okay";
@@ -537,7 +523,7 @@
 	status = "okay";
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default>;
+	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default &pinctrl_qspi1_default>;
 
 	flash@0 {
 		status = "okay";
@@ -560,7 +546,8 @@
 	status = "okay";
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default &pinctrl_spi2cs2_default>;
+	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default &pinctrl_spi2cs2_default
+				&pinctrl_qspi2_default>;
 
 	flash@0 {
 		status = "okay";
@@ -586,4 +573,31 @@
 		spi-bus-width = <4>;
 	};
 
+};
+
+&espi {
+	status = "okay";
+	
+	resets = <&syscon ASPEED_RESET_LPC_ESPI>;
+	
+};
+
+&peripheral {
+	status = "okay";
+};
+
+&virtial_wire {
+	status = "okay";
+};
+
+&oob {
+	status = "okay";
+};
+
+&flash {
+	status = "okay";
+};
+
+&hace {
+	status = "okay";
 };

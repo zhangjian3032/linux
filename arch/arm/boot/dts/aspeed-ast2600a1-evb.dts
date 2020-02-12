@@ -21,6 +21,9 @@
 		serial10 = &uart11;
 		serial11 = &uart12;
 		serial12 = &uart13;
+		mmc0 = &emmc;
+		mmc1 = &sdhci0;
+		mmc2 = &sdhci1;
 	};
 
 	chosen {
@@ -59,6 +62,17 @@
 			no-map;
 		};
 
+		espi_peripheral_memory: espi_peripheral_memory {
+			no-map;
+			reg = <0x98000000 0x04000000>; /* 64M */
+#if 0
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+#endif
+		};
+
 	};
 
 	iio-hwmon {
@@ -68,31 +82,86 @@
 				<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
 				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
 	};
+};
 
-	ssp: secondary-service-processor {
-		compatible = "aspeed,ast2600-ssp";
-		#address-cells = <2>;
-		#size-cells = <0>;
-
+&ssp {
 		memory-region = <&ssp_memory>;
-		aspeed,cvic = <&cvic>;
-		interrupts = 	<GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&mdio0 {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
 	};
+};
+
+&mac0 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy0>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_mac1link_default>;
+};
+
+&mdio1 {
+	status = "okay";
+
+	ethphy1: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mac1 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mac2link_default>;
+};
+
+&mdio2 {
+	status = "okay";
+
+	ethphy2: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mac2 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy2>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_mac3link_default>;
+};
+
+&mdio3 {
+	status = "okay";
+
+	ethphy3: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mac3 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy3>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_mac4link_default>;
 };
 
 &uart1 {
@@ -190,83 +259,6 @@
 	status = "okay";
 };
 
-&mdio0 {
-	status = "okay";
-
-	ethphy0: ethernet-phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
-	};
-};
-
-&mac0 {
-	status = "okay";
-
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy0>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_mac1link_default>;
-	no-hw-sg;
-};
-
-&mdio1 {
-	status = "okay";
-
-	ethphy1: ethernet-phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
-	};
-};
-
-&mac1 {
-	status = "okay";
-
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy1>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mac2link_default>;
-	no-hw-sg;
-};
-
-&mdio2 {
-	status = "okay";
-
-	ethphy2: ethernet-phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
-	};
-};
-
-&mac2 {
-	status = "okay";
-
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy2>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_mac3link_default>;
-};
-
-&mdio3 {
-	status = "okay";
-
-	ethphy3: ethernet-phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
-	};
-};
-
-&mac3 {
-	status = "okay";
-
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy3>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_mac4link_default>;
-};
 
 &pwm_tacho {
 	status = "okay";
@@ -290,99 +282,130 @@
 
 	fan@0 {
 		reg = <0x00>;
-		period = /bits/ 8 <>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@1 {
 		reg = <0x01>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x01>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@2 {
 		reg = <0x02>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x02>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@3 {
 		reg = <0x03>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x03>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@4 {
 		reg = <0x04>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x04>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@5 {
 		reg = <0x05>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x05>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@6 {
 		reg = <0x06>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x06>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@7 {
 		reg = <0x07>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x07>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@8 {
 		reg = <0x08>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x08>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@9 {
 		reg = <0x09>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x09>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@10 {
 		reg = <0x0a>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0a>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@11 {
 		reg = <0x0b>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0b>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@12 {
 		reg = <0x0c>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0c>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@13 {
 		reg = <0x0d>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0d>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@14 {
 		reg = <0x0e>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0e>;
+		aspeed,min_rpm = <2000>;
 	};
 
 	fan@15 {
 		reg = <0x0f>;
+		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0f>;
+		aspeed,min_rpm = <2000>;
 	};
 };
 
@@ -401,6 +424,10 @@
 #endif
 };
 
+&uhci {
+	status = "okay";
+};
+
 #if 0
 &ehci0 {
 	status = "okay";
@@ -408,10 +435,6 @@
 #endif
 
 &ehci1 {
-	status = "okay";
-};
-
-&uhci {
 	status = "okay";
 };
 
@@ -561,7 +584,7 @@
 	status = "okay";
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default>;
+	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default &pinctrl_qspi1_default>;
 
 	flash@0 {
 		status = "okay";
@@ -584,7 +607,8 @@
 	status = "okay";
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default &pinctrl_spi2cs2_default>;
+	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default &pinctrl_spi2cs2_default
+				&pinctrl_qspi2_default>;
 
 	flash@0 {
 		status = "okay";
@@ -610,4 +634,38 @@
 		spi-bus-width = <4>;
 	};
 
+};
+
+&espi {
+	status = "okay";
+	
+	resets = <&syscon ASPEED_RESET_ESPI>;
+	
+};
+
+&peripheral {
+	status = "okay";
+
+	host-map-addr = <0x98000000>;
+	memory-region = <&espi_peripheral_memory>;
+};
+
+&virtial_wire {
+	status = "okay";
+};
+
+&oob {
+	status = "okay";
+};
+
+&flash {
+	status = "okay";
+};
+
+&hace {
+	status = "okay";
+};
+
+&acry {
+	status = "okay";
 };

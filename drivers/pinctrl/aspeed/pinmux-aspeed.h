@@ -508,7 +508,7 @@ struct aspeed_pin_desc {
  * @idx: The bit index in the register
  */
 #define SIG_DESC_SET(reg, idx) SIG_DESC_IP_BIT(ASPEED_IP_SCU, reg, idx, 1)
-#define SIG_DESC_CLEAR(reg, idx) SIG_DESC_IP_BIT(ASPEED_IP_SCU, reg, idx, 0)
+#define SIG_DESC_CLEAR(reg, idx) { ASPEED_IP_SCU, reg, BIT_MASK(idx), 0, 0 }
 
 #define SIG_DESC_LIST_SYM(sig, group) sig_descs_ ## sig ## _ ## group
 #define SIG_DESC_LIST_DECL(sig, group, ...) \
@@ -555,7 +555,6 @@ struct aspeed_pin_desc {
 #define SIG_EXPR_PTR(sig, group) (&SIG_EXPR_SYM(sig, group))
 
 #define SIG_EXPR_LIST_SYM(sig, group) sig_exprs_ ## sig ## _ ## group
-	
 
 /**
  * Declare a signal expression list for reference in a struct aspeed_pin_prio.
@@ -675,7 +674,8 @@ struct aspeed_pin_desc {
  */
 #define PIN_DECL_1(pin, other, sig) \
 	SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
-	PIN_DECL_(pin, SIG_EXPR_LIST_PTR(pin, sig), SIG_EXPR_LIST_PTR(pin, other))
+	PIN_DECL_(pin, SIG_EXPR_LIST_PTR(pin, sig), \
+		  SIG_EXPR_LIST_PTR(pin, other))
 
 /**
  * Single signal, single function pin declaration
@@ -692,7 +692,8 @@ struct aspeed_pin_desc {
 #define SSSF_PIN_DECL(pin, other, sig, ...) \
 	SIG_EXPR_LIST_DECL_SESG(pin, sig, sig, __VA_ARGS__); \
 	SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
-	PIN_DECL_(pin, SIG_EXPR_LIST_PTR(pin, sig), SIG_EXPR_LIST_PTR(pin, other)); \
+	PIN_DECL_(pin, SIG_EXPR_LIST_PTR(pin, sig), \
+		  SIG_EXPR_LIST_PTR(pin, other)); \
 	FUNC_GROUP_DECL(sig, pin)
 /**
  * Declare a two-signal pin
@@ -736,7 +737,9 @@ struct aspeed_pin_desc {
 #define FUNC_DECL_(func, ...) \
 	static const char *FUNC_SYM(func)[] = { __VA_ARGS__ }
 
+#define FUNC_DECL_1(func, group) FUNC_DECL_(func, #group)
 #define FUNC_DECL_2(func, one, two) FUNC_DECL_(func, #one, #two)
+#define FUNC_DECL_3(func, one, two, three) FUNC_DECL_(func, #one, #two, #three)
 
 #define FUNC_GROUP_DECL(func, ...) \
 	GROUP_DECL(func, __VA_ARGS__); \

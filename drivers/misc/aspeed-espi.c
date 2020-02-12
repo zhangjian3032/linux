@@ -57,6 +57,8 @@
 
 #include "regs-aspeed-espi.h"
 
+#define DEVICE_NAME "aspeed-espi"
+
 /*************************************************************************************/
 #define ESPIIOC_BASE       'E'
 
@@ -68,103 +70,56 @@ ast2500 dma/pio mode only support 1 fifo
 ast2600 pio mode support 1 fifo 
 ast2600 dma mode support 8 fifo 
 */
-/*************************************************************************************/
-#define ASPEED_ESPI_DEBUG
-
-#ifdef ASPEED_ESPI_DEBUG
-#define ESPI_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt,__FUNCTION__, ## args)
-#else
-#define ESPI_DBUG(fmt, args...)
-#endif
 
 struct aspeed_espi_data {
 	struct device			*dev;
-//	void __iomem			*reg_base;			/* virtual */
-	
-	struct regmap		*map;	
+	struct regmap			*map;	
+	struct miscdevice 		miscdev;	
 	
 	int 					irq;					//LPC IRQ number
 	int 					gpio_irq;					//GPIO IRQ number	
 	int						espi_version;
-	int						dma_mode;		/* o:disable , 1:enable */
 	struct reset_control 	*reset;
 	u32 					irq_sts;
-	bool 					is_open;
 	u32 					espi_bus_rest_ier;
 
 	struct irq_domain *irq_domain;
-	
-	
 	struct fasync_struct 	*async_queue;
 };
 
-/******************************************************************************/
-static DEFINE_SPINLOCK(espi_state_lock);
-/******************************************************************************/
-
-static inline u32
-aspeed_espi_read(struct aspeed_espi_data *aspeed_espi, u32 reg)
-{
-	u32 val;
-	int rc;	
-#if 0
-	val = readl(aspeed_espi->reg_base + reg);
-	ESPI_DBUG("aspeed_espi_read : reg = 0x%08x, val = 0x%08x\n", reg, val);
-	return val;
-#else
-	rc = regmap_read(aspeed_espi->map, reg, &val);
-	WARN(rc != 0, "regmap_read() failed: %d\n", rc);
-
-	return rc == 0 ? val : 0;
-#endif
-}
-
-static inline void
-aspeed_espi_write(struct aspeed_espi_data *aspeed_espi, u32 val, u32 reg)
-{
-	int rc;
-
-	rc = regmap_write(aspeed_espi->map, reg, val);
-	WARN(rc != 0, "regmap_write() failed: %d\n", rc);
-}
-
-/******************************************************************************/
-
 static void aspeed_espi_ctrl_init(struct aspeed_espi_data *aspeed_espi)
 {
-
 	//ast2600 a0 workaround for oob free init before espi reset 
-	if(aspeed_espi->espi_version == 6)
-		aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) | 0xef, ASPEED_ESPI_CTRL);
+	if(aspeed_espi->espi_version == ESPI_AST2600)
+		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, 0xef, 0xef); 
 	else
-		aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) | 0xff, ASPEED_ESPI_CTRL);
+		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, 0xff, 0xff); 
 
 	//TODO for function interrpt type
-	aspeed_espi_write(aspeed_espi, 0, ASPEED_ESPI_SYS_INT_T0);
-	aspeed_espi_write(aspeed_espi, 0, ASPEED_ESPI_SYS_INT_T1);
+	regmap_write(aspeed_espi->map, ASPEED_ESPI_SYS_INT_T0, 0);
+	regmap_write(aspeed_espi->map, ASPEED_ESPI_SYS_INT_T1, 0);
 
-	if (aspeed_espi->espi_version == 5)
-		aspeed_espi_write(aspeed_espi, ESPI_HOST_RST_WARN | ESPI_OOB_RST_WARN, ASPEED_ESPI_SYS_INT_T2);
+	if (aspeed_espi->espi_version == ESPI_AST2500)
+		regmap_write(aspeed_espi->map, ASPEED_ESPI_SYS_INT_T2, ESPI_HOST_RST_WARN | ESPI_OOB_RST_WARN);
 
 	regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, BIT(31), BIT(31));
-	aspeed_espi_write(aspeed_espi, 0xffffffff, ASPEED_ESPI_SYS_IER);
+	regmap_write(aspeed_espi->map, ASPEED_ESPI_SYS_IER, 0xffffffff);
 
 	//A1
-	aspeed_espi_write(aspeed_espi, 0x1, ASPEED_ESPI_SYS1_IER);
-	aspeed_espi_write(aspeed_espi, 0x1, ASPEED_ESPI_SYS1_INT_T0);
-
+	regmap_write(aspeed_espi->map, ASPEED_ESPI_SYS1_IER, 1);
+	regmap_write(aspeed_espi->map, ASPEED_ESPI_SYS1_INT_T0, 1);
 }
 
 static irqreturn_t aspeed_espi_reset_isr(int this_irq, void *dev_id)
 {
-	u32 sw_mode = 0;
+	u32 ctrl, sw_mode = 0;
 	struct aspeed_espi_data *aspeed_espi = dev_id;
-	int i = 0;
 	unsigned int bus_irq;
 
 	printk("aspeed_espi_reset_isr\n");
 
-	sw_mode = aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) & ESPI_CTRL_SW_FLASH_READ;
+	regmap_read(aspeed_espi->map, ASPEED_ESPI_CTRL, &ctrl);
+	sw_mode = ctrl & ESPI_CTRL_SW_FLASH_READ;
 
 #if 0	//temporarily remove the scu reset
 	//scu init
@@ -173,17 +128,16 @@ static irqreturn_t aspeed_espi_reset_isr(int this_irq, void *dev_id)
 #endif
 
 	//ast2600 a0 workaround for oob free init before espi reset 
-	if(aspeed_espi->espi_version == 6)
-		aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) | ESPI_CTRL_OOB_FW_RDY, ASPEED_ESPI_CTRL);
+	if(aspeed_espi->espi_version == ESPI_AST2600)
+		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, ESPI_CTRL_OOB_FW_RDY, ESPI_CTRL_OOB_FW_RDY); 
 
 	aspeed_espi_ctrl_init(aspeed_espi);
 
-	aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) | sw_mode, ASPEED_ESPI_CTRL);
+	regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, sw_mode, sw_mode); 
 
-	for(i = 4; i < 8; i++) {
-		bus_irq = irq_find_mapping(aspeed_espi->irq_domain, i);
-		generic_handle_irq(bus_irq);
-	}
+	//for all channel reset 
+	bus_irq = irq_find_mapping(aspeed_espi->irq_domain, 4);
+	generic_handle_irq(bus_irq);
 
 	return IRQ_HANDLED;
 }
@@ -192,19 +146,21 @@ static void aspeed_espi_handler(struct irq_desc *desc)
 {
 	struct aspeed_espi_data *aspeed_espi = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	unsigned long status;
+	u32 status;
 	unsigned int bus_irq;
 
 	chained_irq_enter(chip, desc);
-	status = aspeed_espi_read(aspeed_espi, ASPEED_ESPI_ISR);
+	regmap_read(aspeed_espi->map, ASPEED_ESPI_ISR, &status);
+
 	printk("isr status %x \n", status);
+
 	if (status & ESPI_ISR_HW_RESET) {
 		printk("ESPI_ISR_HW_RESET \n");
-		aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_SYS_EVENT) | ESPI_BOOT_STS | ESPI_BOOT_DWN, ASPEED_ESPI_SYS_EVENT);
+		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_SYS_EVENT, ESPI_BOOT_STS | ESPI_BOOT_DWN, ESPI_BOOT_STS | ESPI_BOOT_DWN); 
 
 		//6:flash ready ,4: oob ready , 0: perp ready
-//		aspeed_espi_write(aspeed_espi, aspeed_espi_read(aspeed_espi, ASPEED_ESPI_CTRL) | BIT(4) | BIT(6), ASPEED_ESPI_CTRL);
-		aspeed_espi_write(aspeed_espi, ESPI_ISR_HW_RESET, ASPEED_ESPI_ISR);
+//		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, BIT(4) | BIT(6), BIT(4) | BIT(6)); 
+		regmap_write(aspeed_espi->map, ASPEED_ESPI_ISR, ESPI_ISR_HW_RESET);
 	}
 
 	if (status & (GENMASK(17, 16) | GENMASK(13, 10))) {
@@ -233,8 +189,6 @@ static void aspeed_espi_handler(struct irq_desc *desc)
 static void aspeed_espi_mask_irq(struct irq_data *data)
 {
 	struct aspeed_espi_data *aspeed_espi = irq_data_get_irq_chip_data(data);
-//	unsigned int sbit = BIT(data->hwirq);
-	printk("aspeed_espi_mask_irq data->hwirq %d \n", data->hwirq);
 
 	switch(data->hwirq) {
 		case 0:	//peripheral channel
@@ -249,17 +203,8 @@ static void aspeed_espi_mask_irq(struct irq_data *data)
 		case 3: //flash
 			regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, BIT(21) | BIT(19) | BIT(15) | GENMASK(7, 6), 0);
 			break;		
-		case 4: //peripheral channel reset
-			aspeed_espi->espi_bus_rest_ier &= ~BIT(0);
-			break;
-		case 5: //virtual wire
-			aspeed_espi->espi_bus_rest_ier &= ~BIT(1);
-			break;
-		case 6: //oob
-			aspeed_espi->espi_bus_rest_ier &= ~BIT(2);
-			break;
-		case 7: //flash 
-			aspeed_espi->espi_bus_rest_ier &= ~BIT(3);
+		case 4: //espi channel reset
+			aspeed_espi->espi_bus_rest_ier = 0;
 			break;
 	}
 }
@@ -267,8 +212,7 @@ static void aspeed_espi_mask_irq(struct irq_data *data)
 static void aspeed_espi_unmask_irq(struct irq_data *data)
 {
 	struct aspeed_espi_data *aspeed_espi = irq_data_get_irq_chip_data(data);
-	unsigned int sbit = BIT(data->hwirq);
-printk("aspeed_espi_unmask_irq data->hwirq %d \n", data->hwirq);
+
 	switch(data->hwirq) {
 		case 0:	//peripheral channel
 			regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, GENMASK(17, 16) | GENMASK(13, 10), GENMASK(17, 16) | GENMASK(13, 10));
@@ -282,17 +226,8 @@ printk("aspeed_espi_unmask_irq data->hwirq %d \n", data->hwirq);
 		case 3: //flash
 			regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_IER, BIT(21) | BIT(19) | BIT(15) | GENMASK(7, 6), BIT(21) | BIT(19) | BIT(15) | GENMASK(7, 6));
 			break;
-		case 4: //peripheral channel reset
-			aspeed_espi->espi_bus_rest_ier |= BIT(0);
-			break;
-		case 5: //virtual wire
-			aspeed_espi->espi_bus_rest_ier |= BIT(1);
-			break;
-		case 6: //oob
-			aspeed_espi->espi_bus_rest_ier |= BIT(2);
-			break;
-		case 7: //flash 
-			aspeed_espi->espi_bus_rest_ier |= BIT(3);
+		case 4: //espi bus reset
+			aspeed_espi->espi_bus_rest_ier = 1;
 			break;
 	}
 }
@@ -334,31 +269,11 @@ espi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	default:
-		ESPI_DBUG("ERROR \n");
+		printk("ERROR \n");
 		return -ENOTTY;
 	}
 
 	return ret;
-}
-
-static int espi_open(struct inode *inode, struct file *file)
-{
-	struct miscdevice *c = file->private_data;
-	struct aspeed_espi_data *aspeed_espi = dev_get_drvdata(c->this_device);
-
-	ESPI_DBUG("\n");
-	spin_lock(&espi_state_lock);
-
-	if (aspeed_espi->is_open) {
-		spin_unlock(&espi_state_lock);
-		return -EBUSY;
-	}
-
-	aspeed_espi->is_open = true;
-
-	spin_unlock(&espi_state_lock);
-
-	return 0;
 }
 
 static int espi_fasync(int fd, struct file *file, int mode)
@@ -368,27 +283,15 @@ static int espi_fasync(int fd, struct file *file, int mode)
 	return fasync_helper(fd, file, mode, &aspeed_espi->async_queue);
 }
 
-static int espi_release(struct inode *inode, struct file *file)
-{
-	struct miscdevice *c = file->private_data;
-	struct aspeed_espi_data *aspeed_espi = dev_get_drvdata(c->this_device);
-
-	ESPI_DBUG("\n");
-	spin_lock(&espi_state_lock);
-
-	aspeed_espi->is_open = false;
-//	espi_fasync(-1, file, 0);
-	spin_unlock(&espi_state_lock);
-
-	return 0;
-}
-
 static ssize_t show_op_freq(struct device *dev,
 							struct device_attribute *attr, char *buf)
 {
+	u32 config;
 	struct aspeed_espi_data *aspeed_espi = dev_get_drvdata(dev);
+	
+	regmap_read(aspeed_espi->map, ASPEED_ESPI_GCAP_CONFIG, &config);
 
-	switch (GET_GCAP_OP_FREQ(aspeed_espi_read(aspeed_espi, ASPEED_ESPI_GCAP_CONFIG))) {
+	switch (GET_GCAP_OP_FREQ(config)) {
 	case 0:
 		return sprintf(buf, "20Mhz\n");
 		break;
@@ -413,9 +316,12 @@ static DEVICE_ATTR(op_freq, S_IRUGO, show_op_freq, NULL);
 static ssize_t show_io_mode(struct device *dev,
 							struct device_attribute *attr, char *buf)
 {
+	u32 config;
 	struct aspeed_espi_data *aspeed_espi = dev_get_drvdata(dev);
 
-	switch (GET_GCAP_IO_MODE(aspeed_espi_read(aspeed_espi, ASPEED_ESPI_GCAP_CONFIG))) {
+	regmap_read(aspeed_espi->map, ASPEED_ESPI_GCAP_CONFIG, &config);
+
+	switch (GET_GCAP_IO_MODE(config)) {
 	case 0:
 		return sprintf(buf, "Single IO\n");
 		break;
@@ -444,20 +350,12 @@ static struct attribute_group espi_attribute_group = {
 static const struct file_operations aspeed_espi_fops = {
 	.owner			= THIS_MODULE,
 	.unlocked_ioctl		= espi_ioctl,
-	.open			= espi_open,
-	.release			= espi_release,
 	.fasync			= espi_fasync,
 };
 
-struct miscdevice aspeed_espi_misc = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "aspeed-espi",
-	.fops = &aspeed_espi_fops,
-};
-
 static const struct of_device_id aspeed_espi_of_matches[] = {
-	{ .compatible = "aspeed,ast2500-espi", .data = (void *) 5, },
-	{ .compatible = "aspeed,ast2600-espi", .data = (void *) 6, },
+	{ .compatible = "aspeed,ast2500-espi", .data = (void *) ESPI_AST2500, },
+	{ .compatible = "aspeed,ast2600-espi", .data = (void *) ESPI_AST2600, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, aspeed_espi_of_matches);
@@ -466,11 +364,10 @@ MODULE_DEVICE_TABLE(of, aspeed_espi_of_matches);
 static int aspeed_espi_probe(struct platform_device *pdev)
 {
 	static struct aspeed_espi_data *aspeed_espi;
+	struct device *dev = &pdev->dev;	
 	const struct of_device_id *dev_id;
 	int ret = 0;
 
-	ESPI_DBUG("\n");
-	
 	aspeed_espi = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_espi_data), GFP_KERNEL);
 	if (aspeed_espi == NULL) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
@@ -485,12 +382,6 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 
 	aspeed_espi->dev = &pdev->dev;
 
-	if (of_device_is_compatible(pdev->dev.of_node, "aspeed,aspeed-espi-dma"))
-		aspeed_espi->dma_mode = 1;
-	else
-		aspeed_espi->dma_mode = 0;
-
-//
 	aspeed_espi->map = syscon_node_to_regmap(pdev->dev.of_node);
 
 	if (IS_ERR(aspeed_espi->map)) {
@@ -505,7 +396,7 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 	}
 
 	aspeed_espi->irq_domain = irq_domain_add_linear(
-					pdev->dev.of_node, 4,
+					pdev->dev.of_node, 5,
 					&aspeed_espi_irq_domain_ops, aspeed_espi);
 	if (!aspeed_espi->irq_domain) {
 		ret = -ENOMEM;
@@ -532,14 +423,17 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 
 	aspeed_espi_ctrl_init(aspeed_espi);
 
-	ret = misc_register(&aspeed_espi_misc);
+	aspeed_espi->miscdev.minor = MISC_DYNAMIC_MINOR;
+	aspeed_espi->miscdev.name = DEVICE_NAME;
+	aspeed_espi->miscdev.fops = &aspeed_espi_fops;
+	aspeed_espi->miscdev.parent = dev;
+	ret = misc_register(&aspeed_espi->miscdev);
 	if (ret) {
 		printk(KERN_ERR "ESPI : failed misc_register\n");
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, aspeed_espi);
-	dev_set_drvdata(aspeed_espi_misc.this_device, aspeed_espi);
+	dev_set_drvdata(dev, aspeed_espi);
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &espi_attribute_group);
 	if (ret) {
@@ -554,21 +448,12 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 
 static int aspeed_espi_remove(struct platform_device *pdev)
 {
-	struct aspeed_espi_data *aspeed_espi;
-	struct resource *res;
+	struct aspeed_espi_data *aspeed_espi = dev_get_drvdata(&pdev->dev);
 
-	ESPI_DBUG("\n");
-	aspeed_espi = platform_get_drvdata(pdev);
-	if (aspeed_espi == NULL)
-		return -ENODEV;
-
+	misc_deregister(&aspeed_espi->miscdev);
 	free_irq(aspeed_espi->gpio_irq, aspeed_espi);
 	free_irq(aspeed_espi->irq, aspeed_espi);
-//	iounmap(aspeed_espi->reg_base);
 	sysfs_remove_group(&pdev->dev.kobj, &espi_attribute_group);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
 
 	kfree(aspeed_espi);
 	return 0;
