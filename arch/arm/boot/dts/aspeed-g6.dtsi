@@ -704,6 +704,7 @@
 
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_sgpm1_default>;
+				status = "disabled";
 			};
 
 			sgpios0: sgpios@1e780700 {
