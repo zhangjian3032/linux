@@ -661,3 +661,11 @@
 &flash {
 	status = "okay";
 };
+
+&hace {
+	status = "okay";
+};
+
+&acry {
+	status = "okay";
+};

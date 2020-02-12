@@ -268,7 +268,10 @@ static int aspeed_sk_g6_start(struct aspeed_hace_dev *hace_dev)
 		return -EINVAL;
 
 	if (req->dst == req->src) {
+		dst_list = src_list;
 		dst_dma_addr = src_dma_addr;
+		// dummy read for a1
+		READ_ONCE(src_list[ctx->src_sg_len]);
 	} else {
 		dst_list = (struct aspeed_sg_list *) crypto_engine->dst_sg_addr;
 		dst_dma_addr = crypto_engine->dst_sg_dma_addr;
@@ -287,6 +290,9 @@ static int aspeed_sk_g6_start(struct aspeed_hace_dev *hace_dev)
 		}
 		dst_list[ctx->dst_sg_len].phy_addr = 0;
 		dst_list[ctx->dst_sg_len].len = 0;
+		// dummy read for a1
+		READ_ONCE(src_list[ctx->src_sg_len]);
+		READ_ONCE(dst_list[ctx->dst_sg_len]);
 	}
 	if (total != 0)
 		return -EINVAL;
@@ -363,6 +369,7 @@ int aspeed_hace_skcipher_trigger(struct aspeed_hace_dev *hace_dev)
 	return aspeed_sk_cpu_start(hace_dev);
 }
 
+#if 0
 static int aspeed_rc4_crypt(struct skcipher_request *req, u32 cmd)
 {
 	struct aspeed_cipher_ctx *ctx = crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
@@ -419,7 +426,7 @@ static int aspeed_rc4_encrypt(struct skcipher_request *req)
 	CIPHER_DBG("\n");
 	return aspeed_rc4_crypt(req, HACE_CMD_ENCRYPT | HACE_CMD_RC4);
 }
-
+#endif
 
 static int aspeed_des_crypt(struct skcipher_request *req, u32 cmd)
 {
@@ -1412,6 +1419,7 @@ struct aspeed_hace_alg aspeed_crypto_algs[] = {
 			}
 		}
 	},
+#if 0
 	{
 		.alg.skcipher = {
 			.min_keysize	= 1,
@@ -1433,6 +1441,7 @@ struct aspeed_hace_alg aspeed_crypto_algs[] = {
 			}
 		}
 	}
+#endif
 };
 
 struct aspeed_hace_alg aspeed_crypto_algs_g6[] = {

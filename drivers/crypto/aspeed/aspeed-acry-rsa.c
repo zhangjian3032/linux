@@ -95,6 +95,8 @@ int aspeed_acry_rsa_sg_copy_to_buffer(u8 *buf, struct scatterlist *src, size_t n
 		buf[data_byte_mapping[i]] =  dram_buffer[j];
 		i++;
 	}
+	for (; i < 2048; i++)
+		buf[data_byte_mapping[i]] = 0;
 	// printk("src:\n");
 	print_dram(dram_buffer, nbytes);
 	print_sram(buf, nbytes, 2);
@@ -401,7 +403,7 @@ static void aspeed_acry_rsa_exit_tfm(struct crypto_akcipher *tfm)
 
 	RSA_DBG("\n");
 
-	dma_free_coherent(ctx->acry_dev->dev, ASPEED_ACRY_BUFF_SIZE,
+	dma_free_coherent(ctx->acry_dev->dev, ASPEED_ACRY_BUFF_SIZE * 2,
 			  ctx->rsa_pub_addr, ctx->rsa_pub_dma_addr);
 }
 

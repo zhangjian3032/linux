@@ -463,6 +463,7 @@
 				clocks = <&syscon ASPEED_CLK_GATE_YCLK>;
 				clock-names = "yclk";
 				resets = <&syscon ASPEED_RESET_HACE>;
+				status = "disabled";
 			};
 
 			acry: acry@1e6fa000 {
@@ -471,6 +472,7 @@
 				interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_RSACLK>;
 				clock-names = "rsaclk";
+				status = "disabled";
 			};
 
 			hid: hid@1e6e1000 {
