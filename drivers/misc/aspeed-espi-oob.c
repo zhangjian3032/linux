@@ -282,8 +282,7 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 										  ((OOB_TX_BUF_NUM + OOB_RX_BUF_NUM) * OOB_BUFF_SIZE) + 
 										  (sizeof(struct aspeed_oob_tx_cmd) * OOB_TXCMD_DESC_NUM) + 
 										  (sizeof(struct aspeed_oob_tx_cmd) * OOB_RXCMD_DESC_NUM),
-										  &espi_oob->oob_tx_buff_dma, GFP_KERNEL);
-
+										  &espi_oob->oob_tx_cmd_dma, GFP_KERNEL);
 			//cmd desc
 			espi_oob->oob_rx_cmd = (struct aspeed_oob_rx_cmd *) (espi_oob->oob_tx_cmd + sizeof(struct aspeed_oob_tx_cmd));
 			espi_oob->oob_rx_cmd_dma = espi_oob->oob_tx_cmd_dma + sizeof(struct aspeed_oob_tx_cmd);
@@ -352,6 +351,9 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 		return rc;
 	}
 
+	//set oob ready 
+	regmap_update_bits(espi_oob->map, ASPEED_ESPI_CTRL, ESPI_CTRL_OOB_FW_RDY, ESPI_CTRL_OOB_FW_RDY);
+	
 	espi_oob->miscdev.minor = MISC_DYNAMIC_MINOR;
 	espi_oob->miscdev.name = DEVICE_NAME;
 //	espi_oob->miscdev.fops = &aspeed_espi_oob_fops;
