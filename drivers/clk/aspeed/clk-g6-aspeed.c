@@ -599,22 +599,44 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_HUXCLK] = hw;
 
-	/* EMMC ext clock divider */
-	hw = clk_hw_register_gate(dev, "emmc_extclk_gate", "hpll", 0,
-					scu_g6_base + ASPEED_G6_CLK_SELECTION1, 15, 0,
-					&aspeed_clk_lock);
-	if (IS_ERR(hw))
-			return PTR_ERR(hw);
-	
-	//ast2600 emmc clk should under 200Mhz
-	hw = clk_hw_register_divider_table(dev, "emmc_extclk", "emmc_extclk_gate", 0,
-					scu_g6_base + ASPEED_G6_CLK_SELECTION1, 12, 3, 0,
-					ast2600_div_table,
-					&aspeed_clk_lock);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_EMMC] = hw;
+	regmap_read(map, 0x04, &val);
+	if((val & GENMASK(23, 16)) >> 16) {
+		//A1 use mpll for fit 200Mhz
+		regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(14, 11), BIT(11));
 
+		/* EMMC ext clock divider */
+		hw = clk_hw_register_gate(dev, "emmc_extclk_gate", "mpll", 0,
+						scu_g6_base + ASPEED_G6_CLK_SELECTION1, 15, 0,
+						&aspeed_clk_lock);
+		if (IS_ERR(hw))
+				return PTR_ERR(hw);
+
+		//ast2600 emmc clk should under 200Mhz
+		hw = clk_hw_register_divider_table(dev, "emmc_extclk", "emmc_extclk_gate", 0,
+						scu_g6_base + ASPEED_G6_CLK_SELECTION1, 12, 3, 0,
+						ast2600_sd_div_table,
+						&aspeed_clk_lock);
+		if (IS_ERR(hw))
+			return PTR_ERR(hw);
+		aspeed_g6_clk_data->hws[ASPEED_CLK_EMMC] = hw;
+	} else {
+		/* EMMC ext clock divider */
+		hw = clk_hw_register_gate(dev, "emmc_extclk_gate", "hpll", 0,
+						scu_g6_base + ASPEED_G6_CLK_SELECTION1, 15, 0,
+						&aspeed_clk_lock);
+		if (IS_ERR(hw))
+				return PTR_ERR(hw);
+		
+		//ast2600 emmc clk should under 200Mhz
+		hw = clk_hw_register_divider_table(dev, "emmc_extclk", "emmc_extclk_gate", 0,
+						scu_g6_base + ASPEED_G6_CLK_SELECTION1, 12, 3, 0,
+						ast2600_div_table,
+						&aspeed_clk_lock);
+		if (IS_ERR(hw))
+			return PTR_ERR(hw);
+		aspeed_g6_clk_data->hws[ASPEED_CLK_EMMC] = hw;
+	}
+	
 	/* SD/SDIO clock divider and gate */
 	hw = clk_hw_register_gate(dev, "sd_extclk_gate", "hpll", 0,
 					scu_g6_base + ASPEED_G6_CLK_SELECTION4, 31, 0,
@@ -659,6 +681,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	aspeed_g6_clk_data->hws[ASPEED_CLK_LHCLK] = hw;
 
 	//gfx d1clk : use dp clk
+#if 1	
 	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(10, 8), BIT(10));
 	/* SoC Display clock selection */
 	hw = clk_hw_register_mux(dev, "d1clk", d1clk_parent_names,
@@ -668,9 +691,21 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_D1CLK] = hw;
-
 	//d1 clk div 0x308[17:15] x [14:12] - 8,7,6,5,4,3,2,1
 	regmap_write(map, 0x308, 0xa000); //2x3 = 6
+	//d1 clk div 0x308[17:15] x [14:12] - 8,7,6,5,4,3,2,1
+	regmap_write(map, 0x308, 0xa000); //2x3 = 6
+#else
+	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(10, 8), BIT(9));
+	/* SoC Display clock selection */
+	hw = clk_hw_register_mux(dev, "d1clk", d1clk_parent_names,
+			ARRAY_SIZE(d1clk_parent_names), 0,
+			scu_g6_base + 0x300, 8, 3, 0,
+			&aspeed_clk_lock);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_D1CLK] = hw;
+#endif
 
 	//bclk -check
 	/* P-Bus (BCLK) clock divider */
