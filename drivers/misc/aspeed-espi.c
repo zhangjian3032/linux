@@ -127,10 +127,6 @@ static irqreturn_t aspeed_espi_reset_isr(int this_irq, void *dev_id)
 	reset_control_deassert(aspeed_espi->reset);
 #endif
 
-	//ast2600 a0 workaround for oob free init before espi reset 
-	if(aspeed_espi->espi_version == ESPI_AST2600)
-		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, ESPI_CTRL_OOB_FW_RDY, ESPI_CTRL_OOB_FW_RDY); 
-
 	aspeed_espi_ctrl_init(aspeed_espi);
 
 	regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, sw_mode, sw_mode); 
@@ -154,15 +150,6 @@ static void aspeed_espi_handler(struct irq_desc *desc)
 
 	printk("isr status %x \n", status);
 
-	if (status & ESPI_ISR_HW_RESET) {
-		printk("ESPI_ISR_HW_RESET \n");
-		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_SYS_EVENT, ESPI_BOOT_STS | ESPI_BOOT_DWN, ESPI_BOOT_STS | ESPI_BOOT_DWN); 
-
-		//6:flash ready ,4: oob ready , 0: perp ready
-//		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, BIT(4) | BIT(6), BIT(4) | BIT(6)); 
-		regmap_write(aspeed_espi->map, ASPEED_ESPI_ISR, ESPI_ISR_HW_RESET);
-	}
-
 	if (status & (GENMASK(17, 16) | GENMASK(13, 10))) {
 		bus_irq = irq_find_mapping(aspeed_espi->irq_domain, 0);
 		generic_handle_irq(bus_irq);
@@ -173,7 +160,8 @@ static void aspeed_espi_handler(struct irq_desc *desc)
 		generic_handle_irq(bus_irq);
 	}
 
-	if (status & (BIT(23) | BIT(20) | BIT(18) | BIT(14) | GENMASK(5, 4))) {
+	//OOB
+	if (status & (BIT(23) | BIT(20) | BIT(18) | BIT(14) | GENMASK(5, 4) | ESPI_ISR_HW_RESET)) {
 		bus_irq = irq_find_mapping(aspeed_espi->irq_domain, 2);
 		generic_handle_irq(bus_irq);
 	}
@@ -182,6 +170,15 @@ static void aspeed_espi_handler(struct irq_desc *desc)
 		bus_irq = irq_find_mapping(aspeed_espi->irq_domain, 3);
 		generic_handle_irq(bus_irq);
 	}
+
+	if (status & ESPI_ISR_HW_RESET) {
+		printk("ESPI_ISR_HW_RESET \n");
+		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_SYS_EVENT, ESPI_BOOT_STS | ESPI_BOOT_DWN, ESPI_BOOT_STS | ESPI_BOOT_DWN); 
+		//6:flash ready ,4: oob ready , 0: perp ready
+//		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, BIT(4) | BIT(6), BIT(4) | BIT(6)); 
+		regmap_write(aspeed_espi->map, ASPEED_ESPI_ISR, ESPI_ISR_HW_RESET);	
+	}
+	
 	
 	chained_irq_exit(chip, desc);
 }
