@@ -35,4 +35,9 @@ config ASPEED_XDMA
 	help
 	  Driver for XDMA
 
+config ASPEED_SSP
+	tristate "ASPEED SSP Driver"
+        default n
+        help
+          Driver for secondary-service-processor	
 endmenu
