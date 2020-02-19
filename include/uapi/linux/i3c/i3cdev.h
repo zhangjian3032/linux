@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
- * Copyright (c) 2019 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2020 Synopsys, Inc. and/or its affiliates.
  *
  * Author: Vitor Soares <vitor.soares@synopsys.com>
  */
@@ -26,7 +26,6 @@ struct i3c_ioc_priv_xfer {
 	__u8 rnw;
 	__u8 pad[5];
 };
-
 
 #define I3C_PRIV_XFER_SIZE(N)	\
 	((((sizeof(struct i3c_ioc_priv_xfer)) * (N)) < (1 << _IOC_SIZEBITS)) \
