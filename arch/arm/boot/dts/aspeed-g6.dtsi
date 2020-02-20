@@ -119,7 +119,8 @@
 
 		sram: sram@10000000 {
 			compatible = "mmio-sram";
-			reg = <0x10000000 0x10000>;      // 64K
+			/* the first 64K is with parity check */
+			reg = <0x10000000 0x16000>;
 		};
 
 		ssp_tcm: sram@1a000000 {
