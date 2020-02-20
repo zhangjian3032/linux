@@ -88,6 +88,16 @@
 		memory-region = <&ssp_memory>;
 };
 
+&ssp_tcm {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges = <0 0x1a000000 0x2000>;
+	ssp-itcm@0 {
+		reg = <0x0 0x2000>;
+		protect-exec;
+	};
+};
+
 &mdio0 {
 	status = "okay";
 
