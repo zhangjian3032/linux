@@ -363,6 +363,7 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 	static struct aspeed_espi_data *aspeed_espi;
 	struct device *dev = &pdev->dev;	
 	const struct of_device_id *dev_id;
+	u32 delay_timing = 0;
 	int ret = 0;
 
 	aspeed_espi = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_espi_data), GFP_KERNEL);
@@ -376,16 +377,16 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	aspeed_espi->espi_version = (unsigned long)dev_id->data;
-
 	aspeed_espi->dev = &pdev->dev;
-
 	aspeed_espi->map = syscon_node_to_regmap(pdev->dev.of_node);
-
 	if (IS_ERR(aspeed_espi->map)) {
 		printk("aspeed_espi->map ERROR \n");
 		return PTR_ERR(aspeed_espi->map);	
 	}
 
+	if(delay_timing)
+		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL2, GENMASK(19, 16), BIT(19) | (delay_timing << 16)); 
+	
 	aspeed_espi->irq = platform_get_irq(pdev, 0);
 	if (aspeed_espi->irq < 0) {
 		dev_err(&pdev->dev, "no irq specified\n");
