@@ -1341,9 +1341,9 @@
 				ranges = <0 0x1e7a0000 0x8000>;
 			};
 
-			host2bmc:host2bmc@1e7e0000 {
-				compatible = "aspeed,ast2600-host2bmc";
-				reg = <0x1e7e0000 0x4000>;
+			host2bmc: host2bmc@1e7e0000 {
+				compatible = "aspeed,ast2600-bmc-device";
+				reg = <0x1e7e0000 0xB000>;
 				interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
