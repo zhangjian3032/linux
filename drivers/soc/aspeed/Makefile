@@ -4,3 +4,5 @@ obj-$(CONFIG_ASPEED_JTAG)	+= aspeed-jtag.o
 obj-$(CONFIG_ASPEED_MCTP)	+= aspeed-mctp.o
 obj-$(CONFIG_ASPEED_XDMA)	+= aspeed-xdma.o
 obj-$(CONFIG_ASPEED_HID)	+= aspeed-hid.o
+obj-$(CONFIG_ASPEED_BMC_DEV)	+= aspeed-bmc-dev.o
+obj-$(CONFIG_ASPEED_HOST_BMC)	+= aspeed-host-bmc-dev.o

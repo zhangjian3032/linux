@@ -8,6 +8,12 @@ config ASPEED_BMC_MISC
 	  Say yes to expose VGA and LPC scratch registers, and other
 	  miscellaneous control interfaces specific to the ASPEED BMC SoCs
 
+config ASPEED_BMC_DEV
+	tristate "HOST BMC DEVICE"
+
+config ASPEED_HOST_BMC
+	tristate "PCI Host BMC"
+
 config ASPEED_HID
 	tristate "ASPEED HID"
 
