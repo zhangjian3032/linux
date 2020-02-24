@@ -73,6 +73,13 @@
 #endif
 		};
 
+		host2bmc_memory: host2bmc_memory {
+			size = <0x00100000>;
+			alignment = <0x00100000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
 	};
 
 	iio-hwmon {
@@ -85,7 +92,13 @@
 };
 
 &ssp {
-		memory-region = <&ssp_memory>;
+	memory-region = <&ssp_memory>;
+};
+
+&host2bmc {
+	status = "okay";
+
+	memory-region = <&host2bmc_memory>;
 };
 
 &mdio0 {
@@ -640,7 +653,7 @@
 	status = "okay";
 	
 	resets = <&syscon ASPEED_RESET_ESPI>;
-	
+	delay-timing = <0x7>;
 };
 
 &peripheral {
