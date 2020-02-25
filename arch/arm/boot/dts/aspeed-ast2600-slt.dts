@@ -498,10 +498,12 @@
 
 &sdc {
 	status = "okay";
+	timing-phase = <0xc6ffff>;
 };
 
 &emmc_controller {
 	status = "okay";
+	timing-phase = <0x700FF>;
 };
 
 &emmc {

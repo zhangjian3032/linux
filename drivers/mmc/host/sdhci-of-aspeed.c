@@ -21,6 +21,8 @@
 #define   ASPEED_SDC_S1MMC8	BIT(25)
 #define   ASPEED_SDC_S0MMC8	BIT(24)
 
+#define TIMING_PHASE_OFFSET 0xF4
+
 struct aspeed_sdc {
 	struct clk *clk;
 	struct resource *res;
@@ -352,6 +354,7 @@ static int aspeed_sdc_probe(struct platform_device *pdev)
 	struct device_node *parent, *child;
 	struct aspeed_sdc *sdc;
 	int ret;
+	u32 timing_phase;
 
 	sdc = devm_kzalloc(&pdev->dev, sizeof(*sdc), GFP_KERNEL);
 	if (!sdc)
@@ -374,6 +377,11 @@ static int aspeed_sdc_probe(struct platform_device *pdev)
 	if (IS_ERR(sdc->regs)) {
 		ret = PTR_ERR(sdc->regs);
 		goto err_clk;
+	}
+
+	if (!of_property_read_u32(pdev->dev.of_node, \
+		"timing-phase", &timing_phase)) {
+		writew(timing_phase, sdc->regs + TIMING_PHASE_OFFSET);
 	}
 
 	dev_set_drvdata(&pdev->dev, sdc);
