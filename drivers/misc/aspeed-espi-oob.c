@@ -315,25 +315,22 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 										  (sizeof(struct aspeed_oob_tx_cmd) * OOB_TXCMD_DESC_NUM) + 
 										  (sizeof(struct aspeed_oob_rx_cmd) * OOB_RXCMD_DESC_NUM),
 										  &espi_oob->oob_tx_cmd_dma, GFP_KERNEL);
-			printk("espi_oob->oob_tx_cmd %x , espi_oob->oob_tx_cmd_dma %x size of tx cmd %x \n", espi_oob->oob_tx_cmd, espi_oob->oob_tx_cmd_dma, sizeof(struct aspeed_oob_tx_cmd));
+//			printk("espi_oob->oob_tx_cmd %x , espi_oob->oob_tx_cmd_dma %x size of tx cmd %x \n", espi_oob->oob_tx_cmd, espi_oob->oob_tx_cmd_dma, sizeof(struct aspeed_oob_tx_cmd));
 			
 			//rx cmd desc
 			espi_oob->oob_rx_cmd = (struct aspeed_oob_rx_cmd *) ((u32)espi_oob->oob_tx_cmd + (sizeof(struct aspeed_oob_tx_cmd) * OOB_TXCMD_DESC_NUM));
 			espi_oob->oob_rx_cmd_dma = espi_oob->oob_tx_cmd_dma + (sizeof(struct aspeed_oob_tx_cmd) * OOB_TXCMD_DESC_NUM);
-
-			printk("espi_oob->oob_rx_cmd %x , espi_oob->oob_rx_cmd_dma %x rx cmd size %x \n", espi_oob->oob_rx_cmd, espi_oob->oob_rx_cmd_dma, sizeof(struct aspeed_oob_rx_cmd));
-
+//			printk("espi_oob->oob_rx_cmd %x , espi_oob->oob_rx_cmd_dma %x rx cmd size %x \n", espi_oob->oob_rx_cmd, espi_oob->oob_rx_cmd_dma, sizeof(struct aspeed_oob_rx_cmd));
 
 			//init tx cmd buffer
 			espi_oob->oob_tx_buff = (u8 *) ((u32)espi_oob->oob_rx_cmd + (sizeof(struct aspeed_oob_rx_cmd) * OOB_RXCMD_DESC_NUM));
 			espi_oob->oob_tx_buff_dma = espi_oob->oob_rx_cmd_dma + (sizeof(struct aspeed_oob_rx_cmd) * OOB_RXCMD_DESC_NUM);
-
-			printk("espi_oob->oob_tx_buff %x , espi_oob->oob_tx_buff_dma %x \n", espi_oob->oob_tx_buff, espi_oob->oob_tx_buff_dma);
+//			printk("espi_oob->oob_tx_buff %x , espi_oob->oob_tx_buff_dma %x \n", espi_oob->oob_tx_buff, espi_oob->oob_tx_buff_dma);
 
 			//init tx cmd desc
 			for(i = 0; i < OOB_TXCMD_DESC_NUM; i++) {
-				espi_oob->oob_tx_cmd[i].dma_addr = espi_oob->oob_tx_buff + (i * OOB_BUFF_SIZE);
-				printk("tx idx %d : dma %x \n", i, espi_oob->oob_tx_cmd[i].dma_addr);
+				espi_oob->oob_tx_cmd[i].dma_addr = (dma_addr_t) (espi_oob->oob_tx_buff + (i * OOB_BUFF_SIZE));
+//				printk("tx idx %d : dma %x \n", i, espi_oob->oob_tx_cmd[i].dma_addr);
 			}
 			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_DMA, espi_oob->oob_tx_cmd_dma);
 			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_RING_SIZE, OOB_TXCMD_DESC_NUM);
@@ -341,35 +338,27 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 			//init rx cmd buffer
 			espi_oob->oob_rx_buff = espi_oob->oob_tx_buff + (OOB_BUFF_SIZE * OOB_TX_BUF_NUM);
 			espi_oob->oob_rx_buff_dma = espi_oob->oob_tx_buff_dma + (OOB_BUFF_SIZE * OOB_TX_BUF_NUM);
-
-			printk("espi_oob->oob_rx_buff %x , espi_oob->oob_rx_buff_dma %x \n", espi_oob->oob_rx_buff, espi_oob->oob_rx_buff_dma);
+//			printk("espi_oob->oob_rx_buff %x , espi_oob->oob_rx_buff_dma %x \n", espi_oob->oob_rx_buff, espi_oob->oob_rx_buff_dma);
 
 			//init rx cmd desc
 			for(i = 0; i < OOB_RXCMD_DESC_NUM; i++) {
 				espi_oob->oob_rx_cmd[i].cmd = 0;
-				espi_oob->oob_rx_cmd[i].dma_addr = espi_oob->oob_rx_buff + (i * OOB_BUFF_SIZE);
+				espi_oob->oob_rx_cmd[i].dma_addr = (dma_addr_t) (espi_oob->oob_rx_buff + (i * OOB_BUFF_SIZE));
 //				printk("rx idx %d : dma %x \n", i, espi_oob->oob_rx_cmd[i].dma_addr);
 			}
-			
 			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_RX_DMA, espi_oob->oob_rx_cmd_dma);
 			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_RX_RING_SIZE, OOB_RXCMD_DESC_NUM);
 			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_RX_WRITE_PT, BIT(31));
-
 		} else {
 			espi_oob->oob_tx_buff = dma_alloc_coherent(NULL,
 										  (MAX_XFER_BUFF_SIZE * 2),
 										  &espi_oob->oob_tx_buff_dma, GFP_KERNEL);
-
 			espi_oob->oob_rx_buff = espi_oob->oob_tx_buff + MAX_XFER_BUFF_SIZE;
 			espi_oob->oob_rx_buff_dma = espi_oob->oob_tx_buff_dma + MAX_XFER_BUFF_SIZE;
-
 			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_RX_DMA, espi_oob->oob_rx_buff_dma);
 			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_DMA, espi_oob->oob_tx_buff_dma);
 		}
 		espi_oob->oob_rx_full = 0;
-		
-		
-		
 	} else {
 		// non-dma mode 
 		espi_oob->oob_rx_buff = kzalloc(MAX_XFER_BUFF_SIZE * 2, GFP_KERNEL);
