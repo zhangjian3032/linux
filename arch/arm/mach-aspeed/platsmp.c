@@ -42,18 +42,15 @@ static struct notifier_block aspeed_g6_restart_nb = {
 static void aspeed_g6_early_reset_init(void)
 {
 	struct device_node *np;
-	int retval = 0;
 	np = of_find_compatible_node(NULL, NULL, "aspeed,ast2600-reboot");
 	if (!np) {
 		pr_err("%s: no reboot node found\n", __func__);
-		retval = -ENODEV;
-		return retval;
+		return;
 	}
 	wd_reset_base =(unsigned char *) of_iomap(np, 0);
 	if (!wd_reset_base) {
 		pr_err("%s: Unable to map I/O memory\n", __func__);
-		retval = -ENOMEM;
-		return retval;
+		return;
 	}
 	register_restart_handler(&aspeed_g6_restart_nb);
 }
@@ -96,8 +93,6 @@ static void aspeed_g6_secondary_init(unsigned int cpu)
 	/* restore cpuN go sign and addr */
 	__raw_writel(0x0, secboot_base + ASPEED_BOOT_ADDR_REG_OFFSET);
 	__raw_writel(0x0, secboot_base + ASPEED_BOOT_SIG_REG_OFFSET);
-
-	return 0;
 }
 
 static const struct smp_operations aspeed_smp_ops __initconst = {
