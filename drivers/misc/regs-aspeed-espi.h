@@ -145,8 +145,6 @@ struct espi_ch_data {
 #define  ESPI_ISR_PCP_TX_COMP			BIT(1)
 #define  ESPI_ISR_PCP_RX_COMP			BIT(0)
 
-#define  ESPI_TRIGGER_PACKAGE			BIT(31)
-
 /* ASPEED_ESPI_PCP_RX_CTRL	-0x14	:	Control of Peripheral Channel Posted Rx Package */
 #define ESPI_TRIGGER_PACKAGE			BIT(31)
 
