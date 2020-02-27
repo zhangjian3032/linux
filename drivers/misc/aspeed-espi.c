@@ -127,10 +127,6 @@ static irqreturn_t aspeed_espi_reset_isr(int this_irq, void *dev_id)
 	reset_control_deassert(aspeed_espi->reset);
 #endif
 
-	//ast2600 a0 workaround for oob free init before espi reset 
-	if(aspeed_espi->espi_version == ESPI_AST2600)
-		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, ESPI_CTRL_OOB_FW_RDY, ESPI_CTRL_OOB_FW_RDY); 
-
 	aspeed_espi_ctrl_init(aspeed_espi);
 
 	regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, sw_mode, sw_mode); 
@@ -154,15 +150,6 @@ static void aspeed_espi_handler(struct irq_desc *desc)
 
 	printk("isr status %x \n", status);
 
-	if (status & ESPI_ISR_HW_RESET) {
-		printk("ESPI_ISR_HW_RESET \n");
-		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_SYS_EVENT, ESPI_BOOT_STS | ESPI_BOOT_DWN, ESPI_BOOT_STS | ESPI_BOOT_DWN); 
-
-		//6:flash ready ,4: oob ready , 0: perp ready
-//		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, BIT(4) | BIT(6), BIT(4) | BIT(6)); 
-		regmap_write(aspeed_espi->map, ASPEED_ESPI_ISR, ESPI_ISR_HW_RESET);
-	}
-
 	if (status & (GENMASK(17, 16) | GENMASK(13, 10))) {
 		bus_irq = irq_find_mapping(aspeed_espi->irq_domain, 0);
 		generic_handle_irq(bus_irq);
@@ -173,7 +160,8 @@ static void aspeed_espi_handler(struct irq_desc *desc)
 		generic_handle_irq(bus_irq);
 	}
 
-	if (status & (BIT(23) | BIT(20) | BIT(18) | BIT(14) | GENMASK(5, 4))) {
+	//OOB
+	if (status & (BIT(23) | BIT(20) | BIT(18) | BIT(14) | GENMASK(5, 4) | ESPI_ISR_HW_RESET)) {
 		bus_irq = irq_find_mapping(aspeed_espi->irq_domain, 2);
 		generic_handle_irq(bus_irq);
 	}
@@ -182,6 +170,15 @@ static void aspeed_espi_handler(struct irq_desc *desc)
 		bus_irq = irq_find_mapping(aspeed_espi->irq_domain, 3);
 		generic_handle_irq(bus_irq);
 	}
+
+	if (status & ESPI_ISR_HW_RESET) {
+		printk("ESPI_ISR_HW_RESET \n");
+		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_SYS_EVENT, ESPI_BOOT_STS | ESPI_BOOT_DWN, ESPI_BOOT_STS | ESPI_BOOT_DWN); 
+		//6:flash ready ,4: oob ready , 0: perp ready
+//		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, BIT(4) | BIT(6), BIT(4) | BIT(6)); 
+		regmap_write(aspeed_espi->map, ASPEED_ESPI_ISR, ESPI_ISR_HW_RESET);	
+	}
+	
 	
 	chained_irq_exit(chip, desc);
 }
@@ -366,6 +363,7 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 	static struct aspeed_espi_data *aspeed_espi;
 	struct device *dev = &pdev->dev;	
 	const struct of_device_id *dev_id;
+	u32 delay_timing = 0;
 	int ret = 0;
 
 	aspeed_espi = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_espi_data), GFP_KERNEL);
@@ -379,16 +377,16 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	aspeed_espi->espi_version = (unsigned long)dev_id->data;
-
 	aspeed_espi->dev = &pdev->dev;
-
 	aspeed_espi->map = syscon_node_to_regmap(pdev->dev.of_node);
-
 	if (IS_ERR(aspeed_espi->map)) {
 		printk("aspeed_espi->map ERROR \n");
 		return PTR_ERR(aspeed_espi->map);	
 	}
 
+	if(delay_timing)
+		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL2, GENMASK(19, 16), BIT(19) | (delay_timing << 16)); 
+	
 	aspeed_espi->irq = platform_get_irq(pdev, 0);
 	if (aspeed_espi->irq < 0) {
 		dev_err(&pdev->dev, "no irq specified\n");
