@@ -183,13 +183,12 @@ static ssize_t aspeed_oob_channel_tx(struct file *filp, struct kobject *kobj,
 		if(tx_ctrl & ESPI_TRIGGER_PACKAGE)
 			return 0;
 		else {
-			//buf[0] : tag 
-			for (i = 0; i < count; i++) {
+			for (i = 0; i < buf[0]; i++) {
 //				printk("[%d] : %x \n", i, buf[i]);
-				regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_DATA, buf[i + 1]);
+				regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_DATA, buf[16 + i]);
 			}
 			//PIO mode count is data payload, if package eanble pec, it need calulate by sw pec include in packet. 
-			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_CTRL, ESPI_TRIGGER_PACKAGE |  (count << 12) | (buf[0] << 8) | ESPI_OOB_MESSAGE);
+			regmap_write(espi_oob->map, ASPEED_ESPI_OOB_TX_CTRL, ESPI_TRIGGER_PACKAGE |  (buf[3] << 12) | (buf[0] << 8) | ESPI_OOB_MESSAGE);
 		}
 	}
 	return count;
