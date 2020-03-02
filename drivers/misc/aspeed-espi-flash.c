@@ -62,12 +62,12 @@ static ssize_t aspeed_flash_channel_rx(struct file *filp, struct kobject *kobj,
 		buf[1] = ESPI_GET_TAG(rx_ctrl);
 		buf[2] = ESPI_GET_LEN(rx_ctrl);
 		if(espi_flash->dma_mode) {
-			memcpy(&buf[2], espi_flash->flash_rx_channel.buff, rx_len);
+			memcpy(&buf[3], espi_flash->flash_rx_channel.buff, rx_len);
 		} else {
 			//PIO mode
 			for (i = 0; i < rx_len; i++) {
 				regmap_read(espi_flash->map, ASPEED_ESPI_FLASH_RX_DATA, &rx_data);
-				buf[i + 2] = rx_data;
+				buf[i + 3] = rx_data;
 			}
 		}
 		regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_RX_CTRL, ESPI_TRIGGER_PACKAGE);
