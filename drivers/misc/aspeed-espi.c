@@ -142,11 +142,12 @@ static void aspeed_espi_handler(struct irq_desc *desc)
 {
 	struct aspeed_espi_data *aspeed_espi = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	u32 status;
+	u32 status, ier;
 	unsigned int bus_irq;
 
 	chained_irq_enter(chip, desc);
 	regmap_read(aspeed_espi->map, ASPEED_ESPI_ISR, &status);
+	regmap_read(aspeed_espi->map, ASPEED_ESPI_IER, &ier);
 
 	printk("isr status %x \n", status);
 
@@ -161,9 +162,11 @@ static void aspeed_espi_handler(struct irq_desc *desc)
 	}
 
 	//OOB
-	if (status & (BIT(23) | BIT(20) | BIT(18) | BIT(14) | GENMASK(5, 4) | ESPI_ISR_HW_RESET)) {
-		bus_irq = irq_find_mapping(aspeed_espi->irq_domain, 2);
-		generic_handle_irq(bus_irq);
+	if (ier & (BIT(23) | BIT(20) | BIT(18) | BIT(14) | GENMASK(5, 4))) {
+		if (status & (BIT(23) | BIT(20) | BIT(18) | BIT(14) | GENMASK(5, 4) | ESPI_ISR_HW_RESET)) {
+			bus_irq = irq_find_mapping(aspeed_espi->irq_domain, 2);
+			generic_handle_irq(bus_irq);
+		}
 	}
 	
 	if (status & (BIT(21) | BIT(19) | BIT(15) | GENMASK(7, 6))) {
@@ -178,7 +181,6 @@ static void aspeed_espi_handler(struct irq_desc *desc)
 //		regmap_update_bits(aspeed_espi->map, ASPEED_ESPI_CTRL, BIT(4) | BIT(6), BIT(4) | BIT(6)); 
 		regmap_write(aspeed_espi->map, ASPEED_ESPI_ISR, ESPI_ISR_HW_RESET);	
 	}
-	
 	
 	chained_irq_exit(chip, desc);
 }
