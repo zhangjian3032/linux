@@ -90,6 +90,9 @@ struct ftgmac100 {
 	struct mii_bus *mii_bus;
 	struct clk *clk;
 
+	/* 2600 RMII clock gate */
+	struct clk *rclk;
+
 	/* Link management */
 	int cur_speed;
 	int cur_duplex;
@@ -777,8 +780,6 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 	if (nfrags == 0)
 		f_ctl_stat |= FTGMAC100_TXDES0_LTS;
 	txdes->txdes3 = cpu_to_le32(map);
-
-
 	txdes->txdes1 = cpu_to_le32(csum_vlan);
 
 	/* Next descriptor */
@@ -1971,12 +1972,14 @@ static void ftgmac100_ncsi_handler(struct ncsi_dev *nd)
 		   nd->link_up ? "up" : "down");
 }
 
-static void ftgmac100_setup_clk(struct ftgmac100 *priv)
+static int ftgmac100_setup_clk(struct ftgmac100 *priv)
 {
-	priv->clk = devm_clk_get(priv->dev, NULL);
-	if (IS_ERR(priv->clk))
-		return;
+	struct clk *clk;
 
+	clk = devm_clk_get(priv->dev, NULL /* MACCLK */);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+	priv->clk = clk;
 	clk_prepare_enable(priv->clk);
 
 	/* Aspeed specifies a 100MHz clock is required for up to
@@ -1985,6 +1988,14 @@ static void ftgmac100_setup_clk(struct ftgmac100 *priv)
 	 */
 	clk_set_rate(priv->clk, priv->use_ncsi ? FTGMAC_25MHZ :
 			FTGMAC_100MHZ);
+
+	/* RCLK is for RMII, typically used for NCSI. Optional because its not
+	 * necessary if it's the 2400 MAC or the MAC is configured for RGMII
+	 */
+	priv->rclk = devm_clk_get_optional(priv->dev, "RCLK");
+	clk_prepare_enable(priv->rclk);
+
+	return 0;
 }
 
 static int ftgmac100_probe(struct platform_device *pdev)
@@ -2092,7 +2103,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 				of_phy_deregister_fixed_link(pdev->dev.of_node);
 			goto err_setup_mdio;
 		}
-		
+
 		/* Indicate that we support PAUSE frames (see comment in
 		 * Documentation/networking/phy.txt)
 		 */
@@ -2113,8 +2124,11 @@ static int ftgmac100_probe(struct platform_device *pdev)
 			goto err_setup_mdio;
 	}
 
-	if (priv->is_aspeed)
-		ftgmac100_setup_clk(priv);
+	if (priv->is_aspeed) {
+		err = ftgmac100_setup_clk(priv);
+		if (err)
+			goto err_ncsi_dev;
+	}
 
 	/* Default ring sizes */
 	priv->rx_q_entries = priv->new_rx_q_entries = DEF_RX_QUEUE_ENTRIES;
@@ -2146,8 +2160,11 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_ncsi_dev:
 err_register_netdev:
+	if (priv->rclk)
+		clk_disable_unprepare(priv->rclk);
+	clk_disable_unprepare(priv->clk);
+err_ncsi_dev:
 	ftgmac100_destroy_mdio(netdev);
 err_setup_mdio:
 	iounmap(priv->base);
@@ -2169,6 +2186,8 @@ static int ftgmac100_remove(struct platform_device *pdev)
 
 	unregister_netdev(netdev);
 
+	if (priv->rclk)
+		clk_disable_unprepare(priv->rclk);
 	clk_disable_unprepare(priv->clk);
 
 	/* There's a small chance the reset task will have been re-queued,
