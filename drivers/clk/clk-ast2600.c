@@ -15,6 +15,7 @@
 #include <dt-bindings/clock/ast2600-clock.h>
 #include "clk-aspeed.h"
 
+#define ASPEED_G6_NUM_CLKS		75
 
 #define ASPEED_CLK2_OFFSET		32
 #define ASPEED_G6_RESET_CTRL		0x40
@@ -54,7 +55,7 @@
 #define ASPEED_DPLL_PARAM	0x260
 
 /* Globally visible clocks */
-static DEFINE_SPINLOCK(aspeed_clk_lock);
+static DEFINE_SPINLOCK(aspeed_g6_clk_lock);
 
 /* Keeps track of all clocks */
 static struct clk_hw_onecell_data *aspeed_g6_clk_data;
@@ -607,7 +608,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		/* EMMC ext clock divider */
 		hw = clk_hw_register_gate(dev, "emmc_extclk_gate", "mpll", 0,
 						scu_g6_base + ASPEED_G6_CLK_SELECTION1, 15, 0,
-						&aspeed_clk_lock);
+						&aspeed_g6_clk_lock);
 		if (IS_ERR(hw))
 				return PTR_ERR(hw);
 
@@ -615,7 +616,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		hw = clk_hw_register_divider_table(dev, "emmc_extclk", "emmc_extclk_gate", 0,
 						scu_g6_base + ASPEED_G6_CLK_SELECTION1, 12, 3, 0,
 						ast2600_sd_div_table,
-						&aspeed_clk_lock);
+						&aspeed_g6_clk_lock);
 		if (IS_ERR(hw))
 			return PTR_ERR(hw);
 		aspeed_g6_clk_data->hws[ASPEED_CLK_EMMC] = hw;
@@ -623,7 +624,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		/* EMMC ext clock divider */
 		hw = clk_hw_register_gate(dev, "emmc_extclk_gate", "hpll", 0,
 						scu_g6_base + ASPEED_G6_CLK_SELECTION1, 15, 0,
-						&aspeed_clk_lock);
+						&aspeed_g6_clk_lock);
 		if (IS_ERR(hw))
 				return PTR_ERR(hw);
 		
@@ -631,7 +632,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		hw = clk_hw_register_divider_table(dev, "emmc_extclk", "emmc_extclk_gate", 0,
 						scu_g6_base + ASPEED_G6_CLK_SELECTION1, 12, 3, 0,
 						ast2600_div_table,
-						&aspeed_clk_lock);
+						&aspeed_g6_clk_lock);
 		if (IS_ERR(hw))
 			return PTR_ERR(hw);
 		aspeed_g6_clk_data->hws[ASPEED_CLK_EMMC] = hw;
@@ -640,42 +641,84 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	/* SD/SDIO clock divider and gate */
 	hw = clk_hw_register_gate(dev, "sd_extclk_gate", "hpll", 0,
 					scu_g6_base + ASPEED_G6_CLK_SELECTION4, 31, 0,
-					&aspeed_clk_lock);
+					&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 			return PTR_ERR(hw);
 	hw = clk_hw_register_divider_table(dev, "sd_extclk", "sd_extclk_gate",
 					0, scu_g6_base + ASPEED_G6_CLK_SELECTION4, 28, 3, 0,
 					ast2600_div_table,
-					&aspeed_clk_lock);
+					&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 			return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_SDIO] = hw;
+
+	/* MAC1/2 RMII 50MHz RCLK */
+	hw = clk_hw_register_fixed_rate(dev, "mac12rclk", "hpll", 0, 50000000);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
 
 	//mac12 clk - check
 	/* MAC AHB bus clock divider */
 	hw = clk_hw_register_divider_table(dev, "mac12", "hpll", 0,
 			scu_g6_base + 0x300, 16, 3, 0,
 			soc_data->mac_div_table,
-			&aspeed_clk_lock);
+			&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_MAC12] = hw;
+
+	/* RMII1 50MHz (RCLK) output enable */
+	hw = clk_hw_register_gate(dev, "mac1rclk", "mac12rclk", 0,
+				  scu_g6_base + ASPEED_G6_MAC12_CLK_CTRL0, 29, 0,
+				  &aspeed_g6_clk_lock);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_MAC1RCLK] = hw;
+
+	/* RMII2 50MHz (RCLK) output enable */
+	hw = clk_hw_register_gate(dev, "mac2rclk", "mac12rclk", 0,
+				  scu_g6_base + ASPEED_G6_MAC12_CLK_CTRL0, 30, 0,
+				  &aspeed_g6_clk_lock);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_MAC2RCLK] = hw;
+
+	/* MAC1/2 RMII 50MHz RCLK */
+	hw = clk_hw_register_fixed_rate(dev, "mac34rclk", "hclk", 0, 50000000);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
 
 	//mac34 clk - check
 	/* MAC AHB bus clock divider */
 	hw = clk_hw_register_divider_table(dev, "mac34", "hpll", 0,
 			scu_g6_base + 0x310, 24, 3, 0,
 			soc_data->mac_div_table,
-			&aspeed_clk_lock);
+			&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_MAC34] = hw;
+
+	/* RMII3 50MHz (RCLK) output enable */
+	hw = clk_hw_register_gate(dev, "mac3rclk", "mac34rclk", 0,
+			scu_g6_base + ASPEED_G6_MAC34_CLK_CTRL0, 29, 0,
+			&aspeed_g6_clk_lock);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_MAC3RCLK] = hw;
+
+	/* RMII4 50MHz (RCLK) output enable */
+	hw = clk_hw_register_gate(dev, "mac4rclk", "mac34rclk", 0,
+			scu_g6_base + ASPEED_G6_MAC34_CLK_CTRL0, 30, 0,
+			&aspeed_g6_clk_lock);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_MAC4RCLK] = hw;
 
 	/* LPC Host (LHCLK) clock divider */
 	hw = clk_hw_register_divider_table(dev, "lhclk", "hpll", 0,
 			scu_g6_base + ASPEED_G6_CLK_SELECTION1, 20, 3, 0,
 			soc_data->div_table,
-			&aspeed_clk_lock);
+			&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_LHCLK] = hw;
@@ -687,7 +730,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	hw = clk_hw_register_mux(dev, "d1clk", d1clk_parent_names,
 			ARRAY_SIZE(d1clk_parent_names), 0,
 			scu_g6_base + 0x300, 8, 3, 0,
-			&aspeed_clk_lock);
+			&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_D1CLK] = hw;
@@ -701,7 +744,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	hw = clk_hw_register_mux(dev, "d1clk", d1clk_parent_names,
 			ARRAY_SIZE(d1clk_parent_names), 0,
 			scu_g6_base + 0x300, 8, 3, 0,
-			&aspeed_clk_lock);
+			&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_D1CLK] = hw;
@@ -712,7 +755,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	hw = clk_hw_register_divider_table(dev, "bclk", "hpll", 0,
 			scu_g6_base + 0x300, 20, 3, 0,
 			soc_data->div_table,
-			&aspeed_clk_lock);
+			&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_BCLK] = hw;
@@ -722,7 +765,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	hw = clk_hw_register_mux(dev, "vclk", vclk_parent_names,
 			ARRAY_SIZE(vclk_parent_names), 0,
 			scu_g6_base + 0x304, 12, 3, 0,
-			&aspeed_clk_lock);
+			&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_VCLK] = hw;
@@ -733,7 +776,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	hw = clk_hw_register_divider_table(dev, "eclk", NULL, 0,
 			scu_g6_base + 0x300, 28, 3, 0,
 			soc_data->eclk_div_table,
-			&aspeed_clk_lock);
+			&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_ECLK] = hw;
@@ -774,7 +817,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 				gd->clock_idx,
 				gd->reset_idx,
 				gate_flags,
-				&aspeed_clk_lock);
+				&aspeed_g6_clk_lock);
 		if (IS_ERR(hw))
 			return PTR_ERR(hw);
 		aspeed_g6_clk_data->hws[i] = hw;
