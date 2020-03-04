@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
-#include <dt-bindings/clock/aspeed-g6-clock.h>
+#include <dt-bindings/clock/ast2600-clock.h>
 #include "clk-aspeed.h"
 
 
