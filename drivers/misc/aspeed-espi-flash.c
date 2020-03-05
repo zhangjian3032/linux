@@ -23,8 +23,17 @@
 
 #define ESPIFIOC_BASE       'F'
 
-#define ASPEED_ESPI_FLASH_IOCRX			_IOWR(ESPIFIOC_BASE, 0x0, struct aspeed_espi_xfer)
-#define ASPEED_ESPI_FLASH_IOCTX			_IOW(ESPIFIOC_BASE, 0x1, struct aspeed_espi_xfer)
+struct espi_flash_xfer {
+	unsigned int header;		//[23:12] len, [11:8] tag, [7:0] cycle type
+	unsigned char	xfer_buf[68];
+};
+
+#define ASPEED_ESPI_FLASH_IOCRX			_IOWR(ESPIFIOC_BASE, 0x0, struct espi_flash_xfer)
+#define ASPEED_ESPI_FLASH_IOCTX			_IOW(ESPIFIOC_BASE, 0x1, struct espi_flash_xfer)
+
+#define 	FLASH_READ						0x00
+#define 	FLASH_WRITE					0x01
+#define 	FLASH_ERASE					0x02
 
 struct aspeed_espi_flash {
 	struct regmap 			*map;
@@ -32,66 +41,28 @@ struct aspeed_espi_flash {
 
 	struct bin_attribute	bin;
 	struct kernfs_node		*kn;	
-	struct espi_ch_data		flash_rx_channel;
-	struct espi_ch_data		flash_tx_channel;
+	u8		*rx_buff;
+	dma_addr_t rx_dma_addr;
+
+	u8		*tx_buff;
+	dma_addr_t tx_dma_addr;
 	
 	int 					irq;					//LPC IRQ number	
 	int 					rest_irq;					//espi reset irq	
 	
 	int						espi_version;
-	int						dma_mode;		/* o:disable , 1:enable */	
+	int					dma_mode;		/* o:disable , 1:enable */	
+	int					dma_rx;
 };
-
-static void
-aspeed_espi_flash_tx(struct aspeed_espi_flash *espi_flash)
-{
-	int i = 0;
-	printk("\n");
-
-	if(!espi_flash->dma_mode) {
-		for (i = 0; i < espi_flash->flash_tx_channel.buf_len; i++)
-			regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_TX_DATA, espi_flash->flash_tx_channel.buff[i]);
-	}
-	regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_TX_CTRL, ESPI_TRIGGER_PACKAGE | espi_flash->flash_tx_channel.header);
-
-}
-
-static void
-aspeed_espi_flash_rx(struct aspeed_espi_flash *espi_flash)
-{
-	u32 ctrl, rx_data;
-	int i = 0;
-	struct espi_ch_data	 *flash_rx = &espi_flash->flash_rx_channel;
-
-	regmap_read(espi_flash->map, ASPEED_ESPI_FLASH_RX_CTRL, &ctrl);
-	printk("cycle type = %x , tag = %x, len = %d byte \n", ESPI_GET_CYCLE_TYPE(ctrl), ESPI_GET_TAG(ctrl), ESPI_GET_LEN(ctrl));
-
-	flash_rx->full = 1;
-	flash_rx->header = ctrl;
-	if ((ESPI_GET_CYCLE_TYPE(ctrl) == 0x00) || (ESPI_GET_CYCLE_TYPE(ctrl) == 0x02))
-		flash_rx->buf_len = 4;
-	else if (ESPI_GET_CYCLE_TYPE(ctrl) == 0x01)
-		flash_rx->buf_len = ESPI_GET_LEN(ctrl) + 4;
-	else if ((ESPI_GET_CYCLE_TYPE(ctrl) & 0x09) == 0x09)
-		flash_rx->buf_len = ESPI_GET_LEN(ctrl);
-	else
-		flash_rx->buf_len = 0;
-
-	if(!espi_flash->dma_mode) {
-		for (i = 0; i < flash_rx->buf_len; i++) {
-			regmap_read(espi_flash->map, ASPEED_ESPI_FLASH_RX_DATA, &rx_data);
-			flash_rx->buff[i] = rx_data;
-		}
-	}
-}
 
 static irqreturn_t aspeed_espi_flash_reset_irq(int irq, void *arg)
 {
 	struct aspeed_espi_flash *espi_flash = arg;
 
 	if(espi_flash->dma_mode) {
-		regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_RX_DMA, espi_flash->flash_rx_channel.dma_addr);
-		regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_TX_DMA, espi_flash->flash_tx_channel.dma_addr);
+		espi_flash->dma_rx = 0;
+		regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_RX_DMA, espi_flash->rx_dma_addr);
+		regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_TX_DMA, espi_flash->tx_dma_addr);
 		regmap_update_bits(espi_flash->map, ASPEED_ESPI_CTRL, GENMASK(23, 22), ESPI_CTRL_FLASH_RX_DMA | ESPI_CTRL_FLASH_TX_DMA);
 	}
 	return IRQ_HANDLED;
@@ -125,8 +96,9 @@ static irqreturn_t aspeed_espi_flash_irq(int irq, void *arg)
 		}
 	
 		if (flash_isr & ESPI_ISR_FLASH_RX_COMP) {
+			if(espi_flash->dma_mode)
+				espi_flash->dma_rx = 1;
 			printk("ESPI_ISR_FLASH_RX_COMP \n");
-			aspeed_espi_flash_rx(espi_flash);
 		}
 		regmap_write(espi_flash->map, ASPEED_ESPI_ISR, flash_isr);
 		return IRQ_HANDLED;		
@@ -139,45 +111,77 @@ static long
 espi_flash_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
+	int i = 0;
+	u32 rx_ctrl;
+	u32 rx_data;
+	void __user *argp = (void __user *)arg;
+
 	struct miscdevice *c = file->private_data;
 	struct aspeed_espi_flash *espi_flash = dev_get_drvdata(c->this_device);
-	struct aspeed_espi_xfer xfer;
-
-	if (copy_from_user(&xfer, (void*)arg, sizeof(struct aspeed_espi_xfer)))
-		return -EFAULT; 
+	struct espi_flash_xfer xfer;
+	int xfer_len;
 
 	switch (cmd) {
 	case ASPEED_ESPI_FLASH_IOCRX:
-		printk(" ASPEED_ESPI_FLASH_IOCRX \n");
-		if (!espi_flash->flash_rx_channel.full) {
+		regmap_read(espi_flash->map, ASPEED_ESPI_FLASH_RX_CTRL, &rx_ctrl);
+		if((rx_ctrl & ESPI_TRIGGER_PACKAGE) || (espi_flash->dma_rx)) {
+			printk("cycle type = %x , tag = %x, len = %d byte \n", ESPI_GET_CYCLE_TYPE(rx_ctrl), ESPI_GET_TAG(rx_ctrl), ESPI_GET_LEN(rx_ctrl));
+			xfer.header = rx_ctrl & ~BIT(31);
+			if ((ESPI_GET_CYCLE_TYPE(rx_ctrl) == FLASH_READ) || (ESPI_GET_CYCLE_TYPE(rx_ctrl) == FLASH_ERASE))
+				xfer_len = 4;
+			else if (ESPI_GET_CYCLE_TYPE(rx_ctrl) == FLASH_WRITE)
+				xfer_len = ESPI_GET_LEN(rx_ctrl) + 4;
+			else if ((ESPI_GET_CYCLE_TYPE(rx_ctrl) & 0x09) == 0x09)
+				xfer_len = ESPI_GET_LEN(rx_ctrl);
+			else
+				xfer_len = 0;
+			if(espi_flash->dma_mode) {
+				memcpy(xfer.xfer_buf, espi_flash->rx_buff, xfer_len);
+				espi_flash->dma_rx = 0;
+			} else {
+				//pio mode
+				for (i = 0; i < xfer_len; i++) {
+					regmap_read(espi_flash->map, ASPEED_ESPI_FLASH_RX_DATA, &rx_data);
+					xfer.xfer_buf[i] = rx_data;
+//					printk("[%x ] \n", xfer.xfer_buf[i]);
+				}
+			}
+//			printk("rx xfer_len %d \n", xfer_len);
+			if (copy_to_user(argp, &xfer, sizeof(struct espi_flash_xfer)))
+					return -EFAULT;
+			regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_RX_CTRL, ESPI_TRIGGER_PACKAGE);	
+		} else 
 			ret = -ENODATA;
-			break;
-		}
-		xfer.header = espi_flash->flash_rx_channel.header;
-		xfer.buf_len = espi_flash->flash_rx_channel.buf_len;
-		if (copy_to_user(xfer.xfer_buf, espi_flash->flash_rx_channel.buff, espi_flash->flash_rx_channel.buf_len))
-			ret = -EFAULT;
-
-		espi_flash->flash_rx_channel.full = 0;
-		regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_RX_CTRL, ESPI_TRIGGER_PACKAGE);
 		break;
 	case ASPEED_ESPI_FLASH_IOCTX:
-		printk("header %x, buf_len = %d  \n", xfer.header, xfer.buf_len);
-		espi_flash->flash_tx_channel.header = xfer.header;
-		espi_flash->flash_tx_channel.buf_len = xfer.buf_len;
-		if (xfer.buf_len) {
-			if (copy_from_user(espi_flash->flash_tx_channel.buff, xfer.xfer_buf, xfer.buf_len)) {
-				printk("copy_from_user  fail\n");
-				ret = -EFAULT;
-			}
+		if (copy_from_user(&xfer, argp, sizeof(struct espi_flash_xfer))) {
+			printk("copy_from_user  fail\n");
+			ret = -EFAULT;
 		}
-		aspeed_espi_flash_tx(espi_flash);
+		if ((ESPI_GET_CYCLE_TYPE(xfer.header) == FLASH_READ) || (ESPI_GET_CYCLE_TYPE(xfer.header) == FLASH_ERASE))
+			xfer_len = 4;
+		else if (ESPI_GET_CYCLE_TYPE(xfer.header) == FLASH_WRITE)
+			xfer_len = ESPI_GET_LEN(xfer.header) + 4;
+		else if ((ESPI_GET_CYCLE_TYPE(xfer.header) & 0x09) == 0x09)
+			xfer_len = ESPI_GET_LEN(xfer.header);
+		else
+			xfer_len = 0;
+		
+		if(espi_flash->dma_mode) {
+			memcpy(espi_flash->tx_buff, xfer.xfer_buf, xfer_len);
+		} else {
+			for (i = 0; i < xfer_len; i++)
+				regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_TX_DATA, xfer.xfer_buf[i]);
+		}
+
+		regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_TX_CTRL, ESPI_TRIGGER_PACKAGE | xfer.header);
 		break;
 	default:
 		printk("ERROR \n");
 		return -ENOTTY;
 	}
 
+//	printk("ret %x \n", ret);
 	return ret;
 }
 
@@ -189,7 +193,10 @@ static ssize_t show_sw_flash_read(struct device *dev,
 
 	regmap_read(espi_flash->map, ASPEED_ESPI_CTRL, &ctrl);
 
-	return sprintf(buf, "%s Mode\n", ctrl & ESPI_CTRL_SW_FLASH_READ ? "1:SW" : "0:HW");
+	if(espi_flash->espi_version == ESPI_AST2500)
+		return sprintf(buf, "%s Mode\n", ctrl & ESPI_CTRL_SW_FLASH_READ ? "1:SW" : "0:HW");
+	else
+		return sprintf(buf, "%d (0: mix mode, 1: sw mode, 2:hw mode) \n", (ctrl >> 10) & 0x3);
 }
 
 static ssize_t store_sw_flash_read(struct device *dev,
@@ -199,11 +206,15 @@ static ssize_t store_sw_flash_read(struct device *dev,
 	struct aspeed_espi_flash *espi_flash = dev_get_drvdata(dev);
 
 	val = simple_strtoul(buf, NULL, 5);
-	if (val)
-		regmap_update_bits(espi_flash->map, ASPEED_ESPI_CTRL, ESPI_CTRL_SW_FLASH_READ, ESPI_CTRL_SW_FLASH_READ);
-	else
-		regmap_update_bits(espi_flash->map, ASPEED_ESPI_CTRL, ESPI_CTRL_SW_FLASH_READ, 0);
 
+	if(espi_flash->espi_version == ESPI_AST2500) {
+		if (val)
+			regmap_update_bits(espi_flash->map, ASPEED_ESPI_CTRL, ESPI_CTRL_SW_FLASH_READ, ESPI_CTRL_SW_FLASH_READ);
+		else
+			regmap_update_bits(espi_flash->map, ASPEED_ESPI_CTRL, ESPI_CTRL_SW_FLASH_READ, 0);
+	} else {
+		regmap_update_bits(espi_flash->map, ASPEED_ESPI_CTRL, GENMASK(11, 10), val << 10);
+	}
 	return count;
 }
 
@@ -236,7 +247,7 @@ static int aspeed_espi_flash_probe(struct platform_device *pdev)
 	struct aspeed_espi_flash *espi_flash;
 	const struct of_device_id *dev_id;	
 	int rc;
-	
+
 	espi_flash = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_espi_flash), GFP_KERNEL);
 	if (!espi_flash)
 		return -ENOMEM;
@@ -262,24 +273,22 @@ static int aspeed_espi_flash_probe(struct platform_device *pdev)
 		return -1;
 	}
 
-	dev_set_drvdata(dev, espi_flash);
-
 	if(espi_flash->dma_mode) {
-		espi_flash->flash_rx_channel.buff = dma_alloc_coherent(NULL,
+		espi_flash->dma_rx = 0;
+		espi_flash->tx_buff = dma_alloc_coherent(NULL,
 									  (MAX_XFER_BUFF_SIZE * 2),
-									  &espi_flash->flash_rx_channel.dma_addr, GFP_KERNEL);
+									  &espi_flash->tx_dma_addr, GFP_KERNEL);
+		espi_flash->rx_buff = espi_flash->tx_buff + MAX_XFER_BUFF_SIZE;
+		espi_flash->rx_dma_addr = espi_flash->tx_dma_addr + MAX_XFER_BUFF_SIZE;
 
-		espi_flash->flash_tx_channel.buff = espi_flash->flash_rx_channel.buff + MAX_XFER_BUFF_SIZE;
-		espi_flash->flash_tx_channel.dma_addr = espi_flash->flash_rx_channel.dma_addr + MAX_XFER_BUFF_SIZE;
-
-		regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_RX_DMA, espi_flash->flash_rx_channel.dma_addr);
-		regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_TX_DMA, espi_flash->flash_tx_channel.dma_addr);
+		regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_RX_DMA, espi_flash->rx_dma_addr);
+		regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_TX_DMA, espi_flash->rx_dma_addr);
 
 		regmap_update_bits(espi_flash->map, ASPEED_ESPI_CTRL, GENMASK(23, 22), ESPI_CTRL_FLASH_RX_DMA | ESPI_CTRL_FLASH_TX_DMA);	
 	} else {
 		// non-dma mode 
-		espi_flash->flash_rx_channel.buff = kzalloc(MAX_XFER_BUFF_SIZE * 2, GFP_KERNEL);
-		espi_flash->flash_tx_channel.buff = espi_flash->flash_rx_channel.buff + MAX_XFER_BUFF_SIZE;
+		espi_flash->tx_buff = kzalloc(MAX_XFER_BUFF_SIZE * 2, GFP_KERNEL);
+		espi_flash->rx_buff = espi_flash->tx_buff + MAX_XFER_BUFF_SIZE;
 	}
 
 	espi_flash->irq = platform_get_irq(pdev, 0);
@@ -315,6 +324,8 @@ static int aspeed_espi_flash_probe(struct platform_device *pdev)
 		dev_err(dev, "Unable to register device\n");
 		return rc;
 	}
+	platform_set_drvdata(pdev, espi_flash);
+	dev_set_drvdata(espi_flash->miscdev.this_device, espi_flash);
 
 	pr_info("aspeed espi-flash loaded \n");
 
