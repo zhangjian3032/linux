@@ -51,7 +51,8 @@ struct aspeed_espi_flash {
 	int 					rest_irq;					//espi reset irq	
 	
 	int						espi_version;
-	int						dma_mode;		/* o:disable , 1:enable */	
+	int					dma_mode;		/* o:disable , 1:enable */	
+	int					dma_rx;
 };
 
 static irqreturn_t aspeed_espi_flash_reset_irq(int irq, void *arg)
@@ -59,6 +60,7 @@ static irqreturn_t aspeed_espi_flash_reset_irq(int irq, void *arg)
 	struct aspeed_espi_flash *espi_flash = arg;
 
 	if(espi_flash->dma_mode) {
+		espi_flash->dma_rx = 0;
 		regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_RX_DMA, espi_flash->rx_dma_addr);
 		regmap_write(espi_flash->map, ASPEED_ESPI_FLASH_TX_DMA, espi_flash->tx_dma_addr);
 		regmap_update_bits(espi_flash->map, ASPEED_ESPI_CTRL, GENMASK(23, 22), ESPI_CTRL_FLASH_RX_DMA | ESPI_CTRL_FLASH_TX_DMA);
@@ -94,6 +96,8 @@ static irqreturn_t aspeed_espi_flash_irq(int irq, void *arg)
 		}
 	
 		if (flash_isr & ESPI_ISR_FLASH_RX_COMP) {
+			if(espi_flash->dma_mode)
+				espi_flash->dma_rx = 1;
 			printk("ESPI_ISR_FLASH_RX_COMP \n");
 		}
 		regmap_write(espi_flash->map, ASPEED_ESPI_ISR, flash_isr);
@@ -120,7 +124,7 @@ espi_flash_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case ASPEED_ESPI_FLASH_IOCRX:
 		regmap_read(espi_flash->map, ASPEED_ESPI_FLASH_RX_CTRL, &rx_ctrl);
-		if(rx_ctrl & ESPI_TRIGGER_PACKAGE) {
+		if((rx_ctrl & ESPI_TRIGGER_PACKAGE) || (espi_flash->dma_rx)) {
 			printk("cycle type = %x , tag = %x, len = %d byte \n", ESPI_GET_CYCLE_TYPE(rx_ctrl), ESPI_GET_TAG(rx_ctrl), ESPI_GET_LEN(rx_ctrl));
 			xfer.header = rx_ctrl & ~BIT(31);
 			if ((ESPI_GET_CYCLE_TYPE(rx_ctrl) == FLASH_READ) || (ESPI_GET_CYCLE_TYPE(rx_ctrl) == FLASH_ERASE))
@@ -132,6 +136,8 @@ espi_flash_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			else
 				xfer_len = 0;
 			if(espi_flash->dma_mode) {
+				memcpy(xfer.xfer_buf, espi_flash->rx_buff, xfer_len);
+				espi_flash->dma_rx = 0;
 			} else {
 				//pio mode
 				for (i = 0; i < xfer_len; i++) {
@@ -267,12 +273,8 @@ static int aspeed_espi_flash_probe(struct platform_device *pdev)
 		return -1;
 	}
 
-//	platform_set_drvdata(pdev, aspeed_mctp);
-//	dev_set_drvdata(aspeed_mctp_misc.this_device, aspeed_mctp);
-
-	
-
 	if(espi_flash->dma_mode) {
+		espi_flash->dma_rx = 0;
 		espi_flash->tx_buff = dma_alloc_coherent(NULL,
 									  (MAX_XFER_BUFF_SIZE * 2),
 									  &espi_flash->tx_dma_addr, GFP_KERNEL);
