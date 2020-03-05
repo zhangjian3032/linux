@@ -248,7 +248,7 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 	pci_read_config_byte(pdev, PCI_COMMAND, &config_val);
 	printk("command reg= %x\n",config_val);
 	config_val = config_val | PCI_COMMAND_MEMORY | PCI_COMMAND_IO;
-	config_val = config_val & ~PCI_COMMAND_INTX_DISABLE;
+//	config_val = config_val & ~PCI_COMMAND_INTX_DISABLE;
 	pci_write_config_byte( (struct pci_dev *)pdev,PCI_COMMAND,config_val);
 	pci_read_config_byte( (struct pci_dev *)pdev, PCI_COMMAND,&config_rd_val);
 	printk("command reg= %x\n",config_rd_val);
@@ -276,12 +276,13 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 #endif
 
 	printk ("Before pdev->irq:%d\n", pdev->irq);
+#if 0
 	retval = pci_enable_msi(pdev);
 	if (retval)
 	{
 		printk("MSI failed. et:%d\n", retval);
 	}
-
+#endif
 	printk ("After pdev->irq:%d\n", pdev->irq);
 //	pilotfunc1_priv.IntLine = pdev->irq;
 
