@@ -640,6 +640,7 @@
 					compatible = "aspeed,ast2600-espi-flash";
 					reg = <0x0 0x200>;
 					interrupts-extended = <&espi 3>, <&espi 4>;
+					dma-mode;
 					status = "disabled";
 				};
 			};
