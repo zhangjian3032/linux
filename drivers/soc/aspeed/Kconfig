@@ -46,4 +46,7 @@ config ASPEED_SSP
         default n
         help
           Driver for secondary-service-processor	
+
+source "drivers/soc/aspeed/rvas/Kconfig"
+
 endmenu

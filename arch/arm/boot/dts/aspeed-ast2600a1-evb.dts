@@ -431,11 +431,17 @@
 		aspeed,min_rpm = <2000>;
 	};
 };
-
+#if 1
 &video {
 	status = "okay";
 	memory-region = <&video_engine_memory>;
 };
+#else
+&rvas {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
+#endif
 
 &vhub {
 	status = "okay";
