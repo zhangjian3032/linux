@@ -1,10 +1,8 @@
 /*
- * This file is part of the Emulex Linux Device Driver for Emulex Baseboard Management Controller.
+ * This file is part of the ASPEED Linux Device Driver for ASPEED Baseboard Management Controller.
  * Refer to the README file included with this package for driver version and adapter compatibility.
  *
- * Copyright (C) 2010-2020 Emulex. All rights reserved.
- * EMULEX is a trademark of Emulex.
- * www.emulex.com
+ * Copyright (C) 2019-2021 ASPEED Technology Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it under the terms of version 2
  * of the GNU General Public License as published by the Free Software Foundation.

@@ -3,7 +3,7 @@
  * File Name     : hardware_engines.c
  * Description   : AST2600 frame grabber hardware engines
  *
- * Copyright (C) ASPEED Technology Inc.
+ * Copyright (C) 2019-2021 ASPEED Technology Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
