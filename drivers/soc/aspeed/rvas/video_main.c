@@ -828,6 +828,7 @@ static irqreturn_t fge_handler(int irq, void *dev_id)
 	if (clear_bse_interrupt(pAstRVAS)) {
 		bBSEItr = true;
 		pAstRVAS->bse_engine.finished = 1;
+		video_ss_wakeup_on_timeout(&pAstRVAS->bse_engine.wait);
 	}
 
 	if ((!bFgeItr) && (!bTfeItr) && (!bBSEItr) && (!bLdmaItr)
