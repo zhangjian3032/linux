@@ -898,6 +898,7 @@
 						interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
 						kcs_chan = <3>;
 						kcs_addr = <0xCA2>;
+						status = "disabled";
 					};
 				};
 
