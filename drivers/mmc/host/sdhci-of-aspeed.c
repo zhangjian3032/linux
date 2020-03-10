@@ -380,9 +380,8 @@ static int aspeed_sdc_probe(struct platform_device *pdev)
 	}
 
 	if (!of_property_read_u32(pdev->dev.of_node, \
-		"timing-phase", &timing_phase)) {
-		writew(timing_phase, sdc->regs + TIMING_PHASE_OFFSET);
-	}
+		"timing-phase", &timing_phase))
+		writel(timing_phase, sdc->regs + TIMING_PHASE_OFFSET);
 
 	dev_set_drvdata(&pdev->dev, sdc);
 
