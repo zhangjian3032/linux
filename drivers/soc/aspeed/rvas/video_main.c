@@ -841,6 +841,8 @@ static irqreturn_t fge_handler(int irq, void *dev_id)
 
 	if (bFgeItr) {
 		update_context_events(pAstRVAS,eduFge_status);
+		pAstRVAS->video_intr_occured = 1;
+		video_ss_wakeup_on_timeout(&pAstRVAS->video_wait);
 	}
 
 	return IRQ_HANDLED;
