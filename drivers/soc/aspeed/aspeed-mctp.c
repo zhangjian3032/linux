@@ -25,13 +25,14 @@
 #include <linux/io.h>
 #include <asm/uaccess.h>
 /*************************************************************************************/
-#define MCTP_DESC_SIZE		4096	//for tx/rx descript
-#define MCTP_TX_BUFF_SIZE	4096
-#define MCTP_RX_BUFF_POOL_SIZE	16384
-#define MCTP_TX_FIFO_NUM	1
-#define MCTP_G6_TX_FIFO_NUM	4
+#define MCTP_DESC_SIZE			4096	//for tx/rx descript
+#define MCTP_TX_BUFF_SIZE		4096
+#define MCTP_RX_BUFF_POOL_SIZE		16384
+#define MCTP_G6_RX_BUFF_POOL_SIZE	MCTP_RX_BUFF_POOL_SIZE * 4
+#define MCTP_TX_FIFO_NUM		1
+#define MCTP_G6_TX_FIFO_NUM		4
 
-#define MCTP_RX_DESC_BUFF_NUM	8
+#define MCTP_RX_DESC_BUFF_NUM		8
 
 #define G4_DRAM_BASE_ADDR	0x40000000
 #define G5_DRAM_BASE_ADDR	0x80000000
@@ -267,6 +268,15 @@ struct aspeed_mctp_info {
 	u32 rx_idx;
 	u32 rx_hw_idx;
 	u32 rx_full;
+
+	/* for ast2600 workaround, due to the hw read ptr is not point correctly,
+	 * should use other variable to track the actual cmd ptr.
+	 * rx_cmd_num should be 4 times of rx_fifo_num, and rx_fifo_num should
+	 * be 4n+1.
+	 */
+	int rx_cmd_num;
+	int rx_first_loop;
+	u32 rx_recv_idx;
 };
 
 /******************************************************************************/
@@ -432,7 +442,10 @@ static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 	if (aspeed_mctp->mctp_version == 6) {
 		//ast2600 : each 16 bytes align and configurable 64/128/256/512 bytes can recevice
 		u32 *rx_cmd_desc = aspeed_mctp->rx_cmd_desc;
-		for (i = 0; i < aspeed_mctp->rx_fifo_num; i++) {
+
+		aspeed_mctp->rx_recv_idx = 0;
+		aspeed_mctp->rx_first_loop = 0;
+		for (i = 0; i < aspeed_mctp->rx_cmd_num; i++) {
 			rx_cmd_desc[i] = (u32)aspeed_mctp->rx_pool_dma + (aspeed_mctp->rx_fifo_size * i);
 			MCTP_DBUG("Rx [%d]: desc: %x , \n", i, rx_cmd_desc[i]);
 		}
@@ -552,19 +565,24 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 				MCTP_DBUG("No rx data\n");
 				return 0;
 			} else {
-				struct pcie_vdm_header *vdm = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_idx);
-				u32 *rx_buffer = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_idx) + sizeof(struct pcie_vdm_header);
+				struct pcie_vdm_header *vdm = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
+				u32 *rx_buffer = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx) + sizeof(struct pcie_vdm_header);
 				// struct aspeed_mctp_xfer *mctp_rx_xfer = (struct aspeed_mctp_xfer *)arg;
 				recv_length = (vdm->length * 4) + vdm->pad_len;
 				mctp_xfer.header = *vdm;
-				// if (copy_to_user(&mctp_xfer.header, vdm, sizeof(struct pcie_vdm_header)))
-				// 	return -EFAULT;
-				// else {
+
 				if (copy_to_user(mctp_xfer.xfer_buff, rx_buffer, recv_length))
 					return -EFAULT;
 				// }
 				if (copy_to_user(argp, &mctp_xfer, sizeof(struct aspeed_mctp_xfer)))
 					return -EFAULT;
+
+				aspeed_mctp->rx_recv_idx++;
+				aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_cmd_num;
+				if ((aspeed_mctp->rx_first_loop == 0) && (aspeed_mctp->rx_recv_idx == aspeed_mctp->rx_fifo_num + 3)) {
+					aspeed_mctp->rx_recv_idx = 0;
+					aspeed_mctp->rx_first_loop = 1;
+				}
 
 				aspeed_mctp->rx_idx++;
 				aspeed_mctp->rx_idx %= aspeed_mctp->rx_fifo_num;
@@ -684,6 +702,7 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	struct aspeed_mctp_info *aspeed_mctp;
 	const struct of_device_id *mctp_dev_id;
 	int ret = 0;
+	int fifo_num;
 
 	MCTP_DBUG("\n");
 
@@ -713,7 +732,12 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		aspeed_mctp->tx_fifo_num = MCTP_G6_TX_FIFO_NUM;
 		//must 16byte align
 		aspeed_mctp->rx_fifo_size = (64 + 16);	//TODO AST2600 tx/rx unit can be configurate by register
-		aspeed_mctp->rx_fifo_num = MCTP_RX_BUFF_POOL_SIZE / aspeed_mctp->rx_fifo_size;
+
+		// for ast2600 workaround, rx_fifo_num should be 4n+1
+		fifo_num = ((MCTP_G6_RX_BUFF_POOL_SIZE / aspeed_mctp->rx_fifo_size) / 4);
+		aspeed_mctp->rx_fifo_num = fifo_num - ((fifo_num - 1) % 4);
+
+		aspeed_mctp->rx_cmd_num = aspeed_mctp->rx_fifo_num * 4;
 		aspeed_mctp->dram_base = G6_DRAM_BASE_ADDR;
 		break;
 	default:
@@ -807,9 +831,16 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 //rx buff pool init :
 //ast2400/ast2500, data address [29:7]: 0x00 , 0x80 , 0x100, 0x180,
 //ast2600, data address [30:4]: 0x00 , 0x10 , 0x20, 0x30,
-	aspeed_mctp->rx_pool = dma_alloc_coherent(NULL,
-			       MCTP_RX_BUFF_POOL_SIZE,
-			       &aspeed_mctp->rx_pool_dma, GFP_KERNEL);
+	if (aspeed_mctp->mctp_version != 6) {
+		aspeed_mctp->rx_pool = dma_alloc_coherent(NULL,
+				       MCTP_RX_BUFF_POOL_SIZE,
+				       &aspeed_mctp->rx_pool_dma, GFP_KERNEL);
+	} else {
+		// ast2600 workaround, rx_pool should be 4 times of rx fifo
+		aspeed_mctp->rx_pool = dma_alloc_coherent(NULL,
+				       MCTP_G6_RX_BUFF_POOL_SIZE,
+				       &aspeed_mctp->rx_pool_dma, GFP_KERNEL);
+	}
 
 	aspeed_mctp_ctrl_init(aspeed_mctp);
 
