@@ -603,3 +603,8 @@
 &hace {
 	status = "okay";
 };
+
+&kcs3 {
+	kcs_addr = <0xCA2>;
+	status = "okay";
+};
