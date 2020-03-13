@@ -34,9 +34,9 @@
 
 #define MCTP_RX_DESC_BUFF_NUM		8
 
-#define G4_DRAM_BASE_ADDR	0x40000000
-#define G5_DRAM_BASE_ADDR	0x80000000
-#define G6_DRAM_BASE_ADDR	0x80000000
+#define G4_DRAM_BASE_ADDR		0x40000000
+#define G5_DRAM_BASE_ADDR		0x80000000
+#define G6_DRAM_BASE_ADDR		0x80000000
 
 /*************************************************************************************/
 #define ASPEED_MCTP_CTRL 		0x00
@@ -115,7 +115,7 @@
 //bit 12:2 is packet in 4bytes
 //ast2400 bit 12 can be use.
 //ast2500 bit 12 can't be used. 0: 1024 * 4 = 4096
-#define G5_PKG_SIZE(x)		((x & 0x3ff) << 2)
+#define G5_PKG_SIZE(x)			((x & 0x3ff) << 2)
 #define PKG_SIZE(x)			((x & 0x7ff) << 2)
 
 #define PADDING_LEN(x)			(x & 0x3)
@@ -567,13 +567,13 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 			} else {
 				struct pcie_vdm_header *vdm = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
 				u32 *rx_buffer = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx) + sizeof(struct pcie_vdm_header);
-				// struct aspeed_mctp_xfer *mctp_rx_xfer = (struct aspeed_mctp_xfer *)arg;
+
 				recv_length = (vdm->length * 4) + vdm->pad_len;
 				mctp_xfer.header = *vdm;
 
 				if (copy_to_user(mctp_xfer.xfer_buff, rx_buffer, recv_length))
 					return -EFAULT;
-				// }
+
 				if (copy_to_user(argp, &mctp_xfer, sizeof(struct aspeed_mctp_xfer)))
 					return -EFAULT;
 
@@ -917,7 +917,7 @@ aspeed_mctp_resume(struct platform_device *pdev)
 
 static struct platform_driver aspeed_mctp_driver = {
 	.probe 		= aspeed_mctp_probe,
-	.remove 		= aspeed_mctp_remove,
+	.remove 	= aspeed_mctp_remove,
 #ifdef CONFIG_PM
 	.suspend        = aspeed_mctp_suspend,
 	.resume         = aspeed_mctp_resume,
