@@ -700,3 +700,18 @@
 &acry {
 	status = "okay";
 };
+
+&kcs1 {
+	kcs_addr = <0xCA0>;
+	status = "okay";
+};
+
+&kcs2 {
+	kcs_addr = <0xCA8>;
+	status = "okay";
+};
+
+&kcs3 {
+	kcs_addr = <0xCA2>;
+	status = "okay";
+};
