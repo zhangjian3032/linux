@@ -1255,8 +1255,7 @@ void ioctl_fetch_video_slices(RvasIoctl *ri, AstRVAS *pAstRVAS)
 	u32 addrBSCR = pAstRVAS->fg_reg_base + BSE_Command_Register;
 	void* desc_virt = NULL;
 	u32 desc_phy = 0;
-	ContextTable* ctx_entry = ctx_entry = get_context_entry(ri->rc,
-	        pAstRVAS);
+	ContextTable* ctx_entry = get_context_entry(ri->rc, pAstRVAS);
 
 	VIDEO_DBG("Start\n");
 
