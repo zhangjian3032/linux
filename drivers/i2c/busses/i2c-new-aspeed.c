@@ -651,7 +651,6 @@ static void ast_slave_issue_alert(struct aspeed_new_i2c_bus *i2c_bus, u8 enable)
 				      AST_I2CS_CMD_STS);
 	}
 }
-
 #endif
 
 static u8
@@ -660,14 +659,21 @@ aspeed_i2c_bus_error_recover(struct aspeed_new_i2c_bus *i2c_bus)
 	u32 ctrl;
 	u32 sts;
 	int r;
-//	u32 i = 0;
-	dev_dbg(i2c_bus->dev, "aspeed_i2c_bus_error_recover \n");
+	int ret = 0;
+
+	dev_dbg(i2c_bus->dev, "%d-bus aspeed_i2c_bus_error_recover %x \n", i2c_bus->adap.nr,
+		aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
 
 	ctrl = aspeed_i2c_read(i2c_bus, AST_I2CC_FUN_CTRL);
 
 	aspeed_i2c_write(i2c_bus, ctrl & ~(AST_I2CC_MASTER_EN | AST_I2CC_SLAVE_EN),
-		      AST_I2CC_FUN_CTRL);
-	aspeed_i2c_write(i2c_bus, ctrl, AST_I2CC_FUN_CTRL);
+				AST_I2CC_FUN_CTRL);
+
+	aspeed_i2c_write(i2c_bus, aspeed_i2c_read(i2c_bus, AST_I2CC_FUN_CTRL) | AST_I2CC_MASTER_EN,
+				AST_I2CC_FUN_CTRL);
+
+	dev_dbg(i2c_bus->dev, "%d-bus aspeed_i2c_bus_error_recover %x \n", i2c_bus->adap.nr,
+		aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
 	
 	//Check 0x14's SDA and SCL status
 	sts = aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF);
@@ -676,11 +682,12 @@ aspeed_i2c_bus_error_recover(struct aspeed_new_i2c_bus *i2c_bus)
 		//Means bus is idle.
 		dev_dbg(i2c_bus->dev, "I2C bus (%d) is idle. I2C slave doesn't exist?! [%x]\n",
 			i2c_bus->adap.nr, sts);
-		return -1;
+		ret = -1;
+		goto recovery_out;
 	}
 
-	dev_dbg(i2c_bus->dev, "ERROR!! I2C(%d) bus hanged, try to recovery it!\n",
-		i2c_bus->adap.nr);
+	dev_dbg(i2c_bus->dev, "ERROR!! I2C(%d) bus hanged, try to recovery it! [%x]\n",
+		i2c_bus->adap.nr, sts);
 
 	if ((sts & AST_I2CC_SDA_LINE_STS) && !(sts & AST_I2CC_SCL_LINE_STS)) {
 		//if SDA == 1 and SCL == 0, it means the master is locking the bus.
@@ -696,11 +703,11 @@ aspeed_i2c_bus_error_recover(struct aspeed_new_i2c_bus *i2c_bus)
 						i2c_bus->adap.timeout);
 		if (r == 0) {
 			dev_dbg(i2c_bus->dev, "recovery timed out\n");
-			return -1;
+			ret = -1;
 		} else {
 			if (i2c_bus->cmd_err) {
 				dev_dbg(i2c_bus->dev, "recovery error \n");
-				return -1;
+				ret = -1;
 			}
 		}
 	} else if (!(sts & AST_I2CC_SDA_LINE_STS)) {
@@ -717,26 +724,34 @@ aspeed_i2c_bus_error_recover(struct aspeed_new_i2c_bus *i2c_bus)
 						i2c_bus->adap.timeout);
 		if (r == 0) {
 			dev_dbg(i2c_bus->dev, "recovery timed out\n");
-			return -1;
+			ret = -1;
 		} else {
 			if (i2c_bus->cmd_err) {
 				dev_dbg(i2c_bus->dev, "recovery error \n");
-				return -1;
-			}
+				ret = -1;
+			} 
 		}
-		//Check 0x14's SDA and SCL status
-		sts = aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF);
-		if (sts & AST_I2CC_SDA_LINE_STS) {
-			dev_dbg(i2c_bus->dev, "AST_I2CC_SDA_LINE_STS recovery successfully\n");
-			return 0;
-		}
-
 	} else {
 		dev_dbg(i2c_bus->dev, "Don't know how to handle this case?!\n");
-		return -1;
+		ret = -1;
 	}
-	dev_dbg(i2c_bus->dev, "Recovery successfully\n");
-	return 0;
+
+recovery_out:
+#ifdef CONFIG_I2C_SLAVE
+	if(ctrl & AST_I2CC_SLAVE_EN) {
+		//trigger rx buffer
+		aspeed_i2c_write(i2c_bus, i2c_bus->slave_dma_addr, AST_I2CS_RX_DMA);
+		aspeed_i2c_write(i2c_bus, i2c_bus->slave_dma_addr, AST_I2CS_TX_DMA);
+		aspeed_i2c_write(i2c_bus, AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), AST_I2CS_DMA_LEN);
+		aspeed_i2c_write(i2c_bus, AST_I2CS_AUTO_NAK_EN, AST_I2CS_CMD_STS);
+		aspeed_i2c_write(i2c_bus, AST_I2CC_SLAVE_EN | aspeed_i2c_read(i2c_bus, AST_I2CC_FUN_CTRL), AST_I2CC_FUN_CTRL);
+		aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_RX_DMA_EN, AST_I2CS_CMD_STS);		
+	}
+	aspeed_i2c_write(i2c_bus, ctrl, AST_I2CC_FUN_CTRL);
+#endif	
+	
+	dev_dbg(i2c_bus->dev, "Recovery done [%x]\n", aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
+	return ret;
 }
 
 static int aspeed_i2c_wait_bus_not_busy(struct aspeed_new_i2c_bus *i2c_bus)
@@ -745,10 +760,12 @@ static int aspeed_i2c_wait_bus_not_busy(struct aspeed_new_i2c_bus *i2c_bus)
 
 	while (aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF) & AST_I2CC_BUS_BUSY_STS) {
 		if (timeout <= 0) {
+			int ret = 0;
 			dev_dbg(i2c_bus->dev, "%d-bus busy %x \n", i2c_bus->adap.nr,
 				aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
-			aspeed_i2c_bus_error_recover(i2c_bus);
-			return -EAGAIN;
+			ret = aspeed_i2c_bus_error_recover(i2c_bus);
+			if (ret)
+				return -EAGAIN;
 		}
 		timeout--;
 		mdelay(10);
@@ -804,6 +821,7 @@ int aspeed_new_i2c_slave_handler(struct aspeed_new_i2c_bus *i2c_bus)
 	}
 
 	if (AST_I2CS_ADDR_MASK & sts) {
+		dev_dbg(i2c_bus->dev, "TODO slave address2/3 irq sts %x\n", sts);
 		sts &= ~AST_I2CS_ADDR_MASK;
 		isr_wc |= AST_I2CS_ADDR_MASK;
 	}
@@ -1163,8 +1181,7 @@ int aspeed_new_i2c_master_handler(struct aspeed_new_i2c_bus *i2c_bus)
 				aspeed_new_i2c_master_xfer_done(i2c_bus);
 				break;
 			case AST_I2CM_PKT_ERROR | AST_I2CM_TX_NAK:	//a0 fix for issue
-				dev_dbg(i2c_bus->dev, "a0 workaround for M TX NAK  \n");
-				printk("a0 workaround for M TX NAK  \n");
+				dev_dbg(i2c_bus->dev, "a0 workaround for M TX NAK [%x]\n", aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
 			case AST_I2CM_PKT_ERROR | AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP:
 				dev_dbg(i2c_bus->dev, "M TX NAK | NORMAL STOP \n");
 				i2c_bus->cmd_err = AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP;
@@ -1256,6 +1273,8 @@ static int aspeed_new_i2c_do_msgs_xfer(struct aspeed_new_i2c_bus *i2c_bus,
 			u32 reg_val = aspeed_i2c_read(i2c_bus, AST_I2CC_FUN_CTRL);
 			if (timeout == 0) {
 				dev_err(i2c_bus->dev, "controller timed out\n");
+				printk("ier %x \n", aspeed_i2c_read(i2c_bus, AST_I2CM_IER));
+				printk("isr %x \n", aspeed_i2c_read(i2c_bus, AST_I2CM_ISR));
 				ret = -ETIMEDOUT;
 			} else if (timeout == -ERESTARTSYS) {
 				dev_err(i2c_bus->dev, "controller ERESTARTSYS\n");
@@ -1269,38 +1288,25 @@ static int aspeed_new_i2c_do_msgs_xfer(struct aspeed_new_i2c_bus *i2c_bus,
 		if (i2c_bus->cmd_err != 0) {
 			if (i2c_bus->cmd_err == (AST_I2CM_TX_NAK |
 						 AST_I2CM_NORMAL_STOP)) {
-				dev_dbg(i2c_bus->dev, "normal nak go out \n");
+				dev_dbg(i2c_bus->dev, "normal nak go out cmd_sts [%x]\n", aspeed_i2c_read(i2c_bus, AST_I2CM_CMD_STS));
 				ret = -ETIMEDOUT;
-				goto out;
 			} else if (i2c_bus->cmd_err == AST_I2CM_ABNORMAL_COND) {
 				dev_dbg(i2c_bus->dev, "abnormal go out \n");
 				ret = -ETIMEDOUT;
-				goto out;
+			} else if (i2c_bus->cmd_err == (AST_I2CM_PKT_ERROR | AST_I2CM_ARBIT_LOSS)) {
+				dev_dbg(i2c_bus->dev, "AST_I2CM_ARBIT_LOSS go out \n");
+				ret = -ETIMEDOUT;
 			} else {
-				dev_dbg(i2c_bus->dev, "send stop \n");
+				dev_dbg(i2c_bus->dev, "send stop TODO Check\n");
 				ret = -EAGAIN;
-				goto stop;
 			}
+			goto out;
 		}
 		ret++;
 	}
 
 	if (i2c_bus->cmd_err == 0)
 		goto out;
-stop:
-	printk("TODO ~~");
-	init_completion(&i2c_bus->cmd_complete);
-	aspeed_i2c_write(i2c_bus, AST_I2CM_STOP_CMD, AST_I2CM_CMD_STS);
-	timeout = wait_for_completion_timeout(&i2c_bus->cmd_complete,
-					      i2c_bus->adap.timeout * HZ);
-	if (timeout == 0) {
-		dev_dbg(i2c_bus->dev, "send stop timed out\n");
-		i2c_bus->state = (aspeed_i2c_read(i2c_bus, AST_I2CM_CMD_STS) >> 19) & 0xf;
-		dev_dbg(i2c_bus->dev, "sts [%x], isr sts [%x] \n", i2c_bus->state,
-			aspeed_i2c_read(i2c_bus, AST_I2CM_ISR));
-		ret = -ETIMEDOUT;
-	}
-
 out:
 	return ret;
 
