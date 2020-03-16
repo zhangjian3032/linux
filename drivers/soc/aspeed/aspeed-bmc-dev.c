@@ -23,11 +23,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>       /* printk()             */
 #include <linux/errno.h>
-#include <linux/sched.h>
-#include <linux/kernel.h>
-#include <linux/ide.h>
-#include <linux/pci.h>
-#include <asm/delay.h>
 
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -35,19 +30,11 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
-#include <linux/io.h>
-#include <linux/poll.h>
-#include <linux/slab.h>
 #include <linux/regmap.h>
-#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/syscon.h>
-#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/miscdevice.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
-#include <linux/module.h>
 
 #define DEVICE_NAME     "bmc-device"
 
@@ -272,8 +259,7 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct aspeed_bmc_device *bmc_device;
-	int ret;
-	int rc;	
+	int ret = 0;
 
 	bmc_device = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_bmc_device), GFP_KERNEL);
 	if (!bmc_device)
@@ -281,18 +267,18 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 
 	bmc_device->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bmc_device->reg_base))
-		return PTR_ERR(bmc_device->reg_base);
+		goto out_region;
 
 	bmc_device->scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
 	if (IS_ERR(bmc_device->scu)) {
 		dev_err(&pdev->dev, "failed to find SCU regmap\n");
-		return PTR_ERR(bmc_device->scu);
+		goto out_region;
 	}
 
 	bmc_device->bmc_mem_virt = dma_alloc_coherent(&pdev->dev, BMC_MEM_BAR_SIZE, &bmc_device->bmc_mem_phy, GFP_KERNEL);
 	memset(bmc_device->bmc_mem_virt, 0, BMC_MEM_BAR_SIZE);
 	
-	printk("virt=%x phy %x\n", bmc_device->bmc_mem_virt, bmc_device->bmc_mem_phy);
+	printk("virt=%p phy %x\n", bmc_device->bmc_mem_virt, bmc_device->bmc_mem_phy);
 
 	sysfs_bin_attr_init(&bmc_device->bin0);
 	sysfs_bin_attr_init(&bmc_device->bin1);
@@ -303,16 +289,16 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 	bmc_device->bin0.write = aspeed_bmc2host_queue1_tx;
 	bmc_device->bin0.size = 4;
 
-	rc = sysfs_create_bin_file(&pdev->dev.kobj, &bmc_device->bin0);
-	if (rc) {
+	ret = sysfs_create_bin_file(&pdev->dev.kobj, &bmc_device->bin0);
+	if (ret) {
 		printk("error for bin file ");
-		return rc;
+		goto out_dma;
 	}
 
 	bmc_device->kn0 = kernfs_find_and_get(dev->kobj.sd, bmc_device->bin0.attr.name);
 	if (!bmc_device->kn0) {
 		sysfs_remove_bin_file(&dev->kobj, &bmc_device->bin0);
-		return -EFAULT;
+		goto out_dma;
 	}
 
 	bmc_device->bin1.attr.name = "bmc-dev-queue2";
@@ -321,16 +307,16 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 	bmc_device->bin1.write = aspeed_bmc2host_queue2_tx;
 	bmc_device->bin1.size = 4;
 
-	rc = sysfs_create_bin_file(&pdev->dev.kobj, &bmc_device->bin1);
-	if (rc) {
+	ret = sysfs_create_bin_file(&pdev->dev.kobj, &bmc_device->bin1);
+	if (ret) {
 		printk("error for bin file ");
-		return rc;
+		goto out_dma;
 	}
 
 	bmc_device->kn1 = kernfs_find_and_get(dev->kobj.sd, bmc_device->bin1.attr.name);
 	if (!bmc_device->kn1) {
 		sysfs_remove_bin_file(&dev->kobj, &bmc_device->bin1);
-		return -EFAULT;
+		goto out_dma;
 	}
 
 	dev_set_drvdata(dev, bmc_device);
@@ -340,24 +326,24 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 	bmc_device->irq =  platform_get_irq(pdev,0);
 	if(bmc_device->irq < 0) {
 		dev_err(&pdev->dev,"platform get of irq[=%d] failed!\n", bmc_device->irq);
-		return -ENODEV;
+		goto out_unmap;
 	}
 
 	ret = devm_request_irq(&pdev->dev, bmc_device->irq, aspeed_bmc_dev_isr,
 							0, dev_name(&pdev->dev), bmc_device);
 	if (ret) {
 		printk("aspeed bmc device Unable to get IRQ");
-		goto out_region;
+		goto out_unmap;
 	}
 
 	bmc_device->miscdev.minor = MISC_DYNAMIC_MINOR;
 	bmc_device->miscdev.name = DEVICE_NAME;
 	bmc_device->miscdev.fops = &aspeed_bmc_device_fops;
 	bmc_device->miscdev.parent = dev;
-	rc = misc_register(&bmc_device->miscdev);
-	if (rc) {
+	ret = misc_register(&bmc_device->miscdev);
+	if (ret) {
 		dev_err(dev, "Unable to register device\n");
-		return rc;
+		goto out_irq;
 	}
 
 	printk(KERN_INFO "aspeed bmc device: driver successfully loaded.\n");
@@ -367,10 +353,15 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 out_irq:
 	devm_free_irq(&pdev->dev, bmc_device->irq, bmc_device);
 
-out_region:
-	kfree(bmc_device);
+out_unmap:
+	iounmap(bmc_device->reg_base);
 
-out:
+out_dma:
+	dma_free_coherent(&pdev->dev, BMC_MEM_BAR_SIZE, bmc_device->bmc_mem_virt, bmc_device->bmc_mem_phy);
+	
+out_region:
+	devm_kfree(&pdev->dev, bmc_device);
+
 	printk(KERN_WARNING "aspeed bmc device: driver init failed (ret=%d)!\n", ret);
 	return ret;
 }
@@ -378,26 +369,17 @@ out:
 static int  aspeed_bmc_device_remove( struct platform_device *pdev)
 {
 	struct aspeed_bmc_device *bmc_device = platform_get_drvdata(pdev);
-	unsigned int ret;
 
 	misc_deregister(&bmc_device->miscdev);
-#if 0
-	kfree(bmc_device->miscdev);
 
 	devm_free_irq(&pdev->dev, bmc_device->irq, bmc_device);
 
 	iounmap(bmc_device->reg_base);
-	release_mem_region(res->start, res->end - res->start + 1);
 
-	if (bmc_device->ddr_virt_addr) {
-		dma_free_coherent(&pdev->dev,
-				priv->ddr_len,
-				priv->ddr_virt_addr,
-				priv->ddr_phy_addr);
-	}
+	dma_free_coherent(&pdev->dev, BMC_MEM_BAR_SIZE, bmc_device->bmc_mem_virt, bmc_device->bmc_mem_phy);
 
-	iounmap(priv->reg_base);
-#endif	
+	devm_kfree(&pdev->dev, bmc_device);
+
     return 0;
 }
 
