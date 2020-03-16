@@ -73,7 +73,7 @@
 #endif
 		};
 
-		host2bmc_memory: host2bmc_memory {
+		bmc_dev_memory: bmc_dev_memory {
 			size = <0x00100000>;
 			alignment = <0x00100000>;
 			compatible = "shared-dma-pool";
@@ -95,10 +95,10 @@
 	memory-region = <&ssp_memory>;
 };
 
-&host2bmc {
+&bmc_dev {
 	status = "okay";
 
-	memory-region = <&host2bmc_memory>;
+	memory-region = <&bmc_dev_memory>;
 };
 
 &ssp_tcm {
