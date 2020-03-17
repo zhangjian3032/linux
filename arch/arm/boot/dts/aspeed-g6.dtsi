@@ -657,17 +657,6 @@
 				status = "disabled";
 			};
 
-			rvas: rvas@1e7c8000 {
-				compatible = "aspeed,ast2600-rvas";
-				reg = <0x1e7c8000 0x800 0x1e6ec000 0x800 0x1e7c0000 0x2000>;
-				clocks = <&syscon ASPEED_CLK_GATE_VCLK>,
-					 <&syscon ASPEED_CLK_GATE_ECLK>;
-				clock-names = "vclk", "eclk";
-				interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
-				resets = <&syscon ASPEED_RESET_VIDEO>;
-				status = "disabled";
-			};
-
 			h2x: h2x@1e770000 {
 			compatible = "aspeed,ast2600-h2x";
 			reg = <0x1e770000 0x100>;
@@ -1347,6 +1336,17 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges = <0 0x1e7a0000 0x8000>;
+			};
+
+			rvas: rvas@1e7c8000 {
+				compatible = "aspeed,ast2600-rvas";
+				reg = <0x1e7c8000 0x800 0x1e6ec000 0x800 0x1e7c0000 0x2000>;
+				clocks = <&syscon ASPEED_CLK_GATE_VCLK>,
+						<&syscon ASPEED_CLK_GATE_ECLK>;
+				clock-names = "vclk", "eclk";
+				interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&syscon ASPEED_RESET_VIDEO>;
+				status = "disabled";
 			};
 
 			bmc_dev: bmc_dev@1e7e0000 {
