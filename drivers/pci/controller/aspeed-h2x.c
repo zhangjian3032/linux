@@ -36,6 +36,7 @@
 
 /* reg 0x80, 0xC0 */
 #define PCIE_RX_TAG_MASK		GENMASK(23, 16)
+#define PCIE_RX_DMA_EN			BIT(9)
 #define PCIE_RX_LINEAR			BIT(8)
 #define PCIE_RX_MSI_SEL			BIT(7)
 #define PCIE_RX_MSI_EN			BIT(6)
@@ -422,24 +423,24 @@ extern void aspeed_h2x_rc_intr_handler(struct aspeed_pcie *pcie)
 	}
 	//msi isr
 	for (i = 0; i < 2; i++) {
-			status = readl(pcie->h2x_rc_base + 0x28 + (i * 4));
-//			printk("aspeed_pcie_intr_handler  status %lx \n", status);
-			writel(status, pcie->h2x_rc_base + 0x28 + (i * 4));
-//			printk("read  status %x \n", readl(pcie->h2xreg_base + 0xe8 + (i * 4)));
-			if (!status)
-					continue;
+		status = readl(pcie->h2x_rc_base + 0x28 + (i * 4));
+//		printk("aspeed_pcie_intr_handler  status %lx \n", status);
+		writel(status, pcie->h2x_rc_base + 0x28 + (i * 4));
+//		printk("read  status %x \n", readl(pcie->h2xreg_base + 0xe8 + (i * 4)));
+		if (!status)
+				continue;
 
-			for_each_set_bit(bit, &status, 32) {
-				if(i) {
-					bit += 32;
-				}
-				virq = irq_find_mapping(pcie->msi_domain, bit);
-//				printk("[%d] : find bit %d mapping irq no %d \n", i, bit, virq);
-				if (virq)
-					generic_handle_irq(virq);
-				else
-					dev_err(pcie->dev, "unexpected MSI\n");
+		for_each_set_bit(bit, &status, 32) {
+			if(i) {
+				bit += 32;
 			}
+			virq = irq_find_mapping(pcie->msi_domain, bit);
+//			printk("[%d] : find bit %d mapping irq #%d \n", i, bit, virq);
+			if (virq)
+				generic_handle_irq(virq);
+			else
+				dev_err(pcie->dev, "unexpected MSI\n");
+		}
 	}
 }
 
@@ -496,7 +497,7 @@ extern void aspeed_h2x_rc_init(struct aspeed_pcie *pcie)
 	writel(0xFFFFFFFF, pcie->h2x_rc_base + 0x2c);
 
 	//rc_l
-	writel( PCIE_RX_LINEAR | PCIE_RX_MSI_SEL | PCIE_RX_MSI_EN |
+	writel( PCIE_RX_DMA_EN | PCIE_RX_LINEAR | PCIE_RX_MSI_SEL | PCIE_RX_MSI_EN |
 			PCIE_Wait_RX_TLP_CLR | PCIE_RC_RX_ENABLE | PCIE_RC_ENABLE,
 	pcie->h2x_rc_base);
 	//assign debug tx tag

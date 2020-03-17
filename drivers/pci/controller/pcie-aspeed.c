@@ -40,6 +40,7 @@
 	
 #define ASPEED_PCIE_LINK			0xC0
 #define ASPEED_PCIE_INT				0xC4
+#define ASPEED_PCIE_LINK_STS		0xD0
 
 /* 	AST_PCIE_CFG2			0x04		*/
 #define PCIE_CFG_CLASS_CODE(x)	(x << 8)
@@ -53,6 +54,10 @@
 
 /*	AST_PCIE_LINK			0xC0	*/
 #define PCIE_LINK_STS			BIT(5)
+
+/*  ASPEED_PCIE_LINK_STS	0xD0	*/
+#define PCIE_LINK_5G			BIT(17)
+#define PCIE_LINK_2_5G			BIT(16)
 
 static DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_HOST_IRQS);
 
@@ -282,7 +287,10 @@ static void aspeed_pcie_init_port(struct aspeed_pcie *pcie)
 	/* Don't register host if link is down */
 	if (readl(pcie->pciereg_base + ASPEED_PCIE_LINK) & PCIE_LINK_STS) {
 		aspeed_h2x_workaround(pcie);
-		printk("PCIE- Link up\n");
+		if(readl(pcie->pciereg_base + ASPEED_PCIE_LINK_STS) & PCIE_LINK_5G)
+			printk("PCIE- Link up : 5G \n");
+		if(readl(pcie->pciereg_base + ASPEED_PCIE_LINK_STS) & PCIE_LINK_2_5G)
+			printk("PCIE- Link up : 2.5G \n");
 	} else {
 		printk("PCIE- Link down\n");
 	}

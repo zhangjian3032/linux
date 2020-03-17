@@ -23,11 +23,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>       /* printk()             */
 #include <linux/errno.h>
-#include <linux/sched.h>
-#include <linux/kernel.h>
-#include <linux/ide.h>
-#include <linux/pci.h>
-#include <asm/delay.h>
 
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -35,19 +30,11 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
-#include <linux/io.h>
-#include <linux/poll.h>
-#include <linux/slab.h>
 #include <linux/regmap.h>
-#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/syscon.h>
-#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/miscdevice.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
-#include <linux/module.h>
 
 #define DEVICE_NAME     "bmc-device"
 
@@ -59,8 +46,7 @@ struct aspeed_bmc_device {
 	dma_addr_t bmc_mem_phy;
 	struct bin_attribute	bin0;
 	struct bin_attribute	bin1;
-
-
+	struct regmap			*scu;
 
 //	phys_addr_t		mem_base;
 //	resource_size_t		mem_size;
@@ -71,10 +57,14 @@ struct aspeed_bmc_device {
 	unsigned int irq;	
 };
 
+#define BMC_MEM_BAR_SIZE		0x100000
+#define BMC_QUEUE_SIZE 			(16 * 4)
+
+
 /* ================================================================================== */
-#define ASPEED_BMC_CONFIG_SPACE		0xF00
 #define ASPEED_BMC_MEM_BAR			0xF10
-#define ASPEED_BMC_MSG_BAR_REMAP	0xF14
+#define  PCIE2PCI_MEM_BAR_ENABLE		BIT(1)
+#define  HOST2BMC_MEM_BAR_ENABLE		BIT(0)
 #define ASPEED_BMC_MEM_BAR_REMAP	0xF18
 
 #define ASPEED_BMC_SHADOW_CTRL		0xF50
@@ -147,29 +137,28 @@ static ssize_t aspeed_host2bmc_queue1_rx(struct file *filp, struct kobject *kobj
 		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
 	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
+	u32 *data = (u32 *) buf;
 
-	//read from bmc fifo ~~~
 	printk("aspeed_host2bmc_queue1_rx \n");
-	if(!(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q1_EMPTY)) {
-		printk("! HOST2BMC_Q1_EMPTY \n");
-		buf = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q1);
-		return 4;
-	} else 
+	if(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q1_EMPTY)
 		return 0;
-
+	else {
+		data[0] = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q1);
+		printk("Got HOST2BMC_Q1 [%x] \n", data[0]);
+		return 4;
+	} 
 }
 
 static ssize_t aspeed_host2bmc_queue2_rx(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
-	u32 write_pt;
 	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
+	u32 *data = (u32 *) buf;
 
-	//read from bmc fifo ~~~
 	printk("aspeed_host2bmc_queue2_rx \n");
 	if(!(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q2_EMPTY)) {
-		printk("! HOST2BMC_Q1_EMPTY \n");
-		buf = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q2);
+		data[0] = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q2);
+		printk("Got HOST2BMC_Q2 [%x] \n", data[0]);
 		return 4;
 	} else 
 		return 0;
@@ -186,12 +175,14 @@ static ssize_t aspeed_bmc2host_queue1_tx(struct file *filp, struct kobject *kobj
 	if(count != 4)
 		return -1;
 	
-	if(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & BMC2HOST_Q1_FULL)
+	if(readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS) & BMC2HOST_Q1_FULL)
 		return -1;
 	else {
 		memcpy(&tx_buff, buf, 4);
 		printk("tx_buff %x \n", tx_buff);
 		writel(tx_buff, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_Q1);
+		//trigger to host 
+		writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
 		return 4;
 	}
 }
@@ -205,12 +196,14 @@ static ssize_t aspeed_bmc2host_queue2_tx(struct file *filp, struct kobject *kobj
 	if(count != 4)
 		return -1;
 	
-	if(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & BMC2HOST_Q2_FULL)
+	if(readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS) & BMC2HOST_Q2_FULL)
 		return -1;
 	else {
 		memcpy(&tx_buff, buf, 4);
 		printk("tx_buff %x \n", tx_buff);
 		writel(tx_buff, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_Q2);
+		//trigger to host
+		writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
 		return 4;
 	}
 }
@@ -219,10 +212,9 @@ static irqreturn_t aspeed_bmc_dev_isr(int irq, void *dev_id)
 {
 	struct aspeed_bmc_device *bmc_device = dev_id;
 
-	u32 bmc2host_q_sts = readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
 	u32 host2bmc_q_sts = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS);
 
-	printk("%s bmc2host_q_sts is %x host2bmc_q_sts is %x\n", __FUNCTION__, bmc2host_q_sts, host2bmc_q_sts);
+	printk("%s host2bmc_q_sts is %x\n", __FUNCTION__, host2bmc_q_sts);
 
 	if(host2bmc_q_sts & HOST2BMC_INT_STS_DOORBELL) {
 		writel(HOST2BMC_INT_STS_DOORBELL, bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS);
@@ -237,47 +229,20 @@ static irqreturn_t aspeed_bmc_dev_isr(int irq, void *dev_id)
 	if(host2bmc_q_sts & HOST2BMC_Q2_FULL) {
 	}	
 
-	if(bmc2host_q_sts & BMC2HOST_INT_STS_DOORBELL) {
-	}
-
-	if(bmc2host_q_sts & BMC2HOST_ENABLE_INTB) {
-	}
-
 	return IRQ_HANDLED;
 }
-
 
 static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 {
 	printk("aspeed_bmc_device_init \n");
 
-	writel(0x080019A2, bmc_device->reg_base);
-//	writel(0x00000001, bmc_device->reg_base + 0x04);
-	writel(0x0B400000, bmc_device->reg_base + 0x08);
-	writel(0x00000000, bmc_device->reg_base + 0x0C);	// It was 0x01
-//
-//Bit 31:2 – This is a programmable range where the amount of memory needed is exposed.
-//Bit 1 – Enable Memory BAR on PCIe2PCI Bridge.
-//Bit 0 – Enable Memory BAR on Host2BMC Device.
-//When the Host System boots, it scans the MEM_BAR register. The bits [31:4] will indicate the range of memory exposed. 
-//Note:  Supports only 4byte (32 bits) aligned memory read and writes
-//            Remap address has to be programmed as 64KB boundary only
-	writel(0xfff00003, bmc_device->reg_base + 0x10);	
-/*
-The MSG_BAR has need not be initialized from the BMC side. 
-The default values will request 256 KB of memory resources from the host. 
-The host can access the  MSG_BAR register at offset MSG_BAR +0x30000, see section 8.2 for the address map.
-*/
-	writel(bmc_device->bmc_mem_phy, bmc_device->reg_base + 0x18);
-	writel(0x00000000, bmc_device->reg_base + 0x1C);
-	writel(0x00000000, bmc_device->reg_base + 0x20);
-	writel(0x00000000, bmc_device->reg_base + 0x28);
-	writel(0x080019A2, bmc_device->reg_base + 0x2C);
-	
-//	writel(0xFFFFFFFF, bmc_device->reg_base + 0x30);
-	writel(0x00000000, bmc_device->reg_base + 0x34);
-	writel(0x00000000, bmc_device->reg_base + 0x38);
-	writel(0x000001FF, bmc_device->reg_base + 0x3C);
+	//enable bmc device mmio
+	regmap_update_bits(bmc_device->scu, 0xc20, BIT(13) | GENMASK(13, 12), BIT(13) | GENMASK(13, 12));
+	//enable host2bmc interrupt
+	regmap_update_bits(bmc_device->scu, 0xc24, BIT(18), BIT(18));
+
+	writel(~(BMC_MEM_BAR_SIZE - 1) | HOST2BMC_MEM_BAR_ENABLE, bmc_device->reg_base + ASPEED_BMC_MEM_BAR);	
+	writel(bmc_device->bmc_mem_phy, bmc_device->reg_base + ASPEED_BMC_MEM_BAR_REMAP);
 
 	//Setting BMC to Host Q register
 	writel(BMC2HOST_Q2_FULL_UNMASK| BMC2HOST_Q1_FULL_UNMASK | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
@@ -290,13 +255,11 @@ static const struct of_device_id aspeed_bmc_device_of_matches[] = {
 };
 MODULE_DEVICE_TABLE(of, aspeed_bmc_device_of_matches);
 
-#define BMC_QUEUE_SIZE (16 * 4)
 static int aspeed_bmc_device_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct aspeed_bmc_device *bmc_device;
-	int ret;
-	int rc;	
+	int ret = 0;
 
 	bmc_device = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_bmc_device), GFP_KERNEL);
 	if (!bmc_device)
@@ -304,12 +267,18 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 
 	bmc_device->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bmc_device->reg_base))
-		return PTR_ERR(bmc_device->reg_base);
+		goto out_region;
 
-	bmc_device->bmc_mem_virt = dma_alloc_coherent(&pdev->dev, 0x100000, &bmc_device->bmc_mem_phy, GFP_KERNEL);
-	memset(bmc_device->bmc_mem_virt, 0, 0x100000);
+	bmc_device->scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
+	if (IS_ERR(bmc_device->scu)) {
+		dev_err(&pdev->dev, "failed to find SCU regmap\n");
+		goto out_region;
+	}
+
+	bmc_device->bmc_mem_virt = dma_alloc_coherent(&pdev->dev, BMC_MEM_BAR_SIZE, &bmc_device->bmc_mem_phy, GFP_KERNEL);
+	memset(bmc_device->bmc_mem_virt, 0, BMC_MEM_BAR_SIZE);
 	
-	printk("virt=%x phy %x\n", bmc_device->bmc_mem_virt, bmc_device->bmc_mem_phy);
+	printk("virt=%p phy %x\n", bmc_device->bmc_mem_virt, bmc_device->bmc_mem_phy);
 
 	sysfs_bin_attr_init(&bmc_device->bin0);
 	sysfs_bin_attr_init(&bmc_device->bin1);
@@ -318,39 +287,38 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 	bmc_device->bin0.attr.mode = S_IRUSR | S_IWUSR;
 	bmc_device->bin0.read = aspeed_host2bmc_queue1_rx;
 	bmc_device->bin0.write = aspeed_bmc2host_queue1_tx;
-	bmc_device->bin0.size = BMC_QUEUE_SIZE;
+	bmc_device->bin0.size = 4;
 
-	rc = sysfs_create_bin_file(&pdev->dev.kobj, &bmc_device->bin0);
-	if (rc) {
+	ret = sysfs_create_bin_file(&pdev->dev.kobj, &bmc_device->bin0);
+	if (ret) {
 		printk("error for bin file ");
-		return rc;
+		goto out_dma;
 	}
 
 	bmc_device->kn0 = kernfs_find_and_get(dev->kobj.sd, bmc_device->bin0.attr.name);
 	if (!bmc_device->kn0) {
 		sysfs_remove_bin_file(&dev->kobj, &bmc_device->bin0);
-		return -EFAULT;
+		goto out_dma;
 	}
 
 	bmc_device->bin1.attr.name = "bmc-dev-queue2";
 	bmc_device->bin1.attr.mode = S_IRUSR | S_IWUSR;
 	bmc_device->bin1.read = aspeed_host2bmc_queue2_rx;
 	bmc_device->bin1.write = aspeed_bmc2host_queue2_tx;
-	bmc_device->bin1.size = BMC_QUEUE_SIZE;
+	bmc_device->bin1.size = 4;
 
-	rc = sysfs_create_bin_file(&pdev->dev.kobj, &bmc_device->bin1);
-	if (rc) {
+	ret = sysfs_create_bin_file(&pdev->dev.kobj, &bmc_device->bin1);
+	if (ret) {
 		printk("error for bin file ");
-		return rc;
+		goto out_dma;
 	}
 
 	bmc_device->kn1 = kernfs_find_and_get(dev->kobj.sd, bmc_device->bin1.attr.name);
 	if (!bmc_device->kn1) {
 		sysfs_remove_bin_file(&dev->kobj, &bmc_device->bin1);
-		return -EFAULT;
+		goto out_dma;
 	}
 
-printk("-------------------------------------------------------------------------------------------------------------------3\n");	
 	dev_set_drvdata(dev, bmc_device);
 
 	aspeed_bmc_device_init(bmc_device);
@@ -358,25 +326,24 @@ printk("------------------------------------------------------------------------
 	bmc_device->irq =  platform_get_irq(pdev,0);
 	if(bmc_device->irq < 0) {
 		dev_err(&pdev->dev,"platform get of irq[=%d] failed!\n", bmc_device->irq);
-		return -ENODEV;
+		goto out_unmap;
 	}
-	printk("-------------------------------------------------------------------------------------------------------------------4\n");
 
 	ret = devm_request_irq(&pdev->dev, bmc_device->irq, aspeed_bmc_dev_isr,
 							0, dev_name(&pdev->dev), bmc_device);
 	if (ret) {
 		printk("aspeed bmc device Unable to get IRQ");
-		goto out_region;
+		goto out_unmap;
 	}
 
 	bmc_device->miscdev.minor = MISC_DYNAMIC_MINOR;
 	bmc_device->miscdev.name = DEVICE_NAME;
 	bmc_device->miscdev.fops = &aspeed_bmc_device_fops;
 	bmc_device->miscdev.parent = dev;
-	rc = misc_register(&bmc_device->miscdev);
-	if (rc) {
+	ret = misc_register(&bmc_device->miscdev);
+	if (ret) {
 		dev_err(dev, "Unable to register device\n");
-		return rc;
+		goto out_irq;
 	}
 
 	printk(KERN_INFO "aspeed bmc device: driver successfully loaded.\n");
@@ -386,10 +353,15 @@ printk("------------------------------------------------------------------------
 out_irq:
 	devm_free_irq(&pdev->dev, bmc_device->irq, bmc_device);
 
-out_region:
-	kfree(bmc_device);
+out_unmap:
+	iounmap(bmc_device->reg_base);
 
-out:
+out_dma:
+	dma_free_coherent(&pdev->dev, BMC_MEM_BAR_SIZE, bmc_device->bmc_mem_virt, bmc_device->bmc_mem_phy);
+	
+out_region:
+	devm_kfree(&pdev->dev, bmc_device);
+
 	printk(KERN_WARNING "aspeed bmc device: driver init failed (ret=%d)!\n", ret);
 	return ret;
 }
@@ -397,27 +369,17 @@ out:
 static int  aspeed_bmc_device_remove( struct platform_device *pdev)
 {
 	struct aspeed_bmc_device *bmc_device = platform_get_drvdata(pdev);
-	unsigned int ret;
-#if 0
-	misc_deregister(bmc_device->misc_dev);
 
-	kfree(bmc_device->misc_dev);
+	misc_deregister(&bmc_device->miscdev);
 
 	devm_free_irq(&pdev->dev, bmc_device->irq, bmc_device);
 
 	iounmap(bmc_device->reg_base);
-	release_mem_region(res->start, res->end - res->start + 1);
 
-	if (bmc_device->ddr_virt_addr) {
-		dma_free_coherent(&pdev->dev,
-				priv->ddr_len,
-				priv->ddr_virt_addr,
-				priv->ddr_phy_addr);
-	}
+	dma_free_coherent(&pdev->dev, BMC_MEM_BAR_SIZE, bmc_device->bmc_mem_virt, bmc_device->bmc_mem_phy);
 
-	iounmap(priv->reg_base);
-#endif
-	
+	devm_kfree(&pdev->dev, bmc_device);
+
     return 0;
 }
 

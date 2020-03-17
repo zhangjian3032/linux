@@ -541,8 +541,6 @@
 				#size-cells = <2>;
 				ranges = <0x01000000 0 0x00010000 0x00010000 0x0 0x10000   /* I/O */
 					  0x02000000 0x0 0x70000000 0x70000000 0 0x0fffffff>; /* memory */
-
-				interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 				#interrupt-cells = <1>;
 
 				interrupt-map-mask = <0 0 0 7>;
@@ -560,7 +558,6 @@
 					interrupt-controller;
 					#interrupt-cells = <1>;
 					interrupt-parent = <&gic>;
-					interrupts = <GIC_SPI 29 IRQ_TYPE_EDGE_RISING>;
 				};
 			};
 
@@ -1352,7 +1349,7 @@
 				ranges = <0 0x1e7a0000 0x8000>;
 			};
 
-			host2bmc: host2bmc@1e7e0000 {
+			bmc_dev: bmc_dev@1e7e0000 {
 				compatible = "aspeed,ast2600-bmc-device";
 				reg = <0x1e7e0000 0xB000>;
 				interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;

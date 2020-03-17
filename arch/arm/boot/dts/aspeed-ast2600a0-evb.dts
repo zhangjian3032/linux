@@ -395,6 +395,12 @@
 
 &pcie {
 	status = "okay";
+
+	interrupts = <GIC_SPI 29 IRQ_TYPE_EDGE_RISING>;
+
+	pcie_intc0: legacy-interrupt-controller {
+		interrupts = <GIC_SPI 29 IRQ_TYPE_EDGE_RISING>;
+	};
 };
 
 &h2x {

@@ -24,258 +24,306 @@
 #include <linux/module.h>
 #include <linux/kernel.h>       /* printk()             */
 #include <linux/errno.h>
-#include <linux/sched.h>
-#include <linux/kernel.h>
-#include <linux/ide.h>
-#include <asm/delay.h>
-#include <linux/cdev.h>
-#include <linux/timer.h>
 
-#include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/fcntl.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
-#include <asm/irq.h>
-#include <asm/io.h>
 
 #include <linux/miscdevice.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
 #include <linux/module.h>
-
-
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/pci.h>
-#include <linux/fs.h>
-#include <linux/cdev.h>		/* for cdev_ */
-#include <asm/uaccess.h>        /* for put_user */
-
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/kernel.h>       /* printk()             */
-#include <linux/errno.h>
-#include <linux/sched.h>
-#include <linux/kernel.h>
-#include <linux/ide.h>
-#include <linux/pci.h>
-#include <asm/delay.h>
-
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of.h>
-#include <linux/of_platform.h>
-#include <linux/platform_device.h>
-
-#include <linux/io.h>
-#include <linux/poll.h>
-#include <linux/slab.h>
-#include <linux/regmap.h>
-#include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/mfd/syscon.h>
-#include <linux/platform_device.h>
-#include <linux/dma-mapping.h>
-#include <linux/miscdevice.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
-
 
 #define ASPEED_PCI_BMC_HOST2BMC_Q1		0x30000
 #define ASPEED_PCI_BMC_HOST2BMC_Q2		0x30010
 #define ASPEED_PCI_BMC_BMC2HOST_Q1		0x30020
 #define ASPEED_PCI_BMC_BMC2HOST_Q2		0x30030
 #define ASPEED_PCI_BMC_BMC2HOST_STS		0x30040
+#define	 BMC2HOST_INT_STS_DOORBELL		BIT(31)
+#define	 BMC2HOST_ENABLE_INTB			BIT(30)
+/* */
+#define	 BMC2HOST_Q1_FULL				BIT(27)
+#define	 BMC2HOST_Q1_EMPTY				BIT(26)
+#define	 BMC2HOST_Q2_FULL				BIT(25)
+#define	 BMC2HOST_Q2_EMPTY				BIT(24)
+#define	 BMC2HOST_Q1_FULL_UNMASK		BIT(23)
+#define	 BMC2HOST_Q1_EMPTY_UNMASK		BIT(22)
+#define	 BMC2HOST_Q2_FULL_UNMASK		BIT(21)
+#define	 BMC2HOST_Q2_EMPTY_UNMASK		BIT(20)
+
 #define ASPEED_PCI_BMC_HOST2BMC_STS		0x30044
+#define	 HOST2BMC_INT_STS_DOORBELL		BIT(31)
+#define	 HOST2BMC_ENABLE_INTB			BIT(30)
+/* */
+#define	 HOST2BMC_Q1_FULL				BIT(27)
+#define	 HOST2BMC_Q1_EMPTY				BIT(26)
+#define	 HOST2BMC_Q2_FULL				BIT(25)
+#define	 HOST2BMC_Q2_EMPTY				BIT(24)
+#define	 HOST2BMC_Q1_FULL_UNMASK		BIT(23)
+#define	 HOST2BMC_Q1_EMPTY_UNMASK		BIT(22)
+#define	 HOST2BMC_Q2_FULL_UNMASK		BIT(21)
+#define	 HOST2BMC_Q2_EMPTY_UNMASK		BIT(20)
 
 
-struct aspeed_pci_host_bmc_dev {
+struct aspeed_pci_bmc_dev {
 	struct miscdevice miscdev;	
 
 	unsigned long mem_bar_base; 
 	unsigned long mem_bar_size;
-	void __iomem *virt_shared_mem;
+	void __iomem *mem_bar_reg;
 
 	unsigned long message_bar_base; 
 	unsigned long message_bar_size;
-	void __iomem *virt_msg_bar;
+	void __iomem *msg_bar_reg;
+
+	struct bin_attribute	bin0;
+	struct bin_attribute	bin1;
+
+	struct kernfs_node	*kn0;
+	struct kernfs_node	*kn1;
 
 	u8 IntLine;		
 };
 
+#define HOST_BMC_QUEUE_SIZE 			(16 * 4)
+
 #define DRIVER_NAME "ASPEED BMC DEVICE"
+
+static struct aspeed_pci_bmc_dev *file_aspeed_bmc_device(struct file *file)
+{
+	return container_of(file->private_data, struct aspeed_pci_bmc_dev,
+			miscdev);
+}
+
+static int aspeed_pci_bmc_dev_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct aspeed_pci_bmc_dev *pci_bmc_dev = file_aspeed_bmc_device(file);
+	unsigned long vsize = vma->vm_end - vma->vm_start;
+	pgprot_t prot = vma->vm_page_prot;
+
+	if (vma->vm_pgoff + vsize > pci_bmc_dev->mem_bar_base + 0x100000)
+		return -EINVAL;
+
+	prot = pgprot_noncached(prot);
+
+	if (remap_pfn_range(vma, vma->vm_start,
+		(pci_bmc_dev->mem_bar_base >> PAGE_SHIFT) + vma->vm_pgoff,
+		vsize, prot))
+		return -EAGAIN;
+
+	return 0;
+}
+
+static const struct file_operations aspeed_pci_bmc_dev_fops = {
+	.owner		= THIS_MODULE,
+	.mmap		= aspeed_pci_bmc_dev_mmap,
+};
+
+static ssize_t aspeed_pci_bmc_dev_queue1_rx(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+{
+	struct aspeed_pci_bmc_dev *pci_bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
+	u32 *data = (u32 *) buf;
+
+//	printk("aspeed_pci_bmc_dev_queue1_rx \n");
+
+	if(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_Q1) & BMC2HOST_Q1_EMPTY)
+		return 0;
+	else {
+		data[0] = readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_Q1);
+//		printk("Got BMC2HOST_Q1 [%x] \n", data[0]);
+		return 4;
+	}
+}
+
+static ssize_t aspeed_pci_bmc_dev_queue2_rx(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+{
+	struct aspeed_pci_bmc_dev *pci_bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
+	u32 *data = (u32 *) buf;
+
+//	printk("aspeed_pci_bmc_dev_queue2_rx \n");
+
+	if(!(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_Q2) & BMC2HOST_Q2_EMPTY)) {
+		data[0] = readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_Q2);
+		printk("Got BMC2HOST_Q2 [%x] \n", data[0]);
+		return 4;
+	} else 
+		return 0;
+
+	return count;
+}
+
+static ssize_t aspeed_pci_bmc_dev_queue1_tx(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+{
+	u32 tx_buff;
+	struct aspeed_pci_bmc_dev *pci_bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));	
+
+	if(count != 4)
+		return -1;
+	
+	if(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS) & HOST2BMC_Q1_FULL)
+		return -1;
+	else {
+		memcpy(&tx_buff, buf, 4);
+		printk("tx_buff %x \n", tx_buff);
+		writel(tx_buff, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_Q1);
+		//trigger to host 
+		writel(HOST2BMC_INT_STS_DOORBELL | HOST2BMC_ENABLE_INTB, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS);
+		return 4;
+	}
+
+}
+
+static ssize_t aspeed_pci_bmc_dev_queue2_tx(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+{
+	u32 tx_buff = 0;
+	struct aspeed_pci_bmc_dev *pci_bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));	
+
+	if(count != 4)
+		return -1;
+	
+	if(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS) & HOST2BMC_Q2_FULL)
+		return -1;
+	else {
+		memcpy(&tx_buff, buf, 4);
+//		printk("tx_buff %x \n", tx_buff);
+		writel(tx_buff, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_Q2);
+		//trigger to host
+		writel(HOST2BMC_INT_STS_DOORBELL | HOST2BMC_ENABLE_INTB, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS);
+		return 4;
+	}
+}
 
 irqreturn_t aspeed_pci_host_bmc_device_interrupt(int irq, void* dev_id)
 {
-	unsigned long status2 = 0;
-	unsigned long a = 0;
-        
-	printk("Entered %s\n", __FUNCTION__);
-#if 0
-	status2 = *(volatile unsigned int *)pilotfunc1_priv.virt_b2h_sts;
-	// status1 = *(volatile unsigned long *)pilotfunc1_priv.virt_h2b_sts;
+	struct aspeed_pci_bmc_dev *pci_bmc_device = dev_id;
 
-	# if 0
-	if((status1 & H2B_QUEUE1_EMPTY)  == H2B_QUEUE1_EMPTY)
-	{
-		PILOT_FUNC1_PRINT("%s H2B Queue Empty\n",__FUNCTION__);
-		//up(&host1_empty_sem);
+	u32 bmc2host_q_sts = readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS);
+
+//	printk("%s bmc2host_q_sts is %x \n", __FUNCTION__, bmc2host_q_sts);
+
+	if(bmc2host_q_sts & BMC2HOST_INT_STS_DOORBELL) {
+		writel(BMC2HOST_INT_STS_DOORBELL, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS);
 	}
 
-	if((status1 & H2B_QUEUE2_EMPTY)  == H2B_QUEUE2_EMPTY)
-	{
-		PILOT_FUNC1_PRINT("%s H2B Queue Empty\n",__FUNCTION__);
-		//up(&host2_empty_sem);
+	if(bmc2host_q_sts & BMC2HOST_ENABLE_INTB) {
+		writel(BMC2HOST_ENABLE_INTB, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS);
 	}
+	if(bmc2host_q_sts & BMC2HOST_Q1_FULL) {
+	}	
 
-	if((status2 & B2H_QUEUE2_FULL) == B2H_QUEUE2_FULL)
-	{
-		PILOT_FUNC1_PRINT("%s B2H Queue 2 FULL\n",__FUNCTION__);
-		//memcpy(ioctl_data,(void *)pilotfunc1_priv.virt_b2h_q2, sizeof(ioctl_data));
-		//up(&bmc2_empty_sem);
-	}
-	# endif
+	if(bmc2host_q_sts & BMC2HOST_Q2_FULL) {
+	}	
 
-	if((status2 & B2H_QUEUE1_FULL) == B2H_QUEUE1_FULL)
-	{
-		PILOT_FUNC1_PRINT("%s B2H Queue 1 FULL\n",__FUNCTION__);
-		a = readl(pilotfunc1_priv.virt_b2h_q1);
-		up(&bmc1_empty_sem);
-	}
-
-	if((status2 & B2H_QUEUE2_FULL) == B2H_QUEUE2_FULL)
-	{
-		PILOT_FUNC1_PRINT("%s B2H Queue 2 FULL\n",__FUNCTION__);
-		ioctl_data[0]= readl(pilotfunc1_priv.virt_b2h_q2);
-		up(&bmc2_empty_sem);
-	}
-
-	if((status2 & 0x80000000))
-	{
-		*(volatile unsigned int *)pilotfunc1_priv.virt_b2h_sts &= ~(0x80000000);
-	}
-#endif
 	return IRQ_HANDLED;
+
 }
 
-static const struct file_operations aspeed_host_bmc_char_driver_ops = {
-        .owner          = THIS_MODULE,
-};
 
 static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	struct aspeed_pci_bmc_dev *pci_bmc_dev;
 	struct device *dev = &pdev->dev;
-	unsigned int a;
-	int retval = -EINVAL;
-	int pci_bar = 1;
-	unsigned char config_val,config_rd_val;
-	
-	static struct aspeed_pci_host_bmc_dev *pci_bmc_drv_data;
+	int rc = 0;
 
-	dev_dbg(&pdev->dev, "%s %s(%d): ASPEED BMC PCI ID %04x:%04x\n", __FILE__,
-					__func__, __LINE__, pdev->vendor, pdev->device);
+	dev_dbg(&pdev->dev, "ASPEED BMC PCI ID %04x:%04x\n", pdev->vendor, pdev->device);
 
-	retval = pci_enable_device(pdev);
-	if (retval != 0) {
-			dev_err(&pdev->dev,
-					"%s: pci_enable_device() returned error %d\n",
-					__func__, retval);
-			goto err_unreg_misc;
+	rc = pci_enable_device(pdev);
+	if (rc != 0) {
+		dev_err(&pdev->dev, "pci_enable_device() returned error %d\n", rc);
+		goto out_err;
 	}
 
-	pci_bmc_drv_data = kzalloc(sizeof(*pci_bmc_drv_data), GFP_KERNEL);
-	if (pci_bmc_drv_data == NULL) {
-			retval = -ENOMEM;
-			dev_err(&pdev->dev,
-					"%s(%d): kmalloc() returned NULL memory.\n",
-					__func__, __LINE__);
-			goto err_disable_pci;
-	}
-
-	pci_bmc_drv_data->miscdev.minor = MISC_DYNAMIC_MINOR;
-	pci_bmc_drv_data->miscdev.name = "host-bmc-device";
-	pci_bmc_drv_data->miscdev.fops = &aspeed_host_bmc_char_driver_ops;
-	pci_bmc_drv_data->miscdev.parent = dev;
-
-	retval = misc_register(&pci_bmc_drv_data->miscdev);
-	if (retval) {
-			pr_err("%s(%d): CHAR registration failed of pti driver\n",
-					__func__, __LINE__);
-			pr_err("%s(%d): Error value returned: %d\n",
-					__func__, __LINE__, retval);
-			goto err;
+	pci_bmc_dev = kzalloc(sizeof(*pci_bmc_dev), GFP_KERNEL);
+	if (pci_bmc_dev == NULL) {
+			rc = -ENOMEM;
+			dev_err(&pdev->dev, "kmalloc() returned NULL memory.\n");
+			goto out_err;
 	}
 
 	//Get MEM bar
-	pci_bmc_drv_data->mem_bar_base = pci_resource_start(pdev, pci_bar);
-	pci_bmc_drv_data->mem_bar_size = pci_resource_len(pdev, 0);
+	pci_bmc_dev->mem_bar_base = pci_resource_start(pdev, 0);
+	pci_bmc_dev->mem_bar_size = pci_resource_len(pdev, 0);
 
-	printk("BAR0 I/O Mapped Base Address is: %08x End %08x\n", pci_bmc_drv_data->mem_bar_base, pci_bmc_drv_data->mem_bar_size);
+	printk("BAR0 I/O Mapped Base Address is: %08lx End %08lx\n", pci_bmc_dev->mem_bar_base, pci_bmc_dev->mem_bar_size);
 
-	retval = pci_request_region(pdev, pci_bar, dev_name(&pdev->dev));
-	if (retval != 0) {
-			dev_err(&pdev->dev,
-					"%s(%d): pci_request_region() returned error %d\n",
-					__func__, __LINE__, retval);
-			goto err_free_dd;
+	rc = pci_request_region(pdev, 0, dev_name(&pdev->dev));
+	if (rc != 0) {
+		dev_err(&pdev->dev, "pci_request_region returned error %d\n", rc);
 	}
 
-	pci_bmc_drv_data->virt_shared_mem = ioremap_nocache(pci_bmc_drv_data->mem_bar_base, pci_bmc_drv_data->mem_bar_size);
-	if (!pci_bmc_drv_data->virt_shared_mem) {
-			retval = -ENOMEM;
-			goto err_rel_reg;
+	pci_bmc_dev->mem_bar_reg = ioremap_nocache(pci_bmc_dev->mem_bar_base, pci_bmc_dev->mem_bar_size);
+	if (!pci_bmc_dev->mem_bar_reg) {
+		rc = -ENOMEM;
+		goto out_free0;
 	}
 
     //Get MSG BAR info
-    pci_bmc_drv_data->message_bar_base = pci_resource_start(pdev, 1);
-	pci_bmc_drv_data->message_bar_size = pci_resource_len(pdev, 1);
+    pci_bmc_dev->message_bar_base = pci_resource_start(pdev, 1);
+	pci_bmc_dev->message_bar_size = pci_resource_len(pdev, 1);
 
-    printk("MSG BAR1 Memory Mapped Base Address is: %08x End %08x\n", pci_bmc_drv_data->message_bar_base, pci_bmc_drv_data->message_bar_size);
+    printk("MSG BAR1 Memory Mapped Base Address is: %08lx End %08lx\n", pci_bmc_dev->message_bar_base, pci_bmc_dev->message_bar_size);
 			
-    pci_bmc_drv_data->virt_msg_bar = ioremap_nocache(pci_bmc_drv_data->message_bar_base, pci_bmc_drv_data->message_bar_size);
-	if (!pci_bmc_drv_data->virt_msg_bar) {
-			retval = -ENOMEM;
-			goto err_rel_reg;
+    pci_bmc_dev->msg_bar_reg = ioremap_nocache(pci_bmc_dev->message_bar_base, pci_bmc_dev->message_bar_size);
+	if (!pci_bmc_dev->msg_bar_reg) {
+		rc = -ENOMEM;
+		goto out_free1;
 	}
-	pci_set_drvdata(pdev, pci_bmc_drv_data);
 
-	printk("aspeed_pci_host_bmc_device_probe 4\n");
+	sysfs_bin_attr_init(&pci_bmc_dev->bin0);
+	sysfs_bin_attr_init(&pci_bmc_dev->bin1);
+	
+	pci_bmc_dev->bin0.attr.name = "pci-bmc-dev-queue1";
+	pci_bmc_dev->bin0.attr.mode = S_IRUSR | S_IWUSR;
+	pci_bmc_dev->bin0.read = aspeed_pci_bmc_dev_queue1_rx;
+	pci_bmc_dev->bin0.write = aspeed_pci_bmc_dev_queue1_tx;
+	pci_bmc_dev->bin0.size = 4;
+	
+	rc = sysfs_create_bin_file(&pdev->dev.kobj, &pci_bmc_dev->bin0);
+	if (rc) {
+		printk("error for bin file ");
+		goto out_free1;
+	}
+	
+	pci_bmc_dev->kn0 = kernfs_find_and_get(dev->kobj.sd, pci_bmc_dev->bin0.attr.name);
+	if (!pci_bmc_dev->kn0) {
+		sysfs_remove_bin_file(&dev->kobj, &pci_bmc_dev->bin0);
+		goto out_free1;
+	}
 
-	//if bios does not doing mem enable , enable this code
-	pci_read_config_byte(pdev, PCI_COMMAND, &config_val);
-	printk("command reg= %x\n",config_val);
-	config_val = config_val | PCI_COMMAND_MEMORY | PCI_COMMAND_IO;
-//	config_val = config_val & ~PCI_COMMAND_INTX_DISABLE;
-	pci_write_config_byte( (struct pci_dev *)pdev,PCI_COMMAND,config_val);
-	pci_read_config_byte( (struct pci_dev *)pdev, PCI_COMMAND,&config_rd_val);
-	printk("command reg= %x\n",config_rd_val);
+	pci_bmc_dev->bin1.attr.name = "pci-bmc-dev-queue2";
+	pci_bmc_dev->bin1.attr.mode = S_IRUSR | S_IWUSR;
+	pci_bmc_dev->bin1.read = aspeed_pci_bmc_dev_queue2_rx;
+	pci_bmc_dev->bin1.write = aspeed_pci_bmc_dev_queue2_tx;
+	pci_bmc_dev->bin1.size = 4;
+	
+	rc = sysfs_create_bin_file(&pdev->dev.kobj, &pci_bmc_dev->bin1);
+	if (rc) {
+		sysfs_remove_bin_file(&dev->kobj, &pci_bmc_dev->bin1);
+		goto out_free1;
+	}
+	
+	pci_bmc_dev->kn1 = kernfs_find_and_get(dev->kobj.sd, pci_bmc_dev->bin1.attr.name);
+	if (!pci_bmc_dev->kn1) {
+		sysfs_remove_bin_file(&dev->kobj, &pci_bmc_dev->bin1);
+		goto out_free1;
+	}
 
-	pci_read_config_byte( pdev,PCI_INTERRUPT_PIN,&config_val);
-	printk("INT pin reg= %x\n",config_val);
-	config_val = 0x2;
-	//	pci_write_config_byte( pdev,PCI_INTERRUPT_PIN,&config_val);
-	//		pci_read_config_byte( pdev,PCI_INTERRUPT_PIN,&config_val);
-	//	printk("INT pin reg= %x\n",config_val);
-	pci_read_config_byte( (struct pci_dev *)pdev, PCI_INTERRUPT_LINE, (u8*)&pci_bmc_drv_data->IntLine);
-	printk("pilotfunc1_priv.IntLine=%d\n", pci_bmc_drv_data->IntLine);
+	pci_bmc_dev->miscdev.minor = MISC_DYNAMIC_MINOR;
+	pci_bmc_dev->miscdev.name = DRIVER_NAME;
+	pci_bmc_dev->miscdev.fops = &aspeed_pci_bmc_dev_fops;
+	pci_bmc_dev->miscdev.parent = dev;
 
-	pci_read_config_byte(pdev, PCI_INTERRUPT_LINE, &pci_bmc_drv_data->IntLine);
+	rc = misc_register(&pci_bmc_dev->miscdev);
+	if (rc) {
+		pr_err("host bmc register fail %d\n",rc);
+		goto out_free;
+	}
+	
+	pci_set_drvdata(pdev, pci_bmc_dev);
 
-#if 0
-	printk ("H2B Status reg = %x\n", *(volatile unsigned int *)(pilotfunc1_priv.virt_h2b_sts));
-	*(volatile unsigned int *)(pilotfunc1_priv.virt_h2b_sts) = 0x40a00000;
-
-	printk ("H2B Status reg = %x\n", *(volatile unsigned int *)(pilotfunc1_priv.virt_h2b_sts));
-	printk ("B2H Status reg = %x\n", *(volatile unsigned int *)(pilotfunc1_priv.virt_b2h_sts));
-
-	printk("IRQ Used is: 0x%x \n", pilotfunc1_priv.IntLine);
-	printk("See %x\n", *(volatile unsigned int *)pilotfunc1_priv.virt_shared_mem);
-#endif
-
-	printk ("Before pdev->irq:%d\n", pdev->irq);
 #if 0
 	retval = pci_enable_msi(pdev);
 	if (retval)
@@ -283,38 +331,39 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 		printk("MSI failed. et:%d\n", retval);
 	}
 #endif
-	printk ("After pdev->irq:%d\n", pdev->irq);
-//	pilotfunc1_priv.IntLine = pdev->irq;
 
-	retval = request_irq(pdev->irq, aspeed_pci_host_bmc_device_interrupt, IRQF_SHARED, "ASPEED BMC DEVICE", pci_bmc_drv_data);
-
-//	pci_intx(pcr->pci, !pcr->msi_en);
+	rc = request_irq(pdev->irq, aspeed_pci_host_bmc_device_interrupt, IRQF_SHARED, "ASPEED BMC DEVICE", pci_bmc_dev);
+	if (rc) {
+		pr_err("host bmc device Unable to get IRQ %d\n",rc);
+		goto out_unreg;
+	}
 
 	return 0;
 
-err_rel_reg:
-	pci_release_region(pdev, pci_bar);
-err_free_dd:
-	kfree(pci_bmc_drv_data);
-err_disable_pci:
+out_unreg:
+	misc_deregister(&pci_bmc_dev->miscdev);
+out_free1:
+	pci_release_region(pdev, 1);
+out_free0:
+	pci_release_region(pdev, 0);
+out_free:
+	kfree(pci_bmc_dev);
+out_err:
 	pci_disable_device(pdev);
-err_unreg_misc:
-	misc_deregister(&pci_bmc_drv_data->miscdev);
-err:
-	return retval;
+	
+	return rc;
 	
 }
 
 static void aspeed_pci_host_bmc_device_remove(struct pci_dev *pdev)
 {
-#if 0
-	iounmap(pilotfunc1_priv.virt_msg_bar);
-	iounmap(pilotfunc1_priv.virt_shared_mem);
-	free_irq(pilotfunc1_priv.IntLine, pdev);
-#endif	
-	/* release the IO region */
+	struct aspeed_pci_bmc_dev *pci_bmc_dev = pci_get_drvdata(pdev);
+
+	free_irq(pdev->irq, pdev);
+	misc_deregister(&pci_bmc_dev->miscdev);
 	pci_release_regions(pdev);
-	
+	kfree(pci_bmc_dev);
+	pci_disable_device(pdev);
 }
 
 /**
@@ -339,8 +388,6 @@ static int __init aspeed_host_bmc_device_init(void)
 {
 	int ret;
 
-	printk(KERN_DEBUG "Module pci init\n");
-
 	/* register pci driver */
 	ret = pci_register_driver(&aspeed_host_bmc_dev_driver);
 	if (ret < 0) {
@@ -354,13 +401,8 @@ static int __init aspeed_host_bmc_device_init(void)
 
 static void aspeed_host_bmc_device_exit(void)
 {
-	int i;
-
 	/* unregister pci driver */
 	pci_unregister_driver(&aspeed_host_bmc_dev_driver);
-
-
-	printk(KERN_DEBUG "Module pci exit\n");	
 }
 
 module_init(aspeed_host_bmc_device_init);
