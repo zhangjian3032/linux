@@ -31,6 +31,7 @@
 #define MCTP_G6_RX_BUFF_POOL_SIZE	MCTP_RX_BUFF_POOL_SIZE * 4
 #define MCTP_TX_FIFO_NUM		1
 #define MCTP_G6_TX_FIFO_NUM		4
+#define MCTP_G6_RX_DEFAULT_PAYLOAD	64
 
 #define MCTP_RX_DESC_BUFF_NUM		8
 
@@ -268,6 +269,7 @@ struct aspeed_mctp_info {
 	u32 rx_idx;
 	u32 rx_hw_idx;
 	u32 rx_full;
+	u32 rx_payload;
 
 	/* for ast2600 workaround, due to the hw read ptr is not point correctly,
 	 * should use other variable to track the actual cmd ptr.
@@ -700,6 +702,7 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct aspeed_mctp_info *aspeed_mctp;
+	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *mctp_dev_id;
 	int ret = 0;
 	int fifo_num;
@@ -715,6 +718,20 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	aspeed_mctp->mctp_version = (unsigned long)mctp_dev_id->data;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (NULL == res) {
+		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
+		ret = -ENOENT;
+		goto out;
+	}
+
+	aspeed_mctp->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	if (!aspeed_mctp->reg_base) {
+		ret = -EIO;
+		goto out_region;
+	}
+
 	switch (aspeed_mctp->mctp_version) {
 	case 0:
 		aspeed_mctp->tx_fifo_num = MCTP_TX_FIFO_NUM;
@@ -729,9 +746,32 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		aspeed_mctp->dram_base = G5_DRAM_BASE_ADDR;
 		break;
 	case 6:
+
+		if (of_property_read_u32(np, "rx-payload-bytes",
+					 &aspeed_mctp->rx_payload)) {
+			aspeed_mctp->rx_payload = MCTP_G6_RX_DEFAULT_PAYLOAD;
+		}
+		switch (aspeed_mctp->rx_payload) {
+		case 64:
+			aspeed_mctp_write(aspeed_mctp, aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_CTRL1) | MCTP_RX_PAYLOAD_64BYTE, ASPEED_MCTP_CTRL1);
+			break;
+		case 128:
+			aspeed_mctp_write(aspeed_mctp, aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_CTRL1) | MCTP_RX_PAYLOAD_128BYTE, ASPEED_MCTP_CTRL1);
+			break;
+		case 256:
+			aspeed_mctp_write(aspeed_mctp, aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_CTRL1) | MCTP_RX_PAYLOAD_256BYTE, ASPEED_MCTP_CTRL1);
+			break;
+		case 512:
+			aspeed_mctp_write(aspeed_mctp, aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_CTRL1) | MCTP_RX_PAYLOAD_512BYTE, ASPEED_MCTP_CTRL1);
+			break;
+		default:
+			dev_err(&pdev->dev, "rx payload only support 64, 128, 256 and 512 bytes\n");
+			goto out_region;
+		}
+
 		aspeed_mctp->tx_fifo_num = MCTP_G6_TX_FIFO_NUM;
 		//must 16byte align
-		aspeed_mctp->rx_fifo_size = (64 + 16);	//TODO AST2600 tx/rx unit can be configurate by register
+		aspeed_mctp->rx_fifo_size = (aspeed_mctp->rx_payload + 16);
 
 		// for ast2600 workaround, rx_fifo_num should be 4n+1
 		fifo_num = ((MCTP_G6_RX_BUFF_POOL_SIZE / aspeed_mctp->rx_fifo_size) / 4);
@@ -742,22 +782,10 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(&pdev->dev, "cannot get mctp version\n");
-		goto out;
+		goto out_region;
 		break;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (NULL == res) {
-		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
-		ret = -ENOENT;
-		goto out;
-	}
-
-	aspeed_mctp->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (!aspeed_mctp->reg_base) {
-		ret = -EIO;
-		goto out_region;
-	}
 	// g4 not support pcie host controller
 	if (aspeed_mctp->mctp_version != 0) {
 		struct resource pcie_res;
