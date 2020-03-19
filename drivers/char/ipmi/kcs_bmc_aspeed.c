@@ -60,6 +60,8 @@
 #define LPC_IDR4             0x094
 #define LPC_ODR4             0x098
 #define LPC_STR4             0x09C
+#define     LPC_STR4_DBU47           BIT(7)
+#define     LPC_STR4_DBU46           BIT(6)
 
 struct aspeed_kcs_bmc {
 	struct regmap *map;
@@ -187,14 +189,20 @@ static void aspeed_kcs_enable_channel(struct kcs_bmc *kcs_bmc, bool enable)
 		break;
 
 	case 4:
-		if (enable)
+		if (enable) {
 			regmap_update_bits(priv->map, LPC_HICRB,
 					LPC_HICRB_IBFIF4 | LPC_HICRB_LPC4E,
 					LPC_HICRB_IBFIF4 | LPC_HICRB_LPC4E);
-		else
+			regmap_update_bits(priv->map, LPC_STR4,
+					LPC_STR4_DBU47, 0);
+			regmap_update_bits(priv->map, LPC_STR4,
+					LPC_STR4_DBU46, 0);
+		}
+		else {
 			regmap_update_bits(priv->map, LPC_HICRB,
 					LPC_HICRB_IBFIF4 | LPC_HICRB_LPC4E,
 					0);
+		}
 		break;
 
 	default:
