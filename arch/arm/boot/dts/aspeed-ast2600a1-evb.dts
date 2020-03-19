@@ -475,6 +475,14 @@
 };
 
 #if 0
+&udc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb2bd_default>;
+};
+#endif
+
+#if 0
 &gfx {
 	status = "okay";
 	memory-region = <&gfx_memory>;
