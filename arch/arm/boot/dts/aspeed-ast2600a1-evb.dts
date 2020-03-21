@@ -679,7 +679,11 @@
 	resets = <&syscon ASPEED_RESET_ESPI>;
 	delay-timing = <0x7>;
 };
-
+#if 0
+&espi_mmbi {
+	status = "okay";
+};
+#endif
 &peripheral {
 	status = "okay";
 

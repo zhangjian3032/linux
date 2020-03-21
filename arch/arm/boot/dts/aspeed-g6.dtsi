@@ -597,7 +597,7 @@
 
 			espi: espi@1e6ee000 {
 				compatible = "aspeed,ast2600-espi", "simple-mfd", "syscon";
-				reg = <0x1e6ee000 0x200>;
+				reg = <0x1e6ee000 0x1000>;
 				reg-io-width = <4>;
 
 				interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>, <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
@@ -608,11 +608,11 @@
 				interrupt-controller;
 				#interrupt-cells = <1>;
 
-				ranges = <0x0 0x1e6ee000 0x200>;
+				ranges = <0x0 0x1e6ee000 0x1000>;
 
 				peripheral: peripheral-channel@0 {
 					compatible = "aspeed,ast2600-espi-peripheral";
-					reg = <0x0 0x200>;
+					reg = <0x0 0x1000>;
 					interrupts-extended = <&espi 0>, <&espi 4>;
 					dma-mode;
 					status = "disabled";
@@ -640,6 +640,13 @@
 					dma-mode;
 					status = "disabled";
 				};
+			};
+
+			espi_mmbi: espi_mmbi@1e6ee000 {
+				compatible = "aspeed,ast2600-espi-mmbi";
+				interrupts-extended = <&gic GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&syscon ASPEED_RESET_ESPI>;
+				status = "disabled";
 			};
 
 			video: video@1e700000 {
