@@ -32,6 +32,7 @@
 #define MCTP_TX_FIFO_NUM		1
 #define MCTP_G6_TX_FIFO_NUM		4
 #define MCTP_G6_RX_DEFAULT_PAYLOAD	64
+#define MCTP_G6_TX_DEFAULT_PAYLOAD	64
 
 #define MCTP_RX_DESC_BUFF_NUM		8
 
@@ -223,7 +224,7 @@ struct aspeed_mctp_xfer {
 	struct pcie_vdm_header header;
 };
 /*************************************************************************************/
-//#define ASPEED_MCTP_DEBUG
+#define ASPEED_MCTP_DEBUG
 
 #ifdef ASPEED_MCTP_DEBUG
 #define MCTP_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt,__FUNCTION__, ## args)
@@ -236,11 +237,11 @@ struct aspeed_mctp_xfer {
 struct aspeed_mctp_info {
 	void __iomem *reg_base;
 	void __iomem *pci_bdf_regs;
-	int irq;
 	bool is_open;
+	int irq;
 	int pcie_irq;
+	int mctp_version;
 	struct reset_control *reset;
-	int	mctp_version;
 	u32 dram_base;
 
 	/* mctp tx info */
@@ -248,6 +249,7 @@ struct aspeed_mctp_info {
 
 	int tx_fifo_num;
 	int tx_idx;
+	int tx_payload;
 
 	void *tx_pool;
 	dma_addr_t tx_pool_dma;
@@ -266,10 +268,10 @@ struct aspeed_mctp_info {
 	void *rx_cmd_desc;
 	dma_addr_t rx_cmd_desc_dma;
 
-	u32 rx_idx;
-	u32 rx_hw_idx;
-	u32 rx_full;
-	u32 rx_payload;
+	int rx_idx;
+	int rx_hw_idx;
+	int rx_full;
+	int rx_payload;
 
 	/* for ast2600 workaround, due to the hw read ptr is not point correctly,
 	 * should use other variable to track the actual cmd ptr.
@@ -279,7 +281,7 @@ struct aspeed_mctp_info {
 	int rx_cmd_num;
 	int rx_reboot;
 	int rx_first_loop;
-	u32 rx_recv_idx;
+	int rx_recv_idx;
 };
 
 /******************************************************************************/
@@ -733,6 +735,7 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	const struct of_device_id *mctp_dev_id;
 	int ret = 0;
 	int fifo_num;
+	u32 ctrl_cmd = 0;
 
 	MCTP_DBUG("\n");
 
@@ -780,21 +783,45 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		}
 		switch (aspeed_mctp->rx_payload) {
 		case 64:
-			aspeed_mctp_write(aspeed_mctp, aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_CTRL1) | MCTP_RX_PAYLOAD_64BYTE, ASPEED_MCTP_CTRL1);
+			ctrl_cmd |= MCTP_RX_PAYLOAD_64BYTE;
 			break;
 		case 128:
-			aspeed_mctp_write(aspeed_mctp, aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_CTRL1) | MCTP_RX_PAYLOAD_128BYTE, ASPEED_MCTP_CTRL1);
+			ctrl_cmd |= MCTP_RX_PAYLOAD_128BYTE;
 			break;
 		case 256:
-			aspeed_mctp_write(aspeed_mctp, aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_CTRL1) | MCTP_RX_PAYLOAD_256BYTE, ASPEED_MCTP_CTRL1);
+			ctrl_cmd |= MCTP_RX_PAYLOAD_256BYTE;
 			break;
 		case 512:
-			aspeed_mctp_write(aspeed_mctp, aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_CTRL1) | MCTP_RX_PAYLOAD_512BYTE, ASPEED_MCTP_CTRL1);
+			ctrl_cmd |= MCTP_RX_PAYLOAD_512BYTE;
 			break;
 		default:
 			dev_err(&pdev->dev, "rx payload only support 64, 128, 256 and 512 bytes\n");
 			goto out_region;
 		}
+
+		if (of_property_read_u32(np, "tx-payload-bytes",
+					 &aspeed_mctp->tx_payload)) {
+			aspeed_mctp->tx_payload = MCTP_G6_TX_DEFAULT_PAYLOAD;
+		}
+		switch (aspeed_mctp->tx_payload) {
+		case 64:
+			ctrl_cmd |= MCTP_TX_PAYLOAD_64BYTE;
+			break;
+		case 128:
+			ctrl_cmd |= MCTP_TX_PAYLOAD_128BYTE;
+			break;
+		case 256:
+			ctrl_cmd |= MCTP_TX_PAYLOAD_256BYTE;
+			break;
+		case 512:
+			ctrl_cmd |= MCTP_TX_PAYLOAD_512BYTE;
+			break;
+		default:
+			dev_err(&pdev->dev, "tx payload only support 64, 128, 256 and 512 bytes\n");
+			goto out_region;
+		}
+
+		aspeed_mctp_write(aspeed_mctp, aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_CTRL1) | ctrl_cmd, ASPEED_MCTP_CTRL1);
 
 		aspeed_mctp->tx_fifo_num = MCTP_G6_TX_FIFO_NUM;
 		//must 16byte align
