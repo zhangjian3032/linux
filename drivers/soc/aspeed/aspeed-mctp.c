@@ -224,7 +224,7 @@ struct aspeed_mctp_xfer {
 	struct pcie_vdm_header header;
 };
 /*************************************************************************************/
-#define ASPEED_MCTP_DEBUG
+// #define ASPEED_MCTP_DEBUG
 
 #ifdef ASPEED_MCTP_DEBUG
 #define MCTP_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt,__FUNCTION__, ## args)
@@ -237,6 +237,7 @@ struct aspeed_mctp_xfer {
 struct aspeed_mctp_info {
 	void __iomem *reg_base;
 	void __iomem *pci_bdf_regs;
+	struct miscdevice *misc_dev;
 	bool is_open;
 	int irq;
 	int pcie_irq;
@@ -714,12 +715,6 @@ static const struct file_operations aspeed_mctp_fops = {
 	.release	= mctp_release,
 };
 
-static struct miscdevice aspeed_mctp_misc = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "aspeed-mctp",
-	.fops = &aspeed_mctp_fops,
-};
-
 static const struct of_device_id aspeed_mctp_of_matches[] = {
 	{ .compatible = "aspeed,ast2400-mctp", .data = (void *) 0, },
 	{ .compatible = "aspeed,ast2500-mctp", .data = (void *) 5, },
@@ -727,14 +722,20 @@ static const struct of_device_id aspeed_mctp_of_matches[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, aspeed_mctp_of_matches);
+
+static int reserved_idx = -1;
+
 static int aspeed_mctp_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct aspeed_mctp_info *aspeed_mctp;
 	struct device_node *np = pdev->dev.of_node;
+	struct miscdevice *misc_dev;
 	const struct of_device_id *mctp_dev_id;
-	int ret = 0;
+	int max_reserved_idx;
+	int idx;
 	int fifo_num;
+	int ret = 0;
 	u32 ctrl_cmd = 0;
 
 	MCTP_DBUG("\n");
@@ -864,18 +865,36 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		}
 	}
 
-	aspeed_mctp->irq = platform_get_irq(pdev, 0);
+	aspeed_mctp->irq = platform_get_irq_byname(pdev, "mctp");
 	if (aspeed_mctp->irq < 0) {
-		printk("no irq \n");
 		dev_err(&pdev->dev, "no irq specified\n");
-		ret = -ENOENT;
-		goto out_region;
+		if (aspeed_mctp->mctp_version != 6){
+			ret = -ENOENT;
+			goto out_region;
+		}
+	} else {
+		ret = devm_request_irq(&pdev->dev, aspeed_mctp->irq, aspeed_mctp_isr,
+				       0, dev_name(&pdev->dev), aspeed_mctp);
+		if (ret) {
+			printk("MCTP Unable to get IRQ");
+			goto out_region;
+		}
 	}
 
-	aspeed_mctp->pcie_irq = platform_get_irq(pdev, 1);
+	aspeed_mctp->pcie_irq = platform_get_irq_byname(pdev, "pcie");
 	if (aspeed_mctp->pcie_irq < 0) {
 		dev_err(&pdev->dev, "no pcie reset irq specified\n");
+		ret = -ENOENT;
+		goto out_region;
+	} else {
+		ret = devm_request_irq(&pdev->dev, aspeed_mctp->pcie_irq, aspeed_pcie_raise_isr,
+				       IRQF_SHARED, dev_name(&pdev->dev), aspeed_mctp);
+		if (ret) {
+			printk("MCTP Unable to get pcie raise IRQ");
+			goto out_region;
+		}
 	}
+
 
 	aspeed_mctp->reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(aspeed_mctp->reset)) {
@@ -894,14 +913,38 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		reset_control_deassert(aspeed_mctp->reset);
 	}
 
-	ret = misc_register(&aspeed_mctp_misc);
+	misc_dev = (struct miscdevice *)devm_kzalloc(&pdev->dev, sizeof(struct miscdevice), GFP_KERNEL);
+	if (!misc_dev) {
+		pr_err("failed to allocate misc device\n");
+		goto out_region;
+	}
+
+	if (reserved_idx == -1) {
+		max_reserved_idx = of_alias_get_highest_id("mctp");
+		if (max_reserved_idx >= 0)
+			reserved_idx = max_reserved_idx;
+	}
+
+	idx = of_alias_get_id(pdev->dev.of_node, "mctp");;
+	if (idx < 0) {
+		idx = ++reserved_idx;
+	}
+
+	misc_dev->minor = MISC_DYNAMIC_MINOR;
+	misc_dev->name = kasprintf(GFP_KERNEL, "aspeed-mctp%d", idx);
+	misc_dev->fops = &aspeed_mctp_fops;
+
+	ret = misc_register(misc_dev);
+
 	if (ret) {
 		printk(KERN_ERR "MCTP : failed to request interrupt\n");
 		goto out_region;
 	}
 
 	platform_set_drvdata(pdev, aspeed_mctp);
-	dev_set_drvdata(aspeed_mctp_misc.this_device, aspeed_mctp);
+	dev_set_drvdata(misc_dev->this_device, aspeed_mctp);
+
+	aspeed_mctp->misc_dev = misc_dev;
 
 	aspeed_mctp->tx_idx = 0;
 
@@ -937,26 +980,10 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 
 	aspeed_mctp_ctrl_init(aspeed_mctp);
 
-	ret = devm_request_irq(&pdev->dev, aspeed_mctp->irq, aspeed_mctp_isr,
-			       0, dev_name(&pdev->dev), aspeed_mctp);
-	if (ret) {
-		printk("MCTP Unable to get IRQ");
-		goto out_irq;
-	}
-
-	ret = devm_request_irq(&pdev->dev, aspeed_mctp->pcie_irq, aspeed_pcie_raise_isr,
-			       IRQF_SHARED, dev_name(&pdev->dev), aspeed_mctp);
-	if (ret) {
-		printk("MCTP Unable to get pcie raise IRQ");
-		goto out_irq;
-	}
-
 	printk(KERN_INFO "aspeed_mctp: driver successfully loaded.\n");
 
 	return 0;
 
-out_irq:
-	free_irq(aspeed_mctp->irq, NULL);
 out_region:
 	release_mem_region(res->start, res->end - res->start + 1);
 out:
@@ -971,7 +998,9 @@ static int aspeed_mctp_remove(struct platform_device *pdev)
 
 	MCTP_DBUG("\n");
 
-	misc_deregister(&aspeed_mctp_misc);
+	misc_deregister(aspeed_mctp->misc_dev);
+
+	kfree_const(aspeed_mctp->misc_dev->name);
 
 	free_irq(aspeed_mctp->irq, aspeed_mctp);
 
