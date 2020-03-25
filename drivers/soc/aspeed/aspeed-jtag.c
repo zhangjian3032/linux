@@ -1082,12 +1082,16 @@ static const struct of_device_id aspeed_jtag_of_matches[] = {
 };
 MODULE_DEVICE_TABLE(of, aspeed_jtag_of_matches);
 
+static int reserved_idx = -1;
+
 static int aspeed_jtag_probe(struct platform_device *pdev)
 {
 	struct aspeed_jtag_info *aspeed_jtag;
 	const struct of_device_id *jtag_dev_id;
 	struct resource *res;
 	struct miscdevice *misc_dev;
+	int max_reserved_idx;
+	int idx;
 	int ret = 0;
 
 	JTAG_DBUG("aspeed_jtag_probe\n");
@@ -1181,8 +1185,19 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 		goto out_irq;
 	}
 
+	if (reserved_idx == -1) {
+		max_reserved_idx = of_alias_get_highest_id("jtag");
+		if (max_reserved_idx >= 0)
+			reserved_idx = max_reserved_idx;
+	}
+
+	idx = of_alias_get_id(pdev->dev.of_node, "jtag");;
+	if (idx < 0) {
+		idx = ++reserved_idx;
+	}
+
 	misc_dev->minor = MISC_DYNAMIC_MINOR;
-	misc_dev->name = pdev->name;
+	misc_dev->name = kasprintf(GFP_KERNEL, "aspeed-jtag%d", idx);
 	misc_dev->fops = &aspeed_jtag_fops;
 
 	ret = misc_register(misc_dev);
@@ -1228,6 +1243,8 @@ static int aspeed_jtag_remove(struct platform_device *pdev)
 	sysfs_remove_group(&pdev->dev.kobj, &jtag_attribute_group);
 
 	misc_deregister(aspeed_jtag->misc_dev);
+
+	kfree_const(aspeed_jtag->misc_dev->name);
 
 	kfree(aspeed_jtag->misc_dev);
 
