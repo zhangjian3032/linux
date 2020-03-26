@@ -217,6 +217,11 @@
 
 &i3c0 {
 	status = "okay";
+	/* IDT IMX3112 thermal sensor */
+	thermal_sensor: sensor@70,b380000000 {
+		reg = <0x70 0xb380 0x000000>;
+		assigned-address = <0x70>;
+	};
 };
 
 &i3c1 {
