@@ -355,6 +355,7 @@ struct aspeed_xdma_info {
 	struct completion		cmd_complete;
 
 	bool is_open;
+	struct miscdevice *misc_dev;
 };
 
 /******************************************************************************/
@@ -781,12 +782,6 @@ static const struct file_operations aspeed_xdma_fops = {
 	.release	= xdma_release,
 };
 
-struct miscdevice aspeed_xdma_misc = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "aspeed-xdma",
-	.fops = &aspeed_xdma_fops,
-};
-
 static const struct of_device_id aspeed_xdma_of_matches[] = {
 	{ .compatible = "aspeed,ast2400-xdma", .data = (void *) 0, },
 	{ .compatible = "aspeed,ast2500-xdma", .data = (void *) 5, },
@@ -794,12 +789,17 @@ static const struct of_device_id aspeed_xdma_of_matches[] = {
 	{},
 };
 
+static int reserved_idx = -1;
+
 MODULE_DEVICE_TABLE(of, aspeed_xdma_of_matches);
 static int aspeed_xdma_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct aspeed_xdma_info *aspeed_xdma;
 	const struct of_device_id *xdma_dev_id;
+	struct miscdevice *misc_dev;
+	int max_reserved_idx;
+	int idx;
 	int ret = 0;
 
 	XDMA_DBUG("\n");
@@ -827,18 +827,34 @@ static int aspeed_xdma_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	aspeed_xdma->irq = platform_get_irq(pdev, 0);
+	aspeed_xdma->irq = platform_get_irq_byname(pdev, "xdma");
 	if (aspeed_xdma->irq < 0) {
 		dev_err(&pdev->dev, "no irq specified\n");
-		ret = -ENOENT;
-		goto out_region;
+		if (aspeed_xdma->xdma_version != 6){
+			ret = -ENOENT;
+			goto out_region;
+		}
+	} else {
+		ret = devm_request_irq(&pdev->dev, aspeed_xdma->irq, aspeed_xdma_isr,
+				       0, dev_name(&pdev->dev), aspeed_xdma);
+		if (ret) {
+			printk("XDMA Unable to get IRQ");
+			goto out_region;
+		}
 	}
 
-	aspeed_xdma->pcie_irq = platform_get_irq(pdev, 1);
+	aspeed_xdma->pcie_irq = platform_get_irq_byname(pdev, "pcie");
 	if (aspeed_xdma->pcie_irq < 0) {
 		dev_err(&pdev->dev, "no pcie reset irq specified\n");
 		ret = -ENOENT;
 		goto out_region;
+	} else {
+		ret = devm_request_irq(&pdev->dev, aspeed_xdma->pcie_irq, aspeed_pcie_raise_isr,
+				IRQF_SHARED, dev_name(&pdev->dev), aspeed_xdma);
+		if (ret) {
+			printk("XDMA Unable to get pcie raise IRQ");
+			goto out_region;
+		}
 	}
 
 	aspeed_xdma->reset = devm_reset_control_get(&pdev->dev, NULL);
@@ -850,29 +866,39 @@ static int aspeed_xdma_probe(struct platform_device *pdev)
 	//scu init
 	reset_control_deassert(aspeed_xdma->reset);
 
-	ret = devm_request_irq(&pdev->dev, aspeed_xdma->irq, aspeed_xdma_isr,
-			       0, dev_name(&pdev->dev), aspeed_xdma);
-	if (ret) {
-		printk("XDMA Unable to get IRQ");
-		goto out_region;
+	// ret = misc_register(&aspeed_xdma_misc);
+	misc_dev = (struct miscdevice *)devm_kzalloc(&pdev->dev, sizeof(struct miscdevice), GFP_KERNEL);
+	if (!misc_dev) {
+		pr_err("failed to allocate misc device\n");
+		goto out_irq;
 	}
 
-	ret = devm_request_irq(&pdev->dev, aspeed_xdma->pcie_irq, aspeed_pcie_raise_isr,
-			       IRQF_SHARED, dev_name(&pdev->dev), aspeed_xdma);
-	if (ret) {
-		printk("XDMA Unable to get pcie raise IRQ");
-		goto out_region;
+	if (reserved_idx == -1) {
+		max_reserved_idx = of_alias_get_highest_id("xdma");
+		if (max_reserved_idx >= 0)
+			reserved_idx = max_reserved_idx;
 	}
 
-	ret = misc_register(&aspeed_xdma_misc);
+	idx = of_alias_get_id(pdev->dev.of_node, "xdma");;
+	if (idx < 0) {
+		idx = ++reserved_idx;
+	}
+
+	misc_dev->minor = MISC_DYNAMIC_MINOR;
+	misc_dev->name = kasprintf(GFP_KERNEL, "aspeed-xdma%d", idx);
+	misc_dev->fops = &aspeed_xdma_fops;
+
+	ret = misc_register(misc_dev);
+
 	if (ret) {
 		printk(KERN_ERR "XDMA : failed to request interrupt\n");
 		goto out_irq;
 	}
 
 	platform_set_drvdata(pdev, aspeed_xdma);
-	dev_set_drvdata(aspeed_xdma_misc.this_device, aspeed_xdma);
+	dev_set_drvdata(misc_dev->this_device, aspeed_xdma);
 
+	aspeed_xdma->misc_dev = misc_dev;
 
 	//xfer buff
 	aspeed_xdma->xfer_data = dma_alloc_coherent(NULL,
@@ -922,6 +948,7 @@ static int aspeed_xdma_probe(struct platform_device *pdev)
 
 out_irq:
 	free_irq(aspeed_xdma->irq, NULL);
+	free_irq(aspeed_xdma->pcie_irq, NULL);
 out_region:
 	release_mem_region(res->start, res->end - res->start + 1);
 out:
@@ -936,9 +963,14 @@ static int aspeed_xdma_remove(struct platform_device *pdev)
 
 	XDMA_DBUG("\n");
 
-	misc_deregister(&aspeed_xdma_misc);
+	misc_deregister(aspeed_xdma->misc_dev);
+
+	kfree_const(aspeed_xdma->misc_dev->name);
+
+	kfree(aspeed_xdma->misc_dev);
 
 	free_irq(aspeed_xdma->irq, aspeed_xdma);
+	free_irq(aspeed_xdma->pcie_irq, aspeed_xdma);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
