@@ -972,6 +972,25 @@ static int i3c_master_setda_locked(struct i3c_master_controller *master,
 	return ret;
 }
 
+static int i3c_master_setaasa_locked(struct i3c_master_controller *master)
+{
+	struct i3c_ccc_cmd_dest dest;
+	struct i3c_ccc_setda *setda;
+	struct i3c_ccc_cmd cmd;
+	int ret;
+
+	setda = i3c_ccc_cmd_dest_init(&dest, 0, sizeof(*setda));
+	if (!setda)
+		return -ENOMEM;
+
+	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_SETAASA, &dest, 1);
+
+	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
+	i3c_ccc_cmd_dest_cleanup(&dest);
+
+	return ret;
+}
+
 static int i3c_master_setdasa_locked(struct i3c_master_controller *master,
 				     u8 static_addr, u8 dyn_addr)
 {
