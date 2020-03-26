@@ -1452,7 +1452,7 @@ static int i3c_master_pre_assign_dyn_addr(struct i3c_dev_desc *dev)
 		return ret;
 
 	dev->info.dyn_addr = dev->boardinfo->init_dyn_addr;
-	ret = i3c_master_reattach_i3c_dev(dev, 0);
+	ret = i3c_master_reattach_i3c_dev(dev, dev->info.static_addr);
 	if (ret)
 		goto err_rstdaa;
 
