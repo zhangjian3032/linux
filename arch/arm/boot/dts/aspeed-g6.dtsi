@@ -561,18 +561,40 @@
 				};
 			};
 
-			xdma: xdma@1e6e7000 {
+			xdma0: xdma@1e6e7000 {
 				compatible = "aspeed,ast2600-xdma";
 				reg = <0x1e6e7000 0x80>;
 				interrupts-extended = <&gic GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
+				interrupt-names = "xdma", "pcie";
 				resets = <&syscon ASPEED_RESET_DEV_XDMA>;
+				status = "disabled";
 			};
 
-			mctp: mctp@1e6e8000 {
+			xdma1: xdma@1e6f8000 {
+				compatible = "aspeed,ast2600-xdma";
+				reg = <0x1e6f8000 0x80>;
+				interrupts-extended = <&scu_ic0 ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
+				interrupt-names = "pcie";
+				resets = <&syscon ASPEED_RESET_RC_XDMA>;
+				status = "disabled";
+			};
+
+			mctp0: mctp@1e6e8000 {
 				compatible = "aspeed,ast2600-mctp";
 				reg = <0x1e6e8000 0x30>;
 	 			interrupts-extended = <&gic GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
+				interrupt-names = "mctp", "pcie";
 				resets = <&syscon ASPEED_RESET_DEV_MCTP>;
+				status = "disabled";
+			};
+
+			mctp1: mctp2@1e6f9000 {
+				compatible = "aspeed,ast2600-mctp";
+				reg = <0x1e6f9000 0x30>;
+	 			interrupts-extended = <&scu_ic0 ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
+				interrupt-names = "pcie";
+				resets = <&syscon ASPEED_RESET_RC_MCTP>;
+				status = "disabled";
 			};
 
 			adc0: adc@1e6e9000 {

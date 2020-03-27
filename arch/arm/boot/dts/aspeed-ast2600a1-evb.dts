@@ -24,6 +24,9 @@
 		mmc0 = &emmc;
 		mmc1 = &sdhci0;
 		mmc2 = &sdhci1;
+		jtag0 = &jtag1;
+		mctp0 = &mctp0;
+		mctp1 = &mctp1;
 	};
 
 	chosen {
@@ -561,6 +564,18 @@
 		&pinctrl_adc10_default &pinctrl_adc11_default
 		&pinctrl_adc12_default &pinctrl_adc13_default
 		&pinctrl_adc14_default &pinctrl_adc15_default>;
+};
+
+&mctp0 {
+	tx-payload-bytes= <64>;
+	rx-payload-bytes= <64>;
+	status = "okay";
+};
+
+&mctp1 {
+	tx-payload-bytes= <64>;
+	rx-payload-bytes= <64>;
+	status = "okay";
 };
 
 &jtag1 {
