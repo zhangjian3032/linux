@@ -13,6 +13,8 @@
 		serial2 = &uart3;
 		serial3 = &uart4;
 		serial4 = &uart5;
+		mmc0 = &sdhci_slot0;
+		mmc1 = &sdhci_slot1;
 	};
 
 	chosen {
