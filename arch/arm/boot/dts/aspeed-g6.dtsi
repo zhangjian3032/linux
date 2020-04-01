@@ -704,7 +704,7 @@
 				compatible = "aspeed,ast2600-sgpiom";
 				reg = <0x1e780500 0x200>;
 				interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
-				ngpios = <80>;
+				ngpios = <128>;
 				clocks = <&syscon ASPEED_CLK_APB2>;
 				interrupt-controller;
 				bus-frequency = <12000000>;
@@ -817,18 +817,19 @@
 				status = "disabled";
 			};
 
+			//pcie vuart1
 			vuart2: serial@1e787800 {
 				compatible = "aspeed,ast2600-vuart";
 				reg = <0x1e787800 0x40>;
 				reg-shift = <2>;
-				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB1>;
 				no-loopback-test;
 				port_address = <0x3f8>;
 				serial_irq = <4>;
 
 				status = "disabled";
-            };
+			};
 
 			vuart1: serial@1e788000 {
 				compatible = "aspeed,ast2600-vuart";
@@ -843,18 +844,19 @@
 				status = "disabled";
 			};
 
+			//pcie vuart2
 			vuart3: serial@1e788800 {
-                                compatible = "aspeed,ast2600-vuart";
-                                reg = <0x1e788800 0x40>;
-                                reg-shift = <2>;
-                                interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
-                                clocks = <&syscon ASPEED_CLK_APB2>;
-                                no-loopback-test;
-                                port_address = <0x2f8>;
-                                serial_irq = <3>;
+				compatible = "aspeed,ast2600-vuart";
+				reg = <0x1e788800 0x40>;
+				reg-shift = <2>;
+				interrupts = <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_APB2>;
+				no-loopback-test;
+				port_address = <0x2f8>;
+				serial_irq = <3>;
 
-                                status = "disabled";
-                        };
+				status = "disabled";
+			};
 
 			lpc: lpc@1e789000 {
 				compatible = "aspeed,ast2600-lpc", "simple-mfd";
