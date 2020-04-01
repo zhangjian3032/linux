@@ -1008,7 +1008,9 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 
 //scu init
 	if (aspeed_mctp->mctp_version == 6) {
-		if (aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_TX_CMD) == 0) {
+		if (!of_find_property(np, "no-reset-on-reboot", NULL) ||
+		    aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_TX_CMD) == 0) {
+			printk(KERN_INFO "aspeed_mctp: reset.\n");
 			reset_control_assert(aspeed_mctp->reset);
 			reset_control_deassert(aspeed_mctp->reset);
 		}
