@@ -238,7 +238,25 @@ static int video_mmap(struct file *file, struct vm_area_struct *vma)
 
 static int video_open(struct inode* pin, struct file* pf)
 {
+	u32 dw_val = 0;
+
 	VIDEO_DBG("video_open() Called\n");
+	regmap_read(pAstRVAS->scu, SCU000_Protection_Key_Register, &dw_val);
+
+	if (dw_val == 0x0) {
+		regmap_write(pAstRVAS->scu, SCU000_Protection_Key_Register,
+						SCU_UNLOCK_PWD);
+	}
+
+	regmap_read(pAstRVAS->scu, SCU080_Clock_Stop_Control_Register_Set_1,
+					&dw_val);
+
+	if (dw_val & SCU_RVAS_STOP_CLOCK_BIT) {
+		printk("enable rvas clock running\n");
+		regmap_write(pAstRVAS->scu,
+		SCU084_Clock_Stop_Control_Clear_Register,
+						SCU_RVAS_STOP_CLOCK_BIT);
+	}
 	return 0;
 }
 
