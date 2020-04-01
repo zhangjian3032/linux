@@ -637,16 +637,27 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 			return PTR_ERR(hw);
 		aspeed_g6_clk_data->hws[ASPEED_CLK_EMMC] = hw;
 	}
+
+	regmap_read(map, 0x310, &val);
+	if(val & BIT(8)) {
+		/* SD/SDIO clock divider and gate */
+		hw = clk_hw_register_gate(dev, "sd_extclk_gate", "apll", 0,
+						scu_g6_base + ASPEED_G6_CLK_SELECTION4, 31, 0,
+						&aspeed_g6_clk_lock);
+		if (IS_ERR(hw))
+				return PTR_ERR(hw);
+	} else {
+		/* SD/SDIO clock divider and gate */
+		hw = clk_hw_register_gate(dev, "sd_extclk_gate", "hclk", 0,
+						scu_g6_base + ASPEED_G6_CLK_SELECTION4, 31, 0,
+						&aspeed_g6_clk_lock);
+		if (IS_ERR(hw))
+				return PTR_ERR(hw);
+	}
 	
-	/* SD/SDIO clock divider and gate */
-	hw = clk_hw_register_gate(dev, "sd_extclk_gate", "hpll", 0,
-					scu_g6_base + ASPEED_G6_CLK_SELECTION4, 31, 0,
-					&aspeed_g6_clk_lock);
-	if (IS_ERR(hw))
-			return PTR_ERR(hw);
 	hw = clk_hw_register_divider_table(dev, "sd_extclk", "sd_extclk_gate",
 					0, scu_g6_base + ASPEED_G6_CLK_SELECTION4, 28, 3, 0,
-					ast2600_div_table,
+					ast2600_sd_div_table,
 					&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 			return PTR_ERR(hw);
