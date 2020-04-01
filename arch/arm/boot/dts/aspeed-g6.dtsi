@@ -544,10 +544,10 @@
 				#interrupt-cells = <1>;
 
 				interrupt-map-mask = <0 0 0 7>;
-                        interrupt-map = <0 0 0 1 &pcie_intc0 0>, /* INT A */
-                                        <0 0 0 2 &pcie_intc0 1>, /* INT B */
-                                        <0 0 0 3 &pcie_intc0 2>, /* INT C */
-                                        <0 0 0 4 &pcie_intc0 3>; /* INT D */
+				interrupt-map = <0 0 0 1 &pcie_intc0 0>, /* INT A */
+						<0 0 0 2 &pcie_intc0 1>, /* INT B */
+						<0 0 0 3 &pcie_intc0 2>, /* INT C */
+						<0 0 0 4 &pcie_intc0 3>; /* INT D */
 
 				resets = <&syscon ASPEED_RESET_PCIE_RC_O>;
 				rc_offset = <0xC0>;
@@ -584,11 +584,12 @@
 				reg = <0x1e6e8000 0x30>;
 	 			interrupts-extended = <&gic GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
 				interrupt-names = "mctp", "pcie";
+				no-reset-on-reboot;
 				resets = <&syscon ASPEED_RESET_DEV_MCTP>;
 				status = "disabled";
 			};
 
-			mctp1: mctp2@1e6f9000 {
+			mctp1: mctp@1e6f9000 {
 				compatible = "aspeed,ast2600-mctp";
 				reg = <0x1e6f9000 0x30>;
 	 			interrupts-extended = <&scu_ic0 ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
