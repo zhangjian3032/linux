@@ -17,7 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 
-#define MAX_NR_SGPIO			80
+#define MAX_NR_SGPIO			128
 
 #define ASPEED_SGPIO_CTRL		0x54
 
