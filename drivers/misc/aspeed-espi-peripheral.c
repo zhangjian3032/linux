@@ -276,6 +276,7 @@ static void aspeed_espi_mmbi_h2b_rwp_int(u32 mmbi_sts, void *arg) {
 			printk("PTR0: 0x%x\n",espi_peripheral->mmbi_data.arr_mmbi_host_rwp[app_index].b2h_host_rd);
 			printk("PTR1: 0x%x\n",espi_peripheral->mmbi_data.arr_mmbi_host_rwp[app_index].h2b_host_wr);
 		}
+		mmbi_sts >>= 2;
 	}
 }
 
