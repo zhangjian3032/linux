@@ -313,7 +313,7 @@ static void dw_i3c_master_disable(struct dw_i3c_master *master)
 
 static void dw_i3c_master_enable(struct dw_i3c_master *master)
 {
-	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_ENABLE,
+	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_ENABLE | DEV_CTRL_IBI_DATA_EN,
 	       master->regs + DEVICE_CTRL);
 }
 
@@ -463,6 +463,20 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 
 	if (!xfer)
 		return;
+
+#if 1
+	/* debug: dump IBI queue */
+	nibi = readl(master->regs + QUEUE_STATUS_LEVEL);
+	nibi = QUEUE_STATUS_IBI_BUF_BLR(nibi);
+
+	for (i = 0; i < nibi; i++) {
+		u32 ibi;
+
+		ibi = readl(master->regs + IBI_QUEUE_DATA);
+		printk("%08x,", ibi);		
+	}
+	printk("\n");
+#endif
 
 	nresp = readl(master->regs + QUEUE_STATUS_LEVEL);
 	nresp = QUEUE_STATUS_LEVEL_RESP(nresp);
@@ -834,11 +848,15 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 	}
 
 	dw_i3c_master_free_xfer(xfer);
-
+#if 0
 	i3c_master_disec_locked(m, I3C_BROADCAST_ADDR,
 				I3C_CCC_EVENT_HJ |
 				I3C_CCC_EVENT_MR |
 				I3C_CCC_EVENT_SIR);
+#else
+	ret = i3c_master_enec_locked(m, I3C_BROADCAST_ADDR,
+				     I3C_CCC_EVENT_SIR);
+#endif
 
 	return 0;
 }
