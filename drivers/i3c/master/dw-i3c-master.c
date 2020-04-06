@@ -459,7 +459,7 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 {
 	struct dw_i3c_xfer *xfer = master->xferqueue.cur;
 	int i, ret = 0;
-	u32 nresp;
+	u32 nresp, nibi;
 
 	if (!xfer)
 		return;
