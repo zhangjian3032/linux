@@ -528,6 +528,18 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 	u32 scl_timing;
 	u8 hcnt, lcnt;
 
+#if 1
+	/* init timing */
+	writel(0x00350064, master->regs + SCL_I3C_OD_TIMING);
+	writel(0x00110030, master->regs + SCL_I3C_PP_TIMING);
+	writel(0x00c9012b, master->regs + SCL_I2C_FM_TIMING);
+	writel(0x00ff00fd, master->regs + SCL_I2C_FMP_TIMING);
+	writel(0x5b071611, master->regs + SCL_EXT_LCNT_TIMING);
+	writel(0x0000000c, master->regs + SCL_EXT_TERMN_LCNT_TIMING);
+	writel(0x01f4000a, master->regs + BUS_FREE_TIMING);
+	writel(0x000047a1, master->regs + BUS_IDLE_TIMING);
+	return 0;
+#endif
 	core_rate = clk_get_rate(master->core_clk);
 	if (!core_rate)
 		return -EINVAL;
@@ -1106,7 +1118,6 @@ static const struct i3c_master_controller_ops dw_mipi_i3c_ops = {
 
 static int dw_i3c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct dw_i3c_master *master;
 	int ret, irq;
 
@@ -1135,18 +1146,6 @@ static int dw_i3c_probe(struct platform_device *pdev)
 
 	spin_lock_init(&master->xferqueue.lock);
 	INIT_LIST_HEAD(&master->xferqueue.list);
-
-	/* init timing */
-	if (of_device_is_compatible(np, "aspeed,ast2600-i3c")) {
-		writel(0x00350064, master->regs + SCL_I3C_OD_TIMING);
-		writel(0x00110030, master->regs + SCL_I3C_PP_TIMING);
-		writel(0x00c9012b, master->regs + SCL_I2C_FM_TIMING);
-		writel(0x00ff00fd, master->regs + SCL_I2C_FMP_TIMING);
-		writel(0x5b071611, master->regs + SCL_EXT_LCNT_TIMING);
-		writel(0x0000000c, master->regs + SCL_EXT_TERMN_LCNT_TIMING);
-		writel(0x01f4000a, master->regs + BUS_FREE_TIMING);
-		writel(0x000047a1, master->regs + BUS_IDLE_TIMING);
-	}
 
 	writel(INTR_ALL, master->regs + INTR_STATUS);
 	irq = platform_get_irq(pdev, 0);
