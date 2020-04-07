@@ -206,6 +206,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	int ret;
 	u32 eng_ctrl = 0;
 	u32 adc_engine_control_reg_val;
+	u32 ref_voltage = 0;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*data));
 	if (!indio_dev)
@@ -256,7 +257,20 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	reset_control_deassert(data->rst);
 
 	model_data = of_device_get_match_data(&pdev->dev);
-	if (!of_property_read_u32(pdev->dev.of_node, "ref_voltage", (u32 *)&model_data->vref_voltage)) {
+	
+	if (!of_property_read_u32(pdev->dev.of_node, "ref_voltage", &ref_voltage)) {
+		if (ref_voltage == 2500)
+			eng_ctrl = REF_VLOTAGE_2500mV;
+		else if (ref_voltage == 1200)
+			eng_ctrl = REF_VLOTAGE_1200mV;
+		else if ((ref_voltage >= 1550) && (ref_voltage <= 2700))
+			eng_ctrl = REF_VLOTAGE_1550mV;
+		else if ((ref_voltage >= 900) && (ref_voltage <= 1650))
+			eng_ctrl = REF_VLOTAGE_900mV;
+		else {
+			eng_ctrl = 0;
+		}
+	} else {
 		if (model_data->vref_voltage == 2500)
 			eng_ctrl = REF_VLOTAGE_2500mV;
 		else if (model_data->vref_voltage == 1200)
@@ -266,11 +280,9 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		else if ((model_data->vref_voltage >= 900) && (model_data->vref_voltage <= 1650))
 			eng_ctrl = REF_VLOTAGE_900mV;
 		else {
-			printk("error ref voltage %d \n", model_data->vref_voltage);
 			eng_ctrl = 0;
 		}
-	} else
-		eng_ctrl = 0;
+	}
 
 	if (model_data->wait_init_sequence) {
 		/* Enable engine in normal mode. */
