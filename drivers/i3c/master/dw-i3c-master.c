@@ -552,18 +552,6 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 	u32 scl_timing;
 	u8 hcnt, lcnt;
 
-#if 1
-	/* init timing */
-	writel(0x00350064, master->regs + SCL_I3C_OD_TIMING);
-	writel(0x00110030, master->regs + SCL_I3C_PP_TIMING);
-	writel(0x00c9012b, master->regs + SCL_I2C_FM_TIMING);
-	writel(0x00ff00fd, master->regs + SCL_I2C_FMP_TIMING);
-	writel(0x5b071611, master->regs + SCL_EXT_LCNT_TIMING);
-	writel(0x0000000c, master->regs + SCL_EXT_TERMN_LCNT_TIMING);
-	writel(0x01f4000a, master->regs + BUS_FREE_TIMING);
-	writel(0x000047a1, master->regs + BUS_IDLE_TIMING);
-	return 0;
-#endif
 	core_rate = clk_get_rate(master->core_clk);
 	if (!core_rate)
 		return -EINVAL;
@@ -582,10 +570,6 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 
 	if (!(readl(master->regs + DEVICE_CTRL) & DEV_CTRL_I2C_SLAVE_PRESENT))
 		writel(BUS_I3C_MST_FREE(lcnt), master->regs + BUS_FREE_TIMING);
-
-	lcnt = DIV_ROUND_UP(I3C_BUS_TLOW_OD_MIN_NS, core_period);
-	scl_timing = SCL_I3C_TIMING_HCNT(hcnt) | SCL_I3C_TIMING_LCNT(lcnt);
-	writel(scl_timing, master->regs + SCL_I3C_OD_TIMING);
 
 	lcnt = DIV_ROUND_UP(core_rate, I3C_BUS_SDR1_SCL_RATE) - hcnt;
 	scl_timing = SCL_EXT_LCNT_1(lcnt);
