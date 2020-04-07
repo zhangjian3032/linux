@@ -21,6 +21,9 @@
 		serial10 = &uart11;
 		serial11 = &uart12;
 		serial12 = &uart13;
+		mmc0 = &emmc;
+		mmc1 = &sdhci0;
+		mmc2 = &sdhci1;
 	};
 
 	chosen {
@@ -496,11 +499,6 @@
 };
 #endif
 
-&sdc {
-	status = "okay";
-	timing-phase = <0xc6ffff>;
-};
-
 &emmc_controller {
 	status = "okay";
 	timing-phase = <0x700FF>;
@@ -511,20 +509,25 @@
 
 	non-removable;
 	max-frequency = <100000000>;
+	sdhci-drive-type = /bits/ 8 <3>;
 	bus-width = <8>;
 	pinctrl-0 = <&pinctrl_emmc_default 
 			&pinctrl_emmcg8_default>;
 };
 
-#if 0
+&sdc {
+	status = "okay";
+	timing-phase = <0xc6ffff>;
+};
+
 &sdhci0 {
 	status = "okay";
 
 	bus-width = <4>;
 	max-frequency = <100000000>;
-
+	sdhci-drive-type = /bits/ 8 <3>;
 	/* SDR104/DDR50/SDR50 bits in CAPA2 is not supported */
-	sdhci-caps-mask = <0x7 0x0>;
+	sdhci-caps-mask = <0x7 0x580000>;
 	sdhci,wp-inverted;
 };
 
@@ -533,10 +536,10 @@
 
 	bus-width = <4>;
 	max-frequency = <100000000>;
-	sdhci-caps-mask = <0x7 0x0>;
+	sdhci-drive-type = /bits/ 8 <3>;
+	sdhci-caps-mask = <0x7 0x580000>;
 	sdhci,wp-inverted;
 };
-#endif
 
 &peci0 {
 	status = "okay";
