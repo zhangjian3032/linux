@@ -204,6 +204,10 @@
 #define I3C_BUS_I2C_FM_TLOW_MIN_NS	1300
 #define I3C_BUS_I2C_FMP_TLOW_MIN_NS	500
 #define I3C_BUS_THIGH_MAX_NS		41
+#define I3C_BUS_OP_TLOW_MIN_NS		500
+#define I3C_BUS_OP_THIGH_MIN_NS		260
+#define I3C_BUS_PP_TLOW_MIN_NS		35
+#define I3C_BUS_PP_THIGH_MIN_NS		35
 
 #define XFER_TIMEOUT (msecs_to_jiffies(1000))
 
@@ -459,24 +463,30 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 {
 	struct dw_i3c_xfer *xfer = master->xferqueue.cur;
 	int i, ret = 0;
-	u32 nresp, nibi;
-
-	if (!xfer)
-		return;
+	u32 nresp;
 
 #if 1
-	/* debug: dump IBI queue */
+	u32 nibi, ibi_data[17];
+
 	nibi = readl(master->regs + QUEUE_STATUS_LEVEL);
 	nibi = QUEUE_STATUS_IBI_BUF_BLR(nibi);
 
-	for (i = 0; i < nibi; i++) {
-		u32 ibi;
+	if (nibi > 17)
+		printk("incorrect IBI entries: %d\n", nibi);
 
-		ibi = readl(master->regs + IBI_QUEUE_DATA);
-		printk("%08x,", ibi);		
+	for (i = 0; i < nibi; i++) {
+		ibi_data[i] = readl(master->regs + IBI_QUEUE_DATA);
 	}
-	printk("\n");
+
+	/* debug: dump IBI queue */
+	if (nibi) {
+		for (i = 0; i < nibi; i++)
+			printk("%08x", ibi_data[i]);
+	}
 #endif
+
+	if (!xfer)
+		return;
 
 	nresp = readl(master->regs + QUEUE_STATUS_LEVEL);
 	nresp = QUEUE_STATUS_LEVEL_RESP(nresp);
@@ -560,14 +570,13 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 
 	core_period = DIV_ROUND_UP(1000000000, core_rate);
 
-	hcnt = DIV_ROUND_UP(I3C_BUS_THIGH_MAX_NS, core_period) - 1;
-	if (hcnt < SCL_I3C_TIMING_CNT_MIN)
-		hcnt = SCL_I3C_TIMING_CNT_MIN;
+	hcnt = DIV_ROUND_UP(I3C_BUS_OP_THIGH_MIN_NS, core_period) + 1;
+	lcnt = DIV_ROUND_UP(I3C_BUS_OP_TLOW_MIN_NS, core_period) + 1;
+	scl_timing = SCL_I3C_TIMING_HCNT(hcnt) | SCL_I3C_TIMING_LCNT(lcnt);
+	writel(scl_timing, master->regs + SCL_I3C_OD_TIMING);
 
-	lcnt = DIV_ROUND_UP(core_rate, I3C_BUS_TYP_I3C_SCL_RATE) - hcnt;
-	if (lcnt < SCL_I3C_TIMING_CNT_MIN)
-		lcnt = SCL_I3C_TIMING_CNT_MIN;
-
+	hcnt = DIV_ROUND_UP(I3C_BUS_PP_THIGH_MIN_NS, core_period) + 1;
+	lcnt = DIV_ROUND_UP(I3C_BUS_PP_TLOW_MIN_NS, core_period) + 1;
 	scl_timing = SCL_I3C_TIMING_HCNT(hcnt) | SCL_I3C_TIMING_LCNT(lcnt);
 	writel(scl_timing, master->regs + SCL_I3C_PP_TIMING);
 
