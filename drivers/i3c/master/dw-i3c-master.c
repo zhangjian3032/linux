@@ -21,6 +21,7 @@
 #include <linux/reset.h>
 #include <linux/slab.h>
 
+#define IBI_WIP
 #define DEVICE_CTRL			0x0
 #define DEV_CTRL_ENABLE			BIT(31)
 #define DEV_CTRL_RESUME			BIT(30)
@@ -131,9 +132,14 @@
 					INTR_IBI_THLD_STAT |		\
 					INTR_TX_THLD_STAT |		\
 					INTR_RX_THLD_STAT)
-
+#ifdef IBI_WIP
+#define INTR_MASTER_MASK		(INTR_TRANSFER_ERR_STAT |	\
+					 INTR_RESP_READY_STAT	|	\
+					 INTR_IBI_THLD_STAT)
+#else
 #define INTR_MASTER_MASK		(INTR_TRANSFER_ERR_STAT |	\
 					 INTR_RESP_READY_STAT)
+#endif					 
 
 #define QUEUE_STATUS_LEVEL		0x4c
 #define QUEUE_STATUS_IBI_STATUS_CNT(x)	(((x) & GENMASK(28, 24)) >> 24)
@@ -251,6 +257,7 @@ struct dw_i3c_master {
 	char version[5];
 	char type[5];
 	u8 addrs[MAX_DEVS];
+	int ibi_valid;
 };
 
 struct dw_i3c_i2c_dev_data {
@@ -459,29 +466,46 @@ static void dw_i3c_master_dequeue_xfer(struct dw_i3c_master *master,
 	spin_unlock_irqrestore(&master->xferqueue.lock, flags);
 }
 
+#define IBI_VALID_START(_ibi_)	((_ibi_ & BIT(31)) && ((_ibi_ & 0x0000ff00) != 0x0000ff00))
+#define IBI_VALID_END(_ibi_)	(_ibi_ & BIT(30))
+
 static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 {
 	struct dw_i3c_xfer *xfer = master->xferqueue.cur;
 	int i, ret = 0;
 	u32 nresp;
 
-#if 1
+#ifdef IBI_WIP
+	int j = 0;
 	u32 nibi, ibi_data[17];
 
+	/* consume the IBI data */
 	nibi = readl(master->regs + QUEUE_STATUS_LEVEL);
 	nibi = QUEUE_STATUS_IBI_BUF_BLR(nibi);
 
-	if (nibi > 17)
-		printk("incorrect IBI entries: %d\n", nibi);
-
-	for (i = 0; i < nibi; i++) {
-		ibi_data[i] = readl(master->regs + IBI_QUEUE_DATA);
-	}
-
-	/* debug: dump IBI queue */
-	if (nibi) {
-		for (i = 0; i < nibi; i++)
+	if ((isr & INTR_IBI_THLD_STAT) && nibi) {
+		u32 ibi;
+		for (i = 0; i < nibi; i++) {
+			ibi = readl(master->regs + IBI_QUEUE_DATA);
+#if 0
+			if (master->ibi_valid == 0) {
+				if (IBI_VALID_START(ibi)) {
+					ibi_data[j++] = ibi;
+					master->ibi_valid = 1;
+				}
+			} else {
+				ibi_data[j++] = ibi;
+				if (IBI_VALID_END(ibi))
+					master->ibi_valid = 0;
+			}
+#endif			
+		}
+#if 0
+		/* debug: dump IBI queue */
+		for (i = 0; i < j; i++)
 			printk("%08x", ibi_data[i]);
+#endif
+		writel(RESET_CTRL_IBI_QUEUE, master->regs + RESET_CTRL);
 	}
 #endif
 
@@ -665,8 +689,15 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	if (ret)
 		return ret;
 
+#ifdef IBI_WIP
+	writel(readl(master->regs + IBI_QUEUE_CTRL) | (0x5 << 24),
+	       master->regs + IBI_QUEUE_CTRL);
+	writel(0, master->regs + IBI_SIR_REQ_REJECT);
+	writel(0, master->regs + IBI_MR_REQ_REJECT);
+#else
 	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_SIR_REQ_REJECT);
 	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_MR_REQ_REJECT);
+#endif
 
 	/* For now don't support Hot-Join */
 	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_HOT_JOIN_NACK,
@@ -841,14 +872,14 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 	}
 
 	dw_i3c_master_free_xfer(xfer);
-#if 0
+#ifdef IBI_WIP
+	ret = i3c_master_enec_locked(m, I3C_BROADCAST_ADDR,
+				     I3C_CCC_EVENT_SIR);
+#else
 	i3c_master_disec_locked(m, I3C_BROADCAST_ADDR,
 				I3C_CCC_EVENT_HJ |
 				I3C_CCC_EVENT_MR |
 				I3C_CCC_EVENT_SIR);
-#else
-	ret = i3c_master_enec_locked(m, I3C_BROADCAST_ADDR,
-				     I3C_CCC_EVENT_SIR);
 #endif
 
 	return 0;
@@ -1179,7 +1210,7 @@ static int dw_i3c_probe(struct platform_device *pdev)
 	master->datstartaddr = ret;
 	master->maxdevs = ret >> 16;
 	master->free_pos = GENMASK(master->maxdevs - 1, 0);
-
+	master->ibi_valid = 0;
 	ret = i3c_master_register(&master->base, &pdev->dev,
 				  &dw_mipi_i3c_ops, false);
 	if (ret)
