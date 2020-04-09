@@ -691,8 +691,11 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 		return ret;
 
 #ifdef IBI_WIP
-	writel(readl(master->regs + IBI_QUEUE_CTRL) | (0x5 << 24),
-	       master->regs + IBI_QUEUE_CTRL);
+	thld_ctrl = readl(master->regs + QUEUE_THLD_CTRL);
+	thld_ctrl &= ~QUEUE_THLD_CTRL_IBI_BUF_MASK;
+	thld_ctrl |= QUEUE_THLD_CTRL_IBI_BUF(1);
+	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
+
 	writel(0, master->regs + IBI_SIR_REQ_REJECT);
 	writel(0, master->regs + IBI_MR_REQ_REJECT);
 #else
