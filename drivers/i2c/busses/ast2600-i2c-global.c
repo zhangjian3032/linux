@@ -55,10 +55,10 @@ struct aspeed_i2c_base_clk {
 
 static const struct aspeed_i2c_base_clk i2c_base_clk[BASE_CLK_COUNT] = {
 	/* name	target_freq */
-	{  "base_clk0",	1000000 },	//1M
-	{  "base_clk1",	4000000 },	//4M
+	{  "base_clk1",	35000000 },	//35M
 	{  "base_clk2",	10000000 },	//10M
-	{  "base_clk3",	35000000 },	//35M
+	{  "base_clk3",	4000000 },	//4M
+	{  "base_clk4",	1000000 },	//1M
 };
 
 static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long	base_clk, struct device_node *node)
@@ -69,7 +69,6 @@ static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long	base_clk, struct devi
 	u32 clk_divider = 0;
 	int i, j;
 	unsigned long base_freq;
-
 
 	onecell = kzalloc(sizeof(*onecell) + (BASE_CLK_COUNT * sizeof(struct clk_hw *)), GFP_KERNEL);
 	if (!onecell) {
@@ -83,10 +82,20 @@ static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long	base_clk, struct devi
 	for(j = 0; j < BASE_CLK_COUNT; j++) {
 		printk("target clk : %ld \n", i2c_base_clk[j].base_freq);		
 		for(i = 0; i < 0xff; i++) {
-			base_freq = (base_clk * 2) / (2 + i);
-			if(base_freq <= i2c_base_clk[j].base_freq) {
+			/*
+			 * i maps to div:
+			 * 0x00: div 1
+			 * 0x01: div 1.5
+			 * 0x02: div 2
+			 * 0x03: div 2.5
+			 * 0x04: div 3
+			 * ...
+			 * 0xFE: div 128
+			 * 0xFF: div 128.5
+			 */
+			base_freq = base_clk * 10 / (10 + i * 5);
+			if(base_freq <= i2c_base_clk[j].base_freq)
 				break;
-			}
 		}
 		printk("base clk [%d] : %ld \n", j, base_freq);
 		hw = clk_hw_register_fixed_rate(NULL, i2c_base_clk[j].name, NULL, 0, base_freq);
@@ -95,7 +104,7 @@ static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long	base_clk, struct devi
 			break;
 		}
 		onecell->hws[j] = hw;
-		clk_divider &= (i << (8 * j));
+		clk_divider |= (i << (8 * j));
 	}
 
 	err = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, onecell);
