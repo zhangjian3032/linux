@@ -961,6 +961,7 @@ static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
 		/* Ack all interrupts except for Rx done */
 		writel(irq_received & ~ASPEED_I2CD_INTR_RX_DONE,
 		       bus->base + ASPEED_I2C_INTR_STS_REG);
+		readl(bus->base + ASPEED_I2C_INTR_STS_REG);	
 	}
 	irq_remaining = irq_received;
 
@@ -996,9 +997,11 @@ static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
 			irq_received, irq_handled);
 
 	/* Ack Rx done */
-	if (irq_received & ASPEED_I2CD_INTR_RX_DONE)
+	if (irq_received & ASPEED_I2CD_INTR_RX_DONE) {
 		writel(ASPEED_I2CD_INTR_RX_DONE,
 		       bus->base + ASPEED_I2C_INTR_STS_REG);
+		readl(bus->base + ASPEED_I2C_INTR_STS_REG);
+	}
 
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 	if(((cmd_sts & BIT(19)) == BIT(19)) &&

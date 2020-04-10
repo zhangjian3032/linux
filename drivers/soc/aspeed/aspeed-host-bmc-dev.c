@@ -202,7 +202,7 @@ irqreturn_t aspeed_pci_host_bmc_device_interrupt(int irq, void* dev_id)
 
 	u32 bmc2host_q_sts = readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS);
 
-//	printk("%s bmc2host_q_sts is %x \n", __FUNCTION__, bmc2host_q_sts);
+	printk("%s bmc2host_q_sts is %x \n", __FUNCTION__, bmc2host_q_sts);
 
 	if(bmc2host_q_sts & BMC2HOST_INT_STS_DOORBELL) {
 		writel(BMC2HOST_INT_STS_DOORBELL, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS);
@@ -221,11 +221,13 @@ irqreturn_t aspeed_pci_host_bmc_device_interrupt(int irq, void* dev_id)
 
 }
 
+//#define SCU_TRIGGER_MSI
 
 static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct aspeed_pci_bmc_dev *pci_bmc_dev;
 	struct device *dev = &pdev->dev;
+	u16 config_cmd_val; 
 	int rc = 0;
 
 	dev_dbg(&pdev->dev, "ASPEED BMC PCI ID %04x:%04x\n", pdev->vendor, pdev->device);
@@ -236,6 +238,30 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 		goto out_err;
 	}
 
+#if BMC_MSI_INT
+	/* set PCI host mastering  */
+	pci_set_master(pdev);
+
+	rc = pci_enable_msi(pdev);
+	if(rc)
+		printk("MSI failed. et:%d\n", rc);
+
+#ifdef SCU_TRIGGER_MSI
+	pci_read_config_word(pdev, PCI_COMMAND, &config_cmd_val);
+	printk("config_cmd_val %x \n", config_cmd_val);
+	config_cmd_val |= PCI_COMMAND_INTX_DISABLE;
+	printk("config_cmd_val %x \n", config_cmd_val);
+	pci_write_config_word((struct pci_dev *)pdev, PCI_COMMAND, config_cmd_val);
+
+#else
+	pci_read_config_word(pdev, PCI_COMMAND, &config_cmd_val);
+	printk("config_cmd_val %x \n", config_cmd_val);
+	config_cmd_val &= ~PCI_COMMAND_INTX_DISABLE;
+	printk("config_cmd_val %x \n", config_cmd_val);
+	pci_write_config_word((struct pci_dev *)pdev, PCI_COMMAND, config_cmd_val);
+#endif	
+
+#endif
 	pci_bmc_dev = kzalloc(sizeof(*pci_bmc_dev), GFP_KERNEL);
 	if (pci_bmc_dev == NULL) {
 			rc = -ENOMEM;
@@ -324,15 +350,7 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 	
 	pci_set_drvdata(pdev, pci_bmc_dev);
 
-#if 0
-	retval = pci_enable_msi(pdev);
-	if (retval)
-	{
-		printk("MSI failed. et:%d\n", retval);
-	}
-#endif
-
-	rc = request_irq(pdev->irq, aspeed_pci_host_bmc_device_interrupt, IRQF_SHARED, "ASPEED BMC DEVICE", pci_bmc_dev);
+	rc = request_irq(pdev->irq, aspeed_pci_host_bmc_device_interrupt, 0, "ASPEED BMC DEVICE", pci_bmc_dev);
 	if (rc) {
 		pr_err("host bmc device Unable to get IRQ %d\n",rc);
 		goto out_unreg;

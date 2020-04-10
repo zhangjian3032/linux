@@ -37,7 +37,7 @@
 #include <linux/miscdevice.h>
 
 #define DEVICE_NAME     "bmc-device"
-
+//#define SCU_TRIGGER_MSI
 struct aspeed_bmc_device {
 	unsigned char *host2bmc_base_virt;
 	struct miscdevice	miscdev;
@@ -59,7 +59,6 @@ struct aspeed_bmc_device {
 
 #define BMC_MEM_BAR_SIZE		0x100000
 #define BMC_QUEUE_SIZE 			(16 * 4)
-
 
 /* ================================================================================== */
 #define ASPEED_BMC_MEM_BAR			0xF10
@@ -182,7 +181,12 @@ static ssize_t aspeed_bmc2host_queue1_tx(struct file *filp, struct kobject *kobj
 		printk("tx_buff %x \n", tx_buff);
 		writel(tx_buff, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_Q1);
 		//trigger to host 
+#ifdef SCU_TRIGGER_MSI
+		//A0 : BIT(12) A1 : BIT(15)
+		regmap_update_bits(bmc_device->scu, 0x560, BIT(15), BIT(15));
+#else
 		writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
+#endif
 		return 4;
 	}
 }
@@ -237,9 +241,15 @@ static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 	printk("aspeed_bmc_device_init \n");
 
 	//enable bmc device mmio
-	regmap_update_bits(bmc_device->scu, 0xc20, BIT(13) | GENMASK(13, 12), BIT(13) | GENMASK(13, 12));
-	//enable host2bmc interrupt
+	regmap_update_bits(bmc_device->scu, 0xc20, BIT(13) | GENMASK(9, 8), BIT(13) | GENMASK(9, 8));
+
+#ifdef SCU_TRIGGER_MSI
+	//SCUC24[17]: Enable PCI device 1 INTx/MSI from SCU560[15]. Will be added in next version
+	regmap_update_bits(bmc_device->scu, 0xc24, BIT(17), BIT(17));
+#else
+	//SCUC24[18]: Enable PCI device 1 INTx/MSI from Host-to-BMC controller. Will be added in next version
 	regmap_update_bits(bmc_device->scu, 0xc24, BIT(18), BIT(18));
+#endif
 
 	writel(~(BMC_MEM_BAR_SIZE - 1) | HOST2BMC_MEM_BAR_ENABLE, bmc_device->reg_base + ASPEED_BMC_MEM_BAR);	
 	writel(bmc_device->bmc_mem_phy, bmc_device->reg_base + ASPEED_BMC_MEM_BAR_REMAP);

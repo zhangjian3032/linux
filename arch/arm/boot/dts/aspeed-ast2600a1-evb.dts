@@ -58,6 +58,13 @@
 			reusable;
 		};
 
+		rvas_memory: rvas {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
 		ssp_memory: ssp_memory {
 			size = <0x00200000>;
 			alignment = <0x00100000>;
@@ -434,15 +441,15 @@
 		aspeed,min_rpm = <2000>;
 	};
 };
-#if 1
+
 &video {
 	status = "okay";
 	memory-region = <&video_engine_memory>;
 };
-#else
+#if 0
 &rvas {
 	status = "okay";
-	memory-region = <&video_engine_memory>;
+	memory-region = <&rvas_memory>;
 };
 #endif
 
@@ -469,6 +476,14 @@
 &ehci1 {
 	status = "okay";
 };
+
+#if 0
+&udc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb2bd_default>;
+};
+#endif
 
 #if 0
 &gfx {
