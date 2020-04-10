@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 
 #define IBI_WIP
+#define CCC_WORKAROUND
 #define DEVICE_CTRL			0x0
 #define DEV_CTRL_ENABLE			BIT(31)
 #define DEV_CTRL_RESUME			BIT(30)
@@ -1214,6 +1215,13 @@ static int dw_i3c_probe(struct platform_device *pdev)
 	master->datstartaddr = ret;
 	master->maxdevs = ret >> 16;
 	master->free_pos = GENMASK(master->maxdevs - 1, 0);
+#ifdef CCC_WORKAROUND	
+	master->free_pos &= ~BIT(master->maxdevs - 1);
+	ret = (even_parity(I3C_BROADCAST_ADDR) << 7) | I3C_BROADCAST_ADDR;
+	master->addrs[master->maxdevs - 1] = ret;
+	writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(ret),
+	       master->regs + DEV_ADDR_TABLE_LOC(master->datstartaddr, master->maxdevs - 1));
+#endif
 	master->ibi_valid = 0;
 	ret = i3c_master_register(&master->base, &pdev->dev,
 				  &dw_mipi_i3c_ops, false);
