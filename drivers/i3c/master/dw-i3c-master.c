@@ -242,6 +242,7 @@ struct dw_i3c_xfer {
 };
 
 struct dw_i3c_master {
+	struct device *dev;
 	struct i3c_master_controller base;
 	u16 maxdevs;
 	u16 datstartaddr;
@@ -358,6 +359,7 @@ static void dw_i3c_master_wr_tx_fifo(struct dw_i3c_master *master,
 
 		memcpy(&tmp, bytes + (nbytes & ~3), nbytes & 3);
 		writesl(master->regs + RX_TX_DATA_PORT, &tmp, 1);
+		dev_dbg(master->dev, "TX data = %08x\n", tmp);
 	}
 }
 
@@ -488,7 +490,6 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 		u32 ibi;
 		for (i = 0; i < nibi; i++) {
 			ibi = readl(master->regs + IBI_QUEUE_DATA);
-#if 0
 			if (master->ibi_valid == 0) {
 				if (IBI_VALID_START(ibi)) {
 					ibi_data[j++] = ibi;
@@ -499,13 +500,12 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 				if (IBI_VALID_END(ibi))
 					master->ibi_valid = 0;
 			}
-#endif			
 		}
-#if 0
+
 		/* debug: dump IBI queue */
 		for (i = 0; i < j; i++)
-			printk("%08x", ibi_data[i]);
-#endif
+			dev_dbg(master->dev, "%08x", ibi_data[i]);
+
 		writel(RESET_CTRL_IBI_QUEUE, master->regs + RESET_CTRL);
 	}
 #endif
@@ -750,6 +750,9 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 		      COMMAND_PORT_TOC |
 		      COMMAND_PORT_ROC;
 
+	dev_dbg(master->dev, "%s:cmd_hi=0x%08x cmd_lo=0x%08x tx_len=%d\n",
+		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->tx_len);
+
 	dw_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
 		dw_i3c_master_dequeue_xfer(master, xfer);
@@ -790,6 +793,9 @@ static int dw_i3c_ccc_get(struct dw_i3c_master *master, struct i3c_ccc_cmd *ccc)
 		      COMMAND_PORT_CMD(ccc->id) |
 		      COMMAND_PORT_TOC |
 		      COMMAND_PORT_ROC;
+
+	dev_dbg(master->dev, "%s:cmd_hi=0x%08x cmd_lo=0x%08x rx_len=%d\n",
+		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->rx_len);
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
@@ -890,6 +896,10 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 	return 0;
 }
 #ifdef CCC_WORKAROUND
+/**
+ * Provide an interface for sending CCC from userspace.  Especially for the 
+ * transfers with PEC and direct CCC.
+*/
 static int dw_i3c_master_ccc_xfers(struct i3c_dev_desc *dev,
 				    struct i3c_priv_xfer *i3c_xfers,
 				    int i3c_nxfers)
@@ -918,7 +928,10 @@ static int dw_i3c_master_ccc_xfers(struct i3c_dev_desc *dev,
 			   COMMAND_PORT_ROC;
 	if (i3c_nxfers == 1)
 		cmd_ccc->cmd_lo |= COMMAND_PORT_TOC;
-	printk("%s:cmd_ccc_hi=0x%08x cmd_ccc_lo=0x%08x tx_len=%d\n", __func__, cmd_ccc->cmd_hi, cmd_ccc->cmd_lo, cmd_ccc->tx_len);
+
+	dev_dbg(master->dev,
+		"%s:cmd_ccc_hi=0x%08x cmd_ccc_lo=0x%08x tx_len=%d\n", __func__,
+		cmd_ccc->cmd_hi, cmd_ccc->cmd_lo, cmd_ccc->tx_len);
 
 	for (i = 1; i < i3c_nxfers; i++) {
 		struct dw_i3c_cmd *cmd = &xfer->cmds[i];
@@ -946,7 +959,10 @@ static int dw_i3c_master_ccc_xfers(struct i3c_dev_desc *dev,
 		if (i == (i3c_nxfers - 1))
 			cmd->cmd_lo |= COMMAND_PORT_TOC;
 
-		printk("%s:cmd_hi=0x%08x cmd_lo=0x%08x tx_len=%d rx_len=%d\n", __func__, cmd->cmd_hi, cmd->cmd_lo, cmd->tx_len, cmd->rx_len);
+		dev_dbg(master->dev,
+			"%s:cmd_hi=0x%08x cmd_lo=0x%08x tx_len=%d rx_len=%d\n",
+			__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->tx_len,
+			cmd->rx_len);
 	}
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
@@ -1026,6 +1042,11 @@ static int dw_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 
 		if (i == (i3c_nxfers - 1))
 			cmd->cmd_lo |= COMMAND_PORT_TOC;
+
+		dev_dbg(master->dev,
+			"%s:cmd_hi=0x%08x cmd_lo=0x%08x tx_len=%d rx_len=%d\n",
+			__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->tx_len,
+			cmd->rx_len);
 	}
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
@@ -1302,6 +1323,7 @@ static int dw_i3c_probe(struct platform_device *pdev)
 	       master->regs + DEV_ADDR_TABLE_LOC(master->datstartaddr, master->maxdevs - 1));
 #endif
 	master->ibi_valid = 0;
+	master->dev = &pdev->dev;
 	ret = i3c_master_register(&master->base, &pdev->dev,
 				  &dw_mipi_i3c_ops, false);
 	if (ret)
