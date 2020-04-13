@@ -145,7 +145,7 @@ static ssize_t aspeed_pci_bmc_dev_queue2_rx(struct file *filp, struct kobject *k
 
 	if(!(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_Q2) & BMC2HOST_Q2_EMPTY)) {
 		data[0] = readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_Q2);
-		printk("Got BMC2HOST_Q2 [%x] \n", data[0]);
+//		printk("Got BMC2HOST_Q2 [%x] \n", data[0]);
 		return 4;
 	} else 
 		return 0;
@@ -166,7 +166,7 @@ static ssize_t aspeed_pci_bmc_dev_queue1_tx(struct file *filp, struct kobject *k
 		return -1;
 	else {
 		memcpy(&tx_buff, buf, 4);
-		printk("tx_buff %x \n", tx_buff);
+//		printk("tx_buff %x \n", tx_buff);
 		writel(tx_buff, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_Q1);
 		//trigger to host 
 		writel(HOST2BMC_INT_STS_DOORBELL | HOST2BMC_ENABLE_INTB, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS);
@@ -202,7 +202,7 @@ irqreturn_t aspeed_pci_host_bmc_device_interrupt(int irq, void* dev_id)
 
 	u32 bmc2host_q_sts = readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS);
 
-	printk("%s bmc2host_q_sts is %x \n", __FUNCTION__, bmc2host_q_sts);
+//	printk("%s bmc2host_q_sts is %x \n", __FUNCTION__, bmc2host_q_sts);
 
 	if(bmc2host_q_sts & BMC2HOST_INT_STS_DOORBELL) {
 		writel(BMC2HOST_INT_STS_DOORBELL, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS);
@@ -221,7 +221,9 @@ irqreturn_t aspeed_pci_host_bmc_device_interrupt(int irq, void* dev_id)
 
 }
 
-//#define SCU_TRIGGER_MSI
+#define BMC_MSI_INT
+
+#define SCU_TRIGGER_MSI
 
 static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -238,7 +240,7 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 		goto out_err;
 	}
 
-#if BMC_MSI_INT
+#ifdef BMC_MSI_INT
 	/* set PCI host mastering  */
 	pci_set_master(pdev);
 
@@ -252,7 +254,6 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 	config_cmd_val |= PCI_COMMAND_INTX_DISABLE;
 	printk("config_cmd_val %x \n", config_cmd_val);
 	pci_write_config_word((struct pci_dev *)pdev, PCI_COMMAND, config_cmd_val);
-
 #else
 	pci_read_config_word(pdev, PCI_COMMAND, &config_cmd_val);
 	printk("config_cmd_val %x \n", config_cmd_val);
