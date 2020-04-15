@@ -6,14 +6,6 @@ enum aspeed_espi_version {
 	ESPI_AST2600,
 };
 
-struct aspeed_espi_mmbi_xfer {
-	unsigned char app_index;
-	unsigned char rvas[3];
-	unsigned int len; // read/write length
-	unsigned int offset; // mmbi block offset
-	unsigned char *xfer_buf;
-};
-
 struct aspeed_espi_xfer {
 	unsigned int header;		//[23:12] len, [11:8] tag, [7:0] cycle type
 	unsigned int buf_len;		//xfer buff len

@@ -14,7 +14,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/miscdevice.h>
 #include <linux/of_device.h>
-#include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/module.h>
 
@@ -28,74 +27,6 @@
 #define ASPEED_ESPI_PERIPHERAL_IOCTX			_IOW(ESPIPIOC_BASE, 0x1, struct aspeed_espi_xfer)				//post tx
 #define ASPEED_ESPI_PERINP_IOCTX				_IOW(ESPIPIOC_BASE, 0x2, struct aspeed_espi_xfer)				//non-post tx
 
-struct aspeed_espi_mmbi_ints {
-	unsigned int app_index;
-	unsigned int host_rwp[2];
-	unsigned char int_sts;
-	unsigned char rvas[3];
-};
-
-struct aspeed_espi_mmbi_partition_op {
-	unsigned int offset;
-	unsigned int len;
-	unsigned char *data_buf;
-};
-
-struct aspeed_espi_mmbi_reg {
-	unsigned int offset;
-	unsigned int value;
-};
-
-typedef enum {
-	IOCTL_ESPI_MMBI_RX=3,
-	IOCTL_ESPI_MMBIP_TX,
-	IOCTL_ESPI_MMBI_WFI,
-	IOCTL_ESPI_MMBI_PARTITION_READ,
-	IOCTL_ESPI_MMBI_PARTITION_WRITE,
-	IOCTL_ESPI_MMBI_REG,
-}ESI_MMBI_IOCTLS;
-
-#define ASPEED_ESPI_MMBI_IOCRX			_IOWR(ESPIPIOC_BASE, IOCTL_ESPI_MMBI_RX, struct aspeed_espi_mmbi_xfer)
-#define ASPEED_ESPI_MMBIP_IOCTX			_IOW(ESPIPIOC_BASE, IOCTL_ESPI_MMBIP_TX, struct aspeed_espi_mmbi_xfer)
-#define ASPEED_ESPI_MMBI_IOWFI			_IOWR(ESPIPIOC_BASE, IOCTL_ESPI_MMBI_WFI, struct aspeed_espi_mmbi_ints)
-#define ASPEED_ESPI_MMBI_IOREAD			_IOR(ESPIPIOC_BASE, IOCTL_ESPI_MMBI_PARTITION_READ, struct aspeed_espi_mmbi_partition_op)
-#define ASPEED_ESPI_MMBI_IOWRITE		_IOW(ESPIPIOC_BASE, IOCTL_ESPI_MMBI_PARTITION_WRITE, struct aspeed_espi_mmbi_partition_op)
-#define ASPEED_ESPI_MMBI_REG			_IOR(ESPIPIOC_BASE, IOCTL_ESPI_MMBI_REG, struct aspeed_espi_mmbi_reg)
-
-#define ASPEED_ESPI_MMBI_CTRL		0x800
-#define ASPEED_ESPI_MMBI_INT_STS	0x808
-#define ASPEED_ESPI_MMBI_INT_ENL	0x80c
-#define ASPEED_ESPI_MMBI_RWP_0		0x810
-#define ASPEED_ESPI_MMBI_RWP_N(x)	ASPEED_ESPI_MMBI_RWP_0 + (x << 3)
-
-typedef enum {
-	ESPI_MMBI_INST_8KB=0,
-	ESPI_MMBI_INST_16KB,
-	ESPI_MMBI_INST_32KB,
-	ESPI_MMBI_INST_64KB,
-	ESPI_MMBI_INST_128KB,
-	ESPI_MMBI_INST_256KB,
-	ESPI_MMBI_INST_512KB,
-	ESPI_MMBI_INST_1024KB,
-}ESPI_MMBI_INST_SIZE;
-
-typedef enum {
-	ESPI_MMBI_TOTAL_64KB=0,
-	ESPI_MMBI_TOTAL_128KB,
-	ESPI_MMBI_TOTAL_256KB,
-	ESPI_MMBI_TOTAL_512KB,
-	ESPI_MMBI_TOTAL_1024KB,
-	ESPI_MMBI_TOTAL_2048KB,
-	ESPI_MMBI_TOTAL_4096KB,
-	ESPI_MMBI_TOTAL_8192KB,
-}ESPI_MMBI_TOTAL_SIZE;
-
-#define MAX_MMBI_APP_INSTANCES 		8
-#define MMBI_TOTAL_SIZE				0x80000
-#define MMBI_CTRL_INST_SIZE_POS		8
-#define MMBI_CTRL_TOTAL_SIZE_POS	4
-
-
 #define MQ_MSGBUF_SIZE		4096
 #define MQ_QUEUE_SIZE		16
 #define MQ_QUEUE_NEXT(x)	(((x) + 1) & (MQ_QUEUE_SIZE - 1))
@@ -103,24 +34,6 @@ typedef enum {
 struct mq_msg {
 	int	len;
 	u8	*buf;
-};
-
-struct mmbi_host_rwp {
-	unsigned int b2h_host_rd;
-	unsigned int h2b_host_wr;
-};
-
-struct aspeed_espi_mmbi_data {
-	struct device  		*dev;
-	int 				irq; // MMBI IRQ number
-	int  				mmbi_reset;
-	unsigned char 		*mmbi_blk_virt;
-	dma_addr_t 			mmbi_blk_phys;
-
-	spinlock_t 			espi_mmbi_lock;
-	unsigned char 		espi_mmbi_intr_sts[MAX_MMBI_APP_INSTANCES];
-	wait_queue_head_t 	espi_mmbi_intr_wq[MAX_MMBI_APP_INSTANCES];
-	struct mmbi_host_rwp arr_mmbi_host_rwp[MAX_MMBI_APP_INSTANCES];
 };
 
 struct aspeed_espi_peripheral {
@@ -152,7 +65,6 @@ struct aspeed_espi_peripheral {
 	int			rtruncated; /* drop current if truncated */
 	struct mq_msg		read_queue[MQ_QUEUE_SIZE];
 	spinlock_t rbuffer_lock;	/* spinlock for queue index handling */
-	struct aspeed_espi_mmbi_data mmbi_data;
 };
 
 static void
@@ -252,48 +164,6 @@ static irqreturn_t aspeed_espi_peripheral_irq(int irq, void *arg)
 
 }
 
-static void aspeed_espi_mmbi_h2b_rwp_int(u32 mmbi_sts, void *arg) {
-	u8 h2b_rwp_sts, app_index;
-	struct aspeed_espi_peripheral *espi_peripheral = arg;
-	u32 val, flags;
-
-	for (app_index=0;app_index<MAX_MMBI_APP_INSTANCES;app_index++) {
-		if (h2b_rwp_sts=(mmbi_sts & 0x3)) {
-			printk("APP %d interrupt status : %x\n", app_index, mmbi_sts);
-			spin_lock_irqsave(&(espi_peripheral->mmbi_data.espi_mmbi_lock), flags);
-			if (h2b_rwp_sts & 1) {
-				regmap_read(espi_peripheral->map, ASPEED_ESPI_MMBI_RWP_N(app_index), &val);
-				espi_peripheral->mmbi_data.arr_mmbi_host_rwp[app_index].b2h_host_rd = val;
-			}
-			if (h2b_rwp_sts & 2) {
-				regmap_read(espi_peripheral->map, ASPEED_ESPI_MMBI_RWP_N(app_index)+0x4, &val);
-				espi_peripheral->mmbi_data.arr_mmbi_host_rwp[app_index].h2b_host_wr = val;
-			}
-			espi_peripheral->mmbi_data.espi_mmbi_intr_sts[app_index] = h2b_rwp_sts;
-			spin_unlock_irqrestore(&(espi_peripheral->mmbi_data.espi_mmbi_lock), flags);
-			wake_up_interruptible(&(espi_peripheral->mmbi_data.espi_mmbi_intr_wq[app_index]));
-
-			printk("PTR0: 0x%x\n",espi_peripheral->mmbi_data.arr_mmbi_host_rwp[app_index].b2h_host_rd);
-			printk("PTR1: 0x%x\n",espi_peripheral->mmbi_data.arr_mmbi_host_rwp[app_index].h2b_host_wr);
-		}
-		mmbi_sts >>= 2;
-	}
-}
-
-static irqreturn_t aspeed_espi_mmbi_irq(int irq, void *arg) {
-	u32 sts, mmbi_sts;
-	struct aspeed_espi_peripheral *espi_peripheral = arg;
-
-	regmap_read(espi_peripheral->map, ASPEED_ESPI_ISR, &sts);
-	regmap_read(espi_peripheral->map, ASPEED_ESPI_MMBI_INT_STS, &mmbi_sts);
-	printk("sts: %x, mmbi_sts: %x\n", sts, mmbi_sts);
-
-	aspeed_espi_mmbi_h2b_rwp_int(mmbi_sts, arg);
-	regmap_write(espi_peripheral->map, ASPEED_ESPI_MMBI_INT_STS, mmbi_sts);
-
-	return IRQ_HANDLED;
-}
-
 static struct aspeed_espi_peripheral *file_aspeed_espi_peripherial(struct file *file)
 {
 	return container_of(file->private_data, struct aspeed_espi_peripheral,
@@ -319,34 +189,19 @@ static int aspeed_espi_peripheral_mmap(struct file *file, struct vm_area_struct 
 	return 0;
 }
 
-static u8* aspeed_espi_mmbi_get_mem_loc(struct aspeed_espi_peripheral *espi_peripheral, u32 offset, u32 len)
-{
-	u8 *mmbi_ptr = espi_peripheral->mmbi_data.mmbi_blk_virt;
-	if (offset + len <= MMBI_TOTAL_SIZE) {
-		return (u8*)(mmbi_ptr + offset);
-	}
-	return NULL;
-}
-
 static long
 aspeed_espi_peripheral_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
 	struct aspeed_espi_peripheral *espi_peripheral = file_aspeed_espi_peripherial(file);
 	struct aspeed_espi_xfer xfer;
-	struct aspeed_espi_mmbi_xfer mmbi_xfer;
-	struct aspeed_espi_mmbi_ints mmbi_ints;
-	struct aspeed_espi_mmbi_partition_op mmbi_pop;
-	struct aspeed_espi_mmbi_reg mmbi_reg;
-	unsigned int app_index, flags;
-	unsigned char *mmbi_ptr;
 
+	if (copy_from_user(&xfer, (void*)arg, sizeof(struct aspeed_espi_xfer)))
+		return -EFAULT;
 
 	switch (cmd) {
 	case ASPEED_ESPI_PERIPHERAL_IOCRX:
 		printk("ASPEED_ESPI_PERIPHERAL_IOCRX \n");
-		if (copy_from_user(&xfer, (void*)arg, sizeof(struct aspeed_espi_xfer)))
-			return -EFAULT;
 		xfer.header = espi_peripheral->p_rx_channel.header;
 		xfer.buf_len = espi_peripheral->p_rx_channel.buf_len;
 		if (copy_to_user(xfer.xfer_buf, espi_peripheral->p_rx_channel.buff, espi_peripheral->p_rx_channel.buf_len))
@@ -355,8 +210,6 @@ aspeed_espi_peripheral_ioctl(struct file *file, unsigned int cmd, unsigned long 
 		break;
 	case ASPEED_ESPI_PERIPHERAL_IOCTX:
 		printk("ASPEED_ESPI_PERIPHERAL_IOCTX \n");
-		if (copy_from_user(&xfer, (void*)arg, sizeof(struct aspeed_espi_xfer)))
-			return -EFAULT;
 		espi_peripheral->p_tx_channel.header = xfer.header;
 		espi_peripheral->p_tx_channel.buf_len = xfer.buf_len;
 		if (copy_from_user(espi_peripheral->p_tx_channel.buff, xfer.xfer_buf, xfer.buf_len)) {
@@ -367,8 +220,6 @@ aspeed_espi_peripheral_ioctl(struct file *file, unsigned int cmd, unsigned long 
 		break;
 	case ASPEED_ESPI_PERINP_IOCTX:
 		printk("ASPEED_ESPI_PERINP_IOCTX \n");
-		if (copy_from_user(&xfer, (void*)arg, sizeof(struct aspeed_espi_xfer)))
-			return -EFAULT;
 		espi_peripheral->np_tx_channel.header = xfer.header;
 		espi_peripheral->np_tx_channel.buf_len = xfer.buf_len;
 		if (copy_from_user(espi_peripheral->np_tx_channel.buff, xfer.xfer_buf, xfer.buf_len)) {
@@ -376,106 +227,6 @@ aspeed_espi_peripheral_ioctl(struct file *file, unsigned int cmd, unsigned long 
 			ret = -EFAULT;
 		} else
 			aspeed_espi_pcnp_tx(espi_peripheral);
-		break;
-	case ASPEED_ESPI_MMBI_IOCRX:
-		printk("ASPEED_ESPI_MMBI_IOCRX \n");
-		if (copy_from_user(&mmbi_xfer, (void*)arg, sizeof(struct aspeed_espi_mmbi_xfer))) {
-			printk("copy_from_user  fail\n");
-			return -EFAULT;
-		}
-		printk("App: %d, Offset: 0x%x, len: 0x%x\n", mmbi_xfer.app_index, mmbi_xfer.offset, mmbi_xfer.len);
-		mmbi_ptr = aspeed_espi_mmbi_get_mem_loc(espi_peripheral, mmbi_xfer.offset, mmbi_xfer.len);
-		if (mmbi_ptr) {
-			if (copy_to_user(mmbi_xfer.xfer_buf, mmbi_ptr, mmbi_xfer.len)){
-				printk("copy to user fail\n");
-				ret = -EFAULT;
-			}
-		} else {
-			printk("mmbi_ptr=0x%x\n", mmbi_ptr);
-			ret = -EINVAL;
-		}
-		break;
-	case ASPEED_ESPI_MMBIP_IOCTX:
-		printk("ASPEED_ESPI_MMBIP_IOCTX \n");
-		if (copy_from_user(&mmbi_xfer, (void*)arg, sizeof(struct aspeed_espi_mmbi_xfer))) {
-			ret = -EFAULT;
-		}
-		printk("App: %d, Offset: 0x%x, len: 0x%x\n", mmbi_xfer.app_index, mmbi_xfer.offset, mmbi_xfer.len);
-		mmbi_ptr = aspeed_espi_mmbi_get_mem_loc(espi_peripheral, mmbi_xfer.offset, mmbi_xfer.len);
-		if (mmbi_ptr) {
-			if (copy_from_user(mmbi_ptr, mmbi_xfer.xfer_buf, mmbi_xfer.len)) {
-				printk("copy from user fail\n");
-				ret = -EFAULT;
-			}
-		} else {
-			ret = -EINVAL;
-		}
-		break;
-	case ASPEED_ESPI_MMBI_IOWFI:
-		printk("ASPEED_ESPI_MMBI_IOWFI \n");
-		if (copy_from_user(&mmbi_ints, (void*)arg, sizeof(struct aspeed_espi_mmbi_ints))) {
-			ret = -EFAULT;
-		}
-		app_index = mmbi_ints.app_index;
-		printk("App index: %d\n", app_index);
-
-		wait_event_interruptible(espi_peripheral->mmbi_data.espi_mmbi_intr_wq[app_index],
-			((espi_peripheral->mmbi_data.espi_mmbi_intr_sts[app_index] != 0)
-				|| (espi_peripheral->mmbi_data.mmbi_reset != 0)));
-
-		spin_lock_irqsave(&(espi_peripheral->mmbi_data.espi_mmbi_lock), flags);
-		mmbi_ints.int_sts = espi_peripheral->mmbi_data.espi_mmbi_intr_sts[app_index];
-		espi_peripheral->mmbi_data.espi_mmbi_intr_sts[app_index] &= ~(0x3);
-		mmbi_ints.host_rwp[0] = espi_peripheral->mmbi_data.arr_mmbi_host_rwp[app_index].b2h_host_rd;
-		mmbi_ints.host_rwp[1] = espi_peripheral->mmbi_data.arr_mmbi_host_rwp[app_index].h2b_host_wr;
-		spin_unlock_irqrestore(&(espi_peripheral->mmbi_data.espi_mmbi_lock), flags);
-		if (copy_to_user((void*)arg, &mmbi_ints, sizeof(struct aspeed_espi_mmbi_ints))) {
-			ret = -EFAULT;
-		}
-		break;
-	case ASPEED_ESPI_MMBI_IOREAD:
-		printk("ASPEED_ESPI_MMBI_IOREAD \n");
-		if (copy_from_user(&mmbi_pop, (void*)arg, sizeof(struct aspeed_espi_mmbi_partition_op))) {
-			ret = -EFAULT;
-		}
-		printk("offset: 0x%x, len:0x%x\n", mmbi_pop.offset, mmbi_pop.len);
-		mmbi_ptr = aspeed_espi_mmbi_get_mem_loc(espi_peripheral, mmbi_pop.offset, mmbi_pop.len);
-		if (mmbi_ptr) {
-			if (copy_to_user(mmbi_pop.data_buf, mmbi_ptr, mmbi_pop.len)) {
-				printk("copy to user fail\n");
-				ret = -EFAULT;
-			}
-		} else {
-			ret = -EINVAL;
-		}
-		break;
-	case ASPEED_ESPI_MMBI_IOWRITE:
-		printk("ASPEED_ESPI_MMBI_IOWRITE \n");
-		if (copy_from_user(&mmbi_pop, (void*)arg, sizeof(struct aspeed_espi_mmbi_partition_op))) {
-			ret = -EFAULT;
-		}
-		printk("offset: 0x%x, len:0x%x\n", mmbi_pop.offset, mmbi_pop.len);
-		mmbi_ptr = aspeed_espi_mmbi_get_mem_loc(espi_peripheral, mmbi_pop.offset, mmbi_pop.len);
-		if (mmbi_ptr) {
-			if (copy_from_user(mmbi_ptr, mmbi_pop.data_buf, mmbi_pop.len)) {
-				printk("copy from user fail\n");
-				ret = -EFAULT;
-			}
-		} else {
-			ret = -EINVAL;
-		}
-		break;
-	case ASPEED_ESPI_MMBI_REG:
-		// printk("ASPEED_ESPI_MMBI_REG \n");
-		if (copy_from_user(&mmbi_reg, (void*)arg, sizeof(struct aspeed_espi_mmbi_reg))) {
-			ret = -EFAULT;
-		}
-		regmap_read(espi_peripheral->map, mmbi_reg.offset, &(mmbi_reg.value));
-		// printk("read reg offset: 0x%x val=0x%x\n", mmbi_reg.offset, mmbi_reg.value);
-		if (copy_to_user((void*)arg, &mmbi_reg, sizeof(struct aspeed_espi_mmbi_reg))) {
-			printk("copy to user fail\n");
-			ret = -EFAULT;
-		}
 		break;
 	default:
 		printk("ERROR \n");
@@ -735,21 +486,6 @@ static const struct of_device_id aspeed_espi_peripheral_match[] = {
 };
 MODULE_DEVICE_TABLE(of, aspeed_espi_peripheral_match);
 
-static void aspeed_espi_mmbi_ctrl_init(struct aspeed_espi_peripheral *espi_peripheral)
-{
-	u32 val;
-
-	regmap_write(espi_peripheral->map, ASPEED_ESPI_MMBI_INT_ENL, 0x0);
-	regmap_write(espi_peripheral->map, ASPEED_ESPI_MMBI_INT_STS, 0xffff);
-	//enable MMBI?, single instance size 8k, total size 64k
-	val = ESPI_MMBI_INST_8KB << MMBI_CTRL_INST_SIZE_POS;
-	val |= ESPI_MMBI_TOTAL_64KB << MMBI_CTRL_TOTAL_SIZE_POS;
-	val |= 0x1;
-	regmap_write(espi_peripheral->map, ASPEED_ESPI_MMBI_CTRL, val);
-	regmap_write(espi_peripheral->map, ASPEED_ESPI_MMBI_INT_ENL, 0xffff);
-}
-
-
 static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -758,8 +494,6 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 	struct aspeed_espi_peripheral *espi_peripheral;
 	const struct of_device_id *dev_id;
 	int rc;
-	u32 reg_val;
-	u32 i;
 
 	espi_peripheral = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_espi_peripheral), GFP_KERNEL);
 	if (!espi_peripheral)
@@ -897,46 +631,6 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 
 	pr_info("aspeed espi-peripheral loaded \n");
 
-	regmap_read(espi_peripheral->map, ASPEED_ESPI_MMBI_CTRL, &reg_val);
-	//printk("read ASPEED_ESPI_MMBI_CTRL: 0x%x\n", reg_val);
-	//if (reg_val&0x1) {
-	if (0) { //condition to enable MMBI, revisit
-
-		//dma_alloc_coherent 64KB MMBI
-		espi_peripheral->mmbi_data.mmbi_blk_virt = dma_alloc_coherent(&pdev->dev, MMBI_TOTAL_SIZE,
-			&(espi_peripheral->mmbi_data.mmbi_blk_phys), GFP_KERNEL);
-		regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_SADDR, espi_peripheral->mmbi_data.mmbi_blk_phys);
-		regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_TADDR, espi_peripheral->mmbi_data.mmbi_blk_phys);
-		// peripheral channel memory cycle W/R enable
-		regmap_read(espi_peripheral->map, ASPEED_ESPI_CTRL2, &reg_val);
-		reg_val &= ~ESPI_DISABLE_PERP_MEM_READ;
-		reg_val &= ~ESPI_DISABLE_PERP_MEM_WRITE;
-		regmap_write(espi_peripheral->map, ASPEED_ESPI_CTRL2, reg_val);
-
-		//irq
-		node = of_find_compatible_node(NULL, NULL, "aspeed,ast2600-espi-mmbi");
-		if (!node) {
-			return -1;
-		}
-		espi_peripheral->mmbi_data.irq = irq_of_parse_and_map(node, 0);
-		printk("mmbi irq: %d\n", espi_peripheral->mmbi_data.irq);
-		rc = request_irq(espi_peripheral->mmbi_data.irq, aspeed_espi_mmbi_irq, IRQF_SHARED,
-				"ast2600-espi-mmbi-int", espi_peripheral);
-		if (rc) {
-			printk("ERROR: cannot request irq %d\n", espi_peripheral->mmbi_data.irq);
-			return rc;
-		}
-
-		spin_lock_init(&(espi_peripheral->mmbi_data.espi_mmbi_lock));
-		for (i=0;i<MAX_MMBI_APP_INSTANCES;i++) {
-			init_waitqueue_head(&(espi_peripheral->mmbi_data.espi_mmbi_intr_wq[i]));
-		}
-		aspeed_espi_mmbi_ctrl_init(espi_peripheral);
-		regmap_read(espi_peripheral->map, ASPEED_ESPI_MMBI_CTRL, &reg_val);
-		printk("read ASPEED_ESPI_MMBI_CTRL: 0x%x\n", reg_val);
-		pr_info("aspeed espi-mmbi enabled \n");
-	}
-
 	return 0;
 }
 
@@ -944,8 +638,6 @@ static int aspeed_espi_peripheral_remove(struct platform_device *pdev)
 {
 	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(&pdev->dev);
 
-	dma_free_coherent(&pdev->dev, MMBI_TOTAL_SIZE, espi_peripheral->mmbi_data.mmbi_blk_virt,
-		espi_peripheral->mmbi_data.mmbi_blk_phys);
 	misc_deregister(&espi_peripheral->miscdev);
 	return 0;
 }
