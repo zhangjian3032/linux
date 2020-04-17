@@ -523,6 +523,12 @@ config ASPEED_ESPI_VW
         help
           Control Aspeed ast2400/2500 ESPI Virtual Wire channel driver
 
+config ASPEED_ESPI_MMBI
+        depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON && ASPEED_ESPI
+        tristate "Aspeed ast2500/2600 ESPI MMBI driver"
+        help
+          Control Aspeed ast2400/2500 ESPI MMBI driver
+
 config ASPEED_P2A_CTRL
 	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
 	tristate "Aspeed ast2400/2500 HOST P2A VGA MMIO to BMC bridge control"

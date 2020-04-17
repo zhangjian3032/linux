@@ -59,6 +59,7 @@ obj-$(CONFIG_ASPEED_ESPI_OOB)	+= aspeed-espi-oob.o
 obj-$(CONFIG_ASPEED_ESPI_FLASH)	+= aspeed-espi-flash.o
 obj-$(CONFIG_ASPEED_ESPI_VW)	+= aspeed-espi-vw.o
 obj-$(CONFIG_ASPEED_ESPI_PERIPHERAL)	+= aspeed-espi-peripheral.o
+obj-$(CONFIG_ASPEED_ESPI_MMBI)	+= aspeed-espi-mmbi.o
 obj-$(CONFIG_ASPEED_LPC_CTRL)	+= aspeed-lpc-ctrl.o
 obj-$(CONFIG_ASPEED_LPC_SNOOP)	+= aspeed-lpc-snoop.o
 obj-$(CONFIG_ASPEED_LPC_MBOX)	+= aspeed-lpc-mbox.o

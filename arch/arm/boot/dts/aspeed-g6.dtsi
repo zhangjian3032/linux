@@ -676,7 +676,7 @@
 			espi_mmbi: espi_mmbi@1e6ee800 {
 				compatible = "aspeed,ast2600-espi-mmbi";
 				interrupts-extended = <&gic GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
-				resets = <&syscon ASPEED_RESET_ESPI>;
+				dma-mode;
 				status = "disabled";
 			};
 
