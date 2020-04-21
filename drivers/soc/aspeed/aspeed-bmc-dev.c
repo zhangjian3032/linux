@@ -37,7 +37,7 @@
 #include <linux/miscdevice.h>
 
 #define DEVICE_NAME     "bmc-device"
-//#define SCU_TRIGGER_MSI
+#define SCU_TRIGGER_MSI
 struct aspeed_bmc_device {
 	unsigned char *host2bmc_base_virt;
 	struct miscdevice	miscdev;
@@ -138,12 +138,12 @@ static ssize_t aspeed_host2bmc_queue1_rx(struct file *filp, struct kobject *kobj
 	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	u32 *data = (u32 *) buf;
 
-	printk("aspeed_host2bmc_queue1_rx \n");
+//	printk("aspeed_host2bmc_queue1_rx \n");
 	if(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q1_EMPTY)
 		return 0;
 	else {
 		data[0] = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q1);
-		printk("Got HOST2BMC_Q1 [%x] \n", data[0]);
+//		printk("Got HOST2BMC_Q1 [%x] \n", data[0]);
 		return 4;
 	} 
 }
@@ -154,10 +154,10 @@ static ssize_t aspeed_host2bmc_queue2_rx(struct file *filp, struct kobject *kobj
 	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	u32 *data = (u32 *) buf;
 
-	printk("aspeed_host2bmc_queue2_rx \n");
+//	printk("aspeed_host2bmc_queue2_rx \n");
 	if(!(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q2_EMPTY)) {
 		data[0] = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q2);
-		printk("Got HOST2BMC_Q2 [%x] \n", data[0]);
+//		printk("Got HOST2BMC_Q2 [%x] \n", data[0]);
 		return 4;
 	} else 
 		return 0;
@@ -178,12 +178,13 @@ static ssize_t aspeed_bmc2host_queue1_tx(struct file *filp, struct kobject *kobj
 		return -1;
 	else {
 		memcpy(&tx_buff, buf, 4);
-		printk("tx_buff %x \n", tx_buff);
+//		printk("tx_buff %x \n", tx_buff);
 		writel(tx_buff, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_Q1);
 		//trigger to host 
 #ifdef SCU_TRIGGER_MSI
 		//A0 : BIT(12) A1 : BIT(15)
 		regmap_update_bits(bmc_device->scu, 0x560, BIT(15), BIT(15));
+		regmap_update_bits(bmc_device->scu, 0x560, BIT(15), 0);
 #else
 		writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
 #endif
@@ -204,7 +205,7 @@ static ssize_t aspeed_bmc2host_queue2_tx(struct file *filp, struct kobject *kobj
 		return -1;
 	else {
 		memcpy(&tx_buff, buf, 4);
-		printk("tx_buff %x \n", tx_buff);
+//		printk("tx_buff %x \n", tx_buff);
 		writel(tx_buff, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_Q2);
 		//trigger to host
 		writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
@@ -218,7 +219,7 @@ static irqreturn_t aspeed_bmc_dev_isr(int irq, void *dev_id)
 
 	u32 host2bmc_q_sts = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS);
 
-	printk("%s host2bmc_q_sts is %x\n", __FUNCTION__, host2bmc_q_sts);
+//	printk("%s host2bmc_q_sts is %x\n", __FUNCTION__, host2bmc_q_sts);
 
 	if(host2bmc_q_sts & HOST2BMC_INT_STS_DOORBELL) {
 		writel(HOST2BMC_INT_STS_DOORBELL, bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS);
@@ -238,17 +239,17 @@ static irqreturn_t aspeed_bmc_dev_isr(int irq, void *dev_id)
 
 static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 {
-	printk("aspeed_bmc_device_init \n");
+//	printk("aspeed_bmc_device_init \n");
 
 	//enable bmc device mmio
 	regmap_update_bits(bmc_device->scu, 0xc20, BIT(13) | GENMASK(9, 8), BIT(13) | GENMASK(9, 8));
 
 #ifdef SCU_TRIGGER_MSI
 	//SCUC24[17]: Enable PCI device 1 INTx/MSI from SCU560[15]. Will be added in next version
-	regmap_update_bits(bmc_device->scu, 0xc24, BIT(17), BIT(17));
+	regmap_update_bits(bmc_device->scu, 0xc24, BIT(17) | BIT(14), BIT(17) | BIT(14));
 #else
 	//SCUC24[18]: Enable PCI device 1 INTx/MSI from Host-to-BMC controller. Will be added in next version
-	regmap_update_bits(bmc_device->scu, 0xc24, BIT(18), BIT(18));
+	regmap_update_bits(bmc_device->scu, 0xc24, BIT(18) | BIT(14), BIT(18) | BIT(14));
 #endif
 
 	writel(~(BMC_MEM_BAR_SIZE - 1) | HOST2BMC_MEM_BAR_ENABLE, bmc_device->reg_base + ASPEED_BMC_MEM_BAR);	
@@ -288,7 +289,7 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 	bmc_device->bmc_mem_virt = dma_alloc_coherent(&pdev->dev, BMC_MEM_BAR_SIZE, &bmc_device->bmc_mem_phy, GFP_KERNEL);
 	memset(bmc_device->bmc_mem_virt, 0, BMC_MEM_BAR_SIZE);
 	
-	printk("virt=%p phy %x\n", bmc_device->bmc_mem_virt, bmc_device->bmc_mem_phy);
+//	printk("virt=%p phy %x\n", bmc_device->bmc_mem_virt, bmc_device->bmc_mem_phy);
 
 	sysfs_bin_attr_init(&bmc_device->bin0);
 	sysfs_bin_attr_init(&bmc_device->bin1);
