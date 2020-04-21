@@ -1,6 +1,7 @@
 #ifndef __H2X_ASPEED_H_INCLUDED
 #define __H2X_ASPEED_H_INCLUDED
 
+#include <linux/reset.h>
 #include <linux/irqdomain.h>
 #include <linux/aspeed_pcie_io.h>
 
@@ -13,6 +14,7 @@ struct aspeed_pcie {
 	u32 rc_offset;
 	u32 msi_address;	
 
+	struct reset_control *reset;
 	/* PCIe operations */
 	struct pci_ops aspeed_pcie_ops;
 

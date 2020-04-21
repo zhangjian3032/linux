@@ -274,9 +274,6 @@ static void aspeed_pcie_init_port(struct aspeed_pcie *pcie)
 	//TODO : ahbc remap enable
 	//aspeed_ahbc_remap_enable(devfdt_get_addr_ptr(ahbc_dev));
 
-	//h2x init
-	//reset_assert(&reset_ctl);
-	//reset_deassert(&reset_ctl);
 	aspeed_h2x_rc_init(pcie);
 		
 	//plda init
@@ -287,10 +284,12 @@ static void aspeed_pcie_init_port(struct aspeed_pcie *pcie)
 	/* Don't register host if link is down */
 	if (readl(pcie->pciereg_base + ASPEED_PCIE_LINK) & PCIE_LINK_STS) {
 		aspeed_h2x_workaround(pcie);
+#if 0		
 		if(readl(pcie->pciereg_base + ASPEED_PCIE_LINK_STS) & PCIE_LINK_5G)
 			printk("PCIE- Link up : 5G \n");
 		if(readl(pcie->pciereg_base + ASPEED_PCIE_LINK_STS) & PCIE_LINK_2_5G)
 			printk("PCIE- Link up : 2.5G \n");
+#endif		
 	} else {
 		printk("PCIE- Link down\n");
 	}
@@ -350,6 +349,17 @@ static int aspeed_pcie_probe(struct platform_device *pdev)
 		dev_err(dev, "Parsing DT failed\n");
 		return err;
 	}
+
+	pcie->reset = devm_reset_control_get(&pdev->dev, 0);
+	if (IS_ERR(pcie->reset)) {
+		dev_err(&pdev->dev, "can't get pcie reset\n");
+		return PTR_ERR(pcie->reset);
+	}
+
+	reset_control_assert(pcie->reset);
+	mdelay(50);
+	reset_control_deassert(pcie->reset);
+	mdelay(50);
 
 	aspeed_pcie_init_port(pcie);
 
