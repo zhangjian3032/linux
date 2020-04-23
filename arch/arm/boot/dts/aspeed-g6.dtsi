@@ -560,8 +560,10 @@
 				resets = <&syscon ASPEED_RESET_PCIE_RC_O>;
 				rc_offset = <0xC0>;
 				msi_address = <0x1e77005C>;
+#if 0
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_pcie1rc_default>;
+#endif
 				status = "disabled";
 
 				pcie_intc0: legacy-interrupt-controller {
