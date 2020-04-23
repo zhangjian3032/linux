@@ -926,7 +926,6 @@ static int dw_i3c_master_ccc_xfers(struct i3c_dev_desc *dev,
 	struct dw_i3c_i2c_dev_data *data = i3c_dev_get_master_data(dev);
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
-	unsigned int nrxwords = 0, ntxwords = 0;
 	struct dw_i3c_xfer *xfer;
 	int i, ret = 0;
 	struct dw_i3c_cmd *cmd_ccc;
