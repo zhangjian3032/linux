@@ -603,7 +603,7 @@
 &jtag1 {
 	status = "okay";
 };
-
+#if 1
 &fmc {
 	status = "okay";
 
@@ -653,7 +653,65 @@
 		spi-bus-width = <4>;
 	};
 };
+#else
+&fmc {
+	status = "okay";
+	flash@0 {
+		status = "okay";
+		compatible = "mx25l25635e", "m25p80", "jedec,spi-nor";
+		reg = <0>;
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		spi-max-frequency = <50000000>;
+		m25p,fast-read;
+		partition@0 {
+			label = "all.bin 8MB";
+			reg = <0x000000 0x0800000>; /* 8 MiB */
+		};
+		partition@1 {
+			label = "u-boot";
+			reg = <0x000000 0x060000>; /* 384 KiB */
+		};
+		partition@2 {
+			label = "u-boot-env";
+			reg = <0x060000 0x010000>; /* 64 KiB */
+		};
+		partition@3 {
+			label = "dts";
+			reg = <0x070000 0x010000>; /* 64 Kib */
+		};
+		partition@4 {
+			label = "kernel";
+			reg = <0x080000 0x380000>; /* 3.5 MiB */
+		};
+		partition@5 {
+			label = "rootfs";
+			reg = <0x400000 0x400000>; /* 4 MiB */
+		};
+		partition@6 {
+			label = "pd_rootfs";
+			reg = <0x800000 0x0>;
+		};
+	};
 
+	flash@1 {
+		status = "okay";
+		m25p,fast-read;
+		label = "fmc0:1";
+		spi-max-frequency = <50000000>;
+		spi-bus-width = <4>;
+	};
+
+	flash@2 {
+		status = "okay";
+		m25p,fast-read;
+		label = "fmc0:2";
+		spi-max-frequency = <50000000>;
+		spi-bus-width = <4>;
+	};
+};
+
+#endif
 &spi1 {
 	status = "okay";
 

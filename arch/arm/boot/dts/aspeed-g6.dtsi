@@ -159,17 +159,18 @@
 				0x20000000 0x10000000 >;
 			compatible = "aspeed,ast2600-fmc";
 #else
-			/* reg : cs0 : cs1 : cs2 : cs3 : cs4 : cs5 */
+			/* reg : cs0 : cs1 : cs2 */
 			reg = <0x1e620000 0x100
-				0x20000000 0x20
-				0x28000000 0x20>;
-			compatible = "aspeed,fmc-spi";
-			number_of_chip_select = /bits/ 16 <1>;
+				0x20000000 0x200000
+				0x24000000 0x200000
+				0x28000000 0x200000>;
+			compatible = "aspeed,ast2600-fmc-spi";
+			number_of_chip_select = /bits/ 16 <3>;
 #endif
 			clocks = <&syscon ASPEED_CLK_AHB>;
 			status = "disabled";
 			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
-#if 1
+
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
@@ -188,7 +189,6 @@
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
-#endif
 		};
 
 		spi1: spi@1e630000 {
@@ -201,10 +201,10 @@
 #else
 			/* reg : cs0 : cs1 */
 			reg = <0x1e630000 0x100
-				0x30000000 0x20
-				0x32000000 0x20>;
-			compatible = "aspeed,fmc-spi";
-			number_of_chip_select = /bits/ 8 <2>;
+				0x30000000 0x200000
+				0x32000000 0x200000>;
+			compatible = "aspeed,ast2600-fmc-spi";
+			number_of_chip_select = /bits/ 16 <2>;
 #endif
 			clocks = <&syscon ASPEED_CLK_AHB>;
 			status = "disabled";
@@ -232,10 +232,11 @@
 #else
 			/* reg : cs0 : cs1 */
 			reg = <0x1e631000 0x100
-				0x38000000 0x20
-				0x3A000000 0x20>;
-			compatible = "aspeed,fmc-spi";
-			number_of_chip_select = /bits/ 8 <2>;
+				0x50000000 0x200000
+				0x52000000 0x200000
+				0x54000000 0x200000>;
+			compatible = "aspeed,ast2600-fmc-spi";
+			number_of_chip_select = /bits/ 16 <3>;
 #endif
 			clocks = <&syscon ASPEED_CLK_AHB>;
 			status = "disabled";
