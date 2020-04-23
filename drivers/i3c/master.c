@@ -1544,9 +1544,13 @@ int i3c_master_do_daa(struct i3c_master_controller *master)
 {
 	int ret;
 
-	i3c_bus_maintenance_lock(&master->bus);
-	ret = master->ops->do_daa(master);
-	i3c_bus_maintenance_unlock(&master->bus);
+	if (master->jdec_spd) {
+		ret = i3c_master_setaasa_locked(master);
+	} else {
+		i3c_bus_maintenance_lock(&master->bus);
+		ret = master->ops->do_daa(master);
+		i3c_bus_maintenance_unlock(&master->bus);
+	}
 
 	if (ret)
 		return ret;
