@@ -1688,7 +1688,7 @@
 		#interrupt-cells = <1>;
 
 		reg = <0x2000 0x1000>;
-		compatible = "snps,dw-i3c-master-1.00a";
+		compatible = "snps,dw-i3c-master-1.00a", "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C0CLK>;
 		resets = <&syscon ASPEED_RESET_I3C0>;
 		bus-frequency = <100000>;

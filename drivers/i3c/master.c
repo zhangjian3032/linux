@@ -972,6 +972,25 @@ static int i3c_master_setda_locked(struct i3c_master_controller *master,
 	return ret;
 }
 
+static int i3c_master_setaasa_locked(struct i3c_master_controller *master)
+{
+	struct i3c_ccc_cmd_dest dest;
+	struct i3c_ccc_setda *setda;
+	struct i3c_ccc_cmd cmd;
+	int ret;
+
+	setda = i3c_ccc_cmd_dest_init(&dest, 0, sizeof(*setda));
+	if (!setda)
+		return -ENOMEM;
+
+	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_SETAASA, &dest, 1);
+
+	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
+	i3c_ccc_cmd_dest_cleanup(&dest);
+
+	return ret;
+}
+
 static int i3c_master_setdasa_locked(struct i3c_master_controller *master,
 				     u8 static_addr, u8 dyn_addr)
 {
@@ -1203,6 +1222,31 @@ out:
 	return ret;
 }
 
+int i3c_master_getstatus_locked(struct i3c_master_controller *master,
+				    struct i3c_device_info *info)
+{
+	struct i3c_ccc_getstatus *getstatus;
+	struct i3c_ccc_cmd_dest dest;
+	struct i3c_ccc_cmd cmd;
+	int ret;
+
+	getstatus = i3c_ccc_cmd_dest_init(&dest, info->dyn_addr, sizeof(*getstatus));
+	if (!getstatus)
+		return -ENOMEM;
+
+	i3c_ccc_cmd_init(&cmd, true, I3C_CCC_GETSTATUS, &dest, 1);
+	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
+	if (ret)
+		goto out;
+
+	printk("%s: getstatus:%04x\n", __func__, getstatus->status);
+
+out:
+	i3c_ccc_cmd_dest_cleanup(&dest);
+
+	return ret;	
+}
+
 static int i3c_master_retrieve_dev_info(struct i3c_dev_desc *dev)
 {
 	struct i3c_master_controller *master = i3c_dev_get_master(dev);
@@ -1427,7 +1471,10 @@ static int i3c_master_pre_assign_dyn_addr(struct i3c_dev_desc *dev)
 		return ret;
 
 	dev->info.dyn_addr = dev->boardinfo->init_dyn_addr;
-	ret = i3c_master_reattach_i3c_dev(dev, 0);
+	if (master->jdec_spd)
+		ret = i3c_master_reattach_i3c_dev(dev, dev->info.static_addr);
+	else
+		ret = i3c_master_reattach_i3c_dev(dev, 0);
 	if (ret)
 		goto err_rstdaa;
 
@@ -1497,9 +1544,13 @@ int i3c_master_do_daa(struct i3c_master_controller *master)
 {
 	int ret;
 
-	i3c_bus_maintenance_lock(&master->bus);
-	ret = master->ops->do_daa(master);
-	i3c_bus_maintenance_unlock(&master->bus);
+	if (master->jdec_spd) {
+		ret = i3c_master_setaasa_locked(master);
+	} else {
+		i3c_bus_maintenance_lock(&master->bus);
+		ret = master->ops->do_daa(master);
+		i3c_bus_maintenance_unlock(&master->bus);
+	}
 
 	if (ret)
 		return ret;
@@ -2058,6 +2109,10 @@ static int of_populate_i3c_bus(struct i3c_master_controller *master)
 
 	if (!i3cbus_np)
 		return 0;
+
+	if (of_get_property(i3cbus_np, "jdec-spd", NULL)) {
+		master->jdec_spd = 1;
+	}
 
 	for_each_available_child_of_node(i3cbus_np, node) {
 		ret = of_i3c_master_add_dev(master, node);

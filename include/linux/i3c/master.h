@@ -487,6 +487,7 @@ struct i3c_master_controller {
 	const struct i3c_master_controller_ops *ops;
 	unsigned int secondary : 1;
 	unsigned int init_done : 1;
+	unsigned int jdec_spd : 1;
 	struct {
 		struct list_head i3c;
 		struct list_head i2c;
@@ -651,5 +652,6 @@ void i3c_generic_ibi_recycle_slot(struct i3c_generic_ibi_pool *pool,
 void i3c_master_queue_ibi(struct i3c_dev_desc *dev, struct i3c_ibi_slot *slot);
 
 struct i3c_ibi_slot *i3c_master_get_free_ibi_slot(struct i3c_dev_desc *dev);
-
+int i3c_master_getstatus_locked(struct i3c_master_controller *master,
+				    struct i3c_device_info *info);
 #endif /* I3C_MASTER_H */
