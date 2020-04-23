@@ -1471,7 +1471,10 @@ static int i3c_master_pre_assign_dyn_addr(struct i3c_dev_desc *dev)
 		return ret;
 
 	dev->info.dyn_addr = dev->boardinfo->init_dyn_addr;
-	ret = i3c_master_reattach_i3c_dev(dev, dev->info.static_addr);
+	if (master->jdec_spd)
+		ret = i3c_master_reattach_i3c_dev(dev, dev->info.static_addr);
+	else
+		ret = i3c_master_reattach_i3c_dev(dev, 0);
 	if (ret)
 		goto err_rstdaa;
 
@@ -2102,6 +2105,10 @@ static int of_populate_i3c_bus(struct i3c_master_controller *master)
 
 	if (!i3cbus_np)
 		return 0;
+
+	if (of_get_property(i3cbus_np, "jdec-spd", NULL)) {
+		master->jdec_spd = 1;
+	}
 
 	for_each_available_child_of_node(i3cbus_np, node) {
 		ret = of_i3c_master_add_dev(master, node);
