@@ -21,7 +21,7 @@
 #include <linux/reset.h>
 #include <linux/slab.h>
 
-#define IBI_WIP
+//#define IBI_WIP
 #define CCC_WORKAROUND
 #define DEVICE_CTRL			0x0
 #define DEV_CTRL_ENABLE			BIT(31)
