@@ -23,7 +23,7 @@
 #include <linux/reset.h>
 #include <linux/delay.h>
 #include <linux/clk-provider.h>
-#include "regs-ast2600-i2c-global.h"
+#include "ast2600-i2c-global.h"
 
 struct aspeed_i2c_ic {
 	void __iomem		*base;
@@ -45,20 +45,19 @@ struct aspeed_i2c_base_clk {
 };
 
 /* assign 4 base clock 
- * base clk1 : 1M for 1KHz
- * base clk2 : 4M for 400KHz	 
- * base clk3 : 10M for 1MHz  
- * base clk4 : 35M for 3.4MHz	 
+ * [31:24] base clk4 : 1M for 1KHz
+ * [23:16] base clk3 : 4M for 400KHz	 
+ * [15:08] base clk2 : 10M for 1MHz  
+ * [00:07] base clk1 : 35M for 3.4MHz	 
 */
-
 #define BASE_CLK_COUNT 4
 
 static const struct aspeed_i2c_base_clk i2c_base_clk[BASE_CLK_COUNT] = {
 	/* name	target_freq */
-	{  "base_clk1",	35000000 },	//35M
+	{  "base_clk0",	1000000 },	//1M
+	{  "base_clk1",	4000000 },	//4M
 	{  "base_clk2",	10000000 },	//10M
-	{  "base_clk3",	4000000 },	//4M
-	{  "base_clk4",	1000000 },	//1M
+	{  "base_clk3",	35000000 },	//35M
 };
 
 static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long	base_clk, struct device_node *node)
@@ -78,9 +77,9 @@ static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long	base_clk, struct devi
 
 	onecell->num = BASE_CLK_COUNT;
 
-	printk("base_clk %ld \n", base_clk);
+//	printk("base_clk %ld \n", base_clk);
 	for(j = 0; j < BASE_CLK_COUNT; j++) {
-		printk("target clk : %ld \n", i2c_base_clk[j].base_freq);		
+//		printk("target clk : %ld \n", i2c_base_clk[j].base_freq);		
 		for(i = 0; i < 0xff; i++) {
 			/*
 			 * i maps to div:
@@ -93,11 +92,11 @@ static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long	base_clk, struct devi
 			 * 0xFE: div 128
 			 * 0xFF: div 128.5
 			 */
-			base_freq = base_clk * 10 / (10 + i * 5);
+			base_freq = base_clk * 2 / (2 + i);
 			if(base_freq <= i2c_base_clk[j].base_freq)
 				break;
 		}
-		printk("base clk [%d] : %ld \n", j, base_freq);
+		printk("i2cg - %s : %ld \n", i2c_base_clk[j].name, base_freq);
 		hw = clk_hw_register_fixed_rate(NULL, i2c_base_clk[j].name, NULL, 0, base_freq);
 		if (IS_ERR(hw)) {
 			pr_err("failed to register input clock: %ld\n", PTR_ERR(hw));
@@ -168,7 +167,7 @@ static int aspeed_i2c_global_probe(struct platform_device *pdev)
 	if (IS_ERR(parent_clk))
 		return PTR_ERR(parent_clk);
 	parent_clk_frequency = clk_get_rate(parent_clk);
-	printk("parent_clk_frequency %ld \n", parent_clk_frequency);
+//	printk("parent_clk_frequency %ld \n", parent_clk_frequency);
 	clk_divider = aspeed_i2c_ic_get_new_clk_divider(parent_clk_frequency, node);
 	writel(clk_divider, i2c_ic->base + ASPEED_I2CG_CLK_DIV_CTRL);
 	

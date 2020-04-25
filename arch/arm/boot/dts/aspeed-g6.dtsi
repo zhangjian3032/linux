@@ -1431,7 +1431,7 @@
 
 	i2c_gr: i2c-global-regs@0 {
 		compatible = "aspeed,ast2600-i2c-global", "syscon";
-		reg = <0x0 0x10>;
+		reg = <0x0 0x20>;
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		resets = <&syscon ASPEED_RESET_I2C>;
 	};
