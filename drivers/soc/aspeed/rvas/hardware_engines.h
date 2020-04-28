@@ -19,9 +19,6 @@
 #include <linux/semaphore.h>
 #include "video_ioctl.h"
 
-#define USING_TSE_INTERRUPT
-
-
 #define MAX_NUM_CONTEXT				(8)
 #define MAX_NUM_MEM_TBL				(24)//each context has 3
 
@@ -375,6 +372,7 @@ typedef struct tagAstRVAS {
 	u32 grce_reg_base;
 	//u32 lmem_base;
 	struct regmap *scu;
+   struct reset_control *reset;
 	VGAMemInfo FBInfo;
 	u64 accrued_sm[SNOOP_MAP_QWORD_COUNT];
 	SnoopAggregate accrued_sa;

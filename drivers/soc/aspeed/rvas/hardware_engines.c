@@ -2082,7 +2082,7 @@ u32 get_phy_fb_start_address(AstRVAS *pAstRVAS)
 			pAstRVAS->FBInfo.dwFBPhysStart,
 			pAstRVAS->FBInfo.dwVGASize);
 	}
-	
+
 	return pAstRVAS->FBInfo.dwFBPhysStart;
 #else
 	u32 addrTSFBSA = pAstRVAS->grce_reg_base + TSE_FrameBuffer_Offset); //1ch
@@ -2127,11 +2127,9 @@ static void enable_grce_interrupt(AstRVAS *pAstRVAS)
 {
 	u32 reg_val = 0;
 	u32 reg_addr = pAstRVAS->fg_reg_base + GRCE_CTL0;
-
 	reg_val = readl((void*)reg_addr);
 	reg_val |= GRC_IRQ_MASK;
 	writel(reg_val, (void*)reg_addr);
-
 	VIDEO_DBG("Enabled GRC Interrupts[%#X]\n", reg_val);
 }
 
@@ -2139,24 +2137,17 @@ static void enable_grce_interrupt(AstRVAS *pAstRVAS)
 void enable_grce_tse_interrupt(AstRVAS *pAstRVAS)
 {
 	enable_grce_interrupt(pAstRVAS);
-#ifdef USING_TSE_INTERRUPT
 	enable_tse_interrupt(pAstRVAS);
-#endif
 }
 
 void disable_grce_tse_interrupt(AstRVAS *pAstRVAS)
 {
 	u32 reg_val = 0;
-
 	VIDEO_DBG("disable_interrupts- grce_reg_base: %#x GRCE_CTL0: %#x\n",
 	        pAstRVAS->grce_reg_base, GRCE_CTL0);
-
 	reg_val = readl((void*)(pAstRVAS->grce_reg_base + GRCE_CTL0));
 	writel(reg_val&(~GRC_IRQ_MASK), (void*)(pAstRVAS->grce_reg_base + GRCE_CTL0));
-
-#ifdef USING_TSE_INTERRUPT
 	disable_tse_interrupt(pAstRVAS);
-#endif
 }
 
 u32 clear_tse_interrupt(AstRVAS *pAstRVAS)

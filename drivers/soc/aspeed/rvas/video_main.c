@@ -16,6 +16,8 @@
 #include <linux/kernel.h>
 #include <linux/version.h>
 #include <linux/interrupt.h>
+#include <linux/device.h>
+#include <linux/reset.h>
 #include <asm/uaccess.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -954,9 +956,29 @@ void enable_rvas_engines(AstRVAS *pAstRVAS)
 void ioctl_reset_video_engine(RvasIoctl *ri, AstRVAS *pAstRVAS)
 {
 	disable_rvas_engines(pAstRVAS);
+   reset_control_assert(pAstRVAS->reset);
+	udelay(100);
+	reset_control_deassert(pAstRVAS->reset);
 	enable_rvas_engines(pAstRVAS);
-	ri->rs = SuccessStatus;
+
+   if (ri) {
+	     ri->rs = SuccessStatus;
+   }
 }
+
+static ssize_t store_video_reset(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	AstRVAS* pAstRVAS = dev_get_drvdata(dev);
+   u32 val = simple_strtoul(buf, NULL, 10);
+
+	if (val) {
+		ioctl_reset_video_engine(NULL, pAstRVAS);
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(video_reset, S_IRUGO | S_IWUSR, NULL, store_video_reset);
 
 bool sleep_on_tfe_busy(AstRVAS *pAstRVAS, u32 dwTFEDescriptorAddr,
         u32 dwTFEControlR, u32 dwTFERleLimitor, u32 *pdwRLESize,
@@ -1126,7 +1148,6 @@ void sleep_on_ldma_busy(AstRVAS *pAstRVAS, u32 dwDescriptorAddress)
 	up(&pAstRVAS->ldma_engine.sem);
 }
 
-
 static int video_drv_probe(struct platform_device *pdev)
 {
 	int result = 0;
@@ -1157,20 +1178,19 @@ static int video_drv_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No GRCE IORESOURCE_MEM entry\n");
 		return -ENOENT;
 	}
-#ifdef USING_TSE_INTERRUPT
 	pAstRVAS->irq_fge = platform_get_irq(pdev, 0);
 	VIDEO_DBG("irq_fge: %#x\n", pAstRVAS->irq_fge);
 	if (pAstRVAS->irq_fge < 0) {
 		dev_err(&pdev->dev, "NO FGE irq entry\n");
 		return -ENOENT;
 	}
-#else
-	pAstRVAS->irq_vga = platform_get_irq(pdev, 1);
-	if (pAstRVAS->irq_vga < 0) {
-		dev_err(&pdev->dev, "NO VGA irq entry\n");
-		return -ENOENT;
+
+	pAstRVAS->reset = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(pAstRVAS->reset)) {
+		dev_err(&pdev->dev, "can't get video reset\n");
+      return -ENOENT;
 	}
-#endif
+
 	pAstRVAS->fg_reg_base = (u32) devm_ioremap_resource(&pdev->dev, io_fg);
 	VIDEO_DBG("fg_reg_base: %#x\n", pAstRVAS->fg_reg_base);
 	if (IS_ERR((void*) pAstRVAS->fg_reg_base)) {
@@ -1220,21 +1240,15 @@ static int video_drv_probe(struct platform_device *pdev)
 	VIDEO_DBG("Requesting IRQs, irq_fge: %d, irq_vga: %d\n",
 	        pAstRVAS->irq_fge, pAstRVAS->irq_vga);
 
-#ifndef USING_TSE_INTERRUPT
-	result = devm_request_irq(&pdev->dev, pAstRVAS->irq_vga, fge_handler, 0,
-		dev_name(&pdev->dev), pAstRVAS);
-#else
 	result = devm_request_irq(&pdev->dev, pAstRVAS->irq_fge, fge_handler, 0,
 	        dev_name(&pdev->dev), pAstRVAS);
-#endif
 	if (result) {
 		pr_err("Error in requesting IRQ\n");
-#ifdef USING_TSE_INTERRUPT
 		pr_err("RVAS: Failed request FGE irq %d\n", pAstRVAS->irq_fge);
-#endif
 		misc_deregister(&video_misc);
 		return result;
 	}
+
 	VIDEO_DBG("After IRQ registration\n");
 	platform_set_drvdata(pdev, pAstRVAS);
 	pAstRVAS->rvas_dev = &video_misc;
