@@ -1381,7 +1381,7 @@
 				ranges = <0 0x1e7a0000 0x8000>;
 			};
 
-			rvas@1e7c8000 {
+			rvas: rvas@1e7c8000 {
 				compatible = "aspeed,ast2600-rvas";
 				reg = <0x1e7c8000 0x800 0x1e6ec000 0x800 0x1e7c0000 0x2000>;
 				clocks = <&syscon ASPEED_CLK_GATE_RVASCLK>;
