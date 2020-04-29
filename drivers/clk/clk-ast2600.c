@@ -1071,6 +1071,10 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 
 	/* MAC3/4 default pad driving strength */
 	regmap_write(map, ASPEED_G6_MAC34_DRIVING_CTRL, 0x0000000a);
+	
+	/* RSA clock = HPLL/3 */
+	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, BIT(19), BIT(19));	
+	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(27, 26), (2 << 26));	
 
 	/*
 	 * We check that the regmap works on this very first access,
