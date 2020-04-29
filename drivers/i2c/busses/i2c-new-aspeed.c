@@ -1,5 +1,5 @@
 /*
- * i2c-ast.c - I2C driver for the Aspeed SoC
+ * i2c-new-aspeed.c - I2C driver for the Aspeed SoC
  *
  * Copyright (C) ASPEED Technology Inc.
  * Ryan Chen <ryan_chen@aspeedtech.com>
@@ -25,7 +25,7 @@
 #include <linux/regmap.h>
 #include <linux/of_device.h>
 #include <linux/dma-mapping.h>
-#include "regs-ast2600-i2c-global.h"
+#include "ast2600-i2c-global.h"
 
 /***************************************************************************/
 //AST2600 reg
@@ -442,32 +442,31 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 	int divider_ratio = 0;
 	u32 clk_div_reg;
 	int inc = 0;
-	u32 base_clk1, base_clk2, base_clk3, base_clk4;
+	unsigned long base_clk1, base_clk2, base_clk3, base_clk4;
 	u32 scl_low, scl_high;
-	
+
 	if(i2c_bus->clk_div_mode) {
-		regmap_read(i2c_bus->global_reg, 0x10, &clk_div_reg);
-		/*div = 1 + (x * 0.5) , div * 10 = 10 + (x*5 ) */
-		base_clk1 = i2c_bus->apb_clk / ((clk_div_reg & 0xff) * 5 + 10) / 10;
-		base_clk2 = i2c_bus->apb_clk / (((clk_div_reg >> 8) & 0xff) * 5 + 10) / 10;
-		base_clk3 = i2c_bus->apb_clk / (((clk_div_reg >> 16) & 0xff) * 5 + 10) / 10;
-		base_clk4 = i2c_bus->apb_clk / (((clk_div_reg >> 24) & 0xff) * 5 + 10) / 10;
-		
+		regmap_read(i2c_bus->global_reg, ASPEED_I2CG_CLK_DIV_CTRL, &clk_div_reg);
+		base_clk1 = i2c_bus->apb_clk / (((clk_div_reg & 0xff) + 2) / 2);
+		base_clk2 = i2c_bus->apb_clk / ((((clk_div_reg >> 8) & 0xff) + 2) / 2);
+		base_clk3 = i2c_bus->apb_clk / ((((clk_div_reg >> 16) & 0xff) + 2) / 2);
+		base_clk4 = i2c_bus->apb_clk / ((((clk_div_reg >> 24) & 0xff) + 2) / 2);
+//		printk("base_clk1 %ld, base_clk2 %ld, base_clk3 %ld, base_clk4 %ld \n", base_clk1, base_clk2, base_clk3, base_clk4);
 		if((i2c_bus->apb_clk / i2c_bus->bus_frequency) <= 32) {
 			div = 0;
-			divider_ratio = i2c_bus->apb_clk/i2c_bus->apb_clk;
+			divider_ratio = i2c_bus->apb_clk / i2c_bus->bus_frequency;
 		} else if ((base_clk1 / i2c_bus->bus_frequency) <= 32) {
 			div = 1;
-			divider_ratio = base_clk1/i2c_bus->apb_clk;
+			divider_ratio = base_clk1 / i2c_bus->bus_frequency;
 		} else if ((base_clk2 / i2c_bus->bus_frequency) <= 32) {
 			div = 2;
-			divider_ratio = base_clk2/i2c_bus->apb_clk;
+			divider_ratio = base_clk2 / i2c_bus->bus_frequency;
 		} else if ((base_clk3 / i2c_bus->bus_frequency) <= 32) {
 			div = 3;
-			divider_ratio = base_clk3/i2c_bus->apb_clk;
+			divider_ratio = base_clk3 / i2c_bus->bus_frequency;
 		} else {
 			div = 4;
-			divider_ratio = base_clk4/i2c_bus->apb_clk;
+			divider_ratio = base_clk4 / i2c_bus->bus_frequency;
 			inc = 0;
 			while((divider_ratio + inc) > 32) {
 				inc |= divider_ratio & 0x1;
@@ -635,7 +634,6 @@ static void aspeed_new_i2c_slave_init(struct aspeed_new_i2c_bus *i2c_bus)
 int aspeed_new_i2c_slave_handler(struct aspeed_new_i2c_bus *i2c_bus)
 {
 	int ret = 0;
-	u32 isr_wc = 0;
 	u8 value;	
 	int i = 0;
 	u32 sts = aspeed_i2c_read(i2c_bus, AST_I2CS_ISR);
@@ -645,26 +643,17 @@ int aspeed_new_i2c_slave_handler(struct aspeed_new_i2c_bus *i2c_bus)
 
 	sts &= ~AST_I2CS_ADDR_INDICAT_MASK;
 
-	if (AST_I2CS_ADDR1_NAK & sts) {
+	if (AST_I2CS_ADDR1_NAK & sts)
 		sts &= ~AST_I2CS_ADDR1_NAK;
-		isr_wc |= AST_I2CS_ADDR1_NAK;
-	}
 
-	if (AST_I2CS_ADDR2_NAK & sts) {
+	if (AST_I2CS_ADDR2_NAK & sts)
 		sts &= ~AST_I2CS_ADDR2_NAK;
-		isr_wc |= AST_I2CS_ADDR2_NAK;
-	}
 
-	if (AST_I2CS_ADDR1_NAK & sts) {
-		sts &= ~AST_I2CS_ADDR2_NAK;
-		isr_wc |= AST_I2CS_ADDR2_NAK;
-	}
+	if (AST_I2CS_ADDR3_NAK & sts)
+		sts &= ~AST_I2CS_ADDR3_NAK;
 
-	if (AST_I2CS_ADDR_MASK & sts) {
-		dev_dbg(i2c_bus->dev, "TODO slave address2/3 irq sts %x\n", sts);
+	if (AST_I2CS_ADDR_MASK & sts)
 		sts &= ~AST_I2CS_ADDR_MASK;
-		isr_wc |= AST_I2CS_ADDR_MASK;
-	}
 
 	if (AST_I2CS_PKT_DONE & sts) {
 		sts &= ~(AST_I2CS_PKT_DONE | AST_I2CS_PKT_ERROR);
@@ -994,14 +983,14 @@ int aspeed_new_i2c_master_handler(struct aspeed_new_i2c_bus *i2c_bus)
 	}
 	
 	if (AST_I2CM_SMBUS_ALT & sts) {
-		printk("AST_I2CM_SMBUS_ALT \n");
+		printk("AST_I2CM_SMBUS_ALT 0x%08x\n", sts);
 		dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CM_SMBUS_ALT= %x\n", sts);
 		//Disable ALT INT
 		aspeed_i2c_write(i2c_bus, aspeed_i2c_read(i2c_bus, AST_I2CM_IER) &
 			      ~AST_I2CM_SMBUS_ALT,
 			      AST_I2CM_IER);
 		aspeed_i2c_write(i2c_bus, AST_I2CM_SMBUS_ALT, AST_I2CM_ISR);
-		printk("TODO aspeed_master_alert_recv bus id %d, Disable Alt, Please Imple \n",
+		dev_err(i2c_bus->dev, "TODO aspeed_master_alert_recv bus id %d, Disable Alt, Please Imple \n",
 			   i2c_bus->adap.nr);
 		return 1;
 	}
@@ -1107,12 +1096,12 @@ static int aspeed_new_i2c_do_msgs_xfer(struct aspeed_new_i2c_bus *i2c_bus,
 		aspeed_new_i2c_master_xfer(i2c_bus);
 
 		timeout = wait_for_completion_timeout(&i2c_bus->cmd_complete,
-						      i2c_bus->adap.timeout * HZ);
+						      i2c_bus->adap.timeout);
 
 		if (timeout <= 0) {
 			u32 reg_val = aspeed_i2c_read(i2c_bus, AST_I2CC_FUN_CTRL);
 			if (timeout == 0) {
-				dev_err(i2c_bus->dev, "controller timed out\n");
+				dev_err(i2c_bus->dev, "controller timeout\n");
 				printk("ier %x \n", aspeed_i2c_read(i2c_bus, AST_I2CM_IER));
 				printk("isr %x \n", aspeed_i2c_read(i2c_bus, AST_I2CM_ISR));
 				ret = -ETIMEDOUT;
@@ -1151,28 +1140,17 @@ out:
 
 static int aspeed_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
+	int ret;
 	struct aspeed_new_i2c_bus *i2c_bus = adap->algo_data;
-	int ret, i;
 
-	/*
-	 * Wait for the bus to become free.
-	 */
+	/* Wait for the bus to become free. */
 	ret = aspeed_i2c_wait_bus_not_busy(i2c_bus);
 	if (ret) {
 		dev_dbg(i2c_bus->dev, "i2c_ast: timeout waiting for bus free\n");
-		goto out;
+		return ret;
 	}
 
-	for (i = adap->retries; i >= 0; i--) {
-		ret = aspeed_new_i2c_do_msgs_xfer(i2c_bus, msgs, num);
-		if (ret != -EAGAIN)
-			goto out;
-		dev_dbg(i2c_bus->dev, "Retrying transmission [%d]\n", i);
-		udelay(100);
-	}
-
-	ret = -EREMOTEIO;
-out:
+	ret = aspeed_new_i2c_do_msgs_xfer(i2c_bus, msgs, num);
 	dev_dbg(i2c_bus->dev, "bus%d-m: end \n", i2c_bus->adap.nr);
 
 	return ret;
@@ -1292,7 +1270,7 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 
 	i2c_bus->global_reg = syscon_regmap_lookup_by_compatible("aspeed,ast2600-i2c-global");
 	if (IS_ERR(i2c_bus->global_reg)) {
-		dev_err(&pdev->dev, "failed to find 2600 i2c global regmap\n");
+		dev_err(&pdev->dev, "failed to find ast2600 i2c global regmap\n");
 		ret = -ENOMEM;
 		goto free_mem;
 	}
@@ -1362,10 +1340,9 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(&i2c_bus->adap, i2c_bus);
 	i2c_bus->adap.owner = THIS_MODULE;
 	i2c_bus->adap.algo = &i2c_aspeed_algorithm;
-	i2c_bus->adap.retries = 0;	
+	i2c_bus->adap.retries = 3;	
 	i2c_bus->adap.dev.parent = i2c_bus->dev;
 	i2c_bus->adap.dev.of_node = pdev->dev.of_node;	
-	i2c_bus->adap.timeout = 3;
 	i2c_bus->adap.algo_data = i2c_bus;
 	strlcpy(i2c_bus->adap.name, pdev->name, sizeof(i2c_bus->adap.name));
 	i2c_set_adapdata(&i2c_bus->adap, i2c_bus);
