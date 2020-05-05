@@ -960,8 +960,6 @@ void ioctl_fetch_video_tiles(RvasIoctl *ri, AstRVAS *pAstRVAS)
 					        pFVTDescriptor->pfo[dwCD].dwFetchSize, // bandwidth limitor value
 					        &dwRLESize,    // out:: rle size
 					        &pFVTDescriptor->pfo[dwCD].dwCheckSum
-					        // ,pmmtOutput->pvVirtualAddr,
-					        // pFVTDescriptor->pfo[dwCD].dwFetchSize
 					        ) == false) { // out:: cs size
 						ri->rs = GenericError;
 						return;
@@ -1001,8 +999,6 @@ void ioctl_fetch_video_tiles(RvasIoctl *ri, AstRVAS *pAstRVAS)
 			        pFVTDescriptor->pfo[dwCD].dwFetchSize, // bandwidth limitor value
 			        &dwRLESize,                    // out:: rle size
 			        &pFVTDescriptor->pfo[dwCD].dwCheckSum
-			        // ,pmmtOutput->pvVirtualAddr,
-			        //pFVTDescriptor->pfo[dwCD].dwFetchSize
 			        ) == false) {  // out:: cs size
 				ri->rs = GenericError;
 				return;
@@ -1066,8 +1062,6 @@ void ioctl_fetch_video_tiles(RvasIoctl *ri, AstRVAS *pAstRVAS)
 					        pFVTDescriptor->pfo[dwCD].dwFetchSize, // bandwidth limitor value
 					        &dwRLESize,    // out:: rle size
 					        &pFVTDescriptor->pfo[dwCD].dwCheckSum
-					        // ,pmmtOutput->pvVirtualAddr,
-					        // pFVTDescriptor->pfo[dwCD].dwFetchSize
 					        ) == false) {  // out:: cs size
 						ri->rs = GenericError;
 						return;
@@ -1420,7 +1414,6 @@ void ioctl_fetch_video_slices(RvasIoctl *ri, AstRVAS *pAstRVAS)
 		        dwFetchSize,          // bandwidth limiter value
 		        &pFVSA->dwSlicedRLESize,       // out:: rle size
 		        &pFVSA->dwCheckSum
-		        // , pmmtOutRLE->pvVirtualAddr, dwFetchSize
 		        ) == false) {
 			ri->rs = GenericError;
 			return;

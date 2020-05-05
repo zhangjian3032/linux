@@ -780,7 +780,6 @@ static irqreturn_t fge_handler(int irq, void *dev_id)
 	bool bFgeItr = false;
 	bool bTfeItr = false;
 	bool bBSEItr = false;
-	bool bTimerItr = false;
 	bool bLdmaItr = false;
 	bool vg_changed = false;
 	AstRVAS *pAstRVAS = (AstRVAS*) dev_id;
@@ -851,8 +850,7 @@ static irqreturn_t fge_handler(int irq, void *dev_id)
 		video_ss_wakeup_on_timeout(&pAstRVAS->bse_engine.wait);
 	}
 
-	if ((!bFgeItr) && (!bTfeItr) && (!bBSEItr) && (!bLdmaItr)
-	        && (!bTimerItr)) {
+	if ((!bFgeItr) && (!bTfeItr) && (!bBSEItr) && (!bLdmaItr)) {
 		//VIDEO_DBG(" Unknown Interrupt\n");
 //      VIDEO_DBG("TFE CRT [%#x].", *fge_intr);
 		return (IRQ_NONE);
