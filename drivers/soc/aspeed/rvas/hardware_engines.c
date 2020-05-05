@@ -29,7 +29,6 @@ extern u32 aspeed_get_dram_size(void);
 static u32 dwBucketSizeRegOffset[BSE_MAX_BUCKET_SIZE_REGS] = { 0x20, 0x24, 0x28,
         0x2c, 0x30, 0x34, 0x38, 0x3c, 0x40, 0x44, 0x48, 0x4c, 0x50, 0x54, 0x58,
         0x5c };
-//static u32 arrBuckSizeRegIndex[16] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
 static u32 arrBuckSizeRegIndex[16] = { 3, 5, 8, 6, 1, 7, 11, 10, 14, 13, 2, 4,
         9, 12, 0, 15 };
 
@@ -789,7 +788,6 @@ static u32 calculate_fetch_size(SelectedByteMode sbm, u8 bytesPerPixel,
 		break;
 
 	case PlanarToPackedMode:
-		// dwFetchSize = (dwFetchWidthPixels * dwFetchHeight) >> 1;
 		dwFetchSize = (dwFetchWidthPixels * dwFetchHeight);
 		break;
 
@@ -1780,7 +1778,6 @@ BSEAggregateRegister setUp_bse_bucket(u8* abyBitIndexes, u8 byTotalBucketCount,
 		}
 	}
 
-	//aBSEAR.dwBSCR = ( (BSE_LMEM_Temp_Buffer_Offset<<16) | ((byTotalBucketCount-1)<<8) | ( (byBSBytesPerPixel-1)<<4) |(0x0<<3)| (0x1<< 1)|0x1)& BSCMD_MASK;
 	aBSEAR.dwBSCR =
 	        (((byTotalBucketCount - 1) << 8)
 	                | ((byBSBytesPerPixel - 1) << 4) | (0x0 << 3)

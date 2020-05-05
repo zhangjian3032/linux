@@ -1079,7 +1079,6 @@ bool sleep_on_bse_busy(AstRVAS *pAstRVAS, u32 dwBSEDescriptorAddr,
 	u32 addrBSESSTS = pAstRVAS->fg_reg_base + BSE_Status_Register;
 	u8 byCounter = 0;
 	bool bResult = true;
-	// u32                video_dma_address  = 0;
 
 	down(&pAstRVAS->bse_engine.sem);
 	pAstRVAS->bse_engine.finished = 0;
@@ -1093,7 +1092,6 @@ bool sleep_on_bse_busy(AstRVAS *pAstRVAS, u32 dwBSEDescriptorAddr,
 	writel(aBSEAR.adwBSBPS[2], (void*)addrBSBPS2);
 
 	writel(dwBSEDescriptorAddr, (void*)addrBSEDTBR);
-	//wBSETiles = 1;
 
 	while (!pAstRVAS->bse_engine.finished) {
 		VIDEO_DBG("BSE Sleeping...\n");
