@@ -254,7 +254,7 @@ static int video_open(struct inode* pin, struct file* pf)
 					&dw_val);
 
 	if (dw_val & SCU_RVAS_STOP_CLOCK_BIT) {
-		printk("enable rvas clock running\n");
+		VIDEO_DBG("enable rvas clock running\n");
 		regmap_write(pAstRVAS->scu,
 		SCU084_Clock_Stop_Control_Clear_Register,
 						SCU_RVAS_STOP_CLOCK_BIT);
