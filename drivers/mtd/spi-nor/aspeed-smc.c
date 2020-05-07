@@ -1309,12 +1309,14 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 		if (!of_device_is_compatible(child, "jedec,spi-nor"))
 			continue;
 
-		of_property_read_u32(child, "spi-bus-width", &width);
+		if (of_property_read_u32(child, "spi-bus-width", &width))
+			width = 2;
 
-		if (width == 4)
+		hwcaps.mask &= ~SNOR_HWCAPS_READ_1_1_4;
+		if (width == 1)
+			hwcaps.mask &= ~SNOR_HWCAPS_READ_1_1_2;
+		else if (width == 4)
 			hwcaps.mask |= SNOR_HWCAPS_READ_1_1_4;
-		else
-			hwcaps.mask &= ~SNOR_HWCAPS_READ_1_1_4;
 
 		ret = of_property_read_u32(child, "reg", &cs);
 		if (ret) {
@@ -1346,8 +1348,8 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 					 &chip->clk_rate)) {
 			chip->clk_rate = ASPEED_SPI_DEFAULT_FREQ;
 		}
-		dev_info(dev, "[%s mode] - Using %d MHz SPI frequency\n", 
-			width & 4 ? "quad": "dual",	chip->clk_rate / 1000000);
+		dev_info(dev, "bus_width %d, Using %d MHz SPI frequency\n",
+			width, chip->clk_rate / 1000000);
 
 		chip->controller = controller;
 		chip->ctl = controller->regs + info->ctl0 + cs * 4;
