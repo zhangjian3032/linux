@@ -1030,7 +1030,7 @@ static int i3c_master_getmrl_locked(struct i3c_master_controller *master,
 	switch (dest.payload.len) {
 	case 3:
 		info->max_ibi_len = mrl->ibi_len;
-		fallthrough;
+		/* fallthrough; */
 	case 2:
 		info->max_read_len = be16_to_cpu(mrl->read_len);
 		break;
