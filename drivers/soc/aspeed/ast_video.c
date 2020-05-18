@@ -1710,7 +1710,14 @@ static void ast_video_set_eng_config(struct ast_video_data *ast_video, struct as
 	}
 
 	ctrl |= VIDEO_COMPRESS_FORCE_IDLE;
-	ast_video_write(ast_video, ctrl, AST_VIDEO_SEQ_CTRL);
+	switch (video_config->engine) {
+		case 0:
+			ast_video_write(ast_video, ctrl, AST_VIDEO_SEQ_CTRL);
+			break;
+		case 1:
+			ast_video_write(ast_video, ctrl, AST_VM_SEQ_CTRL);
+			break;
+	}
 
 	ctrl &= ~(VIDEO_CAPTURE_TRIGGER | VIDEO_COMPRESS_FORCE_IDLE | VIDEO_CAPTURE_MULTI_FRAME | VIDEO_COMPRESS_TRIGGER | VIDEO_AUTO_COMPRESS);
 
