@@ -960,6 +960,13 @@
 						snoop-ports = <0x80>;
 					};
 
+					lpc_snoop_dma: lpc-snoop-dma@0 {
+						compatible = "aspeed,ast2600-lpc-snoop-dma";
+						reg = <0x0 0x80>;
+						interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
+						status = "disabled";
+					};
+
 					lhc: lhc@20 {
 						compatible = "aspeed,ast2600-lhc";
 						reg = <0x20 0x24 0x48 0x8>;
