@@ -2641,15 +2641,19 @@ static int aspeed_g5_sig_expr_set(const struct aspeed_pinmux_data *ctx,
 		 * deconfigured and is the reason we re-evaluate after writing
 		 * all descriptor bits.
 		 *
-		 * Port D and port E GPIO loopback modes are the only exception
+		 * Port D and port E GPIO loopback modes are the exception
 		 * as those are commonly used with front-panel buttons to allow
 		 * normal operation of the host when the BMC is powered off or
 		 * fails to boot. Once the BMC has booted, the loopback mode
 		 * must be disabled for the BMC to control host power-on and
 		 * reset.
+		 *
+		 * HW_STRAP1[13:12], the setting for SPI1, should be configured
+		 * after the device powers on no matter whether the external
+		 * strap is set or not
 		 */
 		if (desc->ip == ASPEED_IP_SCU && desc->reg == HW_STRAP1 &&
-		    !(desc->mask & (BIT(21) | BIT(22))))
+		    !(desc->mask & (BIT(21) | BIT(22) | BIT(13) | BIT(12))))
 			continue;
 
 		if (desc->ip == ASPEED_IP_SCU && desc->reg == HW_STRAP2)
