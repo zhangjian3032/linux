@@ -56,7 +56,6 @@ struct aspeed_smc_info {
 			   u32 start, u32 end);
 };
 
-static void aspeed_smc_chip_set_4b_spi_2400(struct aspeed_smc_chip *chip);
 static void aspeed_smc_chip_set_4b(struct aspeed_smc_chip *chip);
 static int aspeed_smc_optimize_read(struct aspeed_smc_chip *chip,
 				     u32 max_freq);
@@ -74,6 +73,14 @@ static u32 aspeed_smc_chip_base(struct aspeed_smc_chip *chip,
 
 static u32 aspeed_smc_chip_base_ast2600(struct aspeed_smc_chip *chip,
 					  struct resource *res);
+
+static void aspeed_smc_chip_set_4b_spi_2400(struct aspeed_smc_chip *chip);
+static u32 aspeed_smc_segment_start_spi_2400(
+	struct aspeed_smc_controller *controller, u32 reg);
+static u32 aspeed_smc_segment_end_spi_2400(
+	struct aspeed_smc_controller *controller, u32 reg);
+static u32 aspeed_smc_segment_reg_spi_2400(
+	struct aspeed_smc_controller *controller, u32 start, u32 end);
 
 static const struct aspeed_smc_info fmc_2400_info = {
 	.maxsize = 64 * 1024 * 1024,
@@ -106,7 +113,12 @@ static const struct aspeed_smc_info spi_2400_info = {
 	.optimize_read = aspeed_smc_optimize_read,
 	.calibrate = aspeed_smc_calibrate_reads,
 	.chip_base = aspeed_smc_chip_base,
-	/* No segment registers */
+	/* pseudo segment callback since there is
+	 * no segment regs on ast2400 spi controller.
+	 */
+	.segment_start = aspeed_smc_segment_start_spi_2400,
+	.segment_end = aspeed_smc_segment_end_spi_2400,
+	.segment_reg = aspeed_smc_segment_reg_spi_2400,
 };
 
 static const struct aspeed_smc_info fmc_2500_info = {
@@ -319,6 +331,8 @@ struct aspeed_smc_controller {
 #define SEGMENT_ADDR_REG0		0x30
 #define SEGMENT_ADDR_REG(controller, cs)	\
 	((controller)->regs + SEGMENT_ADDR_REG0 + (cs) * 4)
+
+#define CALIBRATE_BUF_SIZE 0x4000
 
 /*
  * The Segment Registers of the AST2400 and AST2500 have a 8MB
@@ -630,25 +644,8 @@ static ssize_t aspeed_smc_write_user(struct spi_nor *nor, loff_t to,
 static ssize_t aspeed_smc_read(struct spi_nor *nor, loff_t from, size_t len,
 			       u_char *read_buf)
 {
-	struct aspeed_smc_chip *chip = nor->priv;
+	aspeed_smc_read_user(nor, from, len, read_buf);
 
-	/*
-	 * The AHB window configured for the chip is too small for the
-	 * read offset. Use the "User mode" of the controller to
-	 * perform the read.
-	 */
-	if (from >= chip->ahb_window_size) {
-		aspeed_smc_read_user(nor, from, len, read_buf);
-		goto out;
-	}
-
-	/*
-	 * Use the "Command mode" to do a direct read from the AHB
-	 * window configured for the chip. This should be the default.
-	 */
-	memcpy_fromio(read_buf, chip->ahb_base + from, len);
-
-out:
 	return len;
 }
 
@@ -695,11 +692,10 @@ static u32 aspeed_smc_chip_base_ast2600(struct aspeed_smc_chip *chip,
 {
 	struct aspeed_smc_controller *controller = chip->controller;
 	const struct aspeed_smc_info *info = controller->info;
-	u32 offset = 0;
 	u32 reg, pre_reg;
 
+	reg = readl(SEGMENT_ADDR_REG(controller, chip->cs));
 	if (info->nce > 1) {
-		reg = readl(SEGMENT_ADDR_REG(controller, chip->cs));
 		if ((!reg) && (chip->cs > 0)) {
 			//for ast2600 setting, use 64MB 0x4000000 for default
 			pre_reg = readl(SEGMENT_ADDR_REG(controller, chip->cs - 1));
@@ -713,9 +709,10 @@ static u32 aspeed_smc_chip_base_ast2600(struct aspeed_smc_chip *chip,
 			return 0;
 		}
 
-		offset = info->segment_start(controller, reg) - res->start;
 	}
-	return (u32) (controller->ahb_base + offset);
+
+	return (u32)devm_ioremap(controller->dev, \
+				info->segment_start(controller, reg), CALIBRATE_BUF_SIZE);
 }
 
 static u32 aspeed_smc_chip_base(struct aspeed_smc_chip *chip,
@@ -723,20 +720,18 @@ static u32 aspeed_smc_chip_base(struct aspeed_smc_chip *chip,
 {
 	struct aspeed_smc_controller *controller = chip->controller;
 	const struct aspeed_smc_info *info = controller->info;
-	u32 offset = 0;
 	u32 reg;
 
+	reg = readl(SEGMENT_ADDR_REG(controller, chip->cs));
 	if (info->nce > 1) {
-		reg = readl(SEGMENT_ADDR_REG(controller, chip->cs));
 		if (info->segment_start(controller, reg) >=
 		    info->segment_end(controller, reg)) {
 			return 0;
 		}
-
-		offset = info->segment_start(controller, reg) - res->start;
 	}
 
-	return (u32) (controller->ahb_base + offset);
+	return (u32)devm_ioremap(controller->dev, \
+				info->segment_start(controller, reg), CALIBRATE_BUF_SIZE);
 }
 
 static u32 chip_set_segment(struct aspeed_smc_chip *chip, u32 cs, u32 start,
@@ -811,6 +806,7 @@ static u32 aspeed_smc_chip_set_segment(struct aspeed_smc_chip *chip)
 {
 	struct aspeed_smc_controller *controller = chip->controller;
 	u32 ahb_base_phy, start;
+	u32 cur;
 	u32 size = chip->nor.mtd.size;
 
 	/*
@@ -858,10 +854,15 @@ static u32 aspeed_smc_chip_set_segment(struct aspeed_smc_chip *chip)
 	}
 
 	size = chip_set_segment(chip, chip->cs, start, size);
+	if (chip->ahb_base)
+		 devm_iounmap(controller->dev, chip->ahb_base);
 
+	/* get current physical chip base */
+	cur = readl(SEGMENT_ADDR_REG(controller, chip->cs));
+	start = controller->info->segment_start(controller, cur);
 	/* Update chip base address on the AHB bus */
-	chip->ahb_base = controller->ahb_base + (start - ahb_base_phy);
-
+	chip->ahb_base = devm_ioremap(controller->dev, \
+								start, CALIBRATE_BUF_SIZE);
 	/*
 	 * Now, make sure the next segment does not overlap with the
 	 * current one we just configured, even if there is no
@@ -929,6 +930,24 @@ static void aspeed_smc_chip_set_4b_spi_2400(struct aspeed_smc_chip *chip)
 	chip->ctl_val[smc_read] |= CONTROL_IO_ADDRESS_4B;
 }
 
+static u32 aspeed_smc_segment_start_spi_2400(
+	struct aspeed_smc_controller *controller, u32 reg)
+{
+	return 0x30000000;
+}
+
+static u32 aspeed_smc_segment_end_spi_2400(
+	struct aspeed_smc_controller *controller, u32 reg)
+{
+	return 0x30800000;
+}
+
+static u32 aspeed_smc_segment_reg_spi_2400(
+	struct aspeed_smc_controller *controller, u32 start, u32 end)
+{
+	return 0;
+}
+
 static int aspeed_smc_chip_setup_init(struct aspeed_smc_chip *chip,
 				      struct resource *res)
 {
@@ -988,9 +1007,6 @@ static int aspeed_smc_chip_setup_init(struct aspeed_smc_chip *chip,
 		chip->ctl_val[smc_read]);
 	return 0;
 }
-
-
-#define CALIBRATE_BUF_SIZE 16384
 
 static bool aspeed_smc_check_reads(struct aspeed_smc_chip *chip,
 				  const u8 *golden_buf, u8 *test_buf)
@@ -1440,9 +1456,6 @@ static int aspeed_smc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	controller->ahb_base_phy = res->start;
-	controller->ahb_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(controller->ahb_base))
-		return PTR_ERR(controller->ahb_base);
 
 	controller->ahb_window_size = resource_size(res);
 

@@ -62,8 +62,21 @@
 		m25p,fast-read;
 		label = "bmc";
 		spi-max-frequency = <50000000>;
-#include "openbmc-flash-layout.dtsi"
+		#include "openbmc-flash-layout.dtsi"
 	};
+	flash@1 {
+		status = "okay";
+		m25p,fast-read;
+		label = "bmc0:1";
+		spi-max-frequency = <50000000>;
+	};
+	flash@2 {
+		status = "okay";
+		m25p,fast-read;
+		label = "bmc0:2";
+		spi-max-frequency = <50000000>;
+	};
+
 };
 
 &edac {
@@ -71,17 +84,41 @@
 };
 
 &spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default>;
 	status = "okay";
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
-		spi-max-frequency = <100000000>;
+		label = "spi1:0";
+		spi-max-frequency = <50000000>;
+	};
+	flash@1 {
+		status = "okay";
+		m25p,fast-read;
+		label = "spi1:1";
+		spi-max-frequency = <50000000>;
 	};
 };
 
 &spi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi2ck_default &pinctrl_spi2cs0_default
+				&pinctrl_spi2cs1_default &pinctrl_spi2cs1_default
+				&pinctrl_spi2miso_default &pinctrl_spi2mosi_default>;
 	status = "okay";
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "spi2:0";
+		spi-max-frequency = <50000000>;
+	};
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "spi2:1";
+		spi-max-frequency = <50000000>;
+	};
 };
 
 &uart1 {
