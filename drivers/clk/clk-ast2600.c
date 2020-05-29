@@ -782,7 +782,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	aspeed_g6_clk_data->hws[ASPEED_CLK_VCLK] = hw;
 
 	//eclk -check
-	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(30, 28), 0);	
+	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(31, 28), 0);
 	/* Video Engine clock divider */ 
 	hw = clk_hw_register_divider_table(dev, "eclk", NULL, 0,
 			scu_g6_base + 0x300, 28, 3, 0,

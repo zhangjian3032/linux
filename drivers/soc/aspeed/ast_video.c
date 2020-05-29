@@ -101,6 +101,9 @@
 
 #define AST_VIDEO_MODE_DET1		0x0A4		/* Video Mode Detection Control Register 1*/
 
+#define AST_VIDEO_BONDING_X		0x0D4
+#define AST_VIDEO_BONDING_Y		0x0D8
+
 #define AST_VM_SEQ_CTRL			0x204		/* Video Management Control Sequence Register */
 #define AST_VM_PASS_CTRL			0x208		/* Video Management Pass 1 Control register	*/
 #define AST_VM_SCAL_FACTOR		0x214		/* Video Management Scaling Factor Register */
@@ -164,8 +167,6 @@
 #define VIDEO_COMPRESS_FORMAT(x)		(x << 10)	// 0 YUV444
 #define YUV420		1
 
-#define G6_VIDEO_FRAME_CT_MASK			(0x3f << 24)
-#define G6_VIDEO_MULTI_JPEG_MODE			(1 << 30)
 #define G5_VIDEO_COMPRESS_JPEG_MODE			(1 << 13)
 #define VIDEO_YUV2RGB_DITHER_EN			(1 << 8)
 
@@ -191,6 +192,10 @@
 
 
 /*	AST_VIDEO_PASS_CTRL			0x008		Video Pass1 Control register	*/
+#define G6_VIDEO_MULTI_JPEG_FLAG_MODE	(1 << 31)
+#define G6_VIDEO_MULTI_JPEG_MODE		(1 << 30)
+#define G6_VIDEO_JPEG__COUNT(x)			((x) << 24)
+#define G6_VIDEO_FRAME_CT_MASK			(0x3f << 24)
 //x * source frame rate / 60
 #define VIDEO_FRAME_RATE_CTRL(x)		(x << 16)
 #define VIDEO_HSYNC_POLARITY_CTRL		(1 << 15)
@@ -228,7 +233,6 @@
 #define VIDEO_HSYNC_PIXEL_LAST_SET(x)	((x) & 0xfff)
 #define VIDEO_HSYNC_PIXEL_LAST_MASK	0x0000FFFF
 
-
 /*	AST_VIDEO_DIRECT_CTRL	0x010		Video Direct Frame buffer mode control Register VR008[5]=1 */
 #define VIDEO_FETCH_TIMING(x)			((x) << 16)
 #define VIDEO_FETCH_LINE_OFFSET(x)		(x & 0xffff)
@@ -237,14 +241,11 @@
 #define VIDEO_VSYNC_PIXEL_FIRST_SET(x)	((x) << 16)
 #define VIDEO_VSYNC_PIXEL_LAST_SET(x)	(x)
 
-
 /*	AST_VIDEO_SCAL_FACTOR	0x014		Video Scaling Factor Register */
 #define VIDEO_V_SCAL_FACTOR(x)			(((x) & 0xffff) << 16)
 #define VIDEO_V_SCAL_FACTOR_MASK		(0x0000ffff)
 #define VIDEO_H_SCAL_FACTOR(x)			((x) & 0xffff)
 #define VIDEO_H_SCAL_FACTOR_MASK		(0xffff0000)
-
-
 
 /*	AST_VIDEO_SCALING0		0x018		Video Scaling Filter Parameter Register #0 */
 /*	AST_VIDEO_SCALING1		0x01C		Video Scaling Filter Parameter Register #1 */
@@ -261,8 +262,6 @@
 #define VIDEO_ABCD_CHG_EN				(1 << 1)
 #define VIDEO_BCD_CHG_EN				(1)
 
-
-
 /*	 AST_VIDEO_CAPTURE_WIN	0x030		Video Capturing Window Setting Register */
 #define VIDEO_CAPTURE_V(x)				(x & 0x7ff)
 #define VIDEO_CAPTURE_H(x)				((x & 0x7ff) << 16)
@@ -272,8 +271,6 @@
 #define VIDEO_GET_COMPRESS_V(x)			(x & 0x7ff)
 #define VIDEO_COMPRESS_H(x)				((x & 0x7ff) << 16)
 #define VIDEO_GET_COMPRESS_H(x)			((x >> 16) & 0x7ff)
-
-
 
 /*	AST_VIDEO_RESET :0x03c	 - system reset control register */
 
@@ -367,7 +364,7 @@
 
 /* AST_VIDEO_CTRL			0x300		Video Control Register */
 #define VIDEO_CTRL_CRYPTO(x)			(x << 17)
-#define VIDEO_CTRL_CRYPTO_AES				(1 << 17)
+#define VIDEO_CTRL_CRYPTO_AES			(1 << 17)
 #define VIDEO_CTRL_CRYPTO_FAST			(1 << 16)
 #define VIDEO_CTRL_ADDRESS_MAP_MULTI_JPEG	(0x3 << 30)
 //15 reserved
@@ -495,29 +492,26 @@ typedef enum video_stage {
 	RUN,
 } stage;
 
-#define MAX_MULTI_FRAME_CT (32)
-
-typedef struct tag_ast_multi_frame
-{
+struct aspeed_multi_jpeg_frame {
 	u32 dwSizeInBytes;			// Image size in bytes
 	u32 dwOffsetInBytes;			// Offset in bytes
 	u16	wXPixels;				// In: X coordinate
 	u16	wYPixels;				// In: Y coordinate
 	u16	wWidthPixels;			// In: Width for Fetch
 	u16	wHeightPixels;			// In: Height for Fetch
-} ast_multi_frame;
-
-struct ast_video_jpeg_config {
-	u8 multi_jpeg_frames;	// frame count
-	ast_multi_frame frame[MAX_MULTI_FRAME_CT];	// The Multi Frames
 };
 
+#define MAX_MULTI_FRAME_CT (32)
 
+struct aspeed_multi_jpeg_config {
+	u8 multi_jpeg_frames;	// frame count
+	struct aspeed_multi_jpeg_frame frame[MAX_MULTI_FRAME_CT];	// The Multi Frames
+};
 /***********************************************************************/
 struct ast_video_config {
 	u8	engine;					//0: engine 0, engine 1
 	u8	compression_mode; 		//0:DCT, 1:DCT_VQ mix VQ-2 color, 2:DCT_VQ mix VQ-4 color		9:
-	u8	compression_format;		//0:ASPEED 1:JPEG
+	u8	compression_format;		//0:ASPEED 1:JPEG 2:Multi-JPEG
 	u8	capture_format;			//0:CCIR601-2 YUV, 1:JPEG YUV, 2:RGB for ASPEED mode only, 3:Gray
 	u8	rc4_enable;				//0:disable 1:enable
 	u8 	EncodeKeys[256];
@@ -548,7 +542,6 @@ struct ast_compression_mode {
 	u8	mode_change;				//get 0: no, 1:change
 	u32	total_size;					//get
 	u32	block_count;					//get
-	ast_multi_frame frame[MAX_MULTI_FRAME_CT];
 };
 
 struct ast_scaling {
@@ -567,24 +560,26 @@ struct ast_mode_detection {
 //IOCTL ..
 #define VIDEOIOC_BASE       'V'
 
-#define AST_VIDEO_RESET							_IO(VIDEOIOC_BASE, 0x0)
-#define AST_VIDEO_IOC_GET_VGA_SIGNAL			_IOR(VIDEOIOC_BASE, 0x1, unsigned char)
-#define AST_VIDEO_GET_MEM_SIZE_IOCRX			_IOR(VIDEOIOC_BASE, 0x2, unsigned long)
+#define AST_VIDEO_RESET						_IO(VIDEOIOC_BASE, 0x0)
+#define AST_VIDEO_IOC_GET_VGA_SIGNAL		_IOR(VIDEOIOC_BASE, 0x1, unsigned char)
+#define AST_VIDEO_GET_MEM_SIZE_IOCRX		_IOR(VIDEOIOC_BASE, 0x2, unsigned long)
 #define AST_VIDEO_GET_JPEG_OFFSET_IOCRX		_IOR(VIDEOIOC_BASE, 0x3, unsigned long)
-#define AST_VIDEO_VGA_MODE_DETECTION			_IOWR(VIDEOIOC_BASE, 0x4, struct ast_mode_detection*)
+#define AST_VIDEO_VGA_MODE_DETECTION		_IOWR(VIDEOIOC_BASE, 0x4, struct ast_mode_detection*)
 
-#define AST_VIDEO_ENG_CONFIG					_IOW(VIDEOIOC_BASE, 0x5, struct ast_video_config*)
-#define AST_VIDEO_SET_SCALING					_IOW(VIDEOIOC_BASE, 0x6, struct ast_scaling*)
+#define AST_VIDEO_ENG_CONFIG				_IOW(VIDEOIOC_BASE, 0x5, struct ast_video_config*)
+#define AST_VIDEO_SET_SCALING				_IOW(VIDEOIOC_BASE, 0x6, struct ast_scaling*)
 
 #define AST_VIDEO_AUTOMODE_TRIGGER			_IOWR(VIDEOIOC_BASE, 0x7, struct ast_auto_mode*)
-#define AST_VIDEO_CAPTURE_TRIGGER				_IOWR(VIDEOIOC_BASE, 0x8, struct ast_capture_mode*)
+#define AST_VIDEO_CAPTURE_TRIGGER			_IOWR(VIDEOIOC_BASE, 0x8, struct ast_capture_mode*)
 #define AST_VIDEO_COMPRESSION_TRIGGER		_IOWR(VIDEOIOC_BASE, 0x9, struct ast_compression_mode*)
 
-#define AST_VIDEO_SET_VGA_DISPLAY				_IOW(VIDEOIOC_BASE, 0xa, int)
-#define AST_VIDEO_SET_ENCRYPTION				_IOW(VIDEOIOC_BASE, 0xb, int)
-#define AST_VIDEO_SET_ENCRYPTION_KEY			_IOW(VIDEOIOC_BASE, 0xc, unsigned char*)
+#define AST_VIDEO_SET_VGA_DISPLAY			_IOW(VIDEOIOC_BASE, 0xa, int)
+#define AST_VIDEO_SET_ENCRYPTION			_IOW(VIDEOIOC_BASE, 0xb, int)
+#define AST_VIDEO_SET_ENCRYPTION_KEY		_IOW(VIDEOIOC_BASE, 0xc, unsigned char*)
 #define AST_VIDEO_SET_CRT_COMPRESSION		_IOW(VIDEOIOC_BASE, 0xd, struct fb_var_screeninfo*)
-#define AST_VIDEO_JPEG_CONFIG				_IOW(VIDEOIOC_BASE, 0xe, struct ast_video_jpeg_config*)
+
+#define AST_VIDEO_MULTIJPEG_AUTOMODE_TRIGGER	_IOWR(VIDEOIOC_BASE, 0xe, struct aspeed_multi_jpeg_config*)
+#define AST_VIDEO_MULTIJPEG_TRIGGER			_IOWR(VIDEOIOC_BASE, 0xf, struct aspeed_multi_jpeg_config*)
 /***********************************************************************/
 typedef struct {
 	u16	HorizontalActive;
@@ -705,8 +700,6 @@ struct ast_video_data {
 	u32 thread_flag;
 	struct task_struct 		*thread_task;
 
-
-
 	struct fbinfo					src_fbinfo;
 	struct fbinfo					dest_fbinfo;
 	struct completion				complete;
@@ -717,6 +710,7 @@ struct ast_video_data {
 	struct mutex lock;
 
 	bool is_open;
+	int 	multi_jpeg;
 };
 
 //  RC4 structure
@@ -726,10 +720,8 @@ struct rc4_state {
 	int m[256];
 };
 
-
 extern u32 aspeed_get_dram_size(void);
 extern u32 aspeed_get_vga_size(void);
-
 
 /***********************************************************************/
 #define AST_SCU_MISC1_CTRL			0x2C		/*	Misc. Control register */
@@ -1562,141 +1554,11 @@ static u8 ast_video_mode_detect_digital(struct ast_video_data *ast_video)
 	return 0;
 }
 
-
-static void ast_video_single_jpeg_setup(struct ast_video_data* ast_video, struct ast_video_jpeg_config* jpeg_config)
-{
-	u32 reg_300_ctrl = ast_video_read(ast_video, AST_VIDEO_CTRL);
-	u32 ctrl = ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL);
-	u32 ctrl_pass = ast_video_read(ast_video, AST_VIDEO_PASS_CTRL);
-
-	//set non-auto so that user can use auto or non-auto trigger mode
-	if (ctrl&VIDEO_AUTO_COMPRESS) {
-		ctrl &= ~VIDEO_AUTO_COMPRESS;
-		ast_video_write(ast_video, ctrl, AST_VIDEO_SEQ_CTRL);
-	}
-	if (ctrl_pass& G6_VIDEO_MULTI_JPEG_MODE) {
-		ctrl &= ~VIDEO_CAPTURE_MULTI_FRAME;
-		ctrl_pass &= ~G6_VIDEO_MULTI_JPEG_MODE;
-		ctrl_pass &= ~( 0x3f<< 24);
-		reg_300_ctrl &= ~VIDEO_CTRL_ADDRESS_MAP_MULTI_JPEG;
-
-		ast_video_write(ast_video, ctrl, AST_VIDEO_SEQ_CTRL);
-		ast_video_write(ast_video, ctrl_pass, AST_VIDEO_PASS_CTRL);
-		ast_video_write(ast_video, reg_300_ctrl, AST_VIDEO_CTRL);
-	}
-}
-
-static void ast_video_multi_jpeg_setup(struct ast_video_data* ast_video, struct ast_video_jpeg_config* jpeg_config)
-{
-	u32 reg_300_ctrl = ast_video_read(ast_video, AST_VIDEO_CTRL);
-	u32 ctrl = ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL);
-	u32 ctrl_pass = ast_video_read(ast_video, AST_VIDEO_PASS_CTRL);
-	u8  data_format = 0;
-	u32 multi_jpeg_reg_addr;
-	u32 yuv_shift;
-	u32 yuv_msk;
-	u32 scan_lines;
-	u32 start_addr;
-	u32 phys_buf_addr;
-	u32 dw_w_h;
-	u32 x0;
-	u32 y0;
-	u32 iter;
-
-	//switch to multi frames
-	if (ctrl&VIDEO_AUTO_COMPRESS) {
-		ctrl &= ~VIDEO_AUTO_COMPRESS;
-		ast_video_write(ast_video, ctrl, AST_VIDEO_SEQ_CTRL);
-	}
-	if (!(ctrl_pass& G6_VIDEO_MULTI_JPEG_MODE)) {
-		ctrl |= VIDEO_CAPTURE_MULTI_FRAME;
-		ctrl_pass |= G6_VIDEO_MULTI_JPEG_MODE;
-		ctrl_pass |= (((u32)((jpeg_config->multi_jpeg_frames - 1) & 0x3f)) << 24);
-		reg_300_ctrl |= VIDEO_CTRL_ADDRESS_MAP_MULTI_JPEG;
-
-		ast_video_write(ast_video, ctrl, AST_VIDEO_SEQ_CTRL);
-		ast_video_write(ast_video, ctrl_pass, AST_VIDEO_PASS_CTRL);
-		ast_video_write(ast_video, reg_300_ctrl, AST_VIDEO_CTRL);
-	}
-	if (ctrl & VIDEO_COMPRESS_FORMAT(YUV420)) {
-		data_format = YUV420;
-	}
-	scan_lines = ast_video_read(ast_video, AST_VIDEO_SOURCE_SCAN_LINE);
-	phys_buf_addr = ast_video_read(ast_video, AST_VIDEO_SOURCE_BUFF0);
-
-	multi_jpeg_reg_addr = AST_VIDEO_MULTI_JPEG_SRAM;
-	for (iter = 0; iter < 0x100; iter+=4) {
-		ast_video_write(ast_video, 0x0, multi_jpeg_reg_addr+iter);
-	}
-	if (data_format) {
-		// YUV 420
-		VIDEO_DBG("Debug: YUV420\n");
-		yuv_shift = 4;
-		yuv_msk = 0xf;
-	}
-	else {
-		// YUV 444
-		VIDEO_DBG("Debug: YUV444\n");
-		yuv_shift = 3;
-		yuv_msk = 0x7;
-	}
-	for (iter = 0; iter < jpeg_config->multi_jpeg_frames; ++iter) {
-		VIDEO_DBG("Debug: Before: [%u]: physical: %#x x: %#x y: %#x w: %#x h: %#x\n", iter, phys_buf_addr,
-			jpeg_config->frame[iter].wXPixels, jpeg_config->frame[iter].wYPixels,
-			jpeg_config->frame[iter].wWidthPixels, jpeg_config->frame[iter].wHeightPixels);
-		x0 = jpeg_config->frame[iter].wXPixels >> yuv_shift;
-		if (jpeg_config->frame[iter].wXPixels & yuv_msk) {
-			++x0;
-		}
-		y0 = jpeg_config->frame[iter].wYPixels >> yuv_shift;
-		if (jpeg_config->frame[iter].wYPixels & yuv_msk) {
-			++y0;
-		}
-
-		dw_w_h = SET_FRAME_W_H(jpeg_config->frame[iter].wWidthPixels, jpeg_config->frame[iter].wHeightPixels);
-		ast_video_write(ast_video, dw_w_h, multi_jpeg_reg_addr);
-		VIDEO_DBG("Debug: After: dw_w_h: %#x\n", dw_w_h);
-		VIDEO_DBG("VR%X = 0x%x\n", multi_jpeg_reg_addr, readl((volatile void*)ast_video->reg_base + multi_jpeg_reg_addr));
-		VIDEO_DBG("VR%X = 0x%x\n", multi_jpeg_reg_addr, *((volatile u32*)(ast_video->reg_base + multi_jpeg_reg_addr)));
-		multi_jpeg_reg_addr += REG_32_BIT_SZ_IN_BYTES;
-
-		start_addr = phys_buf_addr + ((scan_lines << yuv_shift) * y0) + (256 * x0);
-
-		VIDEO_DBG("Debug: start_addr: %#x\n", start_addr);
-		ast_video_write(ast_video, SET_FRAME_START_ADDR(start_addr), multi_jpeg_reg_addr);
-		VIDEO_DBG("VR%X = 0x%x\n", multi_jpeg_reg_addr, readl((volatile void*)ast_video->reg_base + multi_jpeg_reg_addr));
-		VIDEO_DBG("VR%X = 0x%x\n", multi_jpeg_reg_addr, *((volatile u32*)(ast_video->reg_base + multi_jpeg_reg_addr)));
-		multi_jpeg_reg_addr += REG_32_BIT_SZ_IN_BYTES;
-}
-}
-
-static void ast_video_jpeg_setup(struct ast_video_data* ast_video, struct ast_video_jpeg_config* jpeg_config)
-{
-
-	VIDEO_DBG("Debug: frame ct: %u\n", jpeg_config->multi_jpeg_frames);
-	if (jpeg_config->multi_jpeg_frames == 1) {
-		ast_video_single_jpeg_setup(ast_video, jpeg_config);
-	}
-	else {
-		ast_video_multi_jpeg_setup(ast_video, jpeg_config);
-		// ast_video_write(ast_video, ctrl_pass, AST_VIDEO_PASS_CTRL);
-	}
-}
-
 static void ast_video_set_eng_config(struct ast_video_data *ast_video, struct ast_video_config *video_config)
 {
 	int i, base = 0;
-	u32 ctrl = 0;
-	u32 ctrl_pass = ast_video_read(ast_video, AST_VIDEO_PASS_CTRL);
-	u32 reg_300_ctrl = ast_video_read(ast_video, AST_VIDEO_CTRL);
+	u32 ctrl = 0;	//for VR004, VR204 
 	u32 compress_ctrl = 0x00080000;
-
-
-	// pass_reg_val = ast_video_read(ast_video, AST_VIDEO_PASS_CTRL);
-	VIDEO_DBG("Debug: ctrl_pass: %#x engine_idx: %#x\n", ctrl_pass, video_config->engine);
-
-	reg_300_ctrl &= ~VIDEO_CTRL_ADDRESS_MAP_MULTI_JPEG;
-	ctrl_pass  &= ~(G6_VIDEO_FRAME_CT_MASK | G6_VIDEO_MULTI_JPEG_MODE);
 
 	VIDEO_DBG("\n");
 
@@ -1709,20 +1571,6 @@ static void ast_video_set_eng_config(struct ast_video_data *ast_video, struct as
 		break;
 	}
 
-	ctrl |= VIDEO_COMPRESS_FORCE_IDLE;
-	switch (video_config->engine) {
-		case 0:
-			ast_video_write(ast_video, ctrl, AST_VIDEO_SEQ_CTRL);
-			break;
-		case 1:
-			ast_video_write(ast_video, ctrl, AST_VM_SEQ_CTRL);
-			break;
-	}
-
-	ctrl &= ~(VIDEO_CAPTURE_TRIGGER | VIDEO_COMPRESS_FORCE_IDLE | VIDEO_CAPTURE_MULTI_FRAME | VIDEO_COMPRESS_TRIGGER | VIDEO_AUTO_COMPRESS);
-
-	ast_video_write(ast_video, VIDEO_COMPRESS_COMPLETE | VIDEO_CAPTURE_COMPLETE | VIDEO_MODE_DETECT_WDT, AST_VIDEO_INT_EN);
-
 	if (video_config->AutoMode) {
 		ctrl |= VIDEO_AUTO_COMPRESS;
 
@@ -1730,23 +1578,38 @@ static void ast_video_set_eng_config(struct ast_video_data *ast_video, struct as
 		ctrl &= ~VIDEO_AUTO_COMPRESS;
 	}
 
-	if (ast_video->config->version >= 5) {
-		if (video_config->compression_format) {
-			ctrl |= G5_VIDEO_COMPRESS_JPEG_MODE;
-		} else {
-			ctrl &= ~G5_VIDEO_COMPRESS_JPEG_MODE;
+	ast_video_write(ast_video, VIDEO_COMPRESS_COMPLETE | VIDEO_CAPTURE_COMPLETE | VIDEO_MODE_DETECT_WDT, AST_VIDEO_INT_EN);
+
+	if (ast_video->config->version >= 6) {
+		switch(video_config->compression_format) {
+			case 2:
+				ast_video->multi_jpeg = 1;
+				ctrl &= ~G5_VIDEO_COMPRESS_JPEG_MODE;		
+				ast_video_write(ast_video, (ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) | G6_VIDEO_MULTI_JPEG_FLAG_MODE) &
+						~(G6_VIDEO_FRAME_CT_MASK | G6_VIDEO_MULTI_JPEG_MODE), AST_VIDEO_PASS_CTRL);
+				break;		
+			case 0:
+				ctrl &= ~G5_VIDEO_COMPRESS_JPEG_MODE;
+				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) & 
+						~(G6_VIDEO_FRAME_CT_MASK | G6_VIDEO_MULTI_JPEG_MODE | G6_VIDEO_MULTI_JPEG_FLAG_MODE), AST_VIDEO_PASS_CTRL);
+				break;
+			case 1:
+				ctrl |= G5_VIDEO_COMPRESS_JPEG_MODE;
+				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) & 
+						~(G6_VIDEO_FRAME_CT_MASK | G6_VIDEO_MULTI_JPEG_MODE | G6_VIDEO_MULTI_JPEG_FLAG_MODE), AST_VIDEO_PASS_CTRL);
+				break;
 		}
+	} else if (ast_video->config->version == 5) {
+		if (video_config->compression_format)
+			ctrl |= G5_VIDEO_COMPRESS_JPEG_MODE;
+		else
+			ctrl &= ~G5_VIDEO_COMPRESS_JPEG_MODE;
 	} else {
 		if (video_config->compression_format)
 			ctrl |= VIDEO_COMPRESS_JPEG_MODE;
 		else
 			ctrl &= ~VIDEO_COMPRESS_JPEG_MODE;
 	}
-
-	VIDEO_DBG("Debug: compress_ctrl: %#x pass: %#x\n", compress_ctrl, ctrl_pass);
-	ast_video_write(ast_video, ctrl_pass, AST_VIDEO_PASS_CTRL);
-	ast_video_write(ast_video, reg_300_ctrl, AST_VIDEO_CTRL);
-
 	ctrl &= ~VIDEO_COMPRESS_FORMAT_MASK;
 
 	if (video_config->YUV420_mode) {
@@ -1790,7 +1653,7 @@ static void ast_video_set_eng_config(struct ast_video_data *ast_video, struct as
 		break;
 	}
 
-	if (video_config->compression_format == 1) {
+	if (video_config->compression_format >= 1) {
 		for (i = 0; i < 12; i++) {
 			base = (1024 * i);
 			if (video_config->YUV420_mode)	//yuv420
@@ -1799,8 +1662,6 @@ static void ast_video_set_eng_config(struct ast_video_data *ast_video, struct as
 				ast_video->jpeg_tbl_virt[base + 46] = 0x00110103; //for YUV444 mode)
 		}
 	}
-
-
 }
 
 static void ast_video_set_0_scaling(struct ast_video_data *ast_video, struct ast_scaling *scaling)
@@ -2114,7 +1975,7 @@ static void ast_video_capture_trigger(struct ast_video_data *ast_video, struct a
 {
 	int timeout = 0;
 
-	VIDEO_DBG("Start\n");
+	VIDEO_DBG("\n");
 
 	if (ast_video->mode_change) {
 		capture_mode->mode_change = ast_video->mode_change;
@@ -2138,8 +1999,7 @@ static void ast_video_capture_trigger(struct ast_video_data *ast_video, struct a
 		timeout = wait_for_completion_interruptible_timeout(&ast_video->capture_complete, HZ / 2);
 
 		if (timeout == 0) {
-			VIDEO_DBG("Capture Timeout\n");
-			printk("capture timeout sts %x\n", ast_video_read(ast_video, AST_VIDEO_INT_STS));
+			printk("Capture timeout sts %x \n", ast_video_read(ast_video, AST_VIDEO_INT_STS));
 		}
 		break;
 	case 1:
@@ -2198,8 +2058,6 @@ static void ast_video_compression_trigger(struct ast_video_data *ast_video, stru
 {
 	int timeout = 0;
 	int total_frames = 0;
-	int frame_idx = 0;
-	unsigned int reg_val;
 
 	VIDEO_DBG("\n");
 	//u8 *buff = ast_video->stream_virt;
@@ -2227,17 +2085,19 @@ static void ast_video_compression_trigger(struct ast_video_data *ast_video, stru
 			compression_mode->total_size = ast_video_read(ast_video, AST_VIDEO_COMPRESS_DATA_COUNT);
 			compression_mode->block_count = ast_video_read(ast_video, AST_VIDEO_COMPRESS_BLOCK_COUNT) >> 16;
 
-			if ((ast_video->config->version == 5) || (ast_video->config->version == 6)) {
-				if(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & G5_VIDEO_COMPRESS_JPEG_MODE) {
-					compression_mode->total_size = ast_video_read(ast_video, AST_VIDEO_JPEG_COUNT);
-
-					VIDEO_DBG("VR[400]=0x%x, VR[404]=0x%x\n",
+			if (ast_video->config->version == 6) {
+				if(ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) & G6_VIDEO_MULTI_JPEG_MODE) {
+//					ast_video_write(ast_video, (ast_video_read(ast_video, (AST_VIDEO_SEQ_CTRL) & ~(G5_VIDEO_COMPRESS_JPEG_MODE | VIDEO_CAPTURE_MULTI_FRAME))
+//								| VIDEO_AUTO_COMPRESS, AST_VIDEO_SEQ_CTRL);
+					VIDEO_DBG("done VR[400]=0x%x, VR[404]=0x%x\n",
 							ast_video_read(ast_video, AST_VIDEO_MULTI_JPEG_SRAM),
 							ast_video_read(ast_video, AST_VIDEO_MULTI_JPEG_SRAM+4));
 
 					total_frames = ((ast_video_read(ast_video, AST_VIDEO_PASS_CTRL)>>24)&0x3f)+1;
-					VIDEO_DBG("total frames=%d\n",total_frames);
+					printk("total frames=%d\n",total_frames);
 					if (total_frames>1) {
+						printk("TOOD ~~~~\n");
+#if 0						
 						for (frame_idx=0;frame_idx<total_frames;frame_idx++) {
 							reg_val = ast_video_read(ast_video, AST_VIDEO_MULTI_JPEG_SRAM+4+(frame_idx<<3));
 							if ((reg_val&(1<<7))) {
@@ -2249,10 +2109,19 @@ static void ast_video_compression_trigger(struct ast_video_data *ast_video, stru
 								compression_mode->frame[frame_idx].dwSizeInBytes = reg_val & 0xffffff;
 							}
 						}
+#endif						
 					} else {
-						compression_mode->frame[0].dwOffsetInBytes = 0;
-						compression_mode->frame[0].dwSizeInBytes = ast_video_read(ast_video, AST_VIDEO_JPEG_COUNT);
+//						compression_mode->frame[0].dwOffsetInBytes = 0;
+//						compression_mode->frame[0].dwSizeInBytes = ast_video_read(ast_video, AST_VIDEO_JPEG_COUNT);
 					}
+				} else if(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & G5_VIDEO_COMPRESS_JPEG_MODE) {
+					compression_mode->total_size = ast_video_read(ast_video, AST_VIDEO_JPEG_COUNT);
+				} else {
+//					printk("%d	compression_mode->total_size %d , block count %d \n",compression_mode->differential, compression_mode->total_size, compression_mode->block_count);					
+				}
+			} else if (ast_video->config->version == 5) {
+				if(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & G5_VIDEO_COMPRESS_JPEG_MODE) {
+					compression_mode->total_size = ast_video_read(ast_video, AST_VIDEO_JPEG_COUNT);
 //					if((buff[compression_mode->total_size - 2] != 0xff) && (buff[compression_mode->total_size - 1] != 0xd9))
 //						printk("Error --- %x %x\n", buff[compression_mode->total_size - 2], buff[compression_mode->total_size - 1]);
 //					printk("jpeg %d compression_mode->total_size %d , block count %d \n",compression_mode->differential, compression_mode->total_size, compression_mode->block_count);
@@ -2322,7 +2191,8 @@ static void ast_video_compression_trigger(struct ast_video_data *ast_video, stru
 	if (ast_video->mode_change) {
 		compression_mode->mode_change = ast_video->mode_change;
 		ast_video->mode_change = 0;
-	}
+	} else
+		compression_mode->mode_change = 0;
 
 }
 
@@ -2356,13 +2226,12 @@ static void ast_video_auto_mode_trigger(struct ast_video_data *ast_video, struct
 		timeout = wait_for_completion_interruptible_timeout(&ast_video->automode_complete, HZ / 2);
 
 		if (timeout == 0) {
-			printk("compression timeout sts %x \n", ast_video_read(ast_video, AST_VIDEO_INT_STS));
+			printk("auto compression timeout sts %x \n", ast_video_read(ast_video, AST_VIDEO_INT_STS));
 			auto_mode->total_size = 0;
 			auto_mode->block_count = 0;
 		} else {
 			auto_mode->total_size = ast_video_read(ast_video, AST_VIDEO_COMPRESS_DATA_COUNT);
 			auto_mode->block_count = ast_video_read(ast_video, AST_VIDEO_COMPRESS_BLOCK_COUNT) >> 16;
-
 			if (ast_video->config->version >= 5) {
 				if(ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & G5_VIDEO_COMPRESS_JPEG_MODE) {
 					auto_mode->total_size = ast_video_read(ast_video, AST_VIDEO_JPEG_COUNT);
@@ -2444,6 +2313,162 @@ static void ast_video_auto_mode_trigger(struct ast_video_data *ast_video, struct
 
 }
 
+static void ast_video_multi_jpeg_trigger(struct ast_video_data *ast_video, struct aspeed_multi_jpeg_config *multi_jpeg)
+{
+	u32 yuv_shift;
+	u32 yuv_msk;
+	u32 scan_lines;
+	int timeout = 0;	
+	u32 x0;
+	u32 y0;
+	int i = 0;
+	u32 dw_w_h;	
+	u32 start_addr;	
+	u32 multi_jpeg_data = 0; 	
+	u32 VR044 = ast_video_read(ast_video, AST_VIDEO_SOURCE_BUFF0);
+
+	init_completion(&ast_video->compression_complete);
+
+	scan_lines = ast_video_read(ast_video, AST_VIDEO_SOURCE_SCAN_LINE);
+
+	if (ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & VIDEO_COMPRESS_FORMAT(YUV420)) {
+		// YUV 420
+		VIDEO_DBG("Debug: YUV420\n");
+		yuv_shift = 4;
+		yuv_msk = 0xf;
+	}
+	else {
+		// YUV 444
+		VIDEO_DBG("Debug: YUV444\n");
+		yuv_shift = 3;
+		yuv_msk = 0x7;
+	}
+	
+	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) | G6_VIDEO_MULTI_JPEG_FLAG_MODE |
+			(G6_VIDEO_JPEG__COUNT(multi_jpeg->multi_jpeg_frames - 1) | G6_VIDEO_MULTI_JPEG_MODE), AST_VIDEO_PASS_CTRL);
+
+	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_BCD_CTRL) & ~VIDEO_BCD_CHG_EN, AST_VIDEO_BCD_CTRL);
+
+	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_CTRL) | VIDEO_CTRL_ADDRESS_MAP_MULTI_JPEG, AST_VIDEO_CTRL);
+
+	for(i = 0; i < multi_jpeg->multi_jpeg_frames; i++) {
+		VIDEO_DBG("Debug: Before: [%d]: x: %#x y: %#x w: %#x h: %#x\n", i,
+			multi_jpeg->frame[i].wXPixels, multi_jpeg->frame[i].wYPixels,
+			multi_jpeg->frame[i].wWidthPixels, multi_jpeg->frame[i].wHeightPixels);
+
+		x0 = multi_jpeg->frame[i].wXPixels >> yuv_shift;
+		if (multi_jpeg->frame[i].wXPixels & yuv_msk) {
+			++x0;
+		}
+		y0 = multi_jpeg->frame[i].wYPixels >> yuv_shift;
+		if (multi_jpeg->frame[i].wYPixels & yuv_msk) {
+			++y0;
+		}
+		dw_w_h = SET_FRAME_W_H(multi_jpeg->frame[i].wWidthPixels, multi_jpeg->frame[i].wHeightPixels);
+		start_addr = VR044 + ((scan_lines << yuv_shift) * y0) + (256 * x0);		
+		VIDEO_DBG("VR%x dw_w_h: %#x, VR%x : addr : %#x, x0 %d, y0 %d\n", 
+				AST_VIDEO_MULTI_JPEG_SRAM + (8 * i), dw_w_h, 
+				AST_VIDEO_MULTI_JPEG_SRAM + (8 * i) + 4, start_addr, x0, y0);
+		ast_video_write(ast_video, dw_w_h, AST_VIDEO_MULTI_JPEG_SRAM + (8 * i));
+		ast_video_write(ast_video, start_addr, AST_VIDEO_MULTI_JPEG_SRAM + (8 * i) + 4);
+	}
+	
+	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~(VIDEO_CAPTURE_TRIGGER | VIDEO_COMPRESS_FORCE_IDLE | VIDEO_COMPRESS_TRIGGER) , AST_VIDEO_SEQ_CTRL);
+	//set mode for multi-jpeg mode VR004[5:3]	
+	ast_video_write(ast_video, (ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~VIDEO_AUTO_COMPRESS)
+				| VIDEO_CAPTURE_MULTI_FRAME | G5_VIDEO_COMPRESS_JPEG_MODE, AST_VIDEO_SEQ_CTRL);
+	
+	//If CPU is too fast, pleas read back and trigger
+	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) | VIDEO_COMPRESS_TRIGGER, AST_VIDEO_SEQ_CTRL);
+
+	timeout = wait_for_completion_interruptible_timeout(&ast_video->compression_complete, HZ / 2);
+
+	if (timeout == 0) {
+		printk("multi compression timeout sts %x \n", ast_video_read(ast_video, AST_VIDEO_INT_STS));
+		multi_jpeg->multi_jpeg_frames = 0;
+	} else {
+		VIDEO_DBG("400 %x , 404 %x \n", ast_video_read(ast_video, AST_VIDEO_MULTI_JPEG_SRAM), ast_video_read(ast_video, AST_VIDEO_MULTI_JPEG_SRAM + 4));
+		VIDEO_DBG("408 %x , 40c %x \n", ast_video_read(ast_video, AST_VIDEO_MULTI_JPEG_SRAM + 8), ast_video_read(ast_video, AST_VIDEO_MULTI_JPEG_SRAM + 0xC));		
+		for(i = 0; i < multi_jpeg->multi_jpeg_frames; i++) {
+			multi_jpeg_data = ast_video_read(ast_video, AST_VIDEO_MULTI_JPEG_SRAM + (8 * i) + 4);
+			if(multi_jpeg_data & BIT(7)) {
+				multi_jpeg->frame[i].dwSizeInBytes = ast_video_read(ast_video, AST_VIDEO_MULTI_JPEG_SRAM + (8 * i)) & 0xffffff;
+				multi_jpeg->frame[i].dwOffsetInBytes = (multi_jpeg_data & ~BIT(7)) >> 1;
+			} else {
+				multi_jpeg->frame[i].dwSizeInBytes = 0;
+			}
+			VIDEO_DBG("[%d] size %d , dwOffsetInBytes %x \n",i, multi_jpeg->frame[i].dwSizeInBytes, multi_jpeg->frame[i].dwOffsetInBytes);
+		}
+	}
+
+	ast_video_write(ast_video, (ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & ~(G5_VIDEO_COMPRESS_JPEG_MODE | VIDEO_CAPTURE_MULTI_FRAME))
+			| VIDEO_AUTO_COMPRESS, AST_VIDEO_SEQ_CTRL);
+	ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_PASS_CTRL) &  
+			~(G6_VIDEO_FRAME_CT_MASK | G6_VIDEO_MULTI_JPEG_MODE), AST_VIDEO_PASS_CTRL);
+
+}
+
+static void ast_video_multi_jpeg_automode_trigger(struct ast_video_data *ast_video, 	struct aspeed_multi_jpeg_config *multi_jpeg)
+{
+	struct ast_auto_mode auto_mode;
+	u32 yuv_shift = 0;
+	u32 bonding_x, bonding_y;
+
+	auto_mode.engine_idx = 0;
+	auto_mode.mode_change = 0;
+
+	//bcd : 0 first fram. 
+	if(multi_jpeg->multi_jpeg_frames)
+		auto_mode.differential = 1;
+	else	//first frame
+		auto_mode.differential = 0;
+
+	VIDEO_DBG("multi_jpeg_frames %d \n", multi_jpeg->multi_jpeg_frames);
+	//do aspeed mode first
+	ast_video_auto_mode_trigger(ast_video, &auto_mode);
+	if(ast_video->mode_change)
+		return;
+
+	if (ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & VIDEO_COMPRESS_FORMAT(YUV420)) {
+		// YUV 420
+		VIDEO_DBG("Debug: YUV420\n");
+		yuv_shift = 4;
+	}
+	else {
+		// YUV 444
+		VIDEO_DBG("Debug: YUV444\n");
+		yuv_shift = 3;
+	}
+
+	VIDEO_DBG("w %d, h %d \n", ast_video->src_fbinfo.x, ast_video->src_fbinfo.y);
+
+	if(auto_mode.differential) {
+		//find bonding box
+		multi_jpeg->multi_jpeg_frames = 1;
+		bonding_x = ast_video_read(ast_video, AST_VIDEO_BONDING_X);
+		bonding_y = ast_video_read(ast_video, AST_VIDEO_BONDING_Y);
+		VIDEO_DBG("bonding box %x , %x \n", bonding_x, bonding_y);
+		if((bonding_y == 0x3ff) && (bonding_x == 0x3ff)) {
+			multi_jpeg->frame[0].dwSizeInBytes = 0;
+			return;
+		}
+		multi_jpeg->frame[0].wXPixels = bonding_x & 0xffff;
+		multi_jpeg->frame[0].wYPixels = bonding_y & 0xffff;
+		VIDEO_DBG("x %d , y : %d \n", multi_jpeg->frame[0].wXPixels, multi_jpeg->frame[0].wYPixels);
+		multi_jpeg->frame[0].wWidthPixels = ((bonding_x >> 16) + 1 - (bonding_x & 0xffff))* (yuv_shift << 1);
+		multi_jpeg->frame[0].wHeightPixels = ((bonding_y >> 16) + 1 - (bonding_y & 0xffff)) * (yuv_shift << 1);
+		VIDEO_DBG("w %d , h : %d \n", multi_jpeg->frame[0].wWidthPixels, multi_jpeg->frame[0].wHeightPixels);
+	} else {
+		//first frame 
+		multi_jpeg->multi_jpeg_frames = 1;
+		multi_jpeg->frame[0].wXPixels = 0;
+		multi_jpeg->frame[0].wYPixels = 0;
+		multi_jpeg->frame[0].wWidthPixels = ast_video->src_fbinfo.x;
+		multi_jpeg->frame[0].wHeightPixels = ast_video->src_fbinfo.y;
+	}
+	ast_video_multi_jpeg_trigger(ast_video, multi_jpeg);	
+}
+
 static void ast_video_mode_detect_info(struct ast_video_data *ast_video)
 
 {
@@ -2480,24 +2505,26 @@ static irqreturn_t ast_video_isr(int this_irq, void *dev_id)
 
 	if (status & VIDEO_MODE_DETECT_WDT) {
 		ast_video->mode_change = 1;
-		VIDEO_DBG("change 1\n");
+		VIDEO_DBG("mode change \n");
 		ast_video_write(ast_video, VIDEO_MODE_DETECT_WDT, AST_VIDEO_INT_STS);
 	}
 
 	if (ast_video_read(ast_video, AST_VIDEO_SEQ_CTRL) & VIDEO_AUTO_COMPRESS) {
 		if ((status & (VIDEO_COMPRESS_COMPLETE | VIDEO_CAPTURE_COMPLETE)) == (VIDEO_COMPRESS_COMPLETE | VIDEO_CAPTURE_COMPLETE)) {
 			ast_video_write(ast_video, VIDEO_COMPRESS_COMPLETE | VIDEO_CAPTURE_COMPLETE, AST_VIDEO_INT_STS);
-			swap0 = ast_video_read(ast_video, AST_VIDEO_SOURCE_BUFF0);
-			swap1 = ast_video_read(ast_video, AST_VIDEO_SOURCE_BUFF1);
-			ast_video_write(ast_video, swap1, AST_VIDEO_SOURCE_BUFF0);
-			ast_video_write(ast_video, swap0, AST_VIDEO_SOURCE_BUFF1);
+			if(!ast_video->multi_jpeg) {
+				swap0 = ast_video_read(ast_video, AST_VIDEO_SOURCE_BUFF0);
+				swap1 = ast_video_read(ast_video, AST_VIDEO_SOURCE_BUFF1);
+				ast_video_write(ast_video, swap1, AST_VIDEO_SOURCE_BUFF0);
+				ast_video_write(ast_video, swap0, AST_VIDEO_SOURCE_BUFF1);
+			}
 			VIDEO_DBG("auto mode complete \n");
 			complete(&ast_video->automode_complete);
 		}
 	} else {
 		if (status & VIDEO_COMPRESS_COMPLETE) {
 			ast_video_write(ast_video, VIDEO_COMPRESS_COMPLETE, AST_VIDEO_INT_STS);
-			VIDEO_DBG("compress complete \n");
+			VIDEO_DBG("compress complete swap\n");
 			swap0 = ast_video_read(ast_video, AST_VIDEO_SOURCE_BUFF0);
 			swap1 = ast_video_read(ast_video, AST_VIDEO_SOURCE_BUFF1);
 			ast_video_write(ast_video, swap1, AST_VIDEO_SOURCE_BUFF0);
@@ -2640,8 +2667,8 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 	struct ast_video_config video_config;
 	struct ast_capture_mode capture_mode;
 	struct ast_compression_mode compression_mode;
+	struct aspeed_multi_jpeg_config multi_jpeg;
 	struct fb_var_screeninfo fb_info;
-	struct ast_video_jpeg_config jpeg_config;
 	int vga_enable = 0;
 	int encrypt_en = 0;
 	struct ast_mode_detection mode_detection;
@@ -2728,10 +2755,15 @@ static long ast_video_ioctl(struct file *fp, unsigned int cmd, unsigned long arg
 		ast_set_crt_compression(ast_video, &fb_info);
 		ret = 0;
 		break;
-	case AST_VIDEO_JPEG_CONFIG:
-		ret = copy_from_user(&jpeg_config, argp, sizeof(struct ast_video_jpeg_config));
-		ast_video_jpeg_setup(ast_video, &jpeg_config);
-		ret = 0;
+	case AST_VIDEO_MULTIJPEG_AUTOMODE_TRIGGER:
+		ret = copy_from_user(&multi_jpeg, argp, sizeof(multi_jpeg));
+		ast_video_multi_jpeg_automode_trigger(ast_video, &multi_jpeg);
+		ret = copy_to_user(argp, &multi_jpeg, sizeof(multi_jpeg));
+		break;
+	case AST_VIDEO_MULTIJPEG_TRIGGER:
+		ret = copy_from_user(&multi_jpeg, argp, sizeof(multi_jpeg));
+		ast_video_multi_jpeg_trigger(ast_video, &multi_jpeg);
+		ret = copy_to_user(argp, &multi_jpeg, sizeof(multi_jpeg));
 		break;
 	default:
 		ret = 3;
@@ -3449,6 +3481,7 @@ static int ast_video_probe(struct platform_device *pdev)
 	// default config
 	ast_video->input_source = VIDEO_SOURCE_INT_VGA;
 	ast_video->rc4_enable = 0;
+	ast_video->multi_jpeg = 0;
 	strcpy(ast_video->EncodeKeys, "fedcba9876543210");
 	ast_video->scaling = 0;
 
@@ -3508,9 +3541,8 @@ out_misc:
 	misc_deregister(&ast_video_misc);
 
 out_region1:
-	if (ast_video->stream_virt) {
+	if (ast_video->stream_virt)
 		dma_free_coherent(&pdev->dev, CONFIG_AST_VIDEO_MEM_SIZE, ast_video->stream_virt, ast_video->video_mem.dma);
-	}
 out:
 	printk(KERN_WARNING "applesmc: driver init failed (ret=%d)!\n", ret);
 	return ret;
@@ -3529,12 +3561,8 @@ static int ast_video_remove(struct platform_device *pdev)
 		sysfs_remove_group(&pdev->dev.kobj, &compress_attribute_groups[i]);
 	}
 
-	if (ast_video->stream_virt) {
+	if (ast_video->stream_virt)
 		dma_free_coherent(&pdev->dev, CONFIG_AST_VIDEO_MEM_SIZE, ast_video->stream_virt, ast_video->video_mem.dma);
-//		iounmap(ast_video->stream_virt);
-		ast_video->stream_virt = NULL;
-		ast_video->video_mem.virt = NULL;
-	}
 
 	return 0;
 }

@@ -510,6 +510,12 @@ static void aspeed_set_fan_tach_ch_enable(struct aspeed_pwm_tachometer_data *pri
 					break;
 
 			}
+//			printk("xx i %d divide_val %x \n", i, divide_val);
+			//add some toleerance for aviod fan/board design glitch
+			if(i <= 2)
+				i = 3;
+			divide_val = BIT(i) * BIT(i);
+//			printk("00 i %d divide_val %x \n", i, divide_val);
 		} else {
 			i = 0;
 			divide_val = 1;
