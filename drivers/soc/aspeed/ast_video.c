@@ -100,6 +100,8 @@
 #define AST_VIDEO_MODE_DET_STS	0x098		/* Video Mode Detection Status Read Back Register */
 
 #define AST_VIDEO_MODE_DET1		0x0A4		/* Video Mode Detection Control Register 1*/
+#define AST_VIDEO_MODE_DET2		0x0A8		/* Video Mode Detection Control Register 2*/
+
 
 #define AST_VIDEO_BONDING_X		0x0D4
 #define AST_VIDEO_BONDING_Y		0x0D8
@@ -2649,6 +2651,10 @@ static void ast_video_ctrl_init(struct ast_video_data *ast_video)
 					VIDEO_MODE_VER_STABLE(2) |
 					VIDEO_MODE_EDG_THROD(0x65)
 					, AST_VIDEO_MODE_DETECT);
+	
+	if (ast_video->config->version == 6)
+			ast_video_write(ast_video, (ast_video_read(ast_video, AST_VIDEO_MODE_DET2) | BIT(13)), AST_VIDEO_MODE_DET2);
+	
 }
 
 static void ast_scu_reset_video(struct ast_video_data *ast_video)
