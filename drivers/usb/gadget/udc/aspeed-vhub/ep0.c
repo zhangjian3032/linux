@@ -219,8 +219,12 @@ static void ast_vhub_ep0_do_send(struct ast_vhub_ep *ep,
 	if (chunk && req->req.buf)
 		memcpy(ep->buf, req->req.buf + req->req.actual, chunk);
 
+#if 0
 	/* aviode next out package get the same data due to prefetch memory */
 	vhub_dma_workaround(ep->buf + 0x10);
+#else
+	vhub_dma_workaround(ep->buf);
+#endif	
 
 	/* Remember chunk size and trigger send */
 	reg = VHUB_EP0_SET_TX_LEN(chunk);

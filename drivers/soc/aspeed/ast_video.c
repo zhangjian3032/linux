@@ -2357,17 +2357,10 @@ static void ast_video_multi_jpeg_trigger(struct ast_video_data *ast_video, struc
 		VIDEO_DBG("Debug: Before: [%d]: x: %#x y: %#x w: %#x h: %#x\n", i,
 			multi_jpeg->frame[i].wXPixels, multi_jpeg->frame[i].wYPixels,
 			multi_jpeg->frame[i].wWidthPixels, multi_jpeg->frame[i].wHeightPixels);
-
-		x0 = multi_jpeg->frame[i].wXPixels >> yuv_shift;
-		if (multi_jpeg->frame[i].wXPixels & yuv_msk) {
-			++x0;
-		}
-		y0 = multi_jpeg->frame[i].wYPixels >> yuv_shift;
-		if (multi_jpeg->frame[i].wYPixels & yuv_msk) {
-			++y0;
-		}
+		x0 = multi_jpeg->frame[i].wXPixels;
+		y0 = multi_jpeg->frame[i].wYPixels;
 		dw_w_h = SET_FRAME_W_H(multi_jpeg->frame[i].wWidthPixels, multi_jpeg->frame[i].wHeightPixels);
-		start_addr = VR044 + ((scan_lines << yuv_shift) * y0) + (256 * x0);		
+		start_addr = VR044 + (scan_lines * y0) + ((256 * x0) / ( 1 << yuv_shift));		
 		VIDEO_DBG("VR%x dw_w_h: %#x, VR%x : addr : %#x, x0 %d, y0 %d\n", 
 				AST_VIDEO_MULTI_JPEG_SRAM + (8 * i), dw_w_h, 
 				AST_VIDEO_MULTI_JPEG_SRAM + (8 * i) + 4, start_addr, x0, y0);
@@ -2415,6 +2408,10 @@ static void ast_video_multi_jpeg_automode_trigger(struct ast_video_data *ast_vid
 	struct ast_auto_mode auto_mode;
 	u32 yuv_shift = 0;
 	u32 bonding_x, bonding_y;
+	u32 x, y;
+	int i,j = 0;
+	u8 *bcd_buf = (u8 *)ast_video->bcd_virt;
+	u32 max_x, min_x, max_y, min_y;
 
 	auto_mode.engine_idx = 0;
 	auto_mode.mode_change = 0;
@@ -2450,14 +2447,45 @@ static void ast_video_multi_jpeg_automode_trigger(struct ast_video_data *ast_vid
 		bonding_x = ast_video_read(ast_video, AST_VIDEO_BONDING_X);
 		bonding_y = ast_video_read(ast_video, AST_VIDEO_BONDING_Y);
 		VIDEO_DBG("bonding box %x , %x \n", bonding_x, bonding_y);
+#if 0
+		x = ast_video->src_fbinfo.x / (1 << yuv_shift);
+		y = ast_video->src_fbinfo.y / (1 << yuv_shift);
+
+		min_x = 0x3ff;
+		min_y = 0x3ff;
+		max_x = 0;
+		max_y = 0;
+		VIDEO_DBG("for %d , %d \n", x, y);
+		
+		for( i = 0; i < x; i++ ) {
+			for( j = 0; j < y; j++ ) {
+				if((bcd_buf[i * j] & 0xf) != 0xf) {
+//					VIDEO_DBG("x: %d ,y: %d : data : %x \n", i, j, bcd_buf[i * j]);
+					if(i < min_x)
+						min_x = i;
+					if(i > max_x)
+						max_x = i;
+					if(j < min_y)
+						min_y = j;
+					if(j > max_y)
+						max_y = j;
+				}
+					
+			}
+		}
+		bonding_x = (max_x << 16) | min_x;
+		bonding_y = (max_y << 16) | min_y;
+		VIDEO_DBG("bonding box %x , %x \n", bonding_x, bonding_y);
+#endif
 		if((bonding_y == 0x3ff) && (bonding_x == 0x3ff)) {
 			multi_jpeg->frame[0].dwSizeInBytes = 0;
 			return;
 		}
-		multi_jpeg->frame[0].wXPixels = bonding_x & 0xffff;
-		multi_jpeg->frame[0].wYPixels = bonding_y & 0xffff;
-		VIDEO_DBG("x %d , y : %d \n", multi_jpeg->frame[0].wXPixels, multi_jpeg->frame[0].wYPixels);
-		multi_jpeg->frame[0].wWidthPixels = ((bonding_x >> 16) + 1 - (bonding_x & 0xffff))* (yuv_shift << 1);
+		multi_jpeg->frame[0].wXPixels = (bonding_x & 0xffff) * (yuv_shift << 1);
+		VIDEO_DBG("x : %d, %d, %d \n", multi_jpeg->frame[0].wXPixels, (bonding_x & 0xffff), (yuv_shift << 1));
+		multi_jpeg->frame[0].wYPixels = (bonding_y & 0xffff) * (yuv_shift << 1);
+		VIDEO_DBG("y : %d, %d, %d \n", multi_jpeg->frame[0].wYPixels, (bonding_y & 0xffff), (yuv_shift << 1));
+		multi_jpeg->frame[0].wWidthPixels = ((bonding_x >> 16) + 1 - (bonding_x & 0xffff)) * (yuv_shift << 1);
 		multi_jpeg->frame[0].wHeightPixels = ((bonding_y >> 16) + 1 - (bonding_y & 0xffff)) * (yuv_shift << 1);
 		VIDEO_DBG("w %d , h : %d \n", multi_jpeg->frame[0].wWidthPixels, multi_jpeg->frame[0].wHeightPixels);
 	} else {
