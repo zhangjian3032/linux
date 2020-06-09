@@ -252,7 +252,7 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 		trim = 0x8;
 	printk(KERN_INFO "aspeed_adc: trim %d \n", trim);
     compensating_trim = readl(data->base + ASPEED_REG_COMPENSATION_TRIM);
-    compensating_trim = compensating_trim & (~(GENMASK(3, 0))) | trim;
+	compensating_trim = (compensating_trim & (~(GENMASK(3, 0)))) | trim;
 	writel(compensating_trim, data->base + ASPEED_REG_COMPENSATION_TRIM);
 
     /* Compensating Sensing Mode */
