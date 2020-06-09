@@ -20,110 +20,123 @@
 #include <linux/reset.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/driver.h>
 #include <linux/iopoll.h>
+/**********************************************************
+ * ADC feature define
+ *********************************************************/
+#define ASPEED_RESOLUTION_BITS 10
+#define ASPEED_CLOCKS_PER_SAMPLE 12
+/**********************************************************
+ * ADC HW register offset define
+ *********************************************************/
+#define ASPEED_REG_ENGINE_CONTROL 0x00
+#define ASPEED_REG_INTERRUPT_CONTROL 0x04
+#define ASPEED_REG_VGA_DETECT_CONTROL 0x08
+#define ASPEED_REG_CLOCK_CONTROL 0x0C
+#define ASPEED_REG_COMPENSATION_TRIM 0xC4
+#define ASPEED_REG_MAX 0xCC
 
-#define ASPEED_RESOLUTION_BITS		10
-#define ASPEED_CLOCKS_PER_SAMPLE	12
+/**********************************************************
+ * ADC register Bit field 
+ *********************************************************/
+//ENGINE_CONTROL
+// [0]
+#define ASPEED_ENGINE_ENABLE BIT(0)
+// [3:1]
+#define ASPEED_OPERATION_MODE_POWER_DOWN (0x0 << 1)
+#define ASPEED_OPERATION_MODE_STANDBY (0x1 << 1)
+#define ASPEED_OPERATION_MODE_NORMAL (0x7 << 1)
+// [4]
+#define ASPEED_CTRL_COMPENSATION BIT(4)
+// [5]
+#define ASPEED_AUTOPENSATING BIT(5)
+//ASPEED G3
+#define ASPEED_G3_ADC_CTRL_COMPEN_CLR BIT(6)
+#define ASPEED_G3_ADC_CTRL_COMPEN BIT(5)
+// [7:6] only exist after ast2600
+#define REF_VLOTAGE_2500mV (0 << 6)
+#define REF_VLOTAGE_1200mV (1 << 6)
+#define REF_VLOTAGE_1550mV (2 << 6)
+#define REF_VLOTAGE_900mV (3 << 6)
+// [8]
+#define ASPEED_ADC_CTRL_INIT_RDY BIT(8)
+// [23:16]
+#define ASPEED_ADC_CTRL_CH_EN(n) (1 << (16 + n))
+#define ASPEED_ADC_CTRL_CH_EN_ALL GENMASK(23, 16)
 
-#define ASPEED_REG_ENGINE_CONTROL	0x00
-#define ASPEED_REG_INTERRUPT_CONTROL	0x04
-#define ASPEED_REG_VGA_DETECT_CONTROL	0x08
-#define ASPEED_REG_CLOCK_CONTROL	0x0C
-#define ASPEED_REG_MAX			0xC0
+/**********************************************************
+ * Software setting
+ *********************************************************/
+#define ASPEED_ADC_INIT_POLLING_TIME 500
+#define ASPEED_ADC_INIT_TIMEOUT 500000
+#define ASPEED_ADC_CLOCK_PERIOD 0x63
 
-//ast2600
-#define REF_VLOTAGE_2500mV 		0
-#define REF_VLOTAGE_1200mV 		(1 << 6)
-#define REF_VLOTAGE_1550mV 		(2 << 6)
-#define REF_VLOTAGE_900mV 		(3 << 6)
-
-#define ASPEED_AUTOPENSATING		BIT(5)
-
-#define ASPEED_OPERATION_MODE_POWER_DOWN	(0x0 << 1)
-#define ASPEED_OPERATION_MODE_STANDBY		(0x1 << 1)
-#define ASPEED_OPERATION_MODE_NORMAL		(0x7 << 1)
-
-#define ASPEED_ENGINE_ENABLE		BIT(0)
-
-#define ASPEED_ADC_CTRL_INIT_RDY	BIT(8)
-
-#define ASPEED_ADC_INIT_POLLING_TIME	500
-#define ASPEED_ADC_INIT_TIMEOUT		500000
-
+struct aspeed_adc_trim_locate {
+	unsigned int scu_offset;
+	unsigned int bit_offset;
+	unsigned int bit_mask;
+};
 struct aspeed_adc_model_data {
 	const char *model_name;
-	unsigned int min_sampling_rate;	// Hz
-	unsigned int max_sampling_rate;	// Hz
-	u32 vref_voltage;	// mV
+	unsigned int min_sampling_rate; // Hz
+	unsigned int max_sampling_rate; // Hz
+	u32 vref_voltage; // mV
 	bool wait_init_sequence;
-	struct iio_chan_spec const	*channels;
+	struct iio_chan_spec const *channels;
 	int num_channels;
 };
 
 struct aspeed_adc_data {
-	struct device		*dev;
-	void __iomem		*base;
-	spinlock_t		clk_lock;
-	struct clk_hw		*clk_prescaler;
-	struct clk_hw		*clk_scaler;
-	struct reset_control	*rst;
-	int 				cv;
+	struct device *dev;
+	void __iomem *base;
+	spinlock_t clk_lock;
+	struct regmap *scu;
+	struct clk_hw *clk_prescaler;
+	struct clk_hw *clk_scaler;
+	struct reset_control *rst;
+	int cv; //Compensating value
 };
 
-#define ASPEED_CHAN(_idx, _data_reg_addr) {			\
-	.type = IIO_VOLTAGE,					\
-	.indexed = 1,						\
-	.channel = (_idx),					\
-	.address = (_data_reg_addr),				\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |	\
-				BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
-}
+#define ASPEED_CHAN(_idx, _data_reg_addr)                                      \
+	{                                                                      \
+		.type = IIO_VOLTAGE, .indexed = 1, .channel = (_idx),          \
+		.address = (_data_reg_addr),                                   \
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),                  \
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |         \
+					    BIT(IIO_CHAN_INFO_SAMP_FREQ),      \
+	}
 
 static const struct iio_chan_spec aspeed_adc_iio_channels[] = {
-	ASPEED_CHAN(0, 0x10),
-	ASPEED_CHAN(1, 0x12),
-	ASPEED_CHAN(2, 0x14),
-	ASPEED_CHAN(3, 0x16),
-	ASPEED_CHAN(4, 0x18),
-	ASPEED_CHAN(5, 0x1A),
-	ASPEED_CHAN(6, 0x1C),
-	ASPEED_CHAN(7, 0x1E),
-	ASPEED_CHAN(8, 0x20),
-	ASPEED_CHAN(9, 0x22),
-	ASPEED_CHAN(10, 0x24),
-	ASPEED_CHAN(11, 0x26),
-	ASPEED_CHAN(12, 0x28),
-	ASPEED_CHAN(13, 0x2A),
-	ASPEED_CHAN(14, 0x2C),
+	ASPEED_CHAN(0, 0x10),  ASPEED_CHAN(1, 0x12),  ASPEED_CHAN(2, 0x14),
+	ASPEED_CHAN(3, 0x16),  ASPEED_CHAN(4, 0x18),  ASPEED_CHAN(5, 0x1A),
+	ASPEED_CHAN(6, 0x1C),  ASPEED_CHAN(7, 0x1E),  ASPEED_CHAN(8, 0x20),
+	ASPEED_CHAN(9, 0x22),  ASPEED_CHAN(10, 0x24), ASPEED_CHAN(11, 0x26),
+	ASPEED_CHAN(12, 0x28), ASPEED_CHAN(13, 0x2A), ASPEED_CHAN(14, 0x2C),
 	ASPEED_CHAN(15, 0x2E),
 };
 
 static const struct iio_chan_spec ast2600_adc_iio_channels[] = {
-	ASPEED_CHAN(0, 0x10),
-	ASPEED_CHAN(1, 0x12),
-	ASPEED_CHAN(2, 0x14),
-	ASPEED_CHAN(3, 0x16),
-	ASPEED_CHAN(4, 0x18),
-	ASPEED_CHAN(5, 0x1A),
-	ASPEED_CHAN(6, 0x1C),
-	ASPEED_CHAN(7, 0x1E),
+	ASPEED_CHAN(0, 0x10), ASPEED_CHAN(1, 0x12), ASPEED_CHAN(2, 0x14),
+	ASPEED_CHAN(3, 0x16), ASPEED_CHAN(4, 0x18), ASPEED_CHAN(5, 0x1A),
+	ASPEED_CHAN(6, 0x1C), ASPEED_CHAN(7, 0x1E),
 };
 
 static int aspeed_adc_read_raw(struct iio_dev *indio_dev,
-			       struct iio_chan_spec const *chan,
-			       int *val, int *val2, long mask)
+			       struct iio_chan_spec const *chan, int *val,
+			       int *val2, long mask)
 {
 	struct aspeed_adc_data *data = iio_priv(indio_dev);
 	const struct aspeed_adc_model_data *model_data =
-			of_device_get_match_data(data->dev);
+		of_device_get_match_data(data->dev);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		*val = readw(data->base + chan->address);
+		*val = readw(data->base + chan->address) + data->cv;
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -133,7 +146,7 @@ static int aspeed_adc_read_raw(struct iio_dev *indio_dev,
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val = clk_get_rate(data->clk_scaler->clk) /
-				ASPEED_CLOCKS_PER_SAMPLE;
+		       ASPEED_CLOCKS_PER_SAMPLE;
 		return IIO_VAL_INT;
 
 	default:
@@ -142,21 +155,21 @@ static int aspeed_adc_read_raw(struct iio_dev *indio_dev,
 }
 
 static int aspeed_adc_write_raw(struct iio_dev *indio_dev,
-				struct iio_chan_spec const *chan,
-				int val, int val2, long mask)
+				struct iio_chan_spec const *chan, int val,
+				int val2, long mask)
 {
 	struct aspeed_adc_data *data = iio_priv(indio_dev);
 	const struct aspeed_adc_model_data *model_data =
-			of_device_get_match_data(data->dev);
+		of_device_get_match_data(data->dev);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (val < model_data->min_sampling_rate ||
-			val > model_data->max_sampling_rate)
+		    val > model_data->max_sampling_rate)
 			return -EINVAL;
 
 		clk_set_rate(data->clk_scaler->clk,
-				val * ASPEED_CLOCKS_PER_SAMPLE);
+			     val * ASPEED_CLOCKS_PER_SAMPLE);
 		return 0;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -174,9 +187,8 @@ static int aspeed_adc_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static int aspeed_adc_reg_access(struct iio_dev *indio_dev,
-				 unsigned int reg, unsigned int writeval,
-				 unsigned int *readval)
+static int aspeed_adc_reg_access(struct iio_dev *indio_dev, unsigned int reg,
+				 unsigned int writeval, unsigned int *readval)
 {
 	struct aspeed_adc_data *data = iio_priv(indio_dev);
 
@@ -194,6 +206,173 @@ static const struct iio_info aspeed_adc_iio_info = {
 	.debugfs_reg_access = aspeed_adc_reg_access,
 };
 
+static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
+{
+	u32 eng_ctrl;
+	u32 scu_otp;
+	struct aspeed_adc_trim_locate trim_locate;
+	u32 trim;
+	u32 compensating_trim;
+	eng_ctrl = readl(data->base + ASPEED_REG_ENGINE_CONTROL);
+	eng_ctrl |= (ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE);
+	/* Clock setting
+     * Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[15:0] +1)
+	 * ex : pclk = 37.5Mhz , sensing cycle t (s) = 6.4 * 10^-7 * (ADC0c[15:0] +1)
+     * if ADC0c[15:0] = 0x63 = 99:
+     * sensing cycle t = 6.4 * 10^-7 * (99+1) = 0.000064s
+     */
+	writel(ASPEED_ADC_CLOCK_PERIOD, data->base + ASPEED_REG_CLOCK_CONTROL);
+	/* Trimming data setting */
+	of_property_read_u32_array(data->dev->of_node, "trim_locate",
+				   (u32 *)&trim_locate,
+				   sizeof(trim_locate) / 4);
+	if (regmap_read(data->scu, trim_locate.scu_offset, &scu_otp)) {
+		printk("read scu trim value fail \n");
+		trim = 0x0;
+	} else {
+		trim = (scu_otp >> trim_locate.bit_offset) &
+		       trim_locate.bit_mask;
+	}
+	if ((trim == 0x0))
+		trim = 0x8;
+	printk(KERN_INFO "aspeed_adc: trim %d \n", trim);
+	compensating_trim = readl(data->base + ASPEED_REG_COMPENSATION_TRIM);
+	compensating_trim = (compensating_trim & (~(GENMASK(3, 0)))) | trim;
+	writel(compensating_trim, data->base + ASPEED_REG_COMPENSATION_TRIM);
+
+	/* Compensating Sensing Mode */
+	writel(eng_ctrl | ASPEED_CTRL_COMPENSATION,
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
+	writel(eng_ctrl | ASPEED_CTRL_COMPENSATION | ASPEED_ADC_CTRL_CH_EN(0),
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
+	mdelay(1);
+
+	data->cv = 0x200 - (readl(data->base + 0x10) & GENMASK(9, 0));
+
+	printk(KERN_INFO "aspeed_adc: cv %d \n", data->cv);
+}
+
+static void aspeed_g5_adc_init(struct aspeed_adc_data *data)
+{
+	//Auto Compensating Sensing Mode : do not use in AST-G5
+	u32 scu_otp1;
+	u8 trim;
+
+	//Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[31:17] + 1) * (ADC0c[9:0] +1)
+	//ex : pclk = 48Mhz , ADC0c[31:17] = 0,  ADC0c[9:0] = 0x40 : 64,  ADC0c[31:17] = 0x3e7 : 999
+	// --> 0.0325s	= 12 * 2 * (0x3e7 + 1) *(64+1) / 48000000
+	// --> 0.0005s	= 12 * 2 * (0x3e7 + 1) / 48000000
+
+	//scu read trim : 0x154 : AST_SCU_OTP1
+	if (regmap_read(data->scu, 0x154, &scu_otp1)) {
+		printk("read scu trim value fail \n");
+		trim = 0x0;
+	} else {
+		trim = scu_otp1 >> 28;
+	}
+
+	if ((trim == 0x0))
+		trim = 0x8;
+
+	//write trim 0xC4 [3:0]
+	writel(trim, data->base + ASPEED_REG_COMPENSATION_TRIM);
+
+	writel(0x40, data->base + ASPEED_REG_CLOCK_CONTROL);
+
+	writel(ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE,
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	while (!(readl(data->base + ASPEED_REG_ENGINE_CONTROL) &
+		 ASPEED_ADC_CTRL_INIT_RDY))
+		;
+
+#if 0
+	writel(ASPEED_ADC_CTRL_AUTO_COMPEN  | ASPEED_OPERATION_MODE_NORMAL | 
+							ASPEED_ENGINE_ENABLE, data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	while(readl(data->base + ASPEED_REG_ENGINE_CONTROL) & ASPEED_ADC_CTRL_AUTO_COMPEN);
+
+	//compensating value = 0x200 - ADC10[9:0]
+	data->cv = 0x200 - ((readl(data->base +  ASPEED_REG_COMPENSATION_TRIM) >> 16) & 0x3ff);
+	dev_dbg(data->dev, "compensating value %d \n",data->cv);
+#else
+	writel(ASPEED_ADC_CTRL_CH_EN(0) | ASPEED_CTRL_COMPENSATION |
+		       ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE,
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	readl(data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	mdelay(1);
+
+	//compensating value = 0x200 - ADC10[9:0]
+	data->cv = 0x200 - readw(data->base + 0x10);
+	dev_dbg(data->dev, "compensating value %d \n", data->cv);
+
+	writel(~(ASPEED_CTRL_COMPENSATION | ASPEED_ADC_CTRL_CH_EN(0)) &
+		       readl(data->base + ASPEED_REG_ENGINE_CONTROL),
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
+
+#endif
+}
+
+static void aspeed_g4_adc_init(struct aspeed_adc_data *data)
+{
+	//Compensating Sensing Mode
+	//Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[31:17] + 1) * (ADC0c[9:0] +1)
+	//ex : pclk = 48Mhz , ADC0c[31:17] = 0,  ADC0c[9:0] = 0x40 : 64,  ADC0c[31:17] = 0x3e7 : 999
+	// --> 0.0325s	= 12 * 2 * (0x3e7 + 1) *(64+1) / 48000000
+	// --> 0.0005s	= 12 * 2 * (0x3e7 + 1) / 48000000
+	//For AST2400 A0 workaround  ... ADC0c = 1 ;
+	//	writel(1, data->base + ASPEED_REG_CLOCK_CONTROL);
+	//	writel((0x3e7<< 17) | 0x40, data->base + ASPEED_REG_CLOCK_CONTROL);
+	writel(0x40, data->base + ASPEED_REG_CLOCK_CONTROL);
+
+	writel(ASPEED_ADC_CTRL_CH_EN(0) | ASPEED_CTRL_COMPENSATION |
+		       ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE,
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	readl(data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	mdelay(1);
+
+	//compensating value = 0x200 - ADC10[9:0]
+	data->cv = 0x200 - readw(data->base + 0x10);
+	dev_dbg(data->dev, "compensating value %d \n", data->cv);
+
+	writel(~ASPEED_CTRL_COMPENSATION &
+		       readl(data->base + ASPEED_REG_ENGINE_CONTROL),
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
+}
+
+static void aspeed_g3_adc_init(struct aspeed_adc_data *data)
+{
+	//Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[31:17] + 1) * (ADC0c[9:0] +1)
+	//ex : pclk = 48Mhz , ADC0c[31:17] = 0,  ADC0c[9:0] = 0x40 : 64,  ADC0c[31:17] = 0x3e7 : 999
+	// --> 0.0325s	= 12 * 2 * (0x3e7 + 1) *(64+1) / 48000000
+	// --> 0.0005s	= 12 * 2 * (0x3e7 + 1) / 48000000
+
+	writel(0x3e7, data->base + ASPEED_REG_CLOCK_CONTROL);
+
+	writel(ASPEED_ADC_CTRL_CH_EN(12) | ASPEED_G3_ADC_CTRL_COMPEN_CLR |
+		       ASPEED_G3_ADC_CTRL_COMPEN |
+		       ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE,
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	mdelay(50);
+
+	//compensating value = 0x200 - ADC10[9:0] : use channel12
+	if (readl(data->base + 0x28) & (0x1 << 8))
+		data->cv = 0x200 - readw(data->base + 0x28);
+	else
+		data->cv = 0 - readw(data->base + 0x28);
+
+	dev_dbg(data->dev, "compensating value %d \n", data->cv);
+
+	writel(~ASPEED_G3_ADC_CTRL_COMPEN &
+		       readl(data->base + ASPEED_REG_ENGINE_CONTROL),
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
+}
+
 static int aspeed_adc_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
@@ -207,6 +386,8 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	u32 eng_ctrl = 0;
 	u32 adc_engine_control_reg_val;
 	u32 ref_voltage = 0;
+
+	model_data = of_device_get_match_data(&pdev->dev);
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*data));
 	if (!indio_dev)
@@ -223,28 +404,43 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	/* Register ADC clock prescaler with source specified by device tree. */
 	spin_lock_init(&data->clk_lock);
 	clk_parent_name = of_clk_get_parent_name(pdev->dev.of_node, 0);
+	if (!strcmp(model_data->model_name, "ast2300-adc") ||
+	    !strcmp(model_data->model_name, "ast2400-adc") ||
+	    !strcmp(model_data->model_name, "ast2500-adc")) {
+		snprintf(prescaler_clk_name, sizeof(prescaler_clk_name),
+			 "prescaler-%s", pdev->name);
+		data->clk_prescaler = clk_hw_register_divider(
+			&pdev->dev, prescaler_clk_name, clk_parent_name, 0,
+			data->base + ASPEED_REG_CLOCK_CONTROL, 17, 15, 0,
+			&data->clk_lock);
+		if (IS_ERR(data->clk_prescaler))
+			return PTR_ERR(data->clk_prescaler);
 
-	snprintf(prescaler_clk_name, sizeof(prescaler_clk_name), "prescaler-%s", pdev->name);
-	data->clk_prescaler = clk_hw_register_divider(
-				&pdev->dev, prescaler_clk_name, clk_parent_name, 0,
-				data->base + ASPEED_REG_CLOCK_CONTROL,
-				17, 15, 0, &data->clk_lock);
-	if (IS_ERR(data->clk_prescaler))
-		return PTR_ERR(data->clk_prescaler);
-
-	snprintf(scaler_clk_name, sizeof(scaler_clk_name), "scaler-%s", pdev->name);
-	/*
-	 * Register ADC clock scaler downstream from the prescaler. Allow rate
-	 * setting to adjust the prescaler as well.
-	 */
-	data->clk_scaler = clk_hw_register_divider(
-				&pdev->dev, scaler_clk_name, prescaler_clk_name,
-				CLK_SET_RATE_PARENT,
-				data->base + ASPEED_REG_CLOCK_CONTROL,
-				0, 10, 0, &data->clk_lock);
-	if (IS_ERR(data->clk_scaler)) {
-		ret = PTR_ERR(data->clk_scaler);
-		goto scaler_error;
+		snprintf(scaler_clk_name, sizeof(scaler_clk_name), "scaler-%s",
+			 pdev->name);
+		/*
+        * Register ADC clock scaler downstream from the prescaler. Allow rate
+        * setting to adjust the prescaler as well.
+        */
+		data->clk_scaler = clk_hw_register_divider(
+			&pdev->dev, scaler_clk_name, prescaler_clk_name,
+			CLK_SET_RATE_PARENT,
+			data->base + ASPEED_REG_CLOCK_CONTROL, 0, 10, 0,
+			&data->clk_lock);
+		if (IS_ERR(data->clk_scaler)) {
+			ret = PTR_ERR(data->clk_scaler);
+			goto scaler_error;
+		}
+	} else if (!strcmp(model_data->model_name, "ast2600-adc")) {
+		snprintf(scaler_clk_name, sizeof(scaler_clk_name), "scaler-%s",
+			 pdev->name);
+		data->clk_scaler = clk_hw_register_divider(
+			&pdev->dev, scaler_clk_name, clk_parent_name,
+			CLK_SET_RATE_GATE,
+			data->base + ASPEED_REG_CLOCK_CONTROL, 0, 15,
+			CLK_DIVIDER_ONE_BASED, &data->clk_lock);
+		if (IS_ERR(data->clk_scaler))
+			return PTR_ERR(data->clk_scaler);
 	}
 
 	data->rst = devm_reset_control_get_shared(&pdev->dev, NULL);
@@ -254,11 +450,11 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(data->rst);
 		goto reset_error;
 	}
+	reset_control_assert(data->rst);
 	reset_control_deassert(data->rst);
 
-	model_data = of_device_get_match_data(&pdev->dev);
-	
-	if (!of_property_read_u32(pdev->dev.of_node, "ref_voltage", &ref_voltage)) {
+	if (!of_property_read_u32(pdev->dev.of_node, "ref_voltage",
+				  &ref_voltage)) {
 		if (ref_voltage == 2500)
 			eng_ctrl = REF_VLOTAGE_2500mV;
 		else if (ref_voltage == 1200)
@@ -275,9 +471,11 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 			eng_ctrl = REF_VLOTAGE_2500mV;
 		else if (model_data->vref_voltage == 1200)
 			eng_ctrl = REF_VLOTAGE_1200mV;
-		else if ((model_data->vref_voltage >= 1550) && (model_data->vref_voltage <= 2700))
+		else if ((model_data->vref_voltage >= 1550) &&
+			 (model_data->vref_voltage <= 2700))
 			eng_ctrl = REF_VLOTAGE_1550mV;
-		else if ((model_data->vref_voltage >= 900) && (model_data->vref_voltage <= 1650))
+		else if ((model_data->vref_voltage >= 900) &&
+			 (model_data->vref_voltage <= 1650))
 			eng_ctrl = REF_VLOTAGE_900mV;
 		else {
 			eng_ctrl = 0;
@@ -290,39 +488,47 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		writel(eng_ctrl, data->base + ASPEED_REG_ENGINE_CONTROL);
 
 		/* Wait for initial sequence complete. */
-		ret = readl_poll_timeout(data->base + ASPEED_REG_ENGINE_CONTROL,
-					 adc_engine_control_reg_val,
-					 adc_engine_control_reg_val &
-					 ASPEED_ADC_CTRL_INIT_RDY,
-					 ASPEED_ADC_INIT_POLLING_TIME,
-					 ASPEED_ADC_INIT_TIMEOUT);
+		ret = readl_poll_timeout(
+			data->base + ASPEED_REG_ENGINE_CONTROL,
+			adc_engine_control_reg_val,
+			adc_engine_control_reg_val & ASPEED_ADC_CTRL_INIT_RDY,
+			ASPEED_ADC_INIT_POLLING_TIME, ASPEED_ADC_INIT_TIMEOUT);
 		if (ret)
 			goto poll_timeout_error;
 	}
-
-	// do compensating calculation use ch 0
-	writel(eng_ctrl | ASPEED_OPERATION_MODE_NORMAL | 
-			ASPEED_ENGINE_ENABLE | ASPEED_AUTOPENSATING, data->base + ASPEED_REG_ENGINE_CONTROL);
-
-	writel(eng_ctrl | ASPEED_OPERATION_MODE_NORMAL | BIT(16) |
-			ASPEED_ENGINE_ENABLE | ASPEED_AUTOPENSATING, data->base + ASPEED_REG_ENGINE_CONTROL);
-	mdelay(1);
-
-	data->cv = 0x200 - (readl(data->base + 0x10) & GENMASK(9, 0));
-
-	writel(eng_ctrl | ASPEED_OPERATION_MODE_NORMAL | 
-			ASPEED_ENGINE_ENABLE | ASPEED_AUTOPENSATING, data->base + ASPEED_REG_ENGINE_CONTROL);
-	printk(KERN_INFO "aspeed_adc: cv %d \n", data->cv);	
-
 	/* Start all channels in normal mode. */
 	ret = clk_prepare_enable(data->clk_scaler->clk);
 	if (ret)
 		goto clk_enable_error;
 
-	adc_engine_control_reg_val = eng_ctrl | GENMASK(31, 16) |
-		ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE;
+	if (!strcmp(model_data->model_name, "ast2300-adc")) {
+		aspeed_g3_adc_init(data);
+	} else if (!strcmp(model_data->model_name, "ast2400-adc")) {
+		aspeed_g4_adc_init(data);
+	} else if (!strcmp(model_data->model_name, "ast2500-adc")) {
+		data->scu = syscon_regmap_lookup_by_compatible(
+			"aspeed,ast2500-scu");
+		if (IS_ERR(data->scu)) {
+			dev_err(&pdev->dev, "failed to find SCU regmap\n");
+			return PTR_ERR(data->scu);
+		}
+		aspeed_g5_adc_init(data);
+	} else if (!strcmp(model_data->model_name, "ast2600-adc")) {
+		data->scu = syscon_regmap_lookup_by_compatible(
+			"aspeed,ast2600-scu");
+		if (IS_ERR(data->scu)) {
+			dev_err(&pdev->dev, "failed to find SCU regmap\n");
+			return PTR_ERR(data->scu);
+		}
+		aspeed_g6_adc_init(data);
+	} else
+		goto adc_init_error;
+
+	adc_engine_control_reg_val = eng_ctrl | ASPEED_ADC_CTRL_CH_EN_ALL |
+				     ASPEED_OPERATION_MODE_NORMAL |
+				     ASPEED_ENGINE_ENABLE;
 	writel(adc_engine_control_reg_val,
-		data->base + ASPEED_REG_ENGINE_CONTROL);
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
 
 	model_data = of_device_get_match_data(&pdev->dev);
 	indio_dev->name = model_data->model_name;
@@ -340,8 +546,9 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 
 iio_register_error:
 	writel(ASPEED_OPERATION_MODE_POWER_DOWN,
-		data->base + ASPEED_REG_ENGINE_CONTROL);
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
 	clk_disable_unprepare(data->clk_scaler->clk);
+adc_init_error:
 clk_enable_error:
 poll_timeout_error:
 	reset_control_assert(data->rst);
@@ -359,7 +566,7 @@ static int aspeed_adc_remove(struct platform_device *pdev)
 
 	iio_device_unregister(indio_dev);
 	writel(ASPEED_OPERATION_MODE_POWER_DOWN,
-		data->base + ASPEED_REG_ENGINE_CONTROL);
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
 	clk_disable_unprepare(data->clk_scaler->clk);
 	reset_control_assert(data->rst);
 	clk_hw_unregister_divider(data->clk_scaler);
@@ -389,7 +596,8 @@ static const struct aspeed_adc_model_data ast2500_model_data = {
 
 static const struct aspeed_adc_model_data ast2600_model_data = {
 	.model_name = "ast2600-adc",
-	.vref_voltage = 1800, // mV --> can be 1.2v or 2.5 or ext 1.55~2.7v, 0.9v ~1.65v
+	// mV --> can be 1.2v or 2.5 or ext 1.55~2.7v, 0.9v ~1.65v
+	.vref_voltage = 1800,
 	.min_sampling_rate = 1,
 	.max_sampling_rate = 1000000,
 	.wait_init_sequence = true,
@@ -405,14 +613,13 @@ static const struct of_device_id aspeed_adc_matches[] = {
 };
 MODULE_DEVICE_TABLE(of, aspeed_adc_matches);
 
-static struct platform_driver aspeed_adc_driver = {
-	.probe = aspeed_adc_probe,
-	.remove = aspeed_adc_remove,
-	.driver = {
-		.name = KBUILD_MODNAME,
-		.of_match_table = aspeed_adc_matches,
-	}
-};
+static struct platform_driver aspeed_adc_driver =
+	{ .probe = aspeed_adc_probe,
+	  .remove = aspeed_adc_remove,
+	  .driver = {
+		  .name = KBUILD_MODNAME,
+		  .of_match_table = aspeed_adc_matches,
+	  } };
 
 module_platform_driver(aspeed_adc_driver);
 
