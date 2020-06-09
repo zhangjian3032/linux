@@ -229,6 +229,8 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	u32 adc_engine_control_reg_val;
 	u32 ref_voltage = 0;
 
+	model_data = of_device_get_match_data(&pdev->dev);
+
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
@@ -244,7 +246,9 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	/* Register ADC clock prescaler with source specified by device tree. */
 	spin_lock_init(&data->clk_lock);
 	clk_parent_name = of_clk_get_parent_name(pdev->dev.of_node, 0);
-
+    if(!strcmp(model_data->model_name, "ast2300-adc") ||
+        !strcmp(model_data->model_name, "ast2400-adc")||
+        !strcmp(model_data->model_name, "ast2500-adc")) {
 	snprintf(prescaler_clk_name, sizeof(prescaler_clk_name), "prescaler-%s", pdev->name);
 	data->clk_prescaler = clk_hw_register_divider(
 				&pdev->dev, prescaler_clk_name, clk_parent_name, 0,
@@ -267,6 +271,16 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(data->clk_scaler);
 		goto scaler_error;
 	}
+    }
+    else if (!strcmp(model_data->model_name, "ast2600-adc")){
+        snprintf(scaler_clk_name, sizeof(scaler_clk_name), "scaler-%s", pdev->name);
+        data->clk_scaler = clk_hw_register_divider(
+                    &pdev->dev, scaler_clk_name, clk_parent_name, CLK_SET_RATE_GATE,
+                    data->base + ASPEED_REG_CLOCK_CONTROL,
+                    0, 15, CLK_DIVIDER_ONE_BASED, &data->clk_lock);
+        if (IS_ERR(data->clk_scaler))
+            return PTR_ERR(data->clk_scaler);
+    }
 
 	data->rst = devm_reset_control_get_shared(&pdev->dev, NULL);
 	if (IS_ERR(data->rst)) {
@@ -278,8 +292,6 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	reset_control_assert(data->rst);
 	reset_control_deassert(data->rst);
 
-	model_data = of_device_get_match_data(&pdev->dev);
-	
 	if (!of_property_read_u32(pdev->dev.of_node, "ref_voltage", &ref_voltage)) {
 		if (ref_voltage == 2500)
 			eng_ctrl = REF_VLOTAGE_2500mV;
