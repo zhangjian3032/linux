@@ -91,7 +91,7 @@ struct aspeed_adc_data {
 	struct clk_hw		*clk_prescaler;
 	struct clk_hw		*clk_scaler;
 	struct reset_control	*rst;
-	int 				cv;
+	int 				cv;//Compensating value
 };
 
 #define ASPEED_CHAN(_idx, _data_reg_addr) {			\
@@ -144,7 +144,7 @@ static int aspeed_adc_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		*val = readw(data->base + chan->address);
+		*val = readw(data->base + chan->address) + data->cv;
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
