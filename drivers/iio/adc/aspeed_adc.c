@@ -76,6 +76,11 @@
 #define ASPEED_ADC_INIT_TIMEOUT		500000
 #define ASPEED_ADC_CLOCK_PERIOD		0x63
 
+struct aspeed_adc_trim_locate{
+	unsigned int scu_offset;
+	unsigned int bit_offset;
+	unsigned int bit_mask;
+};
 struct aspeed_adc_model_data {
 	const char *model_name;
 	unsigned int min_sampling_rate;	// Hz
@@ -234,6 +239,22 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
      * sensing cycle t = 6.4 * 10^-7 * (99+1) = 0.000064s
      */
     writel(ASPEED_ADC_CLOCK_PERIOD, data->base + ASPEED_REG_CLOCK_CONTROL);
+	/* Trimming data setting */
+    of_property_read_u32_array(data->dev->of_node, "trim_locate", (u32 *)&trim_locate,
+			       sizeof(trim_locate) / 4);
+    if (regmap_read(data->scu, trim_locate.scu_offset , &scu_otp)) {
+	    printk("read scu trim value fail \n");
+	    trim = 0x0;
+    } else {
+	    trim = (scu_otp >> trim_locate.bit_offset) & trim_locate.bit_mask;
+    }
+	if((trim == 0x0))
+		trim = 0x8;
+	printk(KERN_INFO "aspeed_adc: trim %d \n", trim);
+    compensating_trim = readl(data->base + ASPEED_REG_COMPENSATION_TRIM);
+    compensating_trim = compensating_trim & (~(GENMASK(3, 0))) | trim;
+	writel(compensating_trim, data->base + ASPEED_REG_COMPENSATION_TRIM);
+
     /* Compensating Sensing Mode */
     writel(eng_ctrl | ASPEED_CTRL_COMPENSATION, data->base + ASPEED_REG_ENGINE_CONTROL);
     writel(eng_ctrl | ASPEED_CTRL_COMPENSATION | 
