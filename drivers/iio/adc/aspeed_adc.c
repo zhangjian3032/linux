@@ -20,6 +20,8 @@
 #include <linux/reset.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/driver.h>
@@ -88,6 +90,7 @@ struct aspeed_adc_data {
 	struct device		*dev;
 	void __iomem		*base;
 	spinlock_t		clk_lock;
+    struct regmap			*scu;
 	struct clk_hw		*clk_prescaler;
 	struct clk_hw		*clk_scaler;
 	struct reset_control	*rst;
@@ -214,6 +217,123 @@ static const struct iio_info aspeed_adc_iio_info = {
 	.write_raw = aspeed_adc_write_raw,
 	.debugfs_reg_access = aspeed_adc_reg_access,
 };
+
+static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
+{
+}
+
+static void aspeed_g5_adc_init(struct aspeed_adc_data *data)
+{
+	//Auto Compensating Sensing Mode : do not use in AST-G5
+	u32 scu_otp1;
+	u8 trim;
+
+	//Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[31:17] + 1) * (ADC0c[9:0] +1)
+	//ex : pclk = 48Mhz , ADC0c[31:17] = 0,  ADC0c[9:0] = 0x40 : 64,  ADC0c[31:17] = 0x3e7 : 999 
+	// --> 0.0325s	= 12 * 2 * (0x3e7 + 1) *(64+1) / 48000000
+	// --> 0.0005s	= 12 * 2 * (0x3e7 + 1) / 48000000	
+
+	//scu read trim : 0x154 : AST_SCU_OTP1	
+	if(regmap_read(data->scu, 0x154, &scu_otp1)) {
+		printk("read scu trim value fail \n");
+		trim = 0x0;
+	} else {
+		trim = scu_otp1 >> 28;
+	}
+
+	if((trim == 0x0))
+		trim = 0x8;
+
+	//write trim 0xC4 [3:0]
+	writel(trim, data->base + ASPEED_REG_COMPENSATION_TRIM);
+
+	writel(0x40, data->base + ASPEED_REG_CLOCK_CONTROL);
+
+	writel(ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE, data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	while(!(readl(data->base + ASPEED_REG_ENGINE_CONTROL) & ASPEED_ADC_CTRL_INIT_RDY));
+
+#if 0
+	writel(ASPEED_ADC_CTRL_AUTO_COMPEN  | ASPEED_OPERATION_MODE_NORMAL | 
+							ASPEED_ENGINE_ENABLE, data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	while(readl(data->base + ASPEED_REG_ENGINE_CONTROL) & ASPEED_ADC_CTRL_AUTO_COMPEN);
+
+	//compensating value = 0x200 - ADC10[9:0]
+	data->cv = 0x200 - ((readl(data->base +  ASPEED_REG_COMPENSATION_TRIM) >> 16) & 0x3ff);
+	dev_dbg(data->dev, "compensating value %d \n",data->cv);
+#else
+	writel(ASPEED_ADC_CTRL_CH_EN(0) | ASPEED_CTRL_COMPENSATION | 
+							ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE, 
+							data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	readl(data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	mdelay(1);
+
+	//compensating value = 0x200 - ADC10[9:0]
+	data->cv = 0x200 - readw(data->base + 0x10);
+	dev_dbg(data->dev, "compensating value %d \n",data->cv);
+
+	writel(~(ASPEED_CTRL_COMPENSATION | ASPEED_ADC_CTRL_CH_EN(0)) & 
+			readl(data->base +  ASPEED_REG_ENGINE_CONTROL), data->base + ASPEED_REG_ENGINE_CONTROL);	
+
+#endif
+		
+}
+
+static void aspeed_g4_adc_init(struct aspeed_adc_data *data)
+{
+	//Compensating Sensing Mode
+	//Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[31:17] + 1) * (ADC0c[9:0] +1)
+	//ex : pclk = 48Mhz , ADC0c[31:17] = 0,  ADC0c[9:0] = 0x40 : 64,  ADC0c[31:17] = 0x3e7 : 999 
+	// --> 0.0325s	= 12 * 2 * (0x3e7 + 1) *(64+1) / 48000000
+	// --> 0.0005s	= 12 * 2 * (0x3e7 + 1) / 48000000	
+	//For AST2400 A0 workaround  ... ADC0c = 1 ;
+//	writel(1, data->base + ASPEED_REG_CLOCK_CONTROL);
+//	writel((0x3e7<< 17) | 0x40, data->base + ASPEED_REG_CLOCK_CONTROL);
+	writel(0x40, data->base + ASPEED_REG_CLOCK_CONTROL);
+
+	writel(ASPEED_ADC_CTRL_CH_EN(0) | ASPEED_CTRL_COMPENSATION | 
+							ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE, 
+							data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	readl(data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	mdelay(1);
+
+	//compensating value = 0x200 - ADC10[9:0]
+	data->cv = 0x200 - readw(data->base + 0x10);
+	dev_dbg(data->dev, "compensating value %d \n",data->cv);
+
+	writel(~ASPEED_CTRL_COMPENSATION & readl(data->base + ASPEED_REG_ENGINE_CONTROL), data->base + ASPEED_REG_ENGINE_CONTROL);	
+}
+
+static void aspeed_g3_adc_init(struct aspeed_adc_data *data)
+{
+	//Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[31:17] + 1) * (ADC0c[9:0] +1)
+	//ex : pclk = 48Mhz , ADC0c[31:17] = 0,  ADC0c[9:0] = 0x40 : 64,  ADC0c[31:17] = 0x3e7 : 999 
+	// --> 0.0325s	= 12 * 2 * (0x3e7 + 1) *(64+1) / 48000000
+	// --> 0.0005s	= 12 * 2 * (0x3e7 + 1) / 48000000	
+	
+	writel(0x3e7, data->base + ASPEED_REG_CLOCK_CONTROL); 
+
+	writel(ASPEED_ADC_CTRL_CH_EN(12) | ASPEED_G3_ADC_CTRL_COMPEN_CLR | 
+							ASPEED_G3_ADC_CTRL_COMPEN | ASPEED_OPERATION_MODE_NORMAL | 
+							ASPEED_ENGINE_ENABLE, data->base + ASPEED_REG_ENGINE_CONTROL);
+
+	mdelay(50);
+
+	//compensating value = 0x200 - ADC10[9:0] : use channel12
+	if(readl(data->base + 0x28) & (0x1 << 8))
+		data->cv = 0x200 - readw(data->base + 0x28);
+	else
+		data->cv = 0 - readw(data->base + 0x28);
+
+	dev_dbg(data->dev, "compensating value %d \n",data->cv);
+
+	writel(~ASPEED_G3_ADC_CTRL_COMPEN & readl(data->base + ASPEED_REG_ENGINE_CONTROL), data->base + ASPEED_REG_ENGINE_CONTROL);	
+}
 
 static int aspeed_adc_probe(struct platform_device *pdev)
 {
@@ -353,7 +473,28 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	if (ret)
 		goto clk_enable_error;
 
-	adc_engine_control_reg_val = eng_ctrl | GENMASK(31, 16) |
+    if(!strcmp(model_data->model_name, "ast2300-adc")) {
+		aspeed_g3_adc_init(data);
+	} else if(!strcmp(model_data->model_name, "ast2400-adc")) {
+		aspeed_g4_adc_init(data);
+	} else if(!strcmp(model_data->model_name, "ast2500-adc")) {
+		data->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2500-scu");
+		if (IS_ERR(data->scu)) {
+			dev_err(&pdev->dev, "failed to find SCU regmap\n");
+			return PTR_ERR(data->scu);
+		}
+		aspeed_g5_adc_init(data);		
+	} else if(!strcmp(model_data->model_name, "ast2600-adc")) {
+		data->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2600-scu");
+		if (IS_ERR(data->scu)) {
+			dev_err(&pdev->dev, "failed to find SCU regmap\n");
+			return PTR_ERR(data->scu);
+		}
+		aspeed_g6_adc_init(data);
+    }else 
+		goto adc_init_error;
+
+	adc_engine_control_reg_val = eng_ctrl | ASPEED_ADC_CTRL_CH_EN_ALL |
 		ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE;
 	writel(adc_engine_control_reg_val,
 		data->base + ASPEED_REG_ENGINE_CONTROL);
@@ -376,6 +517,7 @@ iio_register_error:
 	writel(ASPEED_OPERATION_MODE_POWER_DOWN,
 		data->base + ASPEED_REG_ENGINE_CONTROL);
 	clk_disable_unprepare(data->clk_scaler->clk);
+adc_init_error:
 clk_enable_error:
 poll_timeout_error:
 	reset_control_assert(data->rst);
