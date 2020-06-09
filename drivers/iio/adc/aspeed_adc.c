@@ -220,6 +220,29 @@ static const struct iio_info aspeed_adc_iio_info = {
 
 static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 {
+	u32 eng_ctrl;
+    u32 scu_otp;
+    struct aspeed_adc_trim_locate trim_locate;
+    u32 trim;
+    u32 compensating_trim;
+    eng_ctrl = readl(data->base + ASPEED_REG_ENGINE_CONTROL);
+	eng_ctrl |= (ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE);
+	/* Clock setting
+     * Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[15:0] +1)
+	 * ex : pclk = 37.5Mhz , sensing cycle t (s) = 6.4 * 10^-7 * (ADC0c[15:0] +1)
+     * if ADC0c[15:0] = 0x63 = 99:
+     * sensing cycle t = 6.4 * 10^-7 * (99+1) = 0.000064s
+     */
+    writel(ASPEED_ADC_CLOCK_PERIOD, data->base + ASPEED_REG_CLOCK_CONTROL);
+    /* Compensating Sensing Mode */
+    writel(eng_ctrl | ASPEED_CTRL_COMPENSATION, data->base + ASPEED_REG_ENGINE_CONTROL);
+    writel(eng_ctrl | ASPEED_CTRL_COMPENSATION | 
+            ASPEED_ADC_CTRL_CH_EN(0), data->base + ASPEED_REG_ENGINE_CONTROL);
+    mdelay(1);
+
+    data->cv = 0x200 - (readl(data->base + 0x10) & GENMASK(9, 0));
+
+    printk(KERN_INFO "aspeed_adc: cv %d \n", data->cv);
 }
 
 static void aspeed_g5_adc_init(struct aspeed_adc_data *data)
@@ -453,21 +476,6 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		if (ret)
 			goto poll_timeout_error;
 	}
-
-	// do compensating calculation use ch 0
-	writel(eng_ctrl | ASPEED_OPERATION_MODE_NORMAL | 
-			ASPEED_ENGINE_ENABLE | ASPEED_AUTOPENSATING, data->base + ASPEED_REG_ENGINE_CONTROL);
-
-	writel(eng_ctrl | ASPEED_OPERATION_MODE_NORMAL | BIT(16) |
-			ASPEED_ENGINE_ENABLE | ASPEED_AUTOPENSATING, data->base + ASPEED_REG_ENGINE_CONTROL);
-	mdelay(1);
-
-	data->cv = 0x200 - (readl(data->base + 0x10) & GENMASK(9, 0));
-
-	writel(eng_ctrl | ASPEED_OPERATION_MODE_NORMAL | 
-			ASPEED_ENGINE_ENABLE | ASPEED_AUTOPENSATING, data->base + ASPEED_REG_ENGINE_CONTROL);
-	printk(KERN_INFO "aspeed_adc: cv %d \n", data->cv);	
-
 	/* Start all channels in normal mode. */
 	ret = clk_prepare_enable(data->clk_scaler->clk);
 	if (ret)
