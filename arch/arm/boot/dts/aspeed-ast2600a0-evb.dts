@@ -412,6 +412,7 @@
 };
 
 &adc0 {
+	trim_locate = <0x5D0 0 0xf>;
 	ref_voltage = <1200>;
 	status = "okay";
 
@@ -422,6 +423,7 @@
 };
 
 &adc1 {
+	trim_locate = <0x5D0 4 0xf>;
 	ref_voltage = <1200>;
 	status = "okay";
 
