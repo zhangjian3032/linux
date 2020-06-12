@@ -651,6 +651,7 @@
 					reg = <0x0 0x200>;
 					interrupts-extended = <&espi 0>, <&espi 4>;
 					dma-mode;
+					aspeed,espi-mmbi = <&espi_mmbi>;
 					status = "disabled";
 				};
 
