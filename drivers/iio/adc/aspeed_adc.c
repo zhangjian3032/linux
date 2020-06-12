@@ -450,7 +450,6 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(data->rst);
 		goto reset_error;
 	}
-	reset_control_assert(data->rst);
 	reset_control_deassert(data->rst);
 
 	if (!of_property_read_u32(pdev->dev.of_node, "ref_voltage",
