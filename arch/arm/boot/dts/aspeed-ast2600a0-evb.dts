@@ -594,6 +594,8 @@
 
 &peripheral {
 	status = "okay";
+	host-map-addr = <0x98000000>;
+	map-size = <0x10000>;
 };
 
 &virtial_wire {
