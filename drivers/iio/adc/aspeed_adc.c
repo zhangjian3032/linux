@@ -470,7 +470,11 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		goto reset_error;
 	}
 	reset_control_deassert(data->rst);
+	/* Enable engine in normal mode. */
+	eng_ctrl |= ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE;
+	writel(eng_ctrl, data->base + ASPEED_REG_ENGINE_CONTROL);
 
+	if (model_data->wait_init_sequence) {
 		/* Wait for initial sequence complete. */
 		ret = readl_poll_timeout(
 			data->base + ASPEED_REG_ENGINE_CONTROL,
