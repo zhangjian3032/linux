@@ -414,7 +414,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		snprintf(prescaler_clk_name, sizeof(prescaler_clk_name),
 			 "prescaler-%s", pdev->name);
 		data->clk_prescaler = clk_hw_register_divider(
-			&pdev->dev, prescaler_clk_name, clk_parent_name, 0,
+			&pdev->dev, prescaler_clk_name, clk_parent_name, CLK_SET_RATE_UNGATE,
 			data->base + ASPEED_REG_CLOCK_CONTROL, 17, 15, 0,
 			&data->clk_lock);
 		if (IS_ERR(data->clk_prescaler))
@@ -428,7 +428,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
         */
 		data->clk_scaler = clk_hw_register_divider(
 			&pdev->dev, scaler_clk_name, prescaler_clk_name,
-			CLK_SET_RATE_PARENT,
+			CLK_SET_RATE_PARENT | CLK_SET_RATE_UNGATE,
 			data->base + ASPEED_REG_CLOCK_CONTROL, 0, 10, 0,
 			&data->clk_lock);
 		if (IS_ERR(data->clk_scaler)) {
@@ -443,7 +443,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 			 pdev->name);
 		data->clk_scaler = clk_hw_register_divider(
 			&pdev->dev, scaler_clk_name, clk_parent_name,
-			CLK_SET_RATE_GATE,
+			CLK_SET_RATE_UNGATE,
 			data->base + ASPEED_REG_CLOCK_CONTROL, 0, 15,
 			CLK_DIVIDER_ONE_BASED, &data->clk_lock);
 		if (IS_ERR(data->clk_scaler))
