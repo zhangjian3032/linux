@@ -410,6 +410,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	if (!strcmp(model_data->model_name, "ast2300-adc") ||
 	    !strcmp(model_data->model_name, "ast2400-adc") ||
 	    !strcmp(model_data->model_name, "ast2500-adc")) {
+		/* Divider config */
 		snprintf(prescaler_clk_name, sizeof(prescaler_clk_name),
 			 "prescaler-%s", pdev->name);
 		data->clk_prescaler = clk_hw_register_divider(
@@ -434,8 +435,10 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 			ret = PTR_ERR(data->clk_scaler);
 			goto scaler_error;
 		}
+		/* ref_voltage config */
 		ref_voltage = model_data->vref_voltage;
 	} else if (!strcmp(model_data->model_name, "ast2600-adc")) {
+		/* Divider config */
 		snprintf(scaler_clk_name, sizeof(scaler_clk_name), "scaler-%s",
 			 pdev->name);
 		data->clk_scaler = clk_hw_register_divider(
@@ -445,9 +448,9 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 			CLK_DIVIDER_ONE_BASED, &data->clk_lock);
 		if (IS_ERR(data->clk_scaler))
 			return PTR_ERR(data->clk_scaler);
-		/* New features after ast2600*/
+		/* ref_voltage config */
 		if (!of_property_read_u32(pdev->dev.of_node, "ref_voltage",
-					&ref_voltage)) {
+					  &ref_voltage)) {
 			if (ref_voltage == 2500)
 				eng_ctrl = REF_VLOTAGE_2500mV;
 			else if (ref_voltage == 1200)
@@ -515,13 +518,10 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		aspeed_g6_adc_init(data);
 	} else
 		goto adc_init_error;
-
-	adc_engine_control_reg_val = eng_ctrl | ASPEED_ADC_CTRL_CH_EN_ALL |
-				     ASPEED_OPERATION_MODE_NORMAL |
-				     ASPEED_ENGINE_ENABLE;
-	writel(adc_engine_control_reg_val,
+	writel(eng_ctrl | ASPEED_ADC_CTRL_CH_EN_ALL,
 	       data->base + ASPEED_REG_ENGINE_CONTROL);
-
+	printk(KERN_INFO "aspeed_adc: write to engine control 0x%08lx \n",
+	       eng_ctrl | ASPEED_ADC_CTRL_CH_EN_ALL);
 	model_data = of_device_get_match_data(&pdev->dev);
 	indio_dev->name = model_data->model_name;
 	indio_dev->dev.parent = &pdev->dev;
