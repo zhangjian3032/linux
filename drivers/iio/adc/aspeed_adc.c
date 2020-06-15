@@ -220,9 +220,9 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 	eng_ctrl |= (ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE);
 	/* Clock setting
      * Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[15:0] +1)
-	 * ex : pclk = 37.5Mhz , sensing cycle t (s) = 6.4 * 10^-7 * (ADC0c[15:0] +1)
+	 * ex : pclk2 = 100Mhz , sensing cycle t (s) = 2.4 * 10^-7 * (ADC0c[15:0] +1)
      * if ADC0c[15:0] = 0x63 = 99:
-     * sensing cycle t = 6.4 * 10^-7 * (99+1) = 0.000064s
+     * sensing cycle t = 2.4 * 10^-7 * (99+1) = 0.000024s
      */
 	writel(ASPEED_ADC_CLOCK_PERIOD, data->base + ASPEED_REG_CLOCK_CONTROL);
 	/* Trimming data setting */
