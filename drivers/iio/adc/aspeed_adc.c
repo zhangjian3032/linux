@@ -65,9 +65,9 @@
 #define REF_VLOTAGE_900mV  (3 << 6)
 /* [8] */
 #define ASPEED_ADC_CTRL_INIT_RDY BIT(8)
-/* [23:16] */
+/* [31:16] */
 #define ASPEED_ADC_CTRL_CH_EN(n)  (1 << (16 + n))
-#define ASPEED_ADC_CTRL_CH_EN_ALL GENMASK(23, 16)
+#define ASPEED_ADC_CTRL_CH_EN_ALL GENMASK(31, 16)
 
 /**********************************************************
  * Software setting
