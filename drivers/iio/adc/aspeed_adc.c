@@ -136,6 +136,10 @@ static int aspeed_adc_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		*val = readw(data->base + chan->address) + data->cv;
+		if (*val >= (1 << ASPEED_RESOLUTION_BITS))
+			*val = (1 << ASPEED_RESOLUTION_BITS) - 1;
+		else if (*val < 0)
+			*val = 0;
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
