@@ -527,7 +527,6 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 		espi_peripheral->mmbi_mode = of_device_is_available(mmbi_np);
 		of_node_put(mmbi_np);
 	}
-	printk("[CHIAWEI]: mmbi_enabled = %d\n", espi_peripheral->mmbi_mode);
 
 	if (!espi_peripheral->mmbi_mode) {
 		rc = of_property_read_u32(dev->of_node, "host-map-addr", &espi_peripheral->host_mapping_mem_base);
