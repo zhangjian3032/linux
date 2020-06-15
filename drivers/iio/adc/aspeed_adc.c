@@ -94,6 +94,7 @@ struct aspeed_adc_model_data {
 struct aspeed_adc_data {
 	struct device *dev;
 	void __iomem *base;
+	u32 vref_voltage; //mv
 	spinlock_t clk_lock;
 	struct regmap *scu;
 	struct clk_hw *clk_prescaler;
@@ -131,8 +132,6 @@ static int aspeed_adc_read_raw(struct iio_dev *indio_dev,
 			       int *val2, long mask)
 {
 	struct aspeed_adc_data *data = iio_priv(indio_dev);
-	const struct aspeed_adc_model_data *model_data =
-		of_device_get_match_data(data->dev);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -140,7 +139,7 @@ static int aspeed_adc_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
-		*val = model_data->vref_voltage;
+		*val = data->vref_voltage;
 		*val2 = ASPEED_RESOLUTION_BITS;
 		return IIO_VAL_FRACTIONAL_LOG2;
 
@@ -431,6 +430,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 			ret = PTR_ERR(data->clk_scaler);
 			goto scaler_error;
 		}
+		ref_voltage = model_data->vref_voltage;
 	} else if (!strcmp(model_data->model_name, "ast2600-adc")) {
 		snprintf(scaler_clk_name, sizeof(scaler_clk_name), "scaler-%s",
 			 pdev->name);
@@ -441,7 +441,26 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 			CLK_DIVIDER_ONE_BASED, &data->clk_lock);
 		if (IS_ERR(data->clk_scaler))
 			return PTR_ERR(data->clk_scaler);
+		/* New features after ast2600*/
+		if (!of_property_read_u32(pdev->dev.of_node, "ref_voltage",
+					&ref_voltage)) {
+			if (ref_voltage == 2500)
+				eng_ctrl = REF_VLOTAGE_2500mV;
+			else if (ref_voltage == 1200)
+				eng_ctrl = REF_VLOTAGE_1200mV;
+			else if ((ref_voltage >= 1550) && (ref_voltage <= 2700))
+				eng_ctrl = REF_VLOTAGE_1550mV;
+			else if ((ref_voltage >= 900) && (ref_voltage <= 1650))
+				eng_ctrl = REF_VLOTAGE_900mV;
+			else {
+				eng_ctrl = 0;
+			}
+		} else {
+			ref_voltage = 1200;
+			eng_ctrl = REF_VLOTAGE_1200mV;
+		}
 	}
+	data->vref_voltage = ref_voltage;
 
 	data->rst = devm_reset_control_get_shared(&pdev->dev, NULL);
 	if (IS_ERR(data->rst)) {
@@ -451,40 +470,6 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		goto reset_error;
 	}
 	reset_control_deassert(data->rst);
-
-	if (!of_property_read_u32(pdev->dev.of_node, "ref_voltage",
-				  &ref_voltage)) {
-		if (ref_voltage == 2500)
-			eng_ctrl = REF_VLOTAGE_2500mV;
-		else if (ref_voltage == 1200)
-			eng_ctrl = REF_VLOTAGE_1200mV;
-		else if ((ref_voltage >= 1550) && (ref_voltage <= 2700))
-			eng_ctrl = REF_VLOTAGE_1550mV;
-		else if ((ref_voltage >= 900) && (ref_voltage <= 1650))
-			eng_ctrl = REF_VLOTAGE_900mV;
-		else {
-			eng_ctrl = 0;
-		}
-	} else {
-		if (model_data->vref_voltage == 2500)
-			eng_ctrl = REF_VLOTAGE_2500mV;
-		else if (model_data->vref_voltage == 1200)
-			eng_ctrl = REF_VLOTAGE_1200mV;
-		else if ((model_data->vref_voltage >= 1550) &&
-			 (model_data->vref_voltage <= 2700))
-			eng_ctrl = REF_VLOTAGE_1550mV;
-		else if ((model_data->vref_voltage >= 900) &&
-			 (model_data->vref_voltage <= 1650))
-			eng_ctrl = REF_VLOTAGE_900mV;
-		else {
-			eng_ctrl = 0;
-		}
-	}
-
-	if (model_data->wait_init_sequence) {
-		/* Enable engine in normal mode. */
-		eng_ctrl |= ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE;
-		writel(eng_ctrl, data->base + ASPEED_REG_ENGINE_CONTROL);
 
 		/* Wait for initial sequence complete. */
 		ret = readl_poll_timeout(
@@ -595,8 +580,8 @@ static const struct aspeed_adc_model_data ast2500_model_data = {
 
 static const struct aspeed_adc_model_data ast2600_model_data = {
 	.model_name = "ast2600-adc",
-	// mV --> can be 1.2v or 2.5 or ext 1.55~2.7v, 0.9v ~1.65v
-	.vref_voltage = 1800,
+	/* Not a const data, config in dts */
+	.vref_voltage = 0,
 	.min_sampling_rate = 1,
 	.max_sampling_rate = 1000000,
 	.wait_init_sequence = true,
