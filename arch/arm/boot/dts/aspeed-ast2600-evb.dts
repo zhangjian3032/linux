@@ -113,17 +113,17 @@
 			};
 
 			u-boot-env@e0000 {
-				reg = <0xe0000 0x20000>; // 128KB
+				reg = <0xe0000 0x10000>; // 64KB
 				label = "u-boot-env";
 			};
 
 			kernel@100000 {
-				reg = <0x100000 0x900000>; // 9MB
+				reg = <0x100000 0x1000000>; // 16MB
 				label = "kernel";
 			};
 
 			rofs@a00000 {
-				reg = <0xa00000 0x2000000>; // 32MB
+				reg = <0x1100000 0x1500000>; // 21MB
 				label = "rofs";
 			};
 
