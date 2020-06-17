@@ -74,7 +74,7 @@
  *********************************************************/
 #define ASPEED_ADC_INIT_POLLING_TIME 500
 #define ASPEED_ADC_INIT_TIMEOUT	     500000
-#define ASPEED_ADC_CLOCK_PERIOD	     0x63
+#define ASPEED_ADC_SAMPLE_FREQ	     1000
 
 struct aspeed_adc_trim_locate {
 	unsigned int scu_offset;
@@ -218,13 +218,12 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 	u32 compensating_trim;
 	eng_ctrl = readl(data->base + ASPEED_REG_ENGINE_CONTROL);
 	eng_ctrl |= (ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE);
-	/* Clock setting
-     * Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[15:0] +1)
-	 * ex : pclk2 = 100Mhz , sensing cycle t (s) = 2.4 * 10^-7 * (ADC0c[15:0] +1)
-     * if ADC0c[15:0] = 0x63 = 99:
-     * sensing cycle t = 2.4 * 10^-7 * (99+1) = 0.000024s
-     */
-	writel(ASPEED_ADC_CLOCK_PERIOD, data->base + ASPEED_REG_CLOCK_CONTROL);
+	/* Clock setting:
+	 * Our ADC will round-robin all of the 12 channels all the time, 
+	 * so if we want the sampling rate of a channel is n we need to set the clock equal to 12*n
+	 */
+	clk_set_rate(data->clk_scaler->clk,
+		     ASPEED_ADC_SAMPLE_FREQ * ASPEED_CLOCKS_PER_SAMPLE);
 	/* Trimming data setting */
 	of_property_read_u32_array(data->dev->of_node, "trim_locate",
 				   (u32 *)&trim_locate,
@@ -414,7 +413,8 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		snprintf(prescaler_clk_name, sizeof(prescaler_clk_name),
 			 "prescaler-%s", pdev->name);
 		data->clk_prescaler = clk_hw_register_divider(
-			&pdev->dev, prescaler_clk_name, clk_parent_name, CLK_SET_RATE_UNGATE,
+			&pdev->dev, prescaler_clk_name, clk_parent_name,
+			CLK_SET_RATE_UNGATE,
 			data->base + ASPEED_REG_CLOCK_CONTROL, 17, 15, 0,
 			&data->clk_lock);
 		if (IS_ERR(data->clk_prescaler))
