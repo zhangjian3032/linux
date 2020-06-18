@@ -59,6 +59,8 @@
 #define LPC_IDR4             0x114
 #define LPC_ODR4             0x118
 #define LPC_STR4             0x11C
+#define     LPC_STR4_STAT_MASK          GENMASK(7, 6)
+#define     LPC_STR4_STAT_SHIFT         6
 #define LPC_LSADR12          0x120
 #define     LPC_LSADR12_STS_ADDR2_MASK  GENMASK(31, 16)
 #define     LPC_LSADR12_STS_ADDR2_SHIFT 16
@@ -198,10 +200,13 @@ static void aspeed_kcs_enable_channel(struct kcs_bmc *kcs_bmc, bool enable)
 		break;
 
 	case 4:
-		if (enable)
+		if (enable) {
 			regmap_update_bits(priv->map, LPC_HICRB,
 					LPC_HICRB_IBFIF4 | LPC_HICRB_LPC4E,
 					LPC_HICRB_IBFIF4 | LPC_HICRB_LPC4E);
+			regmap_update_bits(priv->map, LPC_STR4,
+					LPC_STR4_STAT_MASK, 0x0);
+		}
 		else
 			regmap_update_bits(priv->map, LPC_HICRB,
 					LPC_HICRB_IBFIF4 | LPC_HICRB_LPC4E,
