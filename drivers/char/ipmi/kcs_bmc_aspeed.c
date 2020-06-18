@@ -26,18 +26,17 @@
 
 #define KCS_CHANNEL_MAX     4
 
-/* mapped to lpc-bmc@0 IO space */
 #define LPC_HICR0            0x000
-#define     LPC_HICR0_LPC3E          BIT(7)
-#define     LPC_HICR0_LPC2E          BIT(6)
-#define     LPC_HICR0_LPC1E          BIT(5)
+#define     LPC_HICR0_LPC3E             BIT(7)
+#define     LPC_HICR0_LPC2E             BIT(6)
+#define     LPC_HICR0_LPC1E             BIT(5)
 #define LPC_HICR2            0x008
-#define     LPC_HICR2_IBFIF3         BIT(3)
-#define     LPC_HICR2_IBFIF2         BIT(2)
-#define     LPC_HICR2_IBFIF1         BIT(1)
+#define     LPC_HICR2_IBFIF3            BIT(3)
+#define     LPC_HICR2_IBFIF2            BIT(2)
+#define     LPC_HICR2_IBFIF1            BIT(1)
 #define LPC_HICR4            0x010
-#define     LPC_HICR4_LADR12AS       BIT(7)
-#define     LPC_HICR4_KCSENBL        BIT(2)
+#define     LPC_HICR4_LADR12AS          BIT(7)
+#define     LPC_HICR4_KCSENBL           BIT(2)
 #define LPC_LADR3H           0x014
 #define LPC_LADR3L           0x018
 #define LPC_LADR12H          0x01C
@@ -51,15 +50,21 @@
 #define LPC_STR1             0x03C
 #define LPC_STR2             0x040
 #define LPC_STR3             0x044
+#define LPC_HICRB            0x100
+#define     LPC_HICRB_EN16LADR2         BIT(5)
+#define     LPC_HICRB_EN16LADR1         BIT(4)
+#define     LPC_HICRB_IBFIF4            BIT(1)
+#define     LPC_HICRB_LPC4E             BIT(0)
+#define LPC_LADR4            0x110
+#define LPC_IDR4             0x114
+#define LPC_ODR4             0x118
+#define LPC_STR4             0x11C
+#define LPC_LSADR12          0x120
+#define     LPC_LSADR12_STS_ADDR2_MASK  GENMASK(31, 16)
+#define     LPC_LSADR12_STS_ADDR2_SHIFT 16
+#define     LPC_LSADR12_STS_ADDR1_MASK  GENMASK(15, 0)
+#define     LPC_LSADR12_STS_ADDR1_SHIFT 0
 
-/* mapped to lpc-host@80 IO space */
-#define LPC_HICRB            0x080
-#define     LPC_HICRB_IBFIF4         BIT(1)
-#define     LPC_HICRB_LPC4E          BIT(0)
-#define LPC_LADR4            0x090
-#define LPC_IDR4             0x094
-#define LPC_ODR4             0x098
-#define LPC_STR4             0x09C
 
 struct aspeed_kcs_bmc {
 	struct regmap *map;
@@ -87,19 +92,15 @@ static void aspeed_kcs_outb(struct kcs_bmc *kcs_bmc, u32 reg, u8 data)
 	WARN(rc != 0, "regmap_write() failed: %d\n", rc);
 }
 
-
 /*
- * AST_usrGuide_KCS.pdf
- * 2. Background:
- *   we note D for Data, and C for Cmd/Status, default rules are
- *     A. KCS1 / KCS2 ( D / C:X / X+4 )
- *        D / C : CA0h / CA4h
- *        D / C : CA8h / CACh
- *     B. KCS3 ( D / C:XX2h / XX3h )
- *        D / C : CA2h / CA3h
- *        D / C : CB2h / CB3h
- *     C. KCS4
- *        D / C : CA4h / CA5h
+ *  we note D for Data, and C for Cmd/Status, default rules are
+ *    A. KCS1/KCS2/KCS4 (D/C: X/X+1)
+ *       D / C : CA0h / CA1h
+ *       D / C : CA8h / CA9h
+ *       D / C : CA4h / CA5h
+ *    B. KCS3 (D/C: XX2h/XX3h )
+ *       D / C : CA2h / CA3h
+ *       D / C : CB2h / CB3h
  */
 static void aspeed_kcs_set_address(struct kcs_bmc *kcs_bmc, u16 addr)
 {
@@ -107,17 +108,27 @@ static void aspeed_kcs_set_address(struct kcs_bmc *kcs_bmc, u16 addr)
 
 	switch (kcs_bmc->channel) {
 	case 1:
+		regmap_update_bits(priv->map, LPC_HICRB,
+				LPC_HICRB_EN16LADR1, LPC_HICRB_EN16LADR1);
 		regmap_update_bits(priv->map, LPC_HICR4,
 				LPC_HICR4_LADR12AS, 0);
 		regmap_write(priv->map, LPC_LADR12H, addr >> 8);
 		regmap_write(priv->map, LPC_LADR12L, addr & 0xFF);
+		regmap_update_bits(priv->map, LPC_LSADR12,
+				LPC_LSADR12_STS_ADDR1_MASK,
+				(u32)(addr + 1) << LPC_LSADR12_STS_ADDR1_SHIFT);
 		break;
 
 	case 2:
+		regmap_update_bits(priv->map, LPC_HICRB,
+				LPC_HICRB_EN16LADR2, LPC_HICRB_EN16LADR2);
 		regmap_update_bits(priv->map, LPC_HICR4,
 				LPC_HICR4_LADR12AS, LPC_HICR4_LADR12AS);
 		regmap_write(priv->map, LPC_LADR12H, addr >> 8);
 		regmap_write(priv->map, LPC_LADR12L, addr & 0xFF);
+		regmap_update_bits(priv->map, LPC_LSADR12,
+				LPC_LSADR12_STS_ADDR2_MASK,
+				(u32)(addr + 1) << LPC_LSADR12_STS_ADDR2_SHIFT);
 		break;
 
 	case 3:
