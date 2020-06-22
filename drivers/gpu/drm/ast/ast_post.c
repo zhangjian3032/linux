@@ -80,7 +80,7 @@ ast_set_def_ext_reg(struct drm_device *dev)
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, 0x00);
 
 	if (ast->chip == AST2300 || ast->chip == AST2400 ||
-	    ast->chip == AST2500) {
+	    ast->chip == AST2500 || ast->chip == AST2600) {
 		if (dev->pdev->revision >= 0x20)
 			ext_reg_info = extreginfo_ast2300;
 		else
@@ -105,7 +105,7 @@ ast_set_def_ext_reg(struct drm_device *dev)
 	/* Enable RAMDAC for A1 */
 	reg = 0x04;
 	if (ast->chip == AST2300 || ast->chip == AST2400 ||
-	    ast->chip == AST2500)
+	    ast->chip == AST2500 || ast->chip == AST2600 )
 		reg |= 0x20;
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xff, reg);
 }
