@@ -472,6 +472,13 @@
 						status = "disabled";
 					};
 
+					lpc_pcc: lpc-pcc@0 {
+						compatible = "aspeed,ast2500-lpc-pcc";
+						reg = <0x0 0x80>;
+						interrupts = <8>;
+						status = "disabled";
+					};
+
 					lhc: lhc@20 {
 						compatible = "aspeed,ast2500-lhc";
 						reg = <0x20 0x24 0x48 0x8>;
