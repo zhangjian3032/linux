@@ -33,6 +33,9 @@
 #define 	LHCRB_PAT_B_WRITE	BIT(16)
 #define 	LHCRB_PAT_B_ADDR_MASK	GENMASK(15, 0)
 #define 	LHCRB_PAT_B_ADDR_SHIFT	0
+#define PCCR6	0x44
+#define PCCR4	0x50
+#define PCCR5	0x54
 #define PCCR0	0xB0
 #define 	PCCR0_EN_DMA_INT	BIT(31)
 #define 	PCCR0_EN_PAT_B_INT	BIT(23)
@@ -42,9 +45,14 @@
 #define 	PCCR0_EN_DMA_MODE	BIT(14)
 #define 	PCCR0_ADDR_SEL_MASK	GENMASK(13, 12)
 #define 	PCCR0_ADDR_SEL_SHIFT	12
+#define 	PCCR0_RX_TRIG_LVL_MASK	GENMASK(10, 8)
+#define 	PCCR0_RX_TRIG_LVL_SHIFT	8
 #define 	PCCR0_CLR_RX_FIFO	BIT(7)
 #define 	PCCR0_MODE_SEL_MASK	GENMASK(5, 4)
 #define 	PCCR0_MODE_SEL_SHIFT	4
+#define 	PCCR0_EN_RX_OVR_INT	BIT(3)
+#define 	PCCR0_EN_RX_TMOUT_INT	BIT(2)
+#define 	PCCR0_EN_RX_AVAIL_INT	BIT(1)
 #define 	PCCR0_EN		BIT(0)
 #define PCCR1	0xB4
 #define 	PCCR1_BASE_ADDR_MASK		GENMASK(15, 0)
@@ -57,12 +65,27 @@
 #define 	PCCR2_PAT_A_RST		BIT(9)
 #define 	PCCR2_PAT_A_INT		BIT(8)
 #define 	PCCR2_DMA_DONE		BIT(4)
-#define PCCR4	0x50
-#define PCCR5	0x54
-#define PCCR6	0x44
+#define 	PCCR2_RX_OVR_INT	BIT(3)
+#define 	PCCR2_RX_TMOUT_INT	BIT(2)
+#define 	PCCR2_RX_AVAIL_INT	BIT(1)
+#define PCCR3	0xBC
+#define 	PCCR3_DATA_RDY		BIT(23)
+#define 	PCCR3_FIFO_DATA_MASK	GENMASK(7, 0)
 
 #define PCC_DMA_MAX_BUFSZ	(PAGE_SIZE)
 #define PCC_MAX_PATNM	2
+
+enum pcc_fifo_threshold {
+	PCC_FIFO_THR_1_BYTE,
+	PCC_FIFO_THR_1_EIGHTH,
+	PCC_FIFO_THR_2_EIGHTH,
+	PCC_FIFO_THR_3_EIGHTH,
+	PCC_FIFO_THR_4_EIGHTH,
+	PCC_FIFO_THR_5_EIGHTH,
+	PCC_FIFO_THR_6_EIGHTH,
+	PCC_FIFO_THR_7_EIGHTH,
+	PCC_FIFO_THR_8_EIGHTH,
+};
 
 enum pcc_record_mode {
 	PCC_REC_1B,
@@ -86,6 +109,15 @@ struct pcc_pattern {
 	u32 port;
 };
 
+struct aspeed_pcc_dma {
+	u32 idx;
+	u32 addr;
+	u8 *virt;
+	u32 size;
+	u32 static_mem;
+	struct tasklet_struct tasklet;
+};
+
 struct aspeed_pcc {
 	struct device *dev;
 	struct regmap *regmap;
@@ -97,11 +129,8 @@ struct aspeed_pcc {
 	u32 port_xbits;
 	u32 port_hbits_select;
 
-	u32 dma_idx;
-	u8 *dma_virt;
-	dma_addr_t dma_addr;
-	u32 dma_size;
-	u32 dma_addr_reserved;
+	u32 dma_mode;
+	struct aspeed_pcc_dma dma;
 
 	struct pcc_pattern pat_search[PCC_MAX_PATNM];
 
@@ -109,7 +138,6 @@ struct aspeed_pcc {
 	wait_queue_head_t wq;
 
 	struct miscdevice misc_dev;
-	struct tasklet_struct tasklet;
 };
 
 static inline bool is_pcc_enabled(struct aspeed_pcc *pcc)
@@ -172,7 +200,7 @@ static const struct file_operations pcc_fops = {
 	.poll = aspeed_pcc_file_poll,
 };
 
-static void aspeed_pcc_tasklet(unsigned long arg)
+static void aspeed_pcc_dma_tasklet(unsigned long arg)
 {
 	u32 reg;
 	u32 pre_dma_idx;
@@ -190,24 +218,24 @@ static void aspeed_pcc_tasklet(unsigned long arg)
 		return;
 
 	cur_dma_idx = reg & (PCC_DMA_MAX_BUFSZ - 1);
-	pre_dma_idx = pcc->dma_idx;
+	pre_dma_idx = pcc->dma.idx;
 	has_data = (pre_dma_idx == cur_dma_idx) ? false : true;
 
 	do {
 		/* kick the oldest one if full */
 		if (kfifo_is_full(fifo))
 			kfifo_skip(fifo);
-		kfifo_put(fifo, pcc->dma_virt[pre_dma_idx]);
+		kfifo_put(fifo, pcc->dma.virt[pre_dma_idx]);
 		pre_dma_idx = (pre_dma_idx + 1) % PCC_DMA_MAX_BUFSZ;
 	} while (pre_dma_idx != cur_dma_idx);
 
 	if (has_data)
 		wake_up_interruptible(&pcc->wq);
 
-	pcc->dma_idx = cur_dma_idx;
+	pcc->dma.idx = cur_dma_idx;
 }
 
-static irqreturn_t aspeed_pcc_irq(int irq, void *arg)
+static irqreturn_t aspeed_pcc_isr(int irq, void *arg)
 {
 	u32 val;
 	irqreturn_t ret = IRQ_NONE;
@@ -216,7 +244,6 @@ static irqreturn_t aspeed_pcc_irq(int irq, void *arg)
 	if (regmap_read(pcc->regmap, PCCR2, &val))
 		return ret;
 
-	/* handle pattern search B */
 	if (val & PCCR2_PAT_B_INT) {
 		dev_info(pcc->dev, "pattern search B interrupt\n");
 		regmap_write_bits(pcc->regmap, PCCR2,
@@ -224,7 +251,6 @@ static irqreturn_t aspeed_pcc_irq(int irq, void *arg)
 		ret = IRQ_HANDLED;
 	}
 
-	/* handle pattern search A */
 	if (val & PCCR2_PAT_A_INT) {
 		dev_info(pcc->dev, "pattern search A interrupt\n");
 		regmap_write_bits(pcc->regmap, PCCR2,
@@ -232,11 +258,30 @@ static irqreturn_t aspeed_pcc_irq(int irq, void *arg)
 		ret = IRQ_HANDLED;
 	}
 
-	/* handle DMA done */
-	if (val & PCCR2_DMA_DONE) {
+	if (val & PCCR2_RX_OVR_INT) {
+		dev_warn(pcc->dev, "RX FIFO overrun\n");
 		regmap_write_bits(pcc->regmap, PCCR2,
-			PCCR2_DMA_DONE, PCCR2_DMA_DONE);
-		tasklet_schedule(&pcc->tasklet);
+			PCCR2_RX_OVR_INT, PCCR2_RX_OVR_INT);
+		ret = IRQ_HANDLED;
+	}
+
+	if (val & (PCCR2_DMA_DONE | PCCR2_RX_TMOUT_INT | PCCR2_RX_AVAIL_INT)) {
+		if (pcc->dma_mode) {
+			regmap_write_bits(pcc->regmap, PCCR2,
+					PCCR2_DMA_DONE, PCCR2_DMA_DONE);
+			tasklet_schedule(&pcc->dma.tasklet);
+		}
+		else {
+			do {
+				if (regmap_read(pcc->regmap, PCCR3, &val))
+					break;
+				if (kfifo_is_full(&pcc->fifo))
+					kfifo_skip(&pcc->fifo);
+				kfifo_put(&pcc->fifo, val & PCCR3_FIFO_DATA_MASK);
+			} while (val & PCCR3_DATA_RDY); 
+
+			wake_up_interruptible(&pcc->wq);
+		}
 		ret = IRQ_HANDLED;
 	}
 
@@ -306,41 +351,45 @@ static void aspeed_pcc_config(struct aspeed_pcc *pcc)
 			(pat_search[1].enable) ? PCCR0_EN_PAT_B_INT | PCCR0_EN_PAT_B : 0);
 
 	/* DMA address and size (4-bytes unit) */
-	regmap_write(pcc->regmap, PCCR4, pcc->dma_addr);
-	regmap_write(pcc->regmap, PCCR5, pcc->dma_size / 4);
+	if (pcc->dma_mode) {
+		regmap_write(pcc->regmap, PCCR4, pcc->dma.addr);
+		regmap_write(pcc->regmap, PCCR5, pcc->dma.size / 4);
+	}
 }
 
 static int aspeed_pcc_enable(struct aspeed_pcc *pcc, struct device *dev)
 {
 	int rc;
 
-	/* map reserved memory or allocate a new one for DMA use */
-	if (pcc->dma_addr_reserved) {
-		if (pcc->dma_size > PCC_DMA_MAX_BUFSZ) {
-			rc = -EINVAL;
-			goto err_ret;
-		}
+	if (pcc->dma_mode) {
+		/* map reserved memory or allocate a new one for DMA use */
+		if (pcc->dma.static_mem) {
+			if (pcc->dma.size > PCC_DMA_MAX_BUFSZ) {
+				rc = -EINVAL;
+				goto err_ret;
+			}
 
-		pcc->dma_virt = ioremap(pcc->dma_addr,
-					      pcc->dma_size);
-		if (pcc->dma_virt == NULL) {
-			rc = -ENOMEM;
-			goto err_ret;
+			pcc->dma.virt = ioremap(pcc->dma.addr,
+							  pcc->dma.size);
+			if (pcc->dma.virt == NULL) {
+				rc = -ENOMEM;
+				goto err_ret;
+			}
+		}
+		else {
+			pcc->dma.size = PCC_DMA_MAX_BUFSZ;
+			pcc->dma.virt = dma_alloc_coherent(NULL,
+					pcc->dma.size,
+					&pcc->dma.addr,
+					GFP_KERNEL);
+			if (pcc->dma.virt == NULL) {
+				rc = -ENOMEM;
+				goto err_ret;
+			}
 		}
 	}
-	else {
-		pcc->dma_size = PCC_DMA_MAX_BUFSZ;
-		pcc->dma_virt = dma_alloc_coherent(NULL,
-				pcc->dma_size,
-				&pcc->dma_addr,
-				GFP_KERNEL);
-		if (pcc->dma_virt == NULL) {
-			rc = -ENOMEM;
-			goto err_ret;
-		}
-	}
 
-	rc = kfifo_alloc(&pcc->fifo, pcc->dma_size, GFP_KERNEL);
+	rc = kfifo_alloc(&pcc->fifo, PAGE_SIZE, GFP_KERNEL);
 	if (rc)
 		goto err_free_dma;
 
@@ -358,20 +407,33 @@ static int aspeed_pcc_enable(struct aspeed_pcc *pcc, struct device *dev)
 		regmap_write_bits(pcc->regmap, PCCR0,
 				PCCR0_CLR_RX_FIFO, PCCR0_CLR_RX_FIFO);
 
-	regmap_update_bits(pcc->regmap, PCCR0,
-		PCCR0_EN_DMA_INT | PCCR0_EN_DMA_MODE | PCCR0_EN,
-		PCCR0_EN_DMA_INT | PCCR0_EN_DMA_MODE | PCCR0_EN);
+	if (pcc->dma_mode) {
+		regmap_update_bits(pcc->regmap, PCCR0,
+			PCCR0_EN_DMA_INT | PCCR0_EN_DMA_MODE,
+			PCCR0_EN_DMA_INT | PCCR0_EN_DMA_MODE);
+	}
+	else {
+		regmap_update_bits(pcc->regmap, PCCR0,
+			PCCR0_RX_TRIG_LVL_MASK,
+			PCC_FIFO_THR_4_EIGHTH << PCCR0_RX_TRIG_LVL_SHIFT);
+		regmap_update_bits(pcc->regmap, PCCR0,
+			PCCR0_EN_RX_OVR_INT | PCCR0_EN_RX_TMOUT_INT | PCCR0_EN_RX_AVAIL_INT,
+			PCCR0_EN_RX_OVR_INT | PCCR0_EN_RX_TMOUT_INT | PCCR0_EN_RX_AVAIL_INT);
+	}
 
+	regmap_update_bits(pcc->regmap, PCCR0, PCCR0_EN, PCCR0_EN);
 	return 0;
 
 err_free_kfifo:
 	kfifo_free(&pcc->fifo);
 err_free_dma:
-	if (pcc->dma_addr_reserved)
-		iounmap(pcc->dma_virt);
-	else
-		dma_free_coherent(dev, pcc->dma_size,
-				pcc->dma_virt, pcc->dma_addr);
+	if (pcc->dma_mode) {
+		if (pcc->dma.static_mem)
+			iounmap(pcc->dma.virt);
+		else
+			dma_free_coherent(dev, pcc->dma.size,
+					pcc->dma.virt, pcc->dma.addr);
+	}
 err_ret:
 	return rc;
 }
@@ -379,13 +441,19 @@ err_ret:
 static int aspeed_pcc_disable(struct aspeed_pcc *pcc, struct device *dev)
 {
 	regmap_update_bits(pcc->regmap, PCCR0,
-		PCCR0_EN_DMA_INT | PCCR0_EN_DMA_MODE | PCCR0_EN, 0);
+		PCCR0_EN_DMA_INT
+		| PCCR0_EN_RX_OVR_INT
+		| PCCR0_EN_RX_TMOUT_INT
+		| PCCR0_EN_RX_AVAIL_INT
+		| PCCR0_EN_DMA_MODE
+		| PCCR0_EN,
+		0);
 
-	if (pcc->dma_addr_reserved)
-		iounmap(pcc->dma_virt);
+	if (pcc->dma.static_mem)
+		iounmap(pcc->dma.virt);
 	else
-		dma_free_coherent(dev, pcc->dma_size,
-				pcc->dma_virt, pcc->dma_addr);
+		dma_free_coherent(dev, pcc->dma.size,
+				pcc->dma.virt, pcc->dma.addr);
 
 	misc_deregister(&pcc->misc_dev);
 	kfifo_free(&pcc->fifo);
@@ -422,22 +490,25 @@ static int aspeed_pcc_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	/*
-	 * optional, reserved memory for the DMA buffer
-	 * if not specified, the DMA buffer is allocated
-	 * dynamically.
-	 */
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (node) {
-		rc = of_address_to_resource(node, 0, &res);
-		if (rc) {
-			dev_err(dev, "failed to get reserved memory region\n");
-			return -ENOMEM;
+	pcc->dma_mode = of_property_read_bool(dev->of_node, "dma-mode");
+	if (pcc->dma_mode) {
+		/*
+		 * optional, reserved memory for the DMA buffer
+		 * if not specified, the DMA buffer is allocated
+		 * dynamically.
+		 */
+		node = of_parse_phandle(dev->of_node, "memory-region", 0);
+		if (node) {
+			rc = of_address_to_resource(node, 0, &res);
+			if (rc) {
+				dev_err(dev, "failed to get reserved memory region\n");
+				return -ENOMEM;
+			}
+			pcc->dma.addr = res.start;
+			pcc->dma.size = resource_size(&res);
+			pcc->dma.static_mem = 1;
+			of_node_put(node);
 		}
-		pcc->dma_addr = res.start;
-		pcc->dma_size = resource_size(&res);
-		pcc->dma_addr_reserved = 1;
-		of_node_put(node);
 	}
 
 	/* optional, by default: 0 -> 1-Byte mode */
@@ -495,23 +566,27 @@ static int aspeed_pcc_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * as snoop DMA may have been enabled in early stage,
-	 * we have disable interrupts befor requesting IRQ to
-	 * prevent kernel crash
+	 * as PCC may have been enabled in early stages, we
+	 * need to disable interrupts before requesting IRQ
+	 * to prevent kernel crash
 	 */
 	regmap_update_bits(pcc->regmap, PCCR0,
-			PCCR0_EN_DMA_INT | PCCR0_EN_PAT_A_INT | PCCR0_EN_PAT_B_INT
-			, 0);
+			PCCR0_EN_DMA_INT
+			| PCCR0_EN_PAT_A_INT
+			| PCCR0_EN_PAT_B_INT
+			| PCCR0_EN_RX_OVR_INT
+			| PCCR0_EN_RX_TMOUT_INT
+			| PCCR0_EN_RX_AVAIL_INT,
+			0);
 
-	rc = devm_request_irq(dev, pcc->irq,
-			aspeed_pcc_irq, IRQF_SHARED,
-			DEVICE_NAME, pcc);
+	rc = devm_request_irq(dev, pcc->irq, aspeed_pcc_isr,
+			IRQF_SHARED, DEVICE_NAME, pcc);
 	if (rc < 0) {
 		dev_err(dev, "failed to request IRQ handler\n");
 		return rc;
 	}
 
-	tasklet_init(&pcc->tasklet, aspeed_pcc_tasklet,
+	tasklet_init(&pcc->dma.tasklet, aspeed_pcc_dma_tasklet,
 			(unsigned long)pcc);
 
 	init_waitqueue_head(&pcc->wq);
