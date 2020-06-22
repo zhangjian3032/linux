@@ -860,7 +860,7 @@
 };
 
 &lpc {
-       kcs4: kcs4@80 {
+       kcs4: kcs4@0 {
                compatible = "openbmc,mctp-lpc";
                interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
                status = "okay";

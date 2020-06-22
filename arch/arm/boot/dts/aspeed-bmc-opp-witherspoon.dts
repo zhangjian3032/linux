@@ -331,7 +331,7 @@
 	flash = <&spi1>;
 };
 
-&lpc_host {
+&lpc {
 	kcs4: kcs4@0 {
 		compatible = "openbmc,mctp-lpc";
 		interrupts = <8>;
