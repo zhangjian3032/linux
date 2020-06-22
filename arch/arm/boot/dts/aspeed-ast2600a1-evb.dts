@@ -812,7 +812,7 @@
 	status = "okay";
 };
 
-&lpc_snoop_dma {
+&lpc_pcc {
 	rec-mode = <0x1>;
 	port-addr = <0x80>;
 	port-addr-hbits-select = <0x1>;
