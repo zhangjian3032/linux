@@ -74,7 +74,7 @@
  *********************************************************/
 #define ASPEED_ADC_INIT_POLLING_TIME 500
 #define ASPEED_ADC_INIT_TIMEOUT	     500000
-#define ASPEED_ADC_SAMPLE_FREQ	     1000
+#define ASPEED_ADC_SAMPLE_FREQ	     65000
 
 struct aspeed_adc_trim_locate {
 	unsigned int scu_offset;
@@ -218,12 +218,6 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 	u32 compensating_trim;
 	eng_ctrl = readl(data->base + ASPEED_REG_ENGINE_CONTROL);
 	eng_ctrl |= (ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE);
-	/* Clock setting:
-	 * Our ADC will round-robin all of the 12 channels all the time, 
-	 * so if we want the sampling rate of a channel is n we need to set the clock equal to 12*n
-	 */
-	clk_set_rate(data->clk_scaler->clk,
-		     ASPEED_ADC_SAMPLE_FREQ * ASPEED_CLOCKS_PER_SAMPLE);
 	/* Trimming data setting */
 	of_property_read_u32_array(data->dev->of_node, "trim_locate",
 				   (u32 *)&trim_locate,
@@ -252,6 +246,15 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 	data->cv = 0x200 - (readl(data->base + 0x10) & GENMASK(9, 0));
 
 	printk(KERN_INFO "aspeed_adc: cv %d \n", data->cv);
+
+	/* Clock setting:
+	 * Our ADC will round-robin all of the 12 channels all the time, 
+	 * so if we want the sampling rate of a channel is n we need to set the clock equal to 12*n
+	 */
+	clk_set_rate(data->clk_scaler->clk,
+		     ASPEED_ADC_SAMPLE_FREQ * ASPEED_CLOCKS_PER_SAMPLE);
+	printk(KERN_INFO "aspeed_adc: freq %ld \n", clk_get_rate(data->clk_scaler->clk) /
+		       ASPEED_CLOCKS_PER_SAMPLE);
 }
 
 static void aspeed_g5_adc_init(struct aspeed_adc_data *data)
