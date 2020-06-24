@@ -39,7 +39,7 @@
 	};
 
 	timer {
-		clock-frequency = <0x17d7840>;
+		clock-frequency = <0x2FAF080>;
 	};
 
 	memory@80000000 {
@@ -96,8 +96,31 @@
 #if 0
 &i3c0 {
 	status = "okay";
-	
-	clock-frequency = <0x2dc6c00>;
+#if 1
+	jdec-spd;
+	/* IDT IMX3112 thermal sensor */
+	thermal_sensor: sensor@70,3C000000000 {
+		reg = <0x70 0x3C0 0x00000000>;
+		assigned-address = <0x70>;
+	};
+#endif
+
+#if 0
+	jdec-spd;
+	/* Renesas SPD5118 */
+	spd5118: spd@57,3C000000000 {
+		reg = <0x57 0x3C0 0x00000000>;
+		assigned-address = <0x57>;
+	};
+#endif
+
+#if 0
+	/* Renesas SPD5118 in I2C mode */
+	spd5118: spd@57,3C000000000 {
+		compatible = "idt,spd";
+		reg = <0x57 0x0 0x00000000>;
+	};
+#endif
 };
 #endif
 
