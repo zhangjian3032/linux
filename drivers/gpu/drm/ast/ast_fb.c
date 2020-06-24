@@ -239,9 +239,9 @@ static int astfb_create(struct drm_fb_helper *helper,
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &afbdev->helper, sizes->fb_width, sizes->fb_height);
 
-	info->screen_base = sysram;
-	info->screen_size = size;
 
+	info->screen_size = pci_resource_len(dev->pdev, 0);
+	info->screen_base = ioremap_nocache(pci_resource_start(dev->pdev, 0), info->screen_size);
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 
 	DRM_DEBUG_KMS("allocated %dx%d\n",

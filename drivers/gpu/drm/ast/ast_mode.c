@@ -282,7 +282,7 @@ static void ast_set_crtc_reg(struct drm_crtc *crtc, struct drm_display_mode *mod
 	u8 jreg05 = 0, jreg07 = 0, jreg09 = 0, jregAC = 0, jregAD = 0, jregAE = 0;
 	u16 temp, precache = 0;
 
-	if (((ast->chip == AST2500) || (ast->chip == AST2600))&&
+	if (((ast->chip == AST2500) || (ast->chip == AST2600)) &&
 	    (vbios_mode->enh_table->flags & AST2500PreCatchCRT))
 		precache = 40;
 
@@ -628,9 +628,16 @@ static int ast_crtc_mode_set(struct drm_crtc *crtc,
 static void ast_crtc_disable(struct drm_crtc *crtc)
 {
 	int ret;
+#if 1	
+	struct ast_private *ast = crtc->dev->dev_private;
 
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x0C, 0x00);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x80, 0xa8);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa8, 0x00);
+
+	printk("ast_crtc_disable \n");
 	return;
-
+#endif
 	DRM_DEBUG_KMS("\n");
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {

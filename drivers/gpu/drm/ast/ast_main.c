@@ -134,8 +134,6 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	ast_open_key(ast);
 	ast_enable_mmio(dev);
 
-	/* disable standard VGA decode */
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
 
 	/* Find out whether P2A works or whether to use device-tree */
 	ast_detect_config_mode(dev, &scu_rev);
@@ -561,31 +559,6 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	if (need_post)
 		ast_post_gpu(dev);
 
-#ifdef SLT_2600
-	DRM_INFO("@@@@@@Forcefully Feed 1920x1080 setting to CR/SR@@@@@\n");
-	/* set MR */
-	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x2F);
-	/* Set GR */
-	for (i = 0; i < 9; i++)
-		ast_set_index_reg(ast, AST_IO_GR_PORT, i, SLT_GR[i]);
-
-	/* Set CR */
-	for (i=0; i<256; i++)	// for ARM-MMIO on AST2600A1
-	{
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x00);
-		temp = SLT_CR[i];
-//		DRM_ERROR("CR[i] = %x\n", temp);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, temp);
-//		DRM_ERROR("CR[%x] = %x\n", i, ast_get_index_reg(ast, AST_IO_CRTC_PORT, i));
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x80);
-	}
-
-	/* Set SR */
-	for (i=0; i<5; i++)
-		ast_set_index_reg(ast, AST_IO_SEQ_PORT, i, SLT_SR[i]);
-//	DRM_INFO("@@@@@@END@@@@@\n");
-#endif
-
 	if (ast->chip != AST1180) {
 		ret = ast_get_dram_info(dev);
 		if (ret)
@@ -600,8 +573,16 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto out_free;
 
+		/* disable standard VGA decode */
+//		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
+#if 0
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa0, 0x7F);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa2, 0x1F);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xB6, 0x04);
+#endif	
+
 #ifdef SLT_2600
-	DRM_INFO("@@@@@@Forcefully Feed 1920x1080 setting to CR/SR@@@@@\n");
 	/* set MR */
 	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x2F);
 	/* Set GR */
@@ -653,7 +634,6 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_free;
 
 #ifdef SLT_2600
-	DRM_INFO("@@@@@@Forcefully Feed 1920x1080 setting to CR/SR@@@@@\n");
 	/* set MR */
 	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x2F);
 //#if 0
