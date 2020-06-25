@@ -221,9 +221,6 @@
 #define AST_LOCKUP_DETECTED 	BIT(15)
 #define AST_I2C_LOW_TIMEOUT 	0x07
 /***************************************************************************/
-#define BYTE_MODE		0
-#define DMA_MODE		1
-
 #define ASPEED_I2C_DMA_SIZE 4096
 /***************************************************************************/
 typedef enum i2c_slave_event_e {
@@ -382,35 +379,46 @@ static struct ast_i2c_timing_table aspeed_old_i2c_timing_table[] = {
 	{3072, 	0x00000300 | (0x7) | (0xb << 20) | (0xb << 16) | (0xb << 12) },
 };
 
+enum xfer_mode {
+	DMA_MODE = 0,
+	BUFF_MODE,
+	BYTE_MODE,
+};
+
 struct aspeed_new_i2c_bus {
 	struct device		*dev;
 	void __iomem		*reg_base;
 	struct regmap		*global_reg;
 	int 				irq;
+	enum xfer_mode 		mode; //0: dma, 1: pool, 2:byte
 	int					clk_div_mode;	//0: old mode, 1: new mode
 	struct clk 			*clk;
-	u32				apb_clk;
-	u32				bus_frequency;
-	u32				state;			//I2C xfer mode state matchine
-	u32				bus_recover;
-	struct i2c_adapter		adap;
-//master
-	int				xfer_last;		//cur xfer is last msgs for stop msgs
-	struct i2c_msg 			*master_msgs;		//cur xfer msgs
-	dma_addr_t 		master_dma_addr;
-	int				master_xfer_len;	//cur xfer len
-	int				master_xfer_cnt;	//total xfer count
-	struct completion		cmd_complete;
-	int				cmd_err;
-	u8 				blk_r_flag; 		//for smbus block read
-//Slave structure
-	u8				slave_event;
+	u32					apb_clk;
+	u32					bus_frequency;
+	u32					state;			//I2C xfer mode state matchine
+	u32					bus_recover;
+	struct i2c_adapter	adap;
+	/* Multi-master */
+	bool				multi_master;
+	/* master structure */	
+	int					xfer_last;		//cur xfer is last msgs for stop msgs
+	struct i2c_msg 		*master_msgs;		//cur xfer msgs
+	dma_addr_t 			master_dma_addr;
+	int					master_xfer_len;	//cur xfer len
+	int					master_xfer_cnt;	//total xfer count
+	struct completion	cmd_complete;
+	int					cmd_err;
+	/* Buffer mode */
+	void __iomem		*buf_base;
+	size_t				buf_size;
+	/* Slave structure */
+	u8					slave_event;
 	int 				slave_xfer_len;
 	int 				slave_xfer_cnt;
 #ifdef CONFIG_I2C_SLAVE
 	unsigned char		*slave_dma_buf;
 	dma_addr_t			slave_dma_addr;
-	struct i2c_client *slave;
+	struct i2c_client 	*slave;
 	int 				slave_rx_len;	
 #endif
 };
@@ -615,22 +623,6 @@ static int aspeed_i2c_wait_bus_not_busy(struct aspeed_new_i2c_bus *i2c_bus)
 }
 
 #ifdef CONFIG_I2C_SLAVE
-//for memory buffer initial
-static void aspeed_new_i2c_slave_init(struct aspeed_new_i2c_bus *i2c_bus)
-{
-	i2c_bus->slave_dma_buf = dma_alloc_coherent(i2c_bus->dev, I2C_SLAVE_MSG_BUF_SIZE,
-						  &i2c_bus->slave_dma_addr, GFP_KERNEL);
-	
-	if (!i2c_bus->slave_dma_buf) {
-		dev_err(i2c_bus->dev, "unable to allocate tx Buffer memory\n");
-	} else 
-		memset(i2c_bus->slave_dma_buf, 0, I2C_SLAVE_MSG_BUF_SIZE);	
-	
-	dev_dbg(i2c_bus->dev,
-		"dma enable slave_dma_buf = [0x%x] slave_dma_addr = [0x%x], please check 4byte boundary \n",
-		(u32)i2c_bus->slave_dma_buf, i2c_bus->slave_dma_addr);
-}
-
 int aspeed_new_i2c_slave_handler(struct aspeed_new_i2c_bus *i2c_bus)
 {
 	int ret = 0;
@@ -1086,7 +1078,6 @@ static int aspeed_new_i2c_do_msgs_xfer(struct aspeed_new_i2c_bus *i2c_bus,
 		reinit_completion(&i2c_bus->cmd_complete);
 		i2c_bus->cmd_err = 0;
 
-		i2c_bus->blk_r_flag = 0;
 		i2c_bus->master_msgs = &msgs[i];
 		if (num == i + 1)
 			i2c_bus->xfer_last = 1;
@@ -1138,7 +1129,8 @@ out:
 	return ret;
 }
 
-static int aspeed_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+static int aspeed_i2c_xfer(struct i2c_adapter *adap, 
+							   struct i2c_msg *msgs, int num)
 {
 	int ret;
 	struct aspeed_new_i2c_bus *i2c_bus = adap->algo_data;
@@ -1156,23 +1148,41 @@ static int aspeed_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int n
 	return ret;
 }
 
-static void aspeed_new_i2c_bus_init(struct aspeed_new_i2c_bus *i2c_bus)
+static void aspeed_new_i2c_init(struct aspeed_new_i2c_bus *i2c_bus)
 {
+	struct platform_device *pdev = to_platform_device(i2c_bus->dev);
+	u32 fun_ctrl = AST_I2CC_BUS_AUTO_RELEASE | AST_I2CC_MASTER_EN;
+
 	//I2C Reset
 	aspeed_i2c_write(i2c_bus, 0, AST_I2CC_FUN_CTRL);
 
-	aspeed_i2c_write(i2c_bus, AST_I2CC_BUS_AUTO_RELEASE | AST_I2CC_MASTER_EN,
-		      AST_I2CC_FUN_CTRL);
+	if (of_property_read_bool(pdev->dev.of_node, "multi-master")) {
+		i2c_bus->multi_master = true;
+	} else
+		fun_ctrl |= AST_I2CC_MULTI_MASTER_DIS;
+
+	/* Enable Master Mode */
+	aspeed_i2c_write(i2c_bus, fun_ctrl, AST_I2CC_FUN_CTRL);
 
 	/* Set AC Timing */
 	aspeed_i2c_write(i2c_bus, aspeed_select_i2c_clock(i2c_bus), AST_I2CC_AC_TIMING);
-//	printk("set AC timeing %x \n", aspeed_i2c_read(i2c_bus, AST_I2CC_AC_TIMING));
 
 	//Clear Interrupt
 	aspeed_i2c_write(i2c_bus, 0xfffffff, AST_I2CM_ISR);
 
 #ifdef CONFIG_I2C_SLAVE
-	aspeed_new_i2c_slave_init(i2c_bus);
+	//for memory buffer initial
+	i2c_bus->slave_dma_buf = dma_alloc_coherent(i2c_bus->dev, I2C_SLAVE_MSG_BUF_SIZE,
+						&i2c_bus->slave_dma_addr, GFP_KERNEL);
+
+	if (!i2c_bus->slave_dma_buf) {
+		dev_err(i2c_bus->dev, "unable to allocate tx Buffer memory\n");
+	} else 
+		memset(i2c_bus->slave_dma_buf, 0, I2C_SLAVE_MSG_BUF_SIZE);	
+
+	dev_dbg(i2c_bus->dev,
+		"dma enable slave_dma_buf = [0x%x] slave_dma_addr = [0x%x], please check 4byte boundary \n",
+		(u32)i2c_bus->slave_dma_buf, i2c_bus->slave_dma_addr);
 #endif
 
 	/* Set interrupt generation of I2C master controller */
@@ -1257,11 +1267,8 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct aspeed_new_i2c_bus *i2c_bus;
-	struct resource *res;
 	u32 global_ctrl;
 	int ret = 0;
-
-	dev_dbg(&pdev->dev, "aspeed_new_i2c_probe \n");
 
 	i2c_bus = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_new_i2c_bus), GFP_KERNEL);
 	if (!i2c_bus) {
@@ -1288,20 +1295,32 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 		goto free_mem;
 	}
 
+	i2c_bus->mode = DMA_MODE;
+
+	if (of_property_read_bool(pdev->dev.of_node, "byte-mode"))
+		i2c_bus->mode = BYTE_MODE;
+
+	if (of_property_read_bool(pdev->dev.of_node, "buff-mode")) {
+		struct resource *res = platform_get_resource(pdev,
+								 IORESOURCE_MEM, 1);
+		
+		if (res && resource_size(res) >= 2)
+			i2c_bus->buf_base = devm_ioremap_resource(&pdev->dev, res);
+		
+		if (!IS_ERR_OR_NULL(i2c_bus->buf_base)) {
+			i2c_bus->buf_size = resource_size(res);
+		}
+		i2c_bus->mode = BUFF_MODE;
+		
+	}
+
 	i2c_bus->dev = &pdev->dev;
 	init_completion(&i2c_bus->cmd_complete);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
-		ret = -ENODEV;
+	i2c_bus->reg_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(i2c_bus->reg_base)) {
+		ret = PTR_ERR(i2c_bus->reg_base);
 		goto free_mem;
-	}
-
-	i2c_bus->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (!i2c_bus->reg_base) {
-		ret = -EIO;
-		goto release_mem;
 	}
 
 	i2c_bus->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
@@ -1340,16 +1359,14 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(&i2c_bus->adap, i2c_bus);
 	i2c_bus->adap.owner = THIS_MODULE;
 	i2c_bus->adap.algo = &i2c_aspeed_algorithm;
-	i2c_bus->adap.retries = 3;	
+	i2c_bus->adap.retries = 0;	
 	i2c_bus->adap.dev.parent = i2c_bus->dev;
 	i2c_bus->adap.dev.of_node = pdev->dev.of_node;	
 	i2c_bus->adap.algo_data = i2c_bus;
 	strlcpy(i2c_bus->adap.name, pdev->name, sizeof(i2c_bus->adap.name));
 	i2c_set_adapdata(&i2c_bus->adap, i2c_bus);
 
-	i2c_bus->blk_r_flag = 0;
-
-	aspeed_new_i2c_bus_init(i2c_bus);
+	aspeed_new_i2c_init(i2c_bus);
 
 	ret = devm_request_irq(&pdev->dev, i2c_bus->irq, aspeed_new_i2c_handler,
 			       0, dev_name(&pdev->dev), i2c_bus);
@@ -1360,12 +1377,11 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 
 	ret = i2c_add_adapter(&i2c_bus->adap);
 	if (ret < 0) {
-		printk(KERN_INFO "I2C: Failed to add bus\n");
 		goto free_irq;
 	}
 
-	printk(KERN_INFO "I2C: %s [%d]: adapter [%d khz] \n",
-	       pdev->dev.of_node->name, i2c_bus->adap.nr, i2c_bus->bus_frequency / 1000);
+	dev_info(i2c_bus->dev, "NEW-I2C: %s [%d]: adapter [%d khz] \n",
+	       pdev->dev.of_node->name, i2c_bus->adap.nr, i2c_bus->bus_frequency/1000);
 
 	return 0;
 
@@ -1373,8 +1389,6 @@ unmap:
 	free_irq(i2c_bus->irq, i2c_bus);
 free_irq:
 	devm_iounmap(&pdev->dev, i2c_bus->reg_base);
-release_mem:
-	release_mem_region(res->start, resource_size(res));
 free_mem:
 	kfree(i2c_bus);
 	return ret;
@@ -1383,23 +1397,22 @@ free_mem:
 static int aspeed_new_i2c_remove(struct platform_device *pdev)
 {
 	struct aspeed_new_i2c_bus *i2c_bus = platform_get_drvdata(pdev);
-	struct resource *res;
 
-	platform_set_drvdata(pdev, NULL);
-	i2c_del_adapter(&i2c_bus->adap);
+	/* Disable everything. */
+	aspeed_i2c_write(i2c_bus, 0, AST_I2CC_FUN_CTRL);
+	aspeed_i2c_write(i2c_bus, 0, AST_I2CM_IER);
 
 	free_irq(i2c_bus->irq, i2c_bus);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	iounmap(i2c_bus->reg_base);
-	release_mem_region(res->start, res->end - res->start + 1);
+	platform_set_drvdata(pdev, NULL);
+	i2c_del_adapter(&i2c_bus->adap);
 
 	kfree(i2c_bus);
 
 	return 0;
 }
 
-static struct platform_driver aspeed_i2c_bus_driver = {
+static struct platform_driver aspeed_new_i2c_bus_driver = {
 	.probe		= aspeed_new_i2c_probe,
 	.remove		= aspeed_new_i2c_remove,
 	.driver		= {
@@ -1407,10 +1420,8 @@ static struct platform_driver aspeed_i2c_bus_driver = {
 		.of_match_table = aspeed_new_i2c_bus_of_table,
 	},
 };
-
-module_platform_driver(aspeed_i2c_bus_driver);
-
+module_platform_driver(aspeed_new_i2c_bus_driver);
 
 MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
-MODULE_DESCRIPTION("ASPEED I2C Bus Driver");
-MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ASPEED I2C New Mode Bus Driver");
+MODULE_LICENSE("GPL V2");
