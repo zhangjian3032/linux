@@ -5,3 +5,9 @@ obj-$(CONFIG_ASPEED_LPC_SNOOP)	+= aspeed-lpc-snoop.o
 obj-$(CONFIG_ASPEED_LPC_PCC)	+= aspeed-lpc-pcc.o
 obj-$(CONFIG_ASPEED_P2A_CTRL)	+= aspeed-p2a-ctrl.o
 obj-$(CONFIG_ASPEED_XDMA)	+= aspeed-xdma.o
+obj-$(CONFIG_ASPEED_ESPI)	+= aspeed-espi.o \
+				aspeed-espi-peripheral.o \
+				aspeed-espi-vw.o \
+				aspeed-espi-flash.o \
+				aspeed-espi-oob.o
+obj-$(CONFIG_ASPEED_ESPI_MMBI)	+= aspeed-espi-mmbi.o \
