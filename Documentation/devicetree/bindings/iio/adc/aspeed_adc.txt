@@ -42,12 +42,14 @@ Required properties:
 	- Third cell is bit mask (length of the trim data)
 - ref_voltage:
 	- Reference voltage in millivolts for the conversions
-
+- battery-sensing:
+	- Inform the driver that last channel will be used to sensor battery
 Example:
 &adc0 {
 	trim_locate = <0x5D0 0 0xf>;
 	ref_voltage = <2500>;
 	status = "okay";
+	battery-sensing;
 
 	pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
 		&pinctrl_adc2_default &pinctrl_adc3_default
