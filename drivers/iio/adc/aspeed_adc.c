@@ -247,6 +247,9 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 
 	printk(KERN_INFO "aspeed_adc: cv %d \n", data->cv);
 
+	/* Disable Compensating Sensing mode */
+	writel(eng_ctrl & (~ASPEED_CTRL_COMPENSATION),
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
 	/* Clock setting:
 	 * Our ADC will round-robin all of the 12 channels all the time, 
 	 * so if we want the sampling rate of a channel is n we need to set the clock equal to 12*n
