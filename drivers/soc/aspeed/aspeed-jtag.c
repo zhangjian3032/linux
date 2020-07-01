@@ -1124,7 +1124,7 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	aspeed_jtag->reset = devm_reset_control_get_exclusive(&pdev->dev, "jtag");
+	aspeed_jtag->reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(aspeed_jtag->reset)) {
 		dev_err(&pdev->dev, "can't get jtag reset\n");
 		return PTR_ERR(aspeed_jtag->reset);
@@ -1162,7 +1162,7 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 			  ASPEED_JTAG_SW);
 
 	ret = devm_request_irq(&pdev->dev, aspeed_jtag->irq, aspeed_jtag_isr,
-			       0, dev_name(&pdev->dev), aspeed_jtag);
+			       IRQF_SHARED, dev_name(&pdev->dev), aspeed_jtag);
 	if (ret) {
 		printk("JTAG Unable to get IRQ");
 		goto out_region;
