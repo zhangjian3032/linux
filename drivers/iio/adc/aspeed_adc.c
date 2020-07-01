@@ -65,9 +65,21 @@
 #define REF_VLOTAGE_900mV  (3 << 6)
 /* [8] */
 #define ASPEED_ADC_CTRL_INIT_RDY BIT(8)
+/* [12] */
+#define ASPEED_ADC_CH7_VOLTAGE_NORMAL  (0 << 12)
+#define ASPEED_ADC_CH7_VOLTAGE_BATTERY (1 << 12)
+/* [13] */
+#define ASPEED_ADC_EN_BATTERY_SESING BIT(13)
 /* [31:16] */
 #define ASPEED_ADC_CTRL_CH_EN(n)  (1 << (16 + n))
 #define ASPEED_ADC_CTRL_CH_EN_ALL GENMASK(31, 16)
+
+/**********************************************************
+ * ADC bit field meaning
+ *********************************************************/
+/* offset 0[6] */
+#define BATTERY_SENSING_VOL_DIVIDE_2_3 (0 << 6)
+#define BATTERY_SENSING_VOL_DIVIDE_1_3 (1 << 6)
 
 /**********************************************************
  * Software setting
@@ -100,6 +112,8 @@ struct aspeed_adc_data {
 	struct clk_hw *clk_prescaler;
 	struct clk_hw *clk_scaler;
 	struct reset_control *rst;
+	bool battery_sensing_en;
+	bool battery_sensing_div; // 0: 2/3, 1: 1/3
 	int cv; //Compensating value
 };
 
@@ -127,6 +141,28 @@ static const struct iio_chan_spec ast2600_adc_iio_channels[] = {
 	ASPEED_CHAN(6, 0x1C), ASPEED_CHAN(7, 0x1E),
 };
 
+static void aspeed_adc_battery_read(int *val, struct aspeed_adc_data *data,
+				    unsigned long chan_address)
+{
+	u32 eng_ctrl = readl(data->base + ASPEED_REG_ENGINE_CONTROL);
+	writel(eng_ctrl | ASPEED_ADC_CH7_VOLTAGE_BATTERY |
+		       ASPEED_ADC_EN_BATTERY_SESING,
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
+	mdelay(1);
+	*val = readw(data->base + chan_address) + data->cv;
+	if (*val >= (1 << ASPEED_RESOLUTION_BITS))
+		*val = (1 << ASPEED_RESOLUTION_BITS) - 1;
+	else if (*val < 0)
+		*val = 0;
+	if (data->battery_sensing_div) {
+		*val = (*val * 3) / 2;
+	} else {
+		*val = (*val * 3);
+	}
+	writel(eng_ctrl & (~(GENMASK(13, 12))),
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
+}
+
 static int aspeed_adc_read_raw(struct iio_dev *indio_dev,
 			       struct iio_chan_spec const *chan, int *val,
 			       int *val2, long mask)
@@ -135,11 +171,15 @@ static int aspeed_adc_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		*val = readw(data->base + chan->address) + data->cv;
-		if (*val >= (1 << ASPEED_RESOLUTION_BITS))
-			*val = (1 << ASPEED_RESOLUTION_BITS) - 1;
-		else if (*val < 0)
-			*val = 0;
+		if (data->battery_sensing_en && chan->channel == 7) {
+			aspeed_adc_battery_read(val, data, chan->address);
+		} else {
+			*val = readw(data->base + chan->address) + data->cv;
+			if (*val >= (1 << ASPEED_RESOLUTION_BITS))
+				*val = (1 << ASPEED_RESOLUTION_BITS) - 1;
+			else if (*val < 0)
+				*val = 0;
+		}
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -256,8 +296,19 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 	 */
 	clk_set_rate(data->clk_scaler->clk,
 		     ASPEED_ADC_SAMPLE_FREQ * ASPEED_CLOCKS_PER_SAMPLE);
-	printk(KERN_INFO "aspeed_adc: freq %ld \n", clk_get_rate(data->clk_scaler->clk) /
-		       ASPEED_CLOCKS_PER_SAMPLE);
+	printk(KERN_INFO "aspeed_adc: freq %ld \n",
+	       clk_get_rate(data->clk_scaler->clk) / ASPEED_CLOCKS_PER_SAMPLE);
+	/* Battery Sensing setting */
+	if (of_find_property(data->dev->of_node, "battery-sensing", NULL)) {
+		data->battery_sensing_en = 1;
+		if (readl(data->base + ASPEED_REG_ENGINE_CONTROL) &
+		    BATTERY_SENSING_VOL_DIVIDE_2_3) {
+			data->battery_sensing_div = 0;
+		} else {
+			data->battery_sensing_div = 1;
+		}
+		printk(KERN_INFO "aspeed_adc: battery-sensing enable \n");
+	}
 }
 
 static void aspeed_g5_adc_init(struct aspeed_adc_data *data)
