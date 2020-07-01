@@ -521,6 +521,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		aspeed_g6_adc_init(data);
 	} else
 		goto adc_init_error;
+	eng_ctrl = readl(data->base + ASPEED_REG_ENGINE_CONTROL);
 	writel(eng_ctrl | ASPEED_ADC_CTRL_CH_EN_ALL,
 	       data->base + ASPEED_REG_ENGINE_CONTROL);
 	printk(KERN_INFO "aspeed_adc: write to engine control 0x%08lx \n",
