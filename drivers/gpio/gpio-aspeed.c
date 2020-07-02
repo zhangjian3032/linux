@@ -1163,6 +1163,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	const struct of_device_id *gpio_id;
 	struct aspeed_gpio *gpio;
 	struct resource *res;
+	u32 nr_gpios;
 	int rc, i, banks;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
@@ -1188,9 +1189,15 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	}
 
 	gpio->config = gpio_id->data;
-
+	rc = of_property_read_u32(pdev->dev.of_node, "ngpios", &nr_gpios);
+	if (rc < 0) {
+		dev_warn(&pdev->dev, "Could not read ngpios property\n");
+		/* Compatible with previous versions: get nr_gpios from match data */
+		nr_gpios = gpio->config->nr_gpios;
+	}
+	printk(KERN_INFO "aspeed_gpio: ngpio %d \n", nr_gpios);
 	gpio->chip.parent = &pdev->dev;
-	gpio->chip.ngpio = gpio->config->nr_gpios;
+	gpio->chip.ngpio = nr_gpios;
 	gpio->chip.direction_input = aspeed_gpio_dir_in;
 	gpio->chip.direction_output = aspeed_gpio_dir_out;
 	gpio->chip.get_direction = aspeed_gpio_get_direction;
@@ -1210,7 +1217,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	gpio->aspeed_gpio_irqchip.irq_set_type	= aspeed_gpio_set_type;
 
 	/* Allocate a cache of the output registers */
-	banks = gpio->config->nr_gpios >> 5;
+	banks = gpio->chip.ngpio >> 5;
 	gpio->dcache = devm_kcalloc(&pdev->dev,
 				    banks, sizeof(u32), GFP_KERNEL);
 	if (!gpio->dcache)
