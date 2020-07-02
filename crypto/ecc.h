@@ -38,10 +38,10 @@ bool vli_is_zero(const u64 *vli, unsigned int ndigits);
 unsigned int vli_num_digits(const u64 *vli, unsigned int ndigits);
 unsigned int vli_num_bits(const u64 *vli, unsigned int ndigits);
 void vli_set(u64 *dest, const u64 *src, unsigned int ndigits);
-// void vli_copy_to_buf(u8 *dst_buf, unsigned int buf_len,
-// 		     const u64 *src_vli, unsigned int ndigits);
-// void vli_copy_from_buf(u64 *dst_vli, unsigned int ndigits,
-// 		       const u8 *src_buf, unsigned int buf_len);
+void vli_copy_to_buf(u8 *dst_buf, unsigned int buf_len,
+		     const u64 *src_vli, unsigned int ndigits);
+void vli_copy_from_buf(u64 *dst_vli, unsigned int ndigits,
+		       const u8 *src_buf, unsigned int buf_len);
 int vli_cmp(const u64 *left, const u64 *right, unsigned int ndigits);
 u64 vli_lshift(u64 *result, const u64 *in, unsigned int shift,
 	       unsigned int ndigits);
@@ -59,9 +59,9 @@ void vli_mod_sub(u64 *result, const u64 *left, const u64 *right,
 		 const u64 *mod, unsigned int ndigits);
 void vli_mod(u64 *result, const u64 *input, const u64 *mod,
 	     unsigned int ndigits);
-// void vli_print(char *vli_name, const u64 *vli, unsigned int ndigits);
-// void vli_mod_mult(u64 *result, const u64 *left, const u64 *right,
-// 		  const u64 *mod, unsigned int ndigits);
+void vli_print(char *vli_name, const u64 *vli, unsigned int ndigits);
+void vli_mod_mult(u64 *result, const u64 *left, const u64 *right,
+		  const u64 *mod, unsigned int ndigits);
 bool vli_mmod_fast(u64 *result, u64 *product,
 		   const u64 *curve_prime, unsigned int ndigits);
 void vli_mod_mult_fast(u64 *result, const u64 *left, const u64 *right,
@@ -74,8 +74,8 @@ void vli_mod_inv(u64 *result, const u64 *input, const u64 *mod,
 bool ecc_point_is_zero(const struct ecc_point *point);
 void ecc_point_double_jacobian(u64 *x1, u64 *y1, u64 *z1,
 			       u64 *curve_prime, unsigned int ndigits);
-// void ecc_point_add(u64 *x1, u64 *y1, u64 *x2, u64 *y2, u64 *curve_prime,
-// 		   unsigned int ndigits);
+void ecc_point_add(u64 *x1, u64 *y1, u64 *x2, u64 *y2, u64 *curve_prime,
+		   unsigned int ndigits);
 void ecc_point_mult(struct ecc_point *result,
 			   const struct ecc_point *point, const u64 *scalar,
 			   u64 *initial_z, const struct ecc_curve *curve,
@@ -96,6 +96,8 @@ void ecc_swap_digits(const u64 *in, u64 *out, unsigned int ndigits);
  */
 int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
 		     const u64 *private_key, unsigned int private_key_len);
+int ecc_is_pub_key_valid(unsigned int curve_id, unsigned int ndigits,
+			 const u8 *pub_key, unsigned int pub_key_len);
 
 /**
  * ecc_gen_privkey() -  Generates an ECC private key.
