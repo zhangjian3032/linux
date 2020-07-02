@@ -256,18 +256,24 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 	struct aspeed_adc_trim_locate trim_locate;
 	u32 trim;
 	u32 compensating_trim;
+	int ret;
 	eng_ctrl = readl(data->base + ASPEED_REG_ENGINE_CONTROL);
 	eng_ctrl |= (ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE);
 	/* Trimming data setting */
-	of_property_read_u32_array(data->dev->of_node, "trim_locate",
-				   (u32 *)&trim_locate,
-				   sizeof(trim_locate) / 4);
-	if (regmap_read(data->scu, trim_locate.scu_offset, &scu_otp)) {
-		printk("read scu trim value fail \n");
+	ret = of_property_read_u32_array(data->dev->of_node, "trim_locate",
+					 (u32 *)&trim_locate,
+					 sizeof(trim_locate) / 4);
+	if (ret < 0) {
+		printk(KERN_WARNING, "Get trim_locate fail, ret %d\n", ret);
 		trim = 0x0;
 	} else {
-		trim = (scu_otp >> trim_locate.bit_offset) &
-		       trim_locate.bit_mask;
+		if (regmap_read(data->scu, trim_locate.scu_offset, &scu_otp)) {
+			printk(KERN_WARNING, "read scu trim value fail \n");
+			trim = 0x0;
+		} else {
+			trim = (scu_otp >> trim_locate.bit_offset) &
+			       trim_locate.bit_mask;
+		}
 	}
 	if ((trim == 0x0))
 		trim = 0x8;
