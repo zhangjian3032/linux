@@ -4,7 +4,7 @@
 #include "aspeed-g6.dtsi"
 
 / {
-	model = "AST2600 EVB";
+	model = "AST2600 OBMC EVB";
 	compatible = "aspeed,ast2600";
 
 	aliases {
@@ -24,6 +24,7 @@
 		mmc0 = &emmc;
 		mmc1 = &sdhci0;
 		mmc2 = &sdhci1;
+		jtag0 = &jtag1;
 		mctp0 = &mctp0;
 		mctp1 = &mctp1;
 	};
@@ -570,6 +571,7 @@
 };
 
 &adc0 {
+	trim_locate = <0x5D0 0 0xf>;
 	ref_voltage = <1200>;
 	status = "okay";
 
@@ -580,6 +582,7 @@
 };
 
 &adc1 {
+	trim_locate = <0x5D0 4 0xf>;
 	ref_voltage = <1200>;
 	status = "okay";
 
@@ -601,6 +604,9 @@
 	status = "okay";
 };
 
+&jtag1 {
+	status = "okay";
+};
 #if 1
 &fmc {
 	status = "okay";
