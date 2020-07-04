@@ -524,7 +524,8 @@ static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 	int i = 0;
 
 	MCTP_DBUG("dram base %x \n", aspeed_mctp->dram_base);
-	aspeed_mctp_write(aspeed_mctp, aspeed_mctp->dram_base, ASPEED_MCTP_EID);
+	aspeed_mctp_write(aspeed_mctp, (aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_EID) & 0xff) | 
+							aspeed_mctp->dram_base, ASPEED_MCTP_EID);
 
 	aspeed_mctp->tx_idx = 0;
 
