@@ -187,6 +187,7 @@ struct aspeed_jtag_info {
 	u32				clkin;	// ast2600 use hclk, old use pclk
 	u32				flag;
 	wait_queue_head_t		jtag_wq;
+	bool				is_open;
 	struct miscdevice		*misc_dev;
 };
 
@@ -821,7 +822,7 @@ static long jtag_ioctl(struct file *file, unsigned int cmd,
 		ret = __put_user(aspeed_jtag_get_freq(aspeed_jtag), (unsigned int __user *)arg);
 		break;
 	case ASPEED_JTAG_SIOCFREQ:
-//			printk("set freq = %d , pck %d \n",config.freq, aspeed_get_pclk());
+//		printk("set ASPEED_JTAG_SIOCFREQ \n");
 		if ((unsigned int)arg > aspeed_jtag->clkin)
 			ret = -EFAULT;
 		else
@@ -913,6 +914,28 @@ static long jtag_ioctl(struct file *file, unsigned int cmd,
 	}
 
 	return ret;
+}
+
+static int jtag_open(struct inode *inode, struct file *file)
+{
+	struct aspeed_jtag_info *aspeed_jtag = container_of((file->private_data), struct aspeed_jtag_info, misc_dev);
+
+	if (aspeed_jtag->is_open) {
+		return -EBUSY;
+	}
+
+	aspeed_jtag->is_open = true;
+
+	return 0;
+}
+
+static int jtag_release(struct inode *inode, struct file *file)
+{
+	struct aspeed_jtag_info *aspeed_jtag = container_of((file->private_data), struct aspeed_jtag_info, misc_dev);
+
+	aspeed_jtag->is_open = false;
+
+	return 0;
 }
 
 static ssize_t show_tdo(struct device *dev,
@@ -1020,6 +1043,8 @@ static struct attribute_group jtag_attribute_group = {
 static const struct file_operations aspeed_jtag_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= jtag_ioctl,
+	.open		= jtag_open,
+	.release		= jtag_release,	
 };
 
 static struct aspeed_jtag_config jtag_config = {
