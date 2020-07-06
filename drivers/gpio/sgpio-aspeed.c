@@ -30,7 +30,7 @@ struct aspeed_sgpio {
 	struct clk *pclk;
 	spinlock_t lock;
 	void __iomem *base;
-	uint32_t dir_in[3];
+	uint32_t dir_in[4];
 	int irq;
 };
 
@@ -69,7 +69,14 @@ static const struct aspeed_sgpio_bank aspeed_sgpio_banks[] = {
 		.rdata_reg = 0x0078,
 		.irq_regs = 0x003C,
 		.tolerance_regs = 0x0050,
-		.names = { "I", "J" },
+		.names = { "I", "J", "K", "L" },
+	},
+	{
+		.val_regs = 0x0090,
+		.rdata_reg = 0x007C,
+		.irq_regs = 0x0094,
+		.tolerance_regs = 0x00A8,
+		.names = { "M", "N", "O", "P" },
 	},
 };
 
