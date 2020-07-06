@@ -264,11 +264,11 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 					 (u32 *)&trim_locate,
 					 sizeof(trim_locate) / 4);
 	if (ret < 0) {
-		printk(KERN_WARNING, "Get trim_locate fail, ret %d\n", ret);
+		printk(KERN_WARNING "Get trim_locate fail, ret %d\n", ret);
 		trim = 0x0;
 	} else {
 		if (regmap_read(data->scu, trim_locate.scu_offset, &scu_otp)) {
-			printk(KERN_WARNING, "read scu trim value fail \n");
+			printk(KERN_WARNING "read scu trim value fail \n");
 			trim = 0x0;
 		} else {
 			trim = (scu_otp >> trim_locate.bit_offset) &
