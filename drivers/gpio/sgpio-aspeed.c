@@ -534,7 +534,7 @@ static int __init aspeed_sgpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	iowrite32(FIELD_PREP(ASPEED_SGPIO_CLK_DIV_MASK, sgpio_clk_div) |
-		  FIELD_PREP(ASPEED_SGPIO_PINS_MASK, (nr_gpios / 8)) |
+		  FIELD_PREP(ASPEED_SGPIO_PINS_MASK, GENMASK((nr_gpios / 8),0)) |
 		  ASPEED_SGPIO_ENABLE,
 		  gpio->base + ASPEED_SGPIO_CTRL);
 
