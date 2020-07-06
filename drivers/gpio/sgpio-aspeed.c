@@ -155,19 +155,19 @@ static void sgpio_set_value(struct gpio_chip *gc, unsigned int offset, int val)
 {
 	struct aspeed_sgpio *gpio = gpiochip_get_data(gc);
 	const struct aspeed_sgpio_bank *bank = to_bank(offset);
-	void __iomem *addr;
+	void __iomem *addr_rd, *addr_wr;
 	u32 reg = 0;
 
-
-	addr = bank_reg(gpio, bank, reg_val);
-	reg = ioread32(addr);
+	addr_wr = bank_reg(gpio, bank, reg_val);
+	addr_rd = bank_reg(gpio, bank, reg_rdata);
+	reg = ioread32(addr_rd);
 
 	if (val)
 		reg |= GPIO_BIT(offset);
 	else
 		reg &= ~GPIO_BIT(offset);
 
-	iowrite32(reg, addr);
+	iowrite32(reg, addr_wr);
 }
 
 static void aspeed_sgpio_set(struct gpio_chip *gc, unsigned int offset, int val)
