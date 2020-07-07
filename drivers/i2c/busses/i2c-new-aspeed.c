@@ -550,10 +550,13 @@ aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 #ifdef CONFIG_I2C_SLAVE
 int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 {
+	u32 cmd = 0;
 	int ret = 0;
 	u8 value;	
 	int i = 0;
 	u32 sts = aspeed_i2c_read(i2c_bus, AST_I2CS_ISR);
+	u8 *buf = (u8 *) i2c_bus->buf_base;
+	u8 byte_data;
 
 	if (!sts) return 0;
 	dev_dbg(i2c_bus->dev, "slave irq sts %x\n", sts);
@@ -579,112 +582,253 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 				dev_dbg(i2c_bus->dev, "S : Sw | P \n");
 				i2c_bus->slave_event = I2C_SLAVE_START_WRITE_STOP;
 //				i2c_bus->slave_rx_len = AST_I2C_GET_RX_DMA_LEN(aspeed_i2c_read(i2c_bus, AST_I2CS_DMA_LEN_STS));
-				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);				
-				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), AST_I2CS_DMA_LEN);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_RX_DMA_EN, AST_I2CS_CMD_STS);
+				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);
+				cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+				if (i2c_bus->mode == DMA_MODE) {
+					cmd |= AST_I2CS_RX_DMA_EN;
+					aspeed_i2c_write(i2c_bus, AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), AST_I2CS_DMA_LEN);
+				} else if (i2c_bus->mode == BUFF_MODE) {
+					cmd |= AST_I2CS_RX_BUFF_EN;
+					aspeed_i2c_write(i2c_bus, AST_I2CC_SET_RX_BUF_LEN(i2c_bus->buf_size - 1), AST_I2CC_BUFF_CTRL);
+				} else {
+				}
+				aspeed_i2c_write(i2c_bus, cmd, AST_I2CS_CMD_STS);
 				break;
 			case AST_I2CS_SLAVE_MATCH | AST_I2CS_RX_DONE | AST_I2CS_Wait_RX_DMA:
 				dev_dbg(i2c_bus->dev, "S : Sw|D \n");
-				i2c_bus->slave_rx_len = AST_I2C_GET_RX_DMA_LEN(aspeed_i2c_read(i2c_bus, AST_I2CS_DMA_LEN_STS));
 				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);	
-				for (i = 0; i < i2c_bus->slave_rx_len; i++) {
-					dev_dbg(i2c_bus->dev, "[%x]", i2c_bus->slave_dma_buf[i]);
-					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &i2c_bus->slave_dma_buf[i]);
+				cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+				if (i2c_bus->mode == DMA_MODE) {
+					i2c_bus->slave_rx_len = AST_I2C_GET_RX_DMA_LEN(aspeed_i2c_read(i2c_bus, AST_I2CS_DMA_LEN_STS));
+					for (i = 0; i < i2c_bus->slave_rx_len; i++) {
+						dev_dbg(i2c_bus->dev, "[%x]", i2c_bus->slave_dma_buf[i]);
+						i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &i2c_bus->slave_dma_buf[i]);
+					}
+					aspeed_i2c_write(i2c_bus, AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), AST_I2CS_DMA_LEN);
+					cmd |= AST_I2CS_RX_DMA_EN;
+				} else if (i2c_bus->mode == BUFF_MODE) {
+					cmd |= AST_I2CS_RX_BUFF_EN;
+					i2c_bus->slave_rx_len = AST_I2CC_GET_RX_BUF_LEN(aspeed_i2c_read(i2c_bus, AST_I2CC_BUFF_CTRL));
+					for (i = 0; i < i2c_bus->slave_rx_len; i++) {
+						dev_dbg(i2c_bus->dev, "[%x]", buf[i]);
+						i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &buf[i]);
+					}
+					aspeed_i2c_write(i2c_bus, AST_I2CC_SET_RX_BUF_LEN(i2c_bus->buf_size - 1), AST_I2CC_BUFF_CTRL);
+				} else {
+					byte_data = AST_I2CC_GET_RX_BUFF(aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
+					i2c_bus->slave_rx_len = 1;
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &byte_data);
 				}
-				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), AST_I2CS_DMA_LEN);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_RX_DMA_EN, AST_I2CS_CMD_STS);
+				aspeed_i2c_write(i2c_bus, cmd, AST_I2CS_CMD_STS);
 				break;
 			case AST_I2CS_RX_DONE | AST_I2CS_STOP:
 				dev_dbg(i2c_bus->dev, "S : D|P \n");
-				i2c_bus->slave_rx_len = AST_I2C_GET_RX_DMA_LEN(aspeed_i2c_read(i2c_bus, AST_I2CS_DMA_LEN_STS));
-				for (i = 0; i < i2c_bus->slave_rx_len; i++) {
-					dev_dbg(i2c_bus->dev, "[%x]", i2c_bus->slave_dma_buf[i]);
-					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &i2c_bus->slave_dma_buf[i]);
+				cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+				if (i2c_bus->mode == DMA_MODE) {
+					cmd |= AST_I2CS_RX_DMA_EN;
+					i2c_bus->slave_rx_len = AST_I2C_GET_RX_DMA_LEN(aspeed_i2c_read(i2c_bus, AST_I2CS_DMA_LEN_STS));
+					for (i = 0; i < i2c_bus->slave_rx_len; i++) {
+						dev_dbg(i2c_bus->dev, "[%x]", i2c_bus->slave_dma_buf[i]);
+						i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &i2c_bus->slave_dma_buf[i]);
+					}
+					aspeed_i2c_write(i2c_bus, AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), AST_I2CS_DMA_LEN);
+				} else if (i2c_bus->mode == BUFF_MODE) {
+					cmd |= AST_I2CS_RX_BUFF_EN;
+					i2c_bus->slave_rx_len = AST_I2CC_GET_RX_BUF_LEN(aspeed_i2c_read(i2c_bus, AST_I2CC_BUFF_CTRL));
+					for (i = 0; i < i2c_bus->slave_rx_len; i++) {
+						dev_dbg(i2c_bus->dev, "[%x]", buf[i]);
+						i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &buf[i]);
+					}
+					aspeed_i2c_write(i2c_bus, AST_I2CC_SET_RX_BUF_LEN(i2c_bus->buf_size - 1), AST_I2CC_BUFF_CTRL);
+				} else {
+					byte_data = AST_I2CC_GET_RX_BUFF(aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
+					i2c_bus->slave_rx_len = 1;
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &byte_data);
 				}
-				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);				
-				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), AST_I2CS_DMA_LEN);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_RX_DMA_EN, AST_I2CS_CMD_STS);
+				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);
+				aspeed_i2c_write(i2c_bus, cmd, AST_I2CS_CMD_STS);
 				break;
 			case AST_I2CS_SLAVE_MATCH | AST_I2CS_RX_DONE | AST_I2CS_STOP:
 				dev_dbg(i2c_bus->dev, "S : Sw|D|P \n");
+				cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
 				i2c_bus->slave_event = I2C_SLAVE_START_WRITE_STOP;
-				i2c_bus->slave_rx_len = AST_I2C_GET_RX_DMA_LEN(aspeed_i2c_read(i2c_bus, AST_I2CS_DMA_LEN_STS));
-				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);	
-				for (i = 0; i < i2c_bus->slave_rx_len; i++) {
-					dev_dbg(i2c_bus->dev, "[%x]", i2c_bus->slave_dma_buf[i]);
-					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &i2c_bus->slave_dma_buf[i]);
+				if (i2c_bus->mode == DMA_MODE) {
+					cmd |= AST_I2CS_RX_DMA_EN;
+					i2c_bus->slave_rx_len = AST_I2C_GET_RX_DMA_LEN(aspeed_i2c_read(i2c_bus, AST_I2CS_DMA_LEN_STS));
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);	
+					for (i = 0; i < i2c_bus->slave_rx_len; i++) {
+						dev_dbg(i2c_bus->dev, "[%x]", i2c_bus->slave_dma_buf[i]);
+						i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &i2c_bus->slave_dma_buf[i]);
+					}
+					aspeed_i2c_write(i2c_bus, AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), AST_I2CS_DMA_LEN);
+				} else if (i2c_bus->mode == BUFF_MODE) {
+					cmd |= AST_I2CS_RX_BUFF_EN;
+					i2c_bus->slave_rx_len = AST_I2CC_GET_RX_BUF_LEN(aspeed_i2c_read(i2c_bus, AST_I2CC_BUFF_CTRL));
+					for (i = 0; i < i2c_bus->slave_rx_len; i++) {
+						dev_dbg(i2c_bus->dev, "[%x]", buf[i]);
+						i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &buf[i]);
+					}
+					aspeed_i2c_write(i2c_bus, AST_I2CC_SET_RX_BUF_LEN(i2c_bus->buf_size - 1), AST_I2CC_BUFF_CTRL);
+				} else {
+					byte_data = AST_I2CC_GET_RX_BUFF(aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
+					i2c_bus->slave_rx_len = 1;
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &byte_data);
 				}
-				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);				
-				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), AST_I2CS_DMA_LEN);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_RX_DMA_EN, AST_I2CS_CMD_STS);
+				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);
+				aspeed_i2c_write(i2c_bus, cmd, AST_I2CS_CMD_STS);
 				break;
 			//it is Mw data Mr coming -> it need send tx
 			case AST_I2CS_SLAVE_MATCH | AST_I2CS_RX_DONE | AST_I2CS_Wait_TX_DMA:
 				//it should be repeat start read 
 				dev_dbg(i2c_bus->dev, "S: AST_I2CS_Wait_TX_DMA | AST_I2CS_SLAVE_MATCH | AST_I2CS_RX_DONE\n");
 				i2c_bus->slave_event = I2C_SLAVE_REPEAT_START_READ;
-				i2c_bus->slave_rx_len = AST_I2C_GET_RX_DMA_LEN(aspeed_i2c_read(i2c_bus, AST_I2CS_DMA_LEN_STS));
-				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
-				for (i = 0; i < i2c_bus->slave_rx_len; i++) {
-					dev_dbg(i2c_bus->dev, "[%x]", i2c_bus->slave_dma_buf[i]);
-					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &i2c_bus->slave_dma_buf[i]);
+				cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+				if (i2c_bus->mode == DMA_MODE) {
+					cmd |= AST_I2CS_TX_DMA_EN;
+					i2c_bus->slave_rx_len = AST_I2C_GET_RX_DMA_LEN(aspeed_i2c_read(i2c_bus, AST_I2CS_DMA_LEN_STS));
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+					for (i = 0; i < i2c_bus->slave_rx_len; i++) {
+						dev_dbg(i2c_bus->dev, "[%02x]", i2c_bus->slave_dma_buf[i]);
+						i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &i2c_bus->slave_dma_buf[i]);
+					}
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &i2c_bus->slave_dma_buf[0]);
+					dev_dbg(i2c_bus->dev, "tx : [%02x]", i2c_bus->slave_dma_buf[0]);
+					aspeed_i2c_write(i2c_bus, 0, AST_I2CS_DMA_LEN_STS);
+					aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(0), AST_I2CS_DMA_LEN);
+				} else if (i2c_bus->mode == BUFF_MODE) {
+					cmd |= AST_I2CS_TX_BUFF_EN;
+					i2c_bus->slave_rx_len = AST_I2CC_GET_RX_BUF_LEN(aspeed_i2c_read(i2c_bus, AST_I2CC_BUFF_CTRL));
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+					for (i = 0; i < i2c_bus->slave_rx_len; i++) {
+						dev_dbg(i2c_bus->dev, "[%02x]", buf[i]);
+						i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &buf[i]);
+					}
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &buf[0]);
+					dev_dbg(i2c_bus->dev, "tx : [%02x]", buf[0]);
+					aspeed_i2c_write(i2c_bus, AST_I2CC_SET_TX_BUF_LEN(0), AST_I2CC_BUFF_CTRL);
+				} else {
+					byte_data = AST_I2CC_GET_RX_BUFF(aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
+					i2c_bus->slave_rx_len = 1;
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &byte_data);
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &byte_data);
+					dev_dbg(i2c_bus->dev, "tx : [%02x]", byte_data);
+					aspeed_i2c_write(i2c_bus, byte_data, AST_I2CC_STS_AND_BUFF);
 				}
-				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &i2c_bus->slave_dma_buf[0]);
-				dev_dbg(i2c_bus->dev, "tx : [%x]", i2c_bus->slave_dma_buf[0]);
-				aspeed_i2c_write(i2c_bus, 0, AST_I2CS_DMA_LEN_STS);				
-				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(0), AST_I2CS_DMA_LEN);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_TX_DMA_EN, AST_I2CS_CMD_STS);
+				aspeed_i2c_write(i2c_bus, cmd, AST_I2CS_CMD_STS);
 				break;
 			case AST_I2CS_RX_DONE | AST_I2CS_Wait_TX_DMA:
 				//it should be repeat start read 
 				dev_dbg(i2c_bus->dev, "S: AST_I2CS_Wait_TX_DMA | AST_I2CS_RX_DONE\n");
 				i2c_bus->slave_event = I2C_SLAVE_REPEAT_START_READ;
-				i2c_bus->slave_rx_len = AST_I2C_GET_RX_DMA_LEN(aspeed_i2c_read(i2c_bus, AST_I2CS_DMA_LEN_STS));
-				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
-				for (i = 0; i < i2c_bus->slave_rx_len; i++) {
-					dev_dbg(i2c_bus->dev, "[%x]", i2c_bus->slave_dma_buf[i]);
-					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &i2c_bus->slave_dma_buf[i]);
+				cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+				if (i2c_bus->mode == DMA_MODE) {
+					cmd |= AST_I2CS_TX_DMA_EN;
+					i2c_bus->slave_rx_len = AST_I2C_GET_RX_DMA_LEN(aspeed_i2c_read(i2c_bus, AST_I2CS_DMA_LEN_STS));
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+					for (i = 0; i < i2c_bus->slave_rx_len; i++) {
+						dev_dbg(i2c_bus->dev, "[%02x]", i2c_bus->slave_dma_buf[i]);
+						i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &i2c_bus->slave_dma_buf[i]);
+					}
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &i2c_bus->slave_dma_buf[0]);
+					dev_dbg(i2c_bus->dev, "tx : [%02x]", i2c_bus->slave_dma_buf[0]);
+					aspeed_i2c_write(i2c_bus, 0, AST_I2CS_DMA_LEN_STS);				
+					aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(0), AST_I2CS_DMA_LEN);
+				} else if (i2c_bus->mode == BUFF_MODE) {
+					cmd |= AST_I2CS_TX_BUFF_EN;
+					i2c_bus->slave_rx_len = AST_I2CC_GET_RX_BUF_LEN(aspeed_i2c_read(i2c_bus, AST_I2CC_BUFF_CTRL));
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+					for (i = 0; i < i2c_bus->slave_rx_len; i++) {
+						dev_dbg(i2c_bus->dev, "[%02x]", buf[i]);
+						i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &buf[i]);
+					}
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &buf[0]);
+					dev_dbg(i2c_bus->dev, "tx : [%02x]", buf[0]);
+					aspeed_i2c_write(i2c_bus, AST_I2CC_SET_TX_BUF_LEN(0), AST_I2CC_BUFF_CTRL);
+				} else {
+					byte_data = AST_I2CC_GET_RX_BUFF(aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
+					i2c_bus->slave_rx_len = 1;
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &byte_data);
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &byte_data);
+					dev_dbg(i2c_bus->dev, "tx : [%02x]", byte_data);
+					aspeed_i2c_write(i2c_bus, byte_data, AST_I2CC_STS_AND_BUFF);
 				}
-				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &i2c_bus->slave_dma_buf[0]);
-				dev_dbg(i2c_bus->dev, "tx : [%x]", i2c_bus->slave_dma_buf[0]);
-				aspeed_i2c_write(i2c_bus, 0, AST_I2CS_DMA_LEN_STS);				
-				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(0), AST_I2CS_DMA_LEN);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_TX_DMA_EN, AST_I2CS_CMD_STS);
+				aspeed_i2c_write(i2c_bus, cmd, AST_I2CS_CMD_STS);
 				break;
 			case AST_I2CS_SLAVE_MATCH | AST_I2CS_Wait_TX_DMA:
 				//First Start read
 				dev_dbg(i2c_bus->dev, "S: AST_I2CS_SLAVE_MATCH | AST_I2CS_Wait_TX_DMA\n");
+				cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+				if (i2c_bus->mode == DMA_MODE) {
+					cmd |= AST_I2CS_TX_DMA_EN;
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &i2c_bus->slave_dma_buf[0]);
 #ifdef CONFIG_I2C_SLAVE_EEPROM	//one byte send back
-				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &i2c_bus->slave_dma_buf[0]);
-				dev_dbg(i2c_bus->dev, "tx: [%x]\n", i2c_bus->slave_dma_buf[0]);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(0), AST_I2CS_DMA_LEN);
+					dev_dbg(i2c_bus->dev, "tx: [%x]\n", i2c_bus->slave_dma_buf[0]);
+					aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(0), AST_I2CS_DMA_LEN);
 #else
-				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &i2c_bus->slave_dma_buf[0]);
-				dev_dbg(i2c_bus->dev, "ssif tx len: [%x]\n", i2c_bus->slave_dma_buf[0]);
-				for( i = 1; i < i2c_bus->slave_dma_buf[0] + 1; i++) {
-					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_PROCESSED, &i2c_bus->slave_dma_buf[i]);
-				}
-				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(i2c_bus->slave_dma_buf[0] - 1), AST_I2CS_DMA_LEN);
+					dev_dbg(i2c_bus->dev, "ssif tx len: [%x]\n", i2c_bus->slave_dma_buf[0]);
+					for( i = 1; i < i2c_bus->slave_dma_buf[0] + 1; i++) {
+						i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_PROCESSED, &i2c_bus->slave_dma_buf[i]);
+					}
+					aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(i2c_bus->slave_dma_buf[0] - 1), AST_I2CS_DMA_LEN);
 #endif
-				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_TX_DMA_EN, AST_I2CS_CMD_STS);			
+				} else if (i2c_bus->mode == BUFF_MODE) {
+					cmd |= AST_I2CS_TX_BUFF_EN;
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &buf[0]);
+#ifdef CONFIG_I2C_SLAVE_EEPROM
+					dev_dbg(i2c_bus->dev, "tx: [%x]\n", buf[0]);
+					aspeed_i2c_write(i2c_bus, AST_I2CC_SET_TX_BUF_LEN(0), AST_I2CC_BUFF_CTRL);
+#else
+					dev_dbg(i2c_bus->dev, "ssif tx len: [%x]\n", buf[0]);
+					for (i = 1; i < buf[0] + 1; i++) {
+						i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_PROCESSED, &buf[i]);
+					}
+					aspeed_i2c_write(i2c_bus, AST_I2CC_SET_TX_BUF_LEN(buf[0] - 1), AST_I2CC_BUFF_CTRL);
+#endif
+				} else {
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &byte_data);
+					aspeed_i2c_write(i2c_bus, byte_data, AST_I2CC_STS_AND_BUFF);
+				}
+				aspeed_i2c_write(i2c_bus, cmd, AST_I2CS_CMD_STS);			
 				break;	
 			case AST_I2CS_Wait_TX_DMA:
 				//it should be next start read 
 				dev_dbg(i2c_bus->dev, "S: AST_I2CS_Wait_TX_DMA \n");
-				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_PROCESSED, &i2c_bus->slave_dma_buf[0]);
-				dev_dbg(i2c_bus->dev, "tx : [%x]", i2c_bus->slave_dma_buf[0]);
-				aspeed_i2c_write(i2c_bus, 0, AST_I2CS_DMA_LEN_STS);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(0), AST_I2CS_DMA_LEN);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_TX_DMA_EN, AST_I2CS_CMD_STS); 		
+				cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+				if (i2c_bus->mode == DMA_MODE) {
+					cmd |= AST_I2CS_TX_DMA_EN;
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_PROCESSED, &i2c_bus->slave_dma_buf[0]);
+					dev_dbg(i2c_bus->dev, "tx : [%x]", i2c_bus->slave_dma_buf[0]);
+					aspeed_i2c_write(i2c_bus, 0, AST_I2CS_DMA_LEN_STS);
+					aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(0), AST_I2CS_DMA_LEN);
+				} else if (i2c_bus->mode == BUFF_MODE) {	
+					cmd |= AST_I2CS_TX_BUFF_EN;
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &buf[0]);
+					dev_dbg(i2c_bus->dev, "tx: [%x]\n", buf[0]);
+					aspeed_i2c_write(i2c_bus, AST_I2CC_SET_TX_BUF_LEN(0), AST_I2CC_BUFF_CTRL);
+				} else {
+					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &byte_data);
+					aspeed_i2c_write(i2c_bus, byte_data, AST_I2CC_STS_AND_BUFF);					
+				}
+				aspeed_i2c_write(i2c_bus, cmd, AST_I2CS_CMD_STS);
 				break;
 			case AST_I2CS_TX_NAK | AST_I2CS_STOP:
 				//it just tx complete
 				i2c_bus->slave_event = I2C_SLAVE_READ_STOP;
 				dev_dbg(i2c_bus->dev, "S: AST_I2CS_TX_NAK | AST_I2CS_STOP \n");
+				cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
 				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);
-				aspeed_i2c_write(i2c_bus, 0, AST_I2CS_DMA_LEN_STS);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), AST_I2CS_DMA_LEN);
-				aspeed_i2c_write(i2c_bus, AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_RX_DMA_EN, AST_I2CS_CMD_STS);
+				if (i2c_bus->mode == DMA_MODE) {
+					cmd |= AST_I2CS_RX_DMA_EN;
+					aspeed_i2c_write(i2c_bus, 0, AST_I2CS_DMA_LEN_STS);
+					aspeed_i2c_write(i2c_bus, AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE), AST_I2CS_DMA_LEN);
+				} else if (i2c_bus->mode == BUFF_MODE) {
+					cmd |= AST_I2CS_RX_BUFF_EN;
+					aspeed_i2c_write(i2c_bus, AST_I2CC_SET_TX_BUF_LEN(i2c_bus->buf_size - 1), AST_I2CC_BUFF_CTRL);
+				} else {
+				}
+				aspeed_i2c_write(i2c_bus, cmd, AST_I2CS_CMD_STS);
 				break;
 #if 0
 			case AST_I2CS_SLAVE_MATCH | AST_I2CS_Wait_RX_DMA:
