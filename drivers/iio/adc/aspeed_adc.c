@@ -277,7 +277,7 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 	}
 	if ((trim == 0x0))
 		trim = 0x8;
-	printk(KERN_INFO "aspeed_adc: trim %d \n", trim);
+	dev_dbg(data->dev, "aspeed_adc: trim %d \n", trim);
 	compensating_trim = readl(data->base + ASPEED_REG_COMPENSATION_TRIM);
 	compensating_trim = (compensating_trim & (~(GENMASK(3, 0)))) | trim;
 	writel(compensating_trim, data->base + ASPEED_REG_COMPENSATION_TRIM);
@@ -291,7 +291,7 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 
 	data->cv = 0x200 - (readl(data->base + 0x10) & GENMASK(9, 0));
 
-	printk(KERN_INFO "aspeed_adc: cv %d \n", data->cv);
+	dev_dbg(data->dev, "aspeed_adc: cv %d \n", data->cv);
 
 	/* Disable Compensating Sensing mode */
 	writel(eng_ctrl & (~ASPEED_CTRL_COMPENSATION),
@@ -302,7 +302,7 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 	 */
 	clk_set_rate(data->clk_scaler->clk,
 		     ASPEED_ADC_SAMPLE_FREQ * ASPEED_CLOCKS_PER_SAMPLE);
-	printk(KERN_INFO "aspeed_adc: freq %ld \n",
+	dev_dbg(data->dev, "aspeed_adc: freq %ld \n",
 	       clk_get_rate(data->clk_scaler->clk) / ASPEED_CLOCKS_PER_SAMPLE);
 	/* Battery Sensing setting */
 	if (of_find_property(data->dev->of_node, "battery-sensing", NULL)) {
@@ -313,7 +313,7 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 		} else {
 			data->battery_sensing_div = 1;
 		}
-		printk(KERN_INFO "aspeed_adc: battery-sensing enable \n");
+		dev_dbg(data->dev, "aspeed_adc: battery-sensing enable \n");
 	}
 }
 
@@ -584,7 +584,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	eng_ctrl = readl(data->base + ASPEED_REG_ENGINE_CONTROL);
 	writel(eng_ctrl | ASPEED_ADC_CTRL_CH_EN_ALL,
 	       data->base + ASPEED_REG_ENGINE_CONTROL);
-	printk(KERN_INFO "aspeed_adc: write to engine control 0x%08lx \n",
+	dev_dbg(data->dev, "aspeed_adc: write to engine control 0x%08lx \n",
 	       eng_ctrl | ASPEED_ADC_CTRL_CH_EN_ALL);
 	model_data = of_device_get_match_data(&pdev->dev);
 	indio_dev->name = model_data->model_name;
