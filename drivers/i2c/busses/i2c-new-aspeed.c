@@ -794,6 +794,8 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 					aspeed_i2c_write(i2c_bus, AST_I2CC_SET_TX_BUF_LEN(buf[0] - 1), AST_I2CC_BUFF_CTRL);
 #endif
 				} else {
+					cmd &= ~AST_I2CS_PKT_MODE_EN;
+					cmd |= AST_I2CS_TX_CMD;
 					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &byte_data);
 					aspeed_i2c_write(i2c_bus, byte_data, AST_I2CC_STS_AND_BUFF);
 				}
@@ -815,6 +817,8 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 					dev_dbg(i2c_bus->dev, "tx: [%x]\n", buf[0]);
 					aspeed_i2c_write(i2c_bus, AST_I2CC_SET_TX_BUF_LEN(0), AST_I2CC_BUFF_CTRL);
 				} else {
+					cmd &= ~AST_I2CS_PKT_MODE_EN;
+					cmd |= AST_I2CS_TX_CMD;
 					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &byte_data);
 					aspeed_i2c_write(i2c_bus, byte_data, AST_I2CC_STS_AND_BUFF);					
 				}
@@ -1401,6 +1405,7 @@ static int aspeed_new_i2c_reg_slave(struct i2c_client *client)
 		cmd |= AST_I2CS_RX_BUFF_EN;
 		aspeed_i2c_write(i2c_bus, AST_I2CC_SET_RX_BUF_LEN(i2c_bus->buf_size - 1), AST_I2CC_BUFF_CTRL);
 	} else {
+		cmd &= AST_I2CS_PKT_MODE_EN;
 	}
 	
 	aspeed_i2c_write(i2c_bus, AST_I2CS_AUTO_NAK_EN, AST_I2CS_CMD_STS);
