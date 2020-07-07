@@ -191,6 +191,10 @@ struct aspeed_jtag_info {
 	struct miscdevice		*misc_dev;
 };
 
+/******************************************************************************/
+static DEFINE_SPINLOCK(jtag_state_lock);
+
+/******************************************************************************/
 static inline u32
 aspeed_jtag_read(struct aspeed_jtag_info *aspeed_jtag, u32 reg)
 {
@@ -808,7 +812,8 @@ static void JTAG_reset(struct aspeed_jtag_info *aspeed_jtag)
 static long jtag_ioctl(struct file *file, unsigned int cmd,
 		       unsigned long arg)
 {
-	struct aspeed_jtag_info *aspeed_jtag = container_of((file->private_data), struct aspeed_jtag_info, misc_dev);
+	struct miscdevice *c = file->private_data;
+	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(c->this_device);
 	void __user *argp = (void __user *)arg;
 	struct io_xfer io;
 	struct trst_reset trst_pin;
@@ -822,7 +827,7 @@ static long jtag_ioctl(struct file *file, unsigned int cmd,
 		ret = __put_user(aspeed_jtag_get_freq(aspeed_jtag), (unsigned int __user *)arg);
 		break;
 	case ASPEED_JTAG_SIOCFREQ:
-//		printk("set ASPEED_JTAG_SIOCFREQ \n");
+//			printk("set freq = %d , pck %d \n",config.freq, aspeed_get_pclk());
 		if ((unsigned int)arg > aspeed_jtag->clkin)
 			ret = -EFAULT;
 		else
@@ -918,22 +923,34 @@ static long jtag_ioctl(struct file *file, unsigned int cmd,
 
 static int jtag_open(struct inode *inode, struct file *file)
 {
-	struct aspeed_jtag_info *aspeed_jtag = container_of((file->private_data), struct aspeed_jtag_info, misc_dev);
+	struct miscdevice *c = file->private_data;
+	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(c->this_device);
+
+	spin_lock(&jtag_state_lock);
 
 	if (aspeed_jtag->is_open) {
+		spin_unlock(&jtag_state_lock);
 		return -EBUSY;
 	}
 
 	aspeed_jtag->is_open = true;
+
+	spin_unlock(&jtag_state_lock);
 
 	return 0;
 }
 
 static int jtag_release(struct inode *inode, struct file *file)
 {
-	struct aspeed_jtag_info *aspeed_jtag = container_of((file->private_data), struct aspeed_jtag_info, misc_dev);
+	struct miscdevice *c = file->private_data;
+	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(c->this_device);
+
+
+	spin_lock(&jtag_state_lock);
 
 	aspeed_jtag->is_open = false;
+
+	spin_unlock(&jtag_state_lock);
 
 	return 0;
 }
@@ -1044,7 +1061,7 @@ static const struct file_operations aspeed_jtag_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= jtag_ioctl,
 	.open		= jtag_open,
-	.release		= jtag_release,	
+	.release		= jtag_release,
 };
 
 static struct aspeed_jtag_config jtag_config = {
@@ -1107,7 +1124,7 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	aspeed_jtag->reset = devm_reset_control_get(&pdev->dev, NULL);
+	aspeed_jtag->reset = devm_reset_control_get_exclusive(&pdev->dev, "jtag");
 	if (IS_ERR(aspeed_jtag->reset)) {
 		dev_err(&pdev->dev, "can't get jtag reset\n");
 		return PTR_ERR(aspeed_jtag->reset);
@@ -1145,7 +1162,7 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 			  ASPEED_JTAG_SW);
 
 	ret = devm_request_irq(&pdev->dev, aspeed_jtag->irq, aspeed_jtag_isr,
-			       IRQF_SHARED, dev_name(&pdev->dev), aspeed_jtag);
+			       0, dev_name(&pdev->dev), aspeed_jtag);
 	if (ret) {
 		printk("JTAG Unable to get IRQ");
 		goto out_region;
@@ -1190,6 +1207,8 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, aspeed_jtag);
+	dev_set_drvdata(misc_dev->this_device, aspeed_jtag);
+
 	aspeed_jtag->misc_dev = misc_dev;
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &jtag_attribute_group);
