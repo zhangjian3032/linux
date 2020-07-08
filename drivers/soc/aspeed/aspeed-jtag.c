@@ -188,7 +188,7 @@ struct aspeed_jtag_info {
 	u32				flag;
 	wait_queue_head_t		jtag_wq;
 	bool				is_open;
-	struct miscdevice		*misc_dev;
+	struct miscdevice		misc_dev;
 };
 
 /******************************************************************************/
@@ -813,7 +813,7 @@ static long jtag_ioctl(struct file *file, unsigned int cmd,
 		       unsigned long arg)
 {
 	struct miscdevice *c = file->private_data;
-	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(c->this_device);
+	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
 	void __user *argp = (void __user *)arg;
 	struct io_xfer io;
 	struct trst_reset trst_pin;
@@ -924,7 +924,7 @@ static long jtag_ioctl(struct file *file, unsigned int cmd,
 static int jtag_open(struct inode *inode, struct file *file)
 {
 	struct miscdevice *c = file->private_data;
-	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(c->this_device);
+	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
 
 	spin_lock(&jtag_state_lock);
 
@@ -943,7 +943,7 @@ static int jtag_open(struct inode *inode, struct file *file)
 static int jtag_release(struct inode *inode, struct file *file)
 {
 	struct miscdevice *c = file->private_data;
-	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(c->this_device);
+	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
 
 
 	spin_lock(&jtag_state_lock);
@@ -958,7 +958,8 @@ static int jtag_release(struct inode *inode, struct file *file)
 static ssize_t show_tdo(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(dev);
+	struct miscdevice *c = dev_get_drvdata(dev);
+	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
 
 	return sprintf(buf, "%s\n", aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW) & JTAG_SW_MODE_TDIO ? "1" : "0");
 }
@@ -969,7 +970,8 @@ static ssize_t store_tdi(struct device *dev,
 			 struct device_attribute *attr, const char *buf, size_t count)
 {
 	u32 tdi;
-	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(dev);
+	struct miscdevice *c = dev_get_drvdata(dev);
+	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
 
 	tdi = simple_strtoul(buf, NULL, 1);
 
@@ -984,7 +986,8 @@ static ssize_t store_tms(struct device *dev,
 			 struct device_attribute *attr, const char *buf, size_t count)
 {
 	u32 tms;
-	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(dev);
+	struct miscdevice *c = dev_get_drvdata(dev);
+	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
 
 	tms = simple_strtoul(buf, NULL, 1);
 
@@ -999,7 +1002,8 @@ static ssize_t store_tck(struct device *dev,
 			 struct device_attribute *attr, const char *buf, size_t count)
 {
 	u32 tck;
-	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(dev);
+	struct miscdevice *c = dev_get_drvdata(dev);
+	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
 
 	tck = simple_strtoul(buf, NULL, 1);
 
@@ -1013,7 +1017,8 @@ static DEVICE_ATTR(tck, S_IWUSR, NULL, store_tck);
 static ssize_t show_sts(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(dev);
+	struct miscdevice *c = dev_get_drvdata(dev);
+	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
 
 	return sprintf(buf, "%s\n", aspeed_jtag->sts ? "Pause" : "Idle");
 }
@@ -1023,7 +1028,8 @@ static DEVICE_ATTR(sts, S_IRUGO, show_sts, NULL);
 static ssize_t show_frequency(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(dev);
+	struct miscdevice *c = dev_get_drvdata(dev);
+	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
 //	printk("PCLK = %d \n", aspeed_get_pclk());
 //	printk("DIV  = %d \n", JTAG_GET_TCK_DIVISOR(aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_TCK)) + 1);
 	return sprintf(buf, "Frequency : %d\n", aspeed_jtag->clkin / (JTAG_GET_TCK_DIVISOR(aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_TCK)) + 1));
@@ -1033,7 +1039,8 @@ static ssize_t store_frequency(struct device *dev,
 			       struct device_attribute *attr, const char *buf, size_t count)
 {
 	u32 val;
-	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(dev);
+	struct miscdevice *c = dev_get_drvdata(dev);
+	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
 
 	val = simple_strtoul(buf, NULL, 20);
 	aspeed_jtag_set_freq(aspeed_jtag, val);
@@ -1089,7 +1096,6 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 	struct aspeed_jtag_info *aspeed_jtag;
 	const struct of_device_id *jtag_dev_id;
 	struct resource *res;
-	struct miscdevice *misc_dev;
 	int max_reserved_idx;
 	int idx;
 	int ret = 0;
@@ -1179,12 +1185,6 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 	aspeed_jtag->flag = 0;
 	init_waitqueue_head(&aspeed_jtag->jtag_wq);
 
-	misc_dev = (struct miscdevice *)devm_kzalloc(&pdev->dev, sizeof(struct miscdevice), GFP_KERNEL);
-	if (!misc_dev) {
-		pr_err("failed to allocate misc device\n");
-		goto out_irq;
-	}
-
 	if (reserved_idx == -1) {
 		max_reserved_idx = of_alias_get_highest_id("jtag");
 		if (max_reserved_idx >= 0)
@@ -1196,20 +1196,17 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 		idx = ++reserved_idx;
 	}
 
-	misc_dev->minor = MISC_DYNAMIC_MINOR;
-	misc_dev->name = kasprintf(GFP_KERNEL, "aspeed-jtag%d", idx);
-	misc_dev->fops = &aspeed_jtag_fops;
+	aspeed_jtag->misc_dev.minor = MISC_DYNAMIC_MINOR;
+	aspeed_jtag->misc_dev.name = kasprintf(GFP_KERNEL, "aspeed-jtag%d", idx);
+	aspeed_jtag->misc_dev.fops = &aspeed_jtag_fops;
 
-	ret = misc_register(misc_dev);
+	ret = misc_register(&aspeed_jtag->misc_dev);
 	if (ret) {
 		printk(KERN_ERR "JTAG : failed to register misc device\n");
 		goto out_irq;
 	}
 
 	platform_set_drvdata(pdev, aspeed_jtag);
-	dev_set_drvdata(misc_dev->this_device, aspeed_jtag);
-
-	aspeed_jtag->misc_dev = misc_dev;
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &jtag_attribute_group);
 	if (ret) {
@@ -1242,11 +1239,9 @@ static int aspeed_jtag_remove(struct platform_device *pdev)
 
 	sysfs_remove_group(&pdev->dev.kobj, &jtag_attribute_group);
 
-	misc_deregister(aspeed_jtag->misc_dev);
+	misc_deregister(&aspeed_jtag->misc_dev);
 
-	kfree_const(aspeed_jtag->misc_dev->name);
-
-	kfree(aspeed_jtag->misc_dev);
+	kfree_const(aspeed_jtag->misc_dev.name);
 
 	devm_free_irq(&pdev->dev, aspeed_jtag->irq, aspeed_jtag);
 
