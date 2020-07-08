@@ -237,7 +237,7 @@ struct aspeed_mctp_xfer {
 struct aspeed_mctp_info {
 	void __iomem *reg_base;
 	void __iomem *pci_bdf_regs;
-	struct miscdevice *misc_dev;
+	struct miscdevice misc_dev;
 	bool is_open;
 	int irq;
 	int pcie_irq;
@@ -645,7 +645,7 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 		       unsigned long arg)
 {
 	struct miscdevice *c = file->private_data;
-	struct aspeed_mctp_info *aspeed_mctp = dev_get_drvdata(c->this_device);
+	struct aspeed_mctp_info *aspeed_mctp = container_of(c, struct aspeed_mctp_info, misc_dev);
 	struct aspeed_mctp_xfer mctp_xfer;
 	void __user *argp = (void __user *)arg;
 	int recv_length;
@@ -796,7 +796,7 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 static int mctp_open(struct inode *inode, struct file *file)
 {
 	struct miscdevice *c = file->private_data;
-	struct aspeed_mctp_info *aspeed_mctp = dev_get_drvdata(c->this_device);
+	struct aspeed_mctp_info *aspeed_mctp = container_of(c, struct aspeed_mctp_info, misc_dev);
 
 	MCTP_DBUG("\n");
 	if (aspeed_mctp->is_open) {
@@ -810,7 +810,7 @@ static int mctp_open(struct inode *inode, struct file *file)
 static int mctp_release(struct inode *inode, struct file *file)
 {
 	struct miscdevice *c = file->private_data;
-	struct aspeed_mctp_info *aspeed_mctp = dev_get_drvdata(c->this_device);
+	struct aspeed_mctp_info *aspeed_mctp = container_of(c, struct aspeed_mctp_info, misc_dev);
 
 	MCTP_DBUG("\n");
 	aspeed_mctp->is_open = false;
@@ -839,7 +839,7 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct aspeed_mctp_info *aspeed_mctp;
 	struct device_node *np = pdev->dev.of_node;
-	struct miscdevice *misc_dev;
+	// struct miscdevice *misc_dev;
 	const struct of_device_id *mctp_dev_id;
 	int max_reserved_idx;
 	int idx;
@@ -1019,11 +1019,11 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		reset_control_deassert(aspeed_mctp->reset);
 	}
 
-	misc_dev = (struct miscdevice *)devm_kzalloc(&pdev->dev, sizeof(struct miscdevice), GFP_KERNEL);
-	if (!misc_dev) {
-		pr_err("failed to allocate misc device\n");
-		goto out_region;
-	}
+	// aspeed_mctp->misc_dev = (struct miscdevice *)devm_kzalloc(&pdev->dev, sizeof(struct miscdevice), GFP_KERNEL);
+	// if (!misc_dev) {
+	// 	pr_err("failed to allocate misc device\n");
+	// 	goto out_region;
+	// }
 
 	if (reserved_idx == -1) {
 		max_reserved_idx = of_alias_get_highest_id("mctp");
@@ -1036,11 +1036,11 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		idx = ++reserved_idx;
 	}
 
-	misc_dev->minor = MISC_DYNAMIC_MINOR;
-	misc_dev->name = kasprintf(GFP_KERNEL, "aspeed-mctp%d", idx);
-	misc_dev->fops = &aspeed_mctp_fops;
+	aspeed_mctp->misc_dev.minor = MISC_DYNAMIC_MINOR;
+	aspeed_mctp->misc_dev.name = kasprintf(GFP_KERNEL, "aspeed-mctp%d", idx);
+	aspeed_mctp->misc_dev.fops = &aspeed_mctp_fops;
 
-	ret = misc_register(misc_dev);
+	ret = misc_register(&aspeed_mctp->misc_dev);
 
 	if (ret) {
 		printk(KERN_ERR "MCTP : failed to request interrupt\n");
@@ -1048,9 +1048,9 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, aspeed_mctp);
-	dev_set_drvdata(misc_dev->this_device, aspeed_mctp);
+	// dev_set_drvdata(misc_dev->this_device, aspeed_mctp);
 
-	aspeed_mctp->misc_dev = misc_dev;
+	// aspeed_mctp->misc_dev = misc_dev;
 
 	aspeed_mctp->tx_idx = 0;
 
@@ -1104,9 +1104,9 @@ static int aspeed_mctp_remove(struct platform_device *pdev)
 
 	MCTP_DBUG("\n");
 
-	misc_deregister(aspeed_mctp->misc_dev);
+	misc_deregister(&aspeed_mctp->misc_dev);
 
-	kfree_const(aspeed_mctp->misc_dev->name);
+	kfree_const(aspeed_mctp->misc_dev.name);
 
 	free_irq(aspeed_mctp->irq, aspeed_mctp);
 
