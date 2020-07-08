@@ -552,6 +552,10 @@ static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 		aspeed_mctp->rx_recv_idx = 0;
 		aspeed_mctp->rx_first_loop = 1;
 		aspeed_mctp->rx_reboot = 1;
+		/* reserved 4 cmd for reboot issue workaround, it will be minused
+		 * after first circle.
+		*/
+		aspeed_mctp->rx_cmd_num = aspeed_mctp->rx_fifo_num + 4;
 		for (i = 0; i < aspeed_mctp->rx_cmd_num; i++) {
 			rx_cmd_header = (u32 *)aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * i);
 			*rx_cmd_header = 0;
@@ -936,11 +940,6 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		// for ast2600 workaround, rx_fifo_num should be 4n+1
 		fifo_num = ((MCTP_G6_RX_BUFF_POOL_SIZE / aspeed_mctp->rx_fifo_size) / 4) - 1;
 		aspeed_mctp->rx_fifo_num = fifo_num - ((fifo_num - 1) % 4);
-
-		/* reserved 4 cmd for reboot issue workaround, it will be minused
-		 * after first circle.
-		*/
-		aspeed_mctp->rx_cmd_num = aspeed_mctp->rx_fifo_num * 4 + 4;
 
 		aspeed_mctp->dram_base = G6_DRAM_BASE_ADDR;
 		break;
