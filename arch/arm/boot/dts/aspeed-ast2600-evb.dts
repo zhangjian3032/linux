@@ -237,3 +237,27 @@
 	kcs_addr = <0xca4>;
 	status = "okay";
 };
+
+&espi {
+	status = "okay";
+	resets = <&syscon ASPEED_RESET_ESPI>;
+	delay-timing = <0x7>;
+};
+
+&peripheral {
+	status = "okay";
+	host-map-addr = <0x98000000>;
+	map-size = <0x10000>;
+};
+
+&virtial_wire {
+	status = "okay";
+};
+
+&oob {
+	status = "okay";
+};
+
+&flash {
+	status = "okay";
+};
