@@ -2481,12 +2481,12 @@ static void ast_video_multi_jpeg_automode_trigger(struct ast_video_data *ast_vid
 			multi_jpeg->frame[0].dwSizeInBytes = 0;
 			return;
 		}
-		multi_jpeg->frame[0].wXPixels = (bonding_x & 0xffff) * (yuv_shift << 1);
-		VIDEO_DBG("x : %d, %d, %d \n", multi_jpeg->frame[0].wXPixels, (bonding_x & 0xffff), (yuv_shift << 1));
-		multi_jpeg->frame[0].wYPixels = (bonding_y & 0xffff) * (yuv_shift << 1);
-		VIDEO_DBG("y : %d, %d, %d \n", multi_jpeg->frame[0].wYPixels, (bonding_y & 0xffff), (yuv_shift << 1));
-		multi_jpeg->frame[0].wWidthPixels = ((bonding_x >> 16) + 1 - (bonding_x & 0xffff)) * (yuv_shift << 1);
-		multi_jpeg->frame[0].wHeightPixels = ((bonding_y >> 16) + 1 - (bonding_y & 0xffff)) * (yuv_shift << 1);
+		multi_jpeg->frame[0].wXPixels = (bonding_x & 0xffff) * (1 << yuv_shift);
+		VIDEO_DBG("x : %d, %d, yuv block size %d \n", multi_jpeg->frame[0].wXPixels, (bonding_x & 0xffff), (1 << yuv_shift));
+		multi_jpeg->frame[0].wYPixels = (bonding_y & 0xffff) * (1 << yuv_shift);
+		VIDEO_DBG("y : %d, %d, yuv block size %d \n", multi_jpeg->frame[0].wYPixels, (bonding_y & 0xffff), (1 << yuv_shift));
+		multi_jpeg->frame[0].wWidthPixels = ((bonding_x >> 16) + 1 - (bonding_x & 0xffff)) * (1 << yuv_shift);
+		multi_jpeg->frame[0].wHeightPixels = ((bonding_y >> 16) + 1 - (bonding_y & 0xffff)) * (1 << yuv_shift);
 		VIDEO_DBG("w %d , h : %d \n", multi_jpeg->frame[0].wWidthPixels, multi_jpeg->frame[0].wHeightPixels);
 	} else {
 		//first frame 
