@@ -435,7 +435,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0c>;
-		aspeed,min_rpm = <2000>;
+		aspeed,min_rpm = <750000000>;
 	};
 
 	fan@13 {
@@ -443,7 +443,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0d>;
-		aspeed,min_rpm = <750000>;
+		aspeed,min_rpm = <750000000>;
 	};
 
 	fan@14 {
@@ -451,7 +451,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0e>;
-		aspeed,min_rpm = <750000>;
+		aspeed,min_rpm = <750000000>;
 	};
 
 	fan@15 {
@@ -459,7 +459,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0f>;
-		aspeed,min_rpm = <750000>;
+		aspeed,min_rpm = <750000000>;
 	};
 };
 
