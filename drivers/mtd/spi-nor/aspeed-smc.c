@@ -693,14 +693,18 @@ static u32 aspeed_smc_chip_base_ast2600(struct aspeed_smc_chip *chip,
 	struct aspeed_smc_controller *controller = chip->controller;
 	const struct aspeed_smc_info *info = controller->info;
 	u32 reg, pre_reg;
+	u32 next_end;
 
 	reg = readl(SEGMENT_ADDR_REG(controller, chip->cs));
 	if (info->nce > 1) {
 		if ((!reg) && (chip->cs > 0)) {
 			//for ast2600 setting, use 64MB 0x4000000 for default
 			pre_reg = readl(SEGMENT_ADDR_REG(controller, chip->cs - 1));
+			next_end = pre_reg + 0x100000 + 0x4000000;
+			if (0x0FF00000 < next_end || 0x0FF00000 <= pre_reg)
+				return 0;
 			//for current cs start
-			reg = ((pre_reg + 0x100000 + 0x4000000) & 0xffff0000) | ((pre_reg + 0x100000) >> 16);
+			reg = ((next_end) & 0xffff0000) | ((pre_reg + 0x100000) >> 16);
 			writel(reg, SEGMENT_ADDR_REG(controller, chip->cs));
 		}
 		
