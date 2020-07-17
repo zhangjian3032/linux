@@ -999,6 +999,26 @@ static int i3c_master_setnewda_locked(struct i3c_master_controller *master,
 	return i3c_master_setda_locked(master, oldaddr, newaddr, false);
 }
 
+static int i3c_master_sethid_locked(struct i3c_master_controller *master)
+{
+	struct i3c_ccc_cmd_dest dest;
+	struct i3c_ccc_cmd cmd;
+	struct i3c_ccc_sethid *sethid;
+	int ret;
+
+	sethid = i3c_ccc_cmd_dest_init(&dest, I3C_BROADCAST_ADDR, 1);
+	if (!sethid)
+		return -ENOMEM;
+
+	sethid->hid = 0;
+	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_SETHID, &dest, 1);
+
+	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
+	i3c_ccc_cmd_dest_cleanup(&dest);
+
+	return ret;
+}
+
 static int i3c_master_getmrl_locked(struct i3c_master_controller *master,
 				    struct i3c_device_info *info)
 {
