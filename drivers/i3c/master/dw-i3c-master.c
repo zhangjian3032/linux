@@ -803,8 +803,8 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 		      COMMAND_PORT_TOC |
 		      COMMAND_PORT_ROC;
 
-	dev_dbg(master->dev, "%s:cmd_hi=0x%08x cmd_lo=0x%08x tx_len=%d\n",
-		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->tx_len);
+	dev_dbg(master->dev, "%s:cmd_hi=0x%08x cmd_lo=0x%08x tx_len=%d id=%x\n",
+		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->tx_len, ccc->id);
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
@@ -847,8 +847,8 @@ static int dw_i3c_ccc_get(struct dw_i3c_master *master, struct i3c_ccc_cmd *ccc)
 		      COMMAND_PORT_TOC |
 		      COMMAND_PORT_ROC;
 
-	dev_dbg(master->dev, "%s:cmd_hi=0x%08x cmd_lo=0x%08x rx_len=%d\n",
-		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->rx_len);
+	dev_dbg(master->dev, "%s:cmd_hi=0x%08x cmd_lo=0x%08x rx_len=%d id=%x\n",
+		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->rx_len, ccc->id);
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
