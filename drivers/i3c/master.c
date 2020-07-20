@@ -1484,16 +1484,19 @@ static int i3c_master_pre_assign_dyn_addr(struct i3c_dev_desc *dev)
 	    !dev->boardinfo->static_addr)
 		return -1;
 
+	if (master->jdec_spd) {
+		dev->info.dyn_addr = dev->boardinfo->init_dyn_addr;
+		ret = i3c_master_reattach_i3c_dev(dev, dev->info.static_addr);
+	} else {
 	ret = i3c_master_setdasa_locked(master, dev->info.static_addr,
 					dev->boardinfo->init_dyn_addr);
 	if (ret)
 		return ret;
 
 	dev->info.dyn_addr = dev->boardinfo->init_dyn_addr;
-	if (master->jdec_spd)
-		ret = i3c_master_reattach_i3c_dev(dev, dev->info.static_addr);
-	else
 		ret = i3c_master_reattach_i3c_dev(dev, 0);
+	}
+
 	if (ret)
 		goto err_rstdaa;
 
