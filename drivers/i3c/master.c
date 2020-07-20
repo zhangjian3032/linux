@@ -1282,6 +1282,9 @@ static int i3c_master_retrieve_dev_info(struct i3c_dev_desc *dev)
 	if (ret)
 		return ret;
 
+	if ((master->jdec_spd) && (0 == dev->info.pid))
+		dev->info.pid = dev->boardinfo->pid;
+
 	ret = i3c_master_getbcr_locked(master, &dev->info);
 	if (ret)
 		return ret;
