@@ -867,14 +867,26 @@ static int dw_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	int ret = 0;
+	u32 i3c_pp_timing, i3c_od_timing;
 
 	if (ccc->id == I3C_CCC_ENTDAA)
 		return -EINVAL;
+
+	i3c_od_timing = readl(master->regs + SCL_I3C_OD_TIMING);
+	i3c_pp_timing = readl(master->regs + SCL_I3C_PP_TIMING);
+	if ((ccc->id == I3C_CCC_SETAASA) || (ccc->id == I3C_CCC_SETHID) ||
+	    (ccc->id == I3C_CCC_DEVCTRL)) {
+		writel(i3c_od_timing, master->regs + SCL_I3C_PP_TIMING);
+	}
 
 	if (ccc->rnw)
 		ret = dw_i3c_ccc_get(master, ccc);
 	else
 		ret = dw_i3c_ccc_set(master, ccc);
+
+	if ((ccc->id == I3C_CCC_SETAASA) || (ccc->id == I3C_CCC_SETHID)) {
+		writel(i3c_pp_timing, master->regs + SCL_I3C_PP_TIMING);
+	}
 
 	return ret;
 }
