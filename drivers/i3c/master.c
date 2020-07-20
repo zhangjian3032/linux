@@ -1567,6 +1567,7 @@ int i3c_master_do_daa(struct i3c_master_controller *master)
 	int ret;
 
 	if (master->jdec_spd) {
+		ret = i3c_master_sethid_locked(master);
 		ret = i3c_master_setaasa_locked(master);
 	} else {
 		i3c_bus_maintenance_lock(&master->bus);
