@@ -211,6 +211,9 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	acry_dev->buf_addr = dma_alloc_coherent(dev, ASPEED_ACRY_BUFF_SIZE,
+					       &acry_dev->buf_dma_addr, GFP_KERNEL);
+	memzero_explicit(acry_dev->buf_addr, ASPEED_ACRY_BUFF_SIZE);
 
 	printk("ASPEED RSA Accelerator successfully registered \n");
 

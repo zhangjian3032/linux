@@ -57,51 +57,10 @@ struct aspeed_acry_dev;
 
 typedef int (*aspeed_acry_fn_t)(struct aspeed_acry_dev *);
 
-/******************************************************************************/
-/**
- * aspeed_rsa_key - ASPEED RSA key structure. Keys are allocated in DMA zone.
- * @n           : RSA modulus raw byte stream
- * @e           : RSA public exponent raw byte stream
- * @d           : RSA private exponent raw byte stream
- * @n_sz        : length in bytes of RSA modulus n
- * @e_sz        : length in bytes of RSA public exponent
- * @d_sz        : length in bytes of RSA private exponent
- */
-struct aspeed_acry_rsa_key {
-	u8 *n;
-	u8 *e;
-	u8 *d;
-	size_t n_sz;
-	size_t e_sz;
-	size_t d_sz;
-	int nm;
-	int ne;
-	int nd;
-};
-
-// struct aspeed_rsa_mpi_key {
-// 	MPI n;
-// 	MPI e;
-// 	MPI d;
-// }
-
 struct aspeed_acry_rsa_ctx {
 	struct aspeed_acry_dev		*acry_dev;
-	// struct rsa_key			key;
-	// struct aspeed_rsa_mpi_key	key;
+	struct rsa_key			key;
 	int 				enc;
-
-	size_t n_sz;
-	size_t e_sz;
-	size_t d_sz;
-	int nm;
-	int ne;
-	int nd;
-
-	void				*rsa_pub_addr;
-	dma_addr_t			rsa_pub_dma_addr;
-	void				*rsa_priv_addr;
-	dma_addr_t			rsa_priv_dma_addr;
 };
 
 /*************************************************************************************/
@@ -133,6 +92,8 @@ struct aspeed_acry_dev {
 	struct akcipher_request		*akcipher_req;
 	void __iomem			*acry_sram;
 
+	void				*buf_addr;
+	dma_addr_t			buf_dma_addr;
 
 };
 
