@@ -306,6 +306,7 @@ static bool dw_i3c_master_supports_ccc_cmd(struct i3c_master_controller *m,
 	case I3C_CCC_GETMXDS:
 	case I3C_CCC_GETHDRCAP:
 	case I3C_CCC_SETAASA:
+	case I3C_CCC_SETHID:
 		return true;
 	default:
 		return false;
@@ -802,8 +803,8 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 		      COMMAND_PORT_TOC |
 		      COMMAND_PORT_ROC;
 
-	dev_dbg(master->dev, "%s:cmd_hi=0x%08x cmd_lo=0x%08x tx_len=%d\n",
-		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->tx_len);
+	dev_dbg(master->dev, "%s:cmd_hi=0x%08x cmd_lo=0x%08x tx_len=%d id=%x\n",
+		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->tx_len, ccc->id);
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
@@ -846,8 +847,8 @@ static int dw_i3c_ccc_get(struct dw_i3c_master *master, struct i3c_ccc_cmd *ccc)
 		      COMMAND_PORT_TOC |
 		      COMMAND_PORT_ROC;
 
-	dev_dbg(master->dev, "%s:cmd_hi=0x%08x cmd_lo=0x%08x rx_len=%d\n",
-		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->rx_len);
+	dev_dbg(master->dev, "%s:cmd_hi=0x%08x cmd_lo=0x%08x rx_len=%d id=%x\n",
+		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->rx_len, ccc->id);
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
@@ -866,14 +867,26 @@ static int dw_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	int ret = 0;
+	u32 i3c_pp_timing, i3c_od_timing;
 
 	if (ccc->id == I3C_CCC_ENTDAA)
 		return -EINVAL;
+
+	i3c_od_timing = readl(master->regs + SCL_I3C_OD_TIMING);
+	i3c_pp_timing = readl(master->regs + SCL_I3C_PP_TIMING);
+	if ((ccc->id == I3C_CCC_SETAASA) || (ccc->id == I3C_CCC_SETHID) ||
+	    (ccc->id == I3C_CCC_DEVCTRL)) {
+		writel(i3c_od_timing, master->regs + SCL_I3C_PP_TIMING);
+	}
 
 	if (ccc->rnw)
 		ret = dw_i3c_ccc_get(master, ccc);
 	else
 		ret = dw_i3c_ccc_set(master, ccc);
+
+	if ((ccc->id == I3C_CCC_SETAASA) || (ccc->id == I3C_CCC_SETHID)) {
+		writel(i3c_pp_timing, master->regs + SCL_I3C_PP_TIMING);
+	}
 
 	return ret;
 }
