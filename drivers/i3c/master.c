@@ -1712,7 +1712,7 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 	struct i3c_dev_boardinfo *i3cboardinfo;
 	struct i3c_dev_desc *i3cdev, *i3ctmp;
 	struct i2c_dev_desc *i2cdev;
-	int ret;
+	int ret, n_i3cdev = 0;
 
 	/*
 	 * First attach all devices with static definitions provided by the
@@ -1815,7 +1815,17 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 		if (ret) {
 			i3c_master_detach_i3c_dev(i3cdev);
 			i3c_master_free_i3c_dev(i3cdev);
+		} else {
+			n_i3cdev++;
 		}
+	}
+
+	/*
+	 * Since SPD devices are all with static address.  Don't do DAA if we 
+	 * know it is a pure I2C bus.
+	*/
+	if ((master->jdec_spd) && (n_i3cdev == 0)) {
+		return 0;
 	}
 
 	ret = i3c_master_do_daa(master);
