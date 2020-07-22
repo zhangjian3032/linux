@@ -53,6 +53,14 @@ config ASPEED_XDMA
 	  SOCs. The XDMA engine can perform automatic PCI DMA operations
 	  between the AST2XXX (acting as a BMC) and a host processor.
 
+config ASPEED_UDMA
+	tristate "Aspeed UDMA Engine Driver"
+	depends on SOC_ASPEED && REGMAP && MFD_SYSCON && HAS_DMA
+	help
+	  Enable support for the Aspeed UDMA Engine found on the Aspeed AST2XXX
+	  SOCs. The UDMA engine can perform UART DMA operations between the memory
+	  buffer and the UART/VUART devices.
+
 config ASPEED_ESPI
 	tristate "Aspeed eSPI Engine Driver"
 	depends on SOC_ASPEED && REGMAP && MFD_SYSCON

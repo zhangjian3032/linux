@@ -469,24 +469,22 @@
 			};
 
 			uart1: serial@1e783000 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e783000 0x20>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
 				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART1CLK>;
 				resets = <&lpc_reset 4>;
-				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd1_default &pinctrl_rxd1_default>;
+				no-loopback-test;
+				dma-mode;
+				dma-channel = <0>;
 				status = "disabled";
 			};
 
 			uart5: serial@1e784000 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e784000 0x1000>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART5CLK>;
 				no-loopback-test;
@@ -718,46 +716,39 @@
 				};
 			};
 
-
 			uart2: serial@1e78d000 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e78d000 0x20>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
 				interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART2CLK>;
 				resets = <&lpc_reset 5>;
-				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd2_default &pinctrl_rxd2_default>;
+				no-loopback-test;
 				status = "disabled";
 			};
 
 			uart3: serial@1e78e000 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e78e000 0x20>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART3CLK>;
 				resets = <&lpc_reset 6>;
-				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd3_default &pinctrl_rxd3_default>;
+				no-loopback-test;
 				status = "disabled";
 			};
 
 			uart4: serial@1e78f000 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e78f000 0x20>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
 				interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART4CLK>;
 				resets = <&lpc_reset 7>;
-				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd4_default &pinctrl_rxd4_default>;
+				no-loopback-test;
 				status = "disabled";
 			};
 
@@ -769,114 +760,90 @@
 			};
 
 			uart6: serial@1e790000 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e790000 0x20>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
 				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART6CLK>;
-				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart6_default>;
-
+				no-loopback-test;
 				status = "disabled";
 			};
 
 			uart7: serial@1e790100 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e790100 0x20>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
 				interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART7CLK>;
-				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart7_default>;
-
+				no-loopback-test;
 				status = "disabled";
 			};
 
 			uart8: serial@1e790200 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e790200 0x20>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
 				interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART8CLK>;
-				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart8_default>;
-
+				no-loopback-test;
 				status = "disabled";
 			};
 
 			uart9: serial@1e790300 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e790300 0x20>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
 				interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART9CLK>;
-				no-loopback-test;
 				pinctrl-names = "default";
-                                pinctrl-0 = <&pinctrl_uart9_default>;
-
+				pinctrl-0 = <&pinctrl_uart9_default>;
+				no-loopback-test;
 				status = "disabled";
 			};
 
 			uart10: serial@1e790400 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e790400 0x20>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
 				interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART10CLK>;
-				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart10_default>;
-
+				no-loopback-test;
 				status = "disabled";
 			};
 
 			uart11: serial@1e790500 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e790500 0x20>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
 				interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART11CLK>;
-				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart11_default>;
-
+				no-loopback-test;
 				status = "disabled";
 			};
 
 			uart12: serial@1e790600 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e790600 0x20>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
 				interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART12CLK>;
-				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart12g1_default>;
-
+				no-loopback-test;
 				status = "disabled";
 			};
 
 			uart13: serial@1e790700 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e790700 0x20>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
 				interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART13CLK>;
-				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart13g1_default>;
-
+				no-loopback-test;
 				status = "disabled";
 			};
 
@@ -899,6 +866,13 @@
 				clocks = <&syscon ASPEED_CLK_GATE_FSICLK>;
 				status = "disabled";
 			};
+
+			udma: uart-dma@1e79e000 {
+				compatible = "aspeed,ast2600-udma";
+				reg = <0x1e79e000 0x400>;
+				interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
 		};
 	};
 };
