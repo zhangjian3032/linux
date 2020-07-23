@@ -506,11 +506,11 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 static u8
 aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 {
-	u32 ctrl;
+	u32 ctrl, state;
 	int r;
 	int ret = 0;
 
-	dev_dbg(i2c_bus->dev, "%d-bus aspeed_new_i2c_recover_bus %x \n", i2c_bus->adap.nr,
+	dev_dbg(i2c_bus->dev, "%d-bus aspeed_new_i2c_recover_bus [%x] \n", i2c_bus->adap.nr,
 		aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
 
 	ctrl = aspeed_i2c_read(i2c_bus, AST_I2CC_FUN_CTRL);
@@ -521,27 +521,52 @@ aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 	aspeed_i2c_write(i2c_bus, aspeed_i2c_read(i2c_bus, AST_I2CC_FUN_CTRL) | AST_I2CC_MASTER_EN,
 				AST_I2CC_FUN_CTRL);
 
-	dev_dbg(i2c_bus->dev, "%d-bus aspeed_new_i2c_recover_bus %x \n", i2c_bus->adap.nr,
-		aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
-
 	//Let's retry 10 times
 	reinit_completion(&i2c_bus->cmd_complete);
 	i2c_bus->bus_recover = 1;
 	i2c_bus->cmd_err = 0;
-	aspeed_i2c_write(i2c_bus, AST_I2CM_RECOVER_CMD_EN, AST_I2CM_CMD_STS);
-	r = wait_for_completion_timeout(&i2c_bus->cmd_complete,
-					i2c_bus->adap.timeout);
-	if (r == 0) {
-		dev_dbg(i2c_bus->dev, "recovery timed out\n");
-		ret = -ETIMEDOUT;
-	} else {
-		if (i2c_bus->cmd_err) {
-			dev_dbg(i2c_bus->dev, "recovery error \n");
+
+	//Check 0x14's SDA and SCL status
+	state = aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF);
+	if (state & AST_I2CC_SDA_LINE_STS) {
+		/* Bus is idle: no recovery needed. */
+		if (state & AST_I2CC_SCL_LINE_STS)
+			goto out;
+		dev_dbg(i2c_bus->dev, "I2C's master is locking the bus, send stop recovery.\n");
+		//use gpio mode to trigger stop
+		aspeed_i2c_write(i2c_bus, ctrl & ~(AST_I2CC_MASTER_EN | AST_I2CC_SLAVE_EN),
+					AST_I2CC_FUN_CTRL);
+		//sda/scl low
+		aspeed_i2c_write(i2c_bus, ctrl | AST_I2CC_SDA_OE | AST_I2CC_SCL_OE,
+					AST_I2CC_FUN_CTRL);
+		//scl high : sda low
+		aspeed_i2c_write(i2c_bus, ctrl | AST_I2CC_SDA_OE | AST_I2CC_SCL_OE | AST_I2CC_SCL_O,
+					AST_I2CC_FUN_CTRL);
+		mdelay(50);
+		//scl high : sda high
+		aspeed_i2c_write(i2c_bus, ctrl | AST_I2CC_SDA_O | AST_I2CC_SDA_OE | 
+					AST_I2CC_SCL_OE | AST_I2CC_SCL_O, AST_I2CC_FUN_CTRL);
+		mdelay(50);
+		if(aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF) & AST_I2CC_BUS_BUSY_STS)
 			ret = -EPROTO;
-		} 
+		else 
+			ret = 0;
+	} else {
+		aspeed_i2c_write(i2c_bus, AST_I2CM_RECOVER_CMD_EN, AST_I2CM_CMD_STS);
+		r = wait_for_completion_timeout(&i2c_bus->cmd_complete,
+						i2c_bus->adap.timeout);
+		if (r == 0) {
+			dev_dbg(i2c_bus->dev, "recovery timed out\n");
+			ret = -ETIMEDOUT;
+		} else {
+			if (i2c_bus->cmd_err) {
+				dev_dbg(i2c_bus->dev, "recovery error \n");
+				ret = -EPROTO;
+			} 
+		}
 	}
-	
 	dev_dbg(i2c_bus->dev, "Recovery done [%x]\n", aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
+out:
 	return ret;
 }
 
