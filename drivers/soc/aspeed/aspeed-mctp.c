@@ -524,8 +524,8 @@ static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 	int i = 0;
 
 	MCTP_DBUG("dram base %x \n", aspeed_mctp->dram_base);
-	aspeed_mctp_write(aspeed_mctp, (aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_EID) & 0xff) | 
-							aspeed_mctp->dram_base, ASPEED_MCTP_EID);
+	aspeed_mctp_write(aspeed_mctp, (aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_EID) & 0xff) |
+			  aspeed_mctp->dram_base, ASPEED_MCTP_EID);
 
 	aspeed_mctp->tx_idx = 0;
 
@@ -552,10 +552,12 @@ static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 		aspeed_mctp->rx_recv_idx = 0;
 		aspeed_mctp->rx_first_loop = 1;
 		aspeed_mctp->rx_reboot = 1;
+
 		/* reserved 4 cmd for reboot issue workaround, it will be minused
 		 * after first circle.
 		*/
-		aspeed_mctp->rx_cmd_num = aspeed_mctp->rx_fifo_num + 4;
+		aspeed_mctp->rx_cmd_num = aspeed_mctp->rx_fifo_num * 4 + 4;
+
 		for (i = 0; i < aspeed_mctp->rx_cmd_num; i++) {
 			rx_cmd_header = (u32 *)aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * i);
 			*rx_cmd_header = 0;
@@ -683,7 +685,7 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 			hw_read_pt = aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_RX_WRITE_PT) & MCTP_HW_READ_PT_NUM_MASK;
 
 			if (aspeed_mctp->rx_idx == hw_read_pt) {
-				MCTP_DBUG("No rx data\n");
+				// MCTP_DBUG("No rx data\n");
 				return 0;
 			} else {
 				struct pcie_vdm_header *vdm;
@@ -700,13 +702,35 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 					aspeed_mctp->rx_recv_idx++;
 				}
 				if (aspeed_mctp->rx_first_loop) {
+					int wrap_around = 0;
 					header_dw = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
-					if (*header_dw == 0) {
-						aspeed_mctp->rx_recv_idx = 0;
+					while (*header_dw == 0) {
+						MCTP_DBUG("first loop header_dw == 0");
+						MCTP_DBUG("first loop rx_recv_idx:%d", aspeed_mctp->rx_recv_idx);
+						aspeed_mctp->rx_recv_idx++;
+						if (aspeed_mctp->rx_recv_idx >= aspeed_mctp->rx_cmd_num)
+							wrap_around = 1;
+						aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_cmd_num;
+						header_dw = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
+					}
+					if (wrap_around) {
+						MCTP_DBUG("wrap around");
 						aspeed_mctp->rx_first_loop = 0;
 						aspeed_mctp->rx_cmd_num -= 4;
 					}
+				} else {
+					header_dw = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
+					while (*header_dw == 0) {
+						MCTP_DBUG("header_dw == 0");
+						aspeed_mctp->rx_recv_idx++;
+						aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_cmd_num;
+						header_dw = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
+					}
 				}
+
+				MCTP_DBUG("rx_recv_idx:%d, rx_idx:%d", aspeed_mctp->rx_recv_idx, aspeed_mctp->rx_idx);
+				MCTP_DBUG("rx_cmd_num:%d, rx_fifo_num:%d", aspeed_mctp->rx_cmd_num, aspeed_mctp->rx_fifo_num);
+				MCTP_DBUG("rx_first_loop:%d, rx_reboot:%d", aspeed_mctp->rx_first_loop, aspeed_mctp->rx_reboot);
 
 				vdm = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
 				header_dw = (u32 *)vdm;
