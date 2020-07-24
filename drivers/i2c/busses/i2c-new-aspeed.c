@@ -506,11 +506,11 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 static u8
 aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 {
-	u32 ctrl;
+	u32 ctrl, state;
 	int r;
 	int ret = 0;
 
-	dev_dbg(i2c_bus->dev, "%d-bus aspeed_new_i2c_recover_bus %x \n", i2c_bus->adap.nr,
+	dev_dbg(i2c_bus->dev, "%d-bus aspeed_new_i2c_recover_bus [%x] \n", i2c_bus->adap.nr,
 		aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
 
 	ctrl = aspeed_i2c_read(i2c_bus, AST_I2CC_FUN_CTRL);
@@ -521,27 +521,32 @@ aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 	aspeed_i2c_write(i2c_bus, aspeed_i2c_read(i2c_bus, AST_I2CC_FUN_CTRL) | AST_I2CC_MASTER_EN,
 				AST_I2CC_FUN_CTRL);
 
-	dev_dbg(i2c_bus->dev, "%d-bus aspeed_new_i2c_recover_bus %x \n", i2c_bus->adap.nr,
-		aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
-
 	//Let's retry 10 times
 	reinit_completion(&i2c_bus->cmd_complete);
 	i2c_bus->bus_recover = 1;
 	i2c_bus->cmd_err = 0;
-	aspeed_i2c_write(i2c_bus, AST_I2CM_RECOVER_CMD_EN, AST_I2CM_CMD_STS);
-	r = wait_for_completion_timeout(&i2c_bus->cmd_complete,
-					i2c_bus->adap.timeout);
-	if (r == 0) {
-		dev_dbg(i2c_bus->dev, "recovery timed out\n");
-		ret = -ETIMEDOUT;
+
+	//Check 0x14's SDA and SCL status
+	state = aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF);
+	if (!(state & AST_I2CC_SDA_LINE_STS) && (state & AST_I2CC_SCL_LINE_STS)) {
+		aspeed_i2c_write(i2c_bus, AST_I2CM_RECOVER_CMD_EN, AST_I2CM_CMD_STS);
+		r = wait_for_completion_timeout(&i2c_bus->cmd_complete,
+						i2c_bus->adap.timeout);
+		if (r == 0) {
+			dev_dbg(i2c_bus->dev, "recovery timed out\n");
+			ret = -ETIMEDOUT;
+		} else {
+			if (i2c_bus->cmd_err) {
+				dev_dbg(i2c_bus->dev, "recovery error \n");
+				ret = -EPROTO;
+			} 
+		}
 	} else {
-		if (i2c_bus->cmd_err) {
-			dev_dbg(i2c_bus->dev, "recovery error \n");
-			ret = -EPROTO;
-		} 
+		dev_dbg(i2c_bus->dev, "can't recovery this situation\n");
+		ret = -EPROTO;
 	}
-	
 	dev_dbg(i2c_bus->dev, "Recovery done [%x]\n", aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
+
 	return ret;
 }
 
