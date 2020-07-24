@@ -528,30 +528,7 @@ aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 
 	//Check 0x14's SDA and SCL status
 	state = aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF);
-	if (state & AST_I2CC_SDA_LINE_STS) {
-		/* Bus is idle: no recovery needed. */
-		if (state & AST_I2CC_SCL_LINE_STS)
-			goto out;
-		dev_dbg(i2c_bus->dev, "I2C's master is locking the bus, send stop recovery.\n");
-		//use gpio mode to trigger stop
-		aspeed_i2c_write(i2c_bus, ctrl & ~(AST_I2CC_MASTER_EN | AST_I2CC_SLAVE_EN),
-					AST_I2CC_FUN_CTRL);
-		//sda/scl low
-		aspeed_i2c_write(i2c_bus, ctrl | AST_I2CC_SDA_OE | AST_I2CC_SCL_OE,
-					AST_I2CC_FUN_CTRL);
-		//scl high : sda low
-		aspeed_i2c_write(i2c_bus, ctrl | AST_I2CC_SDA_OE | AST_I2CC_SCL_OE | AST_I2CC_SCL_O,
-					AST_I2CC_FUN_CTRL);
-		mdelay(50);
-		//scl high : sda high
-		aspeed_i2c_write(i2c_bus, ctrl | AST_I2CC_SDA_O | AST_I2CC_SDA_OE | 
-					AST_I2CC_SCL_OE | AST_I2CC_SCL_O, AST_I2CC_FUN_CTRL);
-		mdelay(50);
-		if(aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF) & AST_I2CC_BUS_BUSY_STS)
-			ret = -EPROTO;
-		else 
-			ret = 0;
-	} else {
+	if (!(state & AST_I2CC_SDA_LINE_STS) && (state & AST_I2CC_SCL_LINE_STS)) {
 		aspeed_i2c_write(i2c_bus, AST_I2CM_RECOVER_CMD_EN, AST_I2CM_CMD_STS);
 		r = wait_for_completion_timeout(&i2c_bus->cmd_complete,
 						i2c_bus->adap.timeout);
@@ -564,9 +541,12 @@ aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 				ret = -EPROTO;
 			} 
 		}
+	} else {
+		dev_dbg(i2c_bus->dev, "can't recovery this situation\n");
+		ret = -EPROTO;
 	}
 	dev_dbg(i2c_bus->dev, "Recovery done [%x]\n", aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
-out:
+
 	return ret;
 }
 
