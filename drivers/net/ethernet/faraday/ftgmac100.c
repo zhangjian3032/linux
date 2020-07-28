@@ -47,6 +47,9 @@
 
 /* Min number of tx ring entries before stopping queue */
 #define TX_THRESHOLD		(MAX_SKB_FRAGS + 1)
+#if (DEF_TX_QUEUE_ENTRIES < 2 * TX_THRESHOLD)
+#error "TX queue entries not enough"
+#endif
 
 #define FTGMAC_100MHZ		100000000
 #define FTGMAC_25MHZ		25000000
@@ -838,6 +841,15 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 		if (ftgmac100_tx_buf_avail(priv) >= TX_THRESHOLD)
 			netif_wake_queue(netdev);
 	}
+
+	/* For some uni-direction application (e.g. sending data via UDP), it
+	 * is possoble that we never receive a packet to activate the scheduler
+	 * and hence we don't have chance to free the TX data.  So we check 
+	 * the un-cleared TX descriptor here and activate the scheduler if it is
+	 * necessary.
+	*/
+	if ((priv->tx_q_entries - ftgmac100_tx_buf_avail(priv)) > TX_THRESHOLD)
+		napi_schedule_irqoff(&priv->napi);
 
 	/* Poke transmitter to read the updated TX descriptors */
 	iowrite32(1, priv->base + FTGMAC100_OFFSET_NPTXPD);
