@@ -242,7 +242,9 @@ int aspeed_acry_rsa_trigger(struct aspeed_acry_dev *acry_dev)
 {
 	struct akcipher_request *req = acry_dev->akcipher_req;
 	struct crypto_akcipher *cipher = crypto_akcipher_reqtfm(req);
-	struct aspeed_acry_rsa_ctx *ctx = crypto_tfm_ctx(&cipher->base);
+	struct aspeed_acry_ctx *acry_ctx = crypto_tfm_ctx(&cipher->base);
+	struct aspeed_acry_rsa_ctx *ctx = &acry_ctx->ctx.rsa_ctx;
+
 	int ne;
 	int nm;
 
@@ -277,10 +279,12 @@ int aspeed_acry_rsa_trigger(struct aspeed_acry_dev *acry_dev)
 static int aspeed_acry_rsa_enc(struct akcipher_request *req)
 {
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
-	struct aspeed_acry_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_ctx *acry_ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_rsa_ctx *ctx = &acry_ctx->ctx.rsa_ctx;
 	struct aspeed_acry_dev *acry_dev = ctx->acry_dev;
 
 	RSA_DBG("\n");
+	acry_ctx->op = 0;
 	ctx->enc = 1;
 
 	return aspeed_acry_handle_queue(acry_dev, &req->base);
@@ -290,10 +294,12 @@ static int aspeed_acry_rsa_enc(struct akcipher_request *req)
 static int aspeed_acry_rsa_dec(struct akcipher_request *req)
 {
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
-	struct aspeed_acry_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_ctx *acry_ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_rsa_ctx *ctx = &acry_ctx->ctx.rsa_ctx;
 	struct aspeed_acry_dev *acry_dev = ctx->acry_dev;
 
 	RSA_DBG("\n");
+	acry_ctx->op = 0;
 	ctx->enc = 0;
 
 	return aspeed_acry_handle_queue(acry_dev, &req->base);
@@ -302,7 +308,8 @@ static int aspeed_acry_rsa_dec(struct akcipher_request *req)
 static int aspeed_acry_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 				  unsigned int keylen, int priv)
 {
-	struct aspeed_acry_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_ctx *acry_ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_rsa_ctx *ctx = &acry_ctx->ctx.rsa_ctx;
 	int ret;
 
 	RSA_DBG("\n");
@@ -341,7 +348,8 @@ static int aspeed_acry_rsa_set_priv_key(struct crypto_akcipher *tfm, const void 
 
 static unsigned int aspeed_acry_rsa_max_size(struct crypto_akcipher *tfm)
 {
-	struct aspeed_acry_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_ctx *acry_ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_rsa_ctx *ctx = &acry_ctx->ctx.rsa_ctx;
 
 	RSA_DBG("key->n_sz %d\n", ctx->key.n_sz);
 	return (ctx->key.n_sz) ? ctx->key.n_sz : -EINVAL;
@@ -349,7 +357,8 @@ static unsigned int aspeed_acry_rsa_max_size(struct crypto_akcipher *tfm)
 
 static int aspeed_acry_rsa_init_tfm(struct crypto_akcipher *tfm)
 {
-	struct aspeed_acry_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_ctx *acry_ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_rsa_ctx *ctx = &acry_ctx->ctx.rsa_ctx;
 	struct akcipher_alg *alg = __crypto_akcipher_alg(tfm->base.__crt_alg);
 	struct aspeed_acry_alg *algt;
 
@@ -387,7 +396,7 @@ struct aspeed_acry_alg aspeed_acry_akcipher_algs[] = {
 				CRYPTO_ALG_ASYNC |
 				CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_module = THIS_MODULE,
-				.cra_ctxsize = sizeof(struct aspeed_acry_rsa_ctx),
+				.cra_ctxsize = sizeof(struct aspeed_acry_ctx),
 			},
 		},
 	},

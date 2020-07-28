@@ -63,6 +63,8 @@ int aspeed_acry_handle_queue(struct aspeed_acry_dev *acry_dev,
 			     struct crypto_async_request *new_areq)
 {
 	struct crypto_async_request *areq, *backlog;
+	struct aspeed_acry_ctx *acry_ctx = NULL;
+	struct crypto_akcipher *tfm = NULL;
 	unsigned long flags;
 	int err, ret = 0;
 
@@ -88,8 +90,13 @@ int aspeed_acry_handle_queue(struct aspeed_acry_dev *acry_dev,
 
 	acry_dev->is_async = (areq != new_areq);
 	acry_dev->akcipher_req = container_of(areq, struct akcipher_request, base);
+	tfm = crypto_akcipher_reqtfm(acry_dev->akcipher_req);
+	acry_ctx = akcipher_tfm_ctx(tfm);
 
-	err = aspeed_acry_rsa_trigger(acry_dev);
+	if (acry_ctx->op == 0)
+		err = aspeed_acry_rsa_trigger(acry_dev);
+	else
+		err = -EINVAL;
 
 	return (acry_dev->is_async) ? ret : err;
 }
@@ -212,7 +219,7 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 	}
 
 	acry_dev->buf_addr = dma_alloc_coherent(dev, ASPEED_ACRY_BUFF_SIZE,
-					       &acry_dev->buf_dma_addr, GFP_KERNEL);
+						&acry_dev->buf_dma_addr, GFP_KERNEL);
 	memzero_explicit(acry_dev->buf_addr, ASPEED_ACRY_BUFF_SIZE);
 
 	printk("ASPEED RSA Accelerator successfully registered \n");

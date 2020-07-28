@@ -17,6 +17,7 @@
 #include <crypto/akcipher.h>
 #include <crypto/algapi.h>
 #include <crypto/ecdh.h>
+#include <crypto/ecc.h>
 
 /* G6 RSA/ECDH */
 #define ASPEED_ACRY_TRIGGER		0x000
@@ -62,6 +63,25 @@ struct aspeed_acry_rsa_ctx {
 	struct rsa_key			key;
 	int 				enc;
 };
+
+struct aspeed_acry_ecdsa_ctx {
+	struct aspeed_acry_dev		*acry_dev;
+	char 				sign;
+	unsigned int 			curve_id;
+	unsigned int 			ndigits;
+	u64 				private_key[ECC_MAX_DIGITS];
+	u64 				Qx[ECC_MAX_DIGITS];
+	u64 				Qy[ECC_MAX_DIGITS];
+};
+
+struct aspeed_acry_ctx {
+	unsigned int op; // 0:RSA, 1:ECC
+	union {
+		struct aspeed_acry_rsa_ctx 	rsa_ctx;
+		struct aspeed_acry_ecdsa_ctx 	ecdsa_ctx;
+	} ctx;
+};
+
 
 /*************************************************************************************/
 
