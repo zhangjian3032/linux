@@ -47,6 +47,9 @@
 
 /* Min number of tx ring entries before stopping queue */
 #define TX_THRESHOLD		(MAX_SKB_FRAGS + 1)
+#if (DEF_TX_QUEUE_ENTRIES < 2 * TX_THRESHOLD)
+#error "TX queue entries not enough"
+#endif
 
 #define FTGMAC_100MHZ		100000000
 #define FTGMAC_25MHZ		25000000
