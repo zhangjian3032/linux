@@ -27,9 +27,7 @@
 #define _CRYPTO_ECC_H
 
 #include <crypto/ecc.h>
-#include "ecc_curve_defs.h"
 
-const struct ecc_curve *ecc_get_curve(unsigned int curve_id);
 struct ecc_point *ecc_alloc_point(unsigned int ndigits);
 void ecc_free_point(struct ecc_point *p);
 

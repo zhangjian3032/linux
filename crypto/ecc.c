@@ -1198,6 +1198,7 @@ int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
 
 	return __ecc_is_key_valid(curve, private_key, ndigits);
 }
+EXPORT_SYMBOL_GPL(ecc_is_key_valid);
 
 int ecc_is_pub_key_valid(unsigned int curve_id, unsigned int ndigits,
 			 const u8 *pub_key, unsigned int pub_key_len)
@@ -1219,6 +1220,7 @@ int ecc_is_pub_key_valid(unsigned int curve_id, unsigned int ndigits,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ecc_is_pub_key_valid);
 
 /*
  * ECC private keys are generated using the method of extra random bits,
