@@ -158,20 +158,6 @@ int aspeed_acry_rsa_ctx_copy(void *buf, const void *xbuf, size_t nbytes, int mod
 	return nbits;
 }
 
-static int aspeed_acry_rsa_complete(struct aspeed_acry_dev *acry_dev, int err)
-{
-	struct akcipher_request *req = acry_dev->akcipher_req;
-
-	RSA_DBG("\n");
-	acry_dev->flags &= ~CRYPTO_FLAGS_BUSY;
-	if (acry_dev->is_async)
-		req->base.complete(&req->base, err);
-
-	aspeed_acry_handle_queue(acry_dev, NULL);
-
-	return err;
-}
-
 static int aspeed_acry_rsa_transfer(struct aspeed_acry_dev *acry_dev)
 {
 	struct akcipher_request *req = acry_dev->akcipher_req;
@@ -214,7 +200,7 @@ static int aspeed_acry_rsa_transfer(struct aspeed_acry_dev *acry_dev)
 
 	memzero_explicit(acry_dev->buf_addr, ASPEED_ACRY_BUFF_SIZE);
 
-	return aspeed_acry_rsa_complete(acry_dev, 0);
+	return aspeed_acry_complete(acry_dev, 0);
 }
 
 static inline int aspeed_acry_rsa_wait_for_data_ready(struct aspeed_acry_dev *acry_dev,
@@ -284,8 +270,9 @@ static int aspeed_acry_rsa_enc(struct akcipher_request *req)
 	struct aspeed_acry_dev *acry_dev = ctx->acry_dev;
 
 	RSA_DBG("\n");
-	acry_ctx->op = 0;
+	acry_ctx->trigger = aspeed_acry_rsa_trigger;
 	ctx->enc = 1;
+
 
 	return aspeed_acry_handle_queue(acry_dev, &req->base);
 
@@ -299,7 +286,7 @@ static int aspeed_acry_rsa_dec(struct akcipher_request *req)
 	struct aspeed_acry_dev *acry_dev = ctx->acry_dev;
 
 	RSA_DBG("\n");
-	acry_ctx->op = 0;
+	acry_ctx->trigger = aspeed_acry_rsa_trigger;
 	ctx->enc = 0;
 
 	return aspeed_acry_handle_queue(acry_dev, &req->base);
