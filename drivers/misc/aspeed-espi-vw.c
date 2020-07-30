@@ -210,6 +210,12 @@ static int aspeed_espi_vw_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	espi_vw->irq = platform_get_irq(pdev, 0);
+	if (espi_vw->irq < 0) {
+		dev_err(&pdev->dev, "no irq specified\n");
+		return espi_vw->irq;
+	}
+
 	rc = sysfs_create_group(&pdev->dev.kobj, &espi_vw_attribute_group);
 	if (rc) {
 		printk(KERN_ERR "aspeed_espi_vw: failed to create sysfs device attributes.\n");
@@ -218,11 +224,6 @@ static int aspeed_espi_vw_probe(struct platform_device *pdev)
 	
 	dev_set_drvdata(dev, espi_vw);
 
-	espi_vw->irq = platform_get_irq(pdev, 0);
-	if (espi_vw->irq < 0) {
-		dev_err(&pdev->dev, "no irq specified\n");
-		return espi_vw->irq;
-	}
 	
 	rc = devm_request_irq(&pdev->dev, espi_vw->irq, aspeed_espi_vw_irq, IRQF_SHARED,
 				dev_name(&pdev->dev), espi_vw);

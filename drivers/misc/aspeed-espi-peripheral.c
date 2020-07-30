@@ -507,10 +507,6 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 	if (!dev_id)
 		return -EINVAL;
 
-	dev_id = of_match_device(aspeed_espi_peripheral_match, &pdev->dev);
-	if (!dev_id)
-		return -EINVAL;
-
 	espi_peripheral->espi_version = (unsigned long)dev_id->data;
 
 	if (of_property_read_bool(pdev->dev.of_node, "dma-mode"))
@@ -520,6 +516,12 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 	if (IS_ERR(espi_peripheral->map)) {
 		dev_err(dev, "Couldn't get regmap\n");
 		return -ENODEV;
+	}
+
+	espi_peripheral->irq = platform_get_irq(pdev, 0);
+	if (espi_peripheral->irq < 0) {
+		dev_err(&pdev->dev, "no irq specified\n");
+		return espi_peripheral->irq;
 	}
 
 	mmbi_np = of_parse_phandle(dev->of_node, "aspeed,espi-mmbi", 0);
@@ -599,11 +601,6 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 		espi_peripheral->np_tx_channel.buff = espi_peripheral->p_tx_channel.buff  + MAX_XFER_BUFF_SIZE;
 	}
 
-	espi_peripheral->irq = platform_get_irq(pdev, 0);
-	if (espi_peripheral->irq < 0) {
-		dev_err(&pdev->dev, "no irq specified\n");
-		return espi_peripheral->irq;
-	}
 
 	rc = devm_request_irq(&pdev->dev, espi_peripheral->irq, aspeed_espi_peripheral_irq, IRQF_SHARED,
 				dev_name(&pdev->dev), espi_peripheral);
