@@ -331,6 +331,12 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	espi_oob->irq = platform_get_irq(pdev, 0);
+	if (espi_oob->irq < 0) {
+		dev_err(&pdev->dev, "no irq specified\n");
+		return espi_oob->irq;
+	}
+
 	sysfs_bin_attr_init(&espi_oob->bin);
 	espi_oob->bin.attr.name = DEVICE_NAME;
 	espi_oob->bin.attr.mode = S_IRUSR | S_IWUSR;
@@ -415,11 +421,6 @@ static int aspeed_espi_oob_probe(struct platform_device *pdev)
 		espi_oob->oob_tx_buff = espi_oob->oob_rx_buff + MAX_XFER_BUFF_SIZE;
 	}
 
-	espi_oob->irq = platform_get_irq(pdev, 0);
-	if (espi_oob->irq < 0) {
-		dev_err(&pdev->dev, "no irq specified\n");
-		return espi_oob->irq;
-	}
 	rc = devm_request_irq(&pdev->dev, espi_oob->irq, aspeed_espi_oob_irq, IRQF_SHARED,
 				dev_name(&pdev->dev), espi_oob);
 	if (rc) {
