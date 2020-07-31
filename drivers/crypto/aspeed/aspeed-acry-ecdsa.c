@@ -27,6 +27,8 @@
 #endif
 
 uint32_t ecc_program[] = {
+	0x00480900, 0x00480900, 0x00480900, 0x00480900,
+	0x00480980, 0x00480A00, 0x00480A80, 0x00480B00,
 	0x00400000, 0x00080080, 0x00100100, 0x00180180,
 	0x00200200, 0x00280280, 0x00300300, 0x00380B80,
 	0x28000000, 0x28080080, 0x70300000, 0x8002C040,
@@ -88,7 +90,7 @@ static int load_ecc_program(struct aspeed_acry_dev *acry_dev)
 
 	aspeed_acry_write(acry_dev, ACRY_CMD_DMA_SRAM_MODE_ECC, ASPEED_ACRY_DMA_CMD);
 	aspeed_acry_write(acry_dev, ec_buf_phy, ASPEED_ACRY_DMA_SRC_BASE);
-	aspeed_acry_write(acry_dev, DMA_DEST_LEN(0x230), ASPEED_ACRY_DMA_DEST);
+	aspeed_acry_write(acry_dev, DMA_DEST_LEN(0x250), ASPEED_ACRY_DMA_DEST);
 	aspeed_acry_write(acry_dev, 0x4, ASPEED_ACRY_DRAM_BRUST);
 	aspeed_acry_write(acry_dev, 0x0, ASPEED_ACRY_INT_MASK);
 	aspeed_acry_write(acry_dev, ACRY_CMD_DMA_ECC_PROG, ASPEED_ACRY_TRIGGER);
