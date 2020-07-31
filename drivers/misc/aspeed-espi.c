@@ -364,9 +364,35 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 {
 	static struct aspeed_espi_data *aspeed_espi;
 	struct device *dev = &pdev->dev;	
-	const struct of_device_id *dev_id;
 	u32 delay_timing = 0;
 	int ret = 0;
+	unsigned long espi_version;
+	u32 reg;
+	struct regmap *scu_regmap;
+
+	espi_version = (unsigned long)of_device_get_match_data(dev);
+
+	scu_regmap = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
+	if (IS_ERR_OR_NULL(scu_regmap)) {
+		dev_err(dev, "failed to find SCU regmap\n");
+		return PTR_ERR(scu_regmap);
+	}
+
+	/* abort eSPI probe if LPC mode is selected */
+	if (espi_version == ESPI_AST2500) {
+		regmap_read(scu_regmap, 0x70, &reg);
+		if ((reg & 0x2000000) == 0)
+			return -EPERM;
+	}
+	else if (espi_version == ESPI_AST2600) {
+		regmap_read(scu_regmap, 0x510, &reg);
+		if (reg & 0x40)
+			return -EPERM;
+	}
+	else {
+		dev_err(dev, "unknown eSPI version\n");
+		return -EINVAL;
+	}
 
 	aspeed_espi = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_espi_data), GFP_KERNEL);
 	if (aspeed_espi == NULL) {
@@ -374,11 +400,7 @@ static int aspeed_espi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	dev_id = of_match_device(aspeed_espi_of_matches, &pdev->dev);
-	if (!dev_id)
-		return -EINVAL;
-
-	aspeed_espi->espi_version = (unsigned long)dev_id->data;
+	aspeed_espi->espi_version = espi_version;
 	aspeed_espi->dev = &pdev->dev;
 	aspeed_espi->map = syscon_node_to_regmap(pdev->dev.of_node);
 	if (IS_ERR(aspeed_espi->map)) {

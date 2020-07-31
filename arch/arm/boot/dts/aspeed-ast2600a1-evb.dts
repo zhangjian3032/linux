@@ -72,17 +72,6 @@
 			no-map;
 		};
 
-		espi_peripheral_memory: espi_peripheral_memory {
-			no-map;
-			reg = <0x98000000 0x04000000>; /* 64M */
-#if 0
-			size = <0x01000000>;
-			alignment = <0x01000000>;
-			compatible = "shared-dma-pool";
-			reusable;
-#endif
-		};
-
 		bmc_dev_memory: bmc_dev_memory {
 			size = <0x00100000>;
 			alignment = <0x00100000>;
@@ -565,12 +554,41 @@
 	status = "okay";
 };
 
+&gpio0 {
+	gpio-line-names =
+	/*A0-A7*/	"","","","","","","","",
+	/*B0-B7*/	"","","","","","","","",
+	/*C0-C7*/	"","","","","","","","",
+	/*D0-D7*/	"","","","","","","","",
+	/*E0-E7*/	"","","","","","","","",
+	/*F0-F7*/	"","","","","","","","",
+	/*G0-G7*/	"","","","","","","","",
+	/*H0-H7*/	"","","","","","","","",
+	/*I0-I7*/	"","","","","","","","",
+	/*J0-J7*/	"","","","","","","","",
+	/*K0-K7*/	"","","","","","","","",
+	/*L0-L7*/	"","","","","","","","",
+	/*M0-M7*/	"","","","","","","","",
+	/*N0-N7*/	"","","","","","","","",
+	/*O0-O7*/	"","","","","","","","",
+	/*P0-P7*/	"","","","","","","","",
+	/*Q0-Q7*/	"","","","","","","","",
+	/*R0-R7*/	"","","","","","","","",
+	/*S0-S7*/	"","","","","","","","",
+	/*T0-T7*/	"","","","","","","","",
+	/*U0-U7*/	"","","","","","","","",
+	/*V0-V7*/	"sdhci0-power","sdhci0-power-switch","sdhci1-power","sdhci1-power-switch","","","","",
+	/*W0-W7*/	"","","","","","","","espi-interrupt",
+	/*X0-X7*/	"","","","","","","","",
+	/*Y0-Y7*/	"","","","","","","","",
+	/*Z0-Z7*/	"","","","","","","","";
+};
+
 &sgpiom0 {
         status = "okay";
 };
 
 &adc0 {
-	trim_locate = <0x5D0 0 0xf>;
 	ref_voltage = <1200>;
 	status = "okay";
 
@@ -581,7 +599,6 @@
 };
 
 &adc1 {
-	trim_locate = <0x5D0 4 0xf>;
 	ref_voltage = <1200>;
 	status = "okay";
 
@@ -784,9 +801,8 @@
 #endif
 &peripheral {
 	status = "okay";
-
 	host-map-addr = <0x98000000>;
-	memory-region = <&espi_peripheral_memory>;
+	map-size = <0x10000>;
 };
 
 &virtial_wire {
@@ -824,7 +840,7 @@
 	status = "okay";
 };
 
-&lpc_snoop_dma {
+&lpc_pcc {
 	rec-mode = <0x1>;
 	port-addr = <0x80>;
 	port-addr-hbits-select = <0x1>;

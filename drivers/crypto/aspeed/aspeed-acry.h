@@ -12,16 +12,33 @@
 #include <crypto/internal/akcipher.h>
 #include <crypto/internal/kpp.h>
 #include <crypto/internal/rsa.h>
+#include <crypto/internal/rng.h>
 #include <crypto/kpp.h>
 #include <crypto/dh.h>
 #include <crypto/akcipher.h>
 #include <crypto/algapi.h>
 #include <crypto/ecdh.h>
+#include <crypto/ecc.h>
+#include <crypto/ecdsa.h>
 
 /* G6 RSA/ECDH */
 #define ASPEED_ACRY_TRIGGER		0x000
 #define  ACRY_CMD_RSA_TRIGGER		BIT(0)
 #define  ACRY_CMD_DMA_RSA_TRIGGER	BIT(1)
+#define  ACRY_CMD_ECC_TRIGGER		BIT(4)
+#define  ACRY_CMD_DMA_ECC_PROG		BIT(5)
+#define  ACRY_CMD_DMA_ECC_DATA		BIT(6)
+#define ASPEED_ACRY_PROGRAM_INDEX	0x004
+#define ASPEED_ACRY_ECC_P		0x024
+#define  ACRY_ECC_LEN_192		(0xc0 << 16)
+#define  ACRY_ECC_LEN_224		(0xe0 << 16)
+#define  ACRY_ECC_LEN_256		(0x100 << 16)
+#define  ACRY_ECC_LEN_384		(0x180 << 16)
+#define ASPEED_ACRY_CONTROL		0x044
+#define  ACRY_ECC_P192			0
+#define  ACRY_ECC_P224			(0x1 << 4)
+#define  ACRY_ECC_P256			(0x2 << 4)
+#define  ACRY_ECC_P384			(0x3 << 4)
 #define ASPEED_ACRY_DMA_CMD		0x048
 #define  ACRY_CMD_DMA_SRAM_MODE_ECC	(0x2 << 4)
 #define  ACRY_CMD_DMA_SRAM_MODE_RSA	(0x3 << 4)
@@ -31,6 +48,7 @@
 #define ASPEED_ACRY_DMA_DEST		0x050
 #define  DMA_DEST_BASE(x)		(x << 16)
 #define  DMA_DEST_LEN(x)		(x)
+#define ASPEED_ACRY_DRAM_BRUST		0x054
 #define ASPEED_ACRY_RSA_KEY_LEN		0x058
 #define  RSA_E_BITS_LEN(x)		(x << 16)
 #define  RSA_M_BITS_LEN(x)		(x)
@@ -47,6 +65,15 @@
 #define CRYPTO_FLAGS_BUSY 		BIT(1)
 #define BYTES_PER_DWORD			4
 
+#define ASPEED_EC_X			0x30
+#define ASPEED_EC_Y			0x60
+#define ASPEED_EC_Z			0x90
+#define ASPEED_EC_Z2			0xC0
+#define ASPEED_EC_Z3			0xF0
+#define ASPEED_EC_K			0x120
+#define ASPEED_EC_P			0x150
+#define ASPEED_EC_A			0x180
+
 
 extern int exp_dw_mapping[512];
 extern int mod_dw_mapping[512];
@@ -57,52 +84,34 @@ struct aspeed_acry_dev;
 
 typedef int (*aspeed_acry_fn_t)(struct aspeed_acry_dev *);
 
-/******************************************************************************/
-/**
- * aspeed_rsa_key - ASPEED RSA key structure. Keys are allocated in DMA zone.
- * @n           : RSA modulus raw byte stream
- * @e           : RSA public exponent raw byte stream
- * @d           : RSA private exponent raw byte stream
- * @n_sz        : length in bytes of RSA modulus n
- * @e_sz        : length in bytes of RSA public exponent
- * @d_sz        : length in bytes of RSA private exponent
- */
-struct aspeed_acry_rsa_key {
-	u8 *n;
-	u8 *e;
-	u8 *d;
-	size_t n_sz;
-	size_t e_sz;
-	size_t d_sz;
-	int nm;
-	int ne;
-	int nd;
-};
-
-// struct aspeed_rsa_mpi_key {
-// 	MPI n;
-// 	MPI e;
-// 	MPI d;
-// }
-
 struct aspeed_acry_rsa_ctx {
 	struct aspeed_acry_dev		*acry_dev;
-	// struct rsa_key			key;
-	// struct aspeed_rsa_mpi_key	key;
+	struct rsa_key			key;
 	int 				enc;
-
-	size_t n_sz;
-	size_t e_sz;
-	size_t d_sz;
-	int nm;
-	int ne;
-	int nd;
-
-	void				*rsa_pub_addr;
-	dma_addr_t			rsa_pub_dma_addr;
-	void				*rsa_priv_addr;
-	dma_addr_t			rsa_priv_dma_addr;
 };
+
+struct aspeed_acry_ecdsa_ctx {
+	struct aspeed_acry_dev		*acry_dev;
+	struct completion 		completion;
+	char 				sign;
+	unsigned int 			curve_id;
+	unsigned int 			ndigits;
+	u64 				private_key[ECC_MAX_DIGITS];
+	u64 				Qx[ECC_MAX_DIGITS];
+	u64 				Qy[ECC_MAX_DIGITS];
+	u64 				x[ECC_MAX_DIGITS];
+	u64 				y[ECC_MAX_DIGITS];
+	u64 				k[ECC_MAX_DIGITS];
+};
+
+struct aspeed_acry_ctx {
+	aspeed_acry_fn_t trigger;
+	union {
+		struct aspeed_acry_rsa_ctx 	rsa_ctx;
+		struct aspeed_acry_ecdsa_ctx 	ecdsa_ctx;
+	} ctx;
+};
+
 
 /*************************************************************************************/
 
@@ -133,6 +142,8 @@ struct aspeed_acry_dev {
 	struct akcipher_request		*akcipher_req;
 	void __iomem			*acry_sram;
 
+	void				*buf_addr;
+	dma_addr_t			buf_dma_addr;
 
 };
 
@@ -163,11 +174,45 @@ aspeed_acry_read(struct aspeed_acry_dev *crypto, u32 reg)
 	return readl(crypto->regs + reg);
 #endif
 }
+int aspeed_acry_sts_polling(struct aspeed_acry_dev *acry_dev, u32 sts);
+int aspeed_acry_complete(struct aspeed_acry_dev *acry_dev, int err);
+int aspeed_acry_rsa_trigger(struct aspeed_acry_dev *acry_dev);
+int aspeed_acry_ec_trigger(struct aspeed_acry_dev *acry_dev);
 
-extern int aspeed_acry_rsa_trigger(struct aspeed_acry_dev *acry_dev);
+int aspeed_register_acry_rsa_algs(struct aspeed_acry_dev *acry_dev);
+int aspeed_register_acry_ecdsa_algs(struct aspeed_acry_dev *acry_dev);
 
-extern int aspeed_register_acry_rsa_algs(struct aspeed_acry_dev *acry_dev);
-extern int aspeed_register_acry_kpp_algs(struct aspeed_acry_dev *acry_dev);
-extern int aspeed_acry_handle_queue(struct aspeed_acry_dev *acry_dev,
+int aspeed_register_acry_kpp_algs(struct aspeed_acry_dev *acry_dev);
+int aspeed_acry_handle_queue(struct aspeed_acry_dev *acry_dev,
 				    struct crypto_async_request *new_areq);
+
+extern const struct ecc_curve *ecc_get_curve(unsigned int curve_id);
+extern void vli_set(u64 *dest, const u64 *src, unsigned int ndigits);
+extern void vli_copy_from_buf(u64 *dst_vli, unsigned int ndigits,
+			      const u8 *src_buf, unsigned int buf_len);
+extern struct ecc_point *ecc_alloc_point(unsigned int ndigits);
+extern void ecc_point_mult(struct ecc_point *result,
+			   const struct ecc_point *point, const u64 *scalar,
+			   u64 *initial_z, const struct ecc_curve *curve,
+			   unsigned int ndigits);
+extern void vli_mod(u64 *result, const u64 *input, const u64 *mod,
+		    unsigned int ndigits);
+extern void vli_mod_inv(u64 *result, const u64 *input, const u64 *mod,
+			unsigned int ndigits);
+extern void vli_mod_mult(u64 *result, const u64 *left, const u64 *right,
+			 const u64 *mod, unsigned int ndigits);
+extern void vli_mod_add(u64 *result, const u64 *left, const u64 *right,
+			const u64 *mod, unsigned int ndigits);
+extern void vli_mod_mult_fast(u64 *result, const u64 *left, const u64 *right,
+			      const u64 *curve_prime, unsigned int ndigits);
+extern void vli_copy_to_buf(u8 *dst_buf, unsigned int buf_len,
+			    const u64 *src_vli, unsigned int ndigits);
+extern void ecc_free_point(struct ecc_point *p);
+extern void ecc_point_add(u64 *x1, u64 *y1, u64 *x2, u64 *y2, u64 *curve_prime,
+			  unsigned int ndigits);
+extern int vli_cmp(const u64 *left, const u64 *right, unsigned int ndigits);
+extern int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
+			    const u64 *private_key, unsigned int private_key_len);
+extern int ecc_is_pub_key_valid(unsigned int curve_id, unsigned int ndigits,
+				const u8 *pub_key, unsigned int pub_key_len);
 #endif

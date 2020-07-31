@@ -114,7 +114,7 @@ int aspeed_acry_rsa_ctx_copy(void *buf, const void *xbuf, size_t nbytes, int mod
 	int i, j;
 
 	RSA_DBG("\n");
-	if (nbytes > ASPEED_ACRY_RSA_MAX_LEN)
+	if (nbytes > 512)
 		return -ENOMEM;
 
 	while (nbytes > 0 && src[0] == 0) {
@@ -124,13 +124,11 @@ int aspeed_acry_rsa_ctx_copy(void *buf, const void *xbuf, size_t nbytes, int mod
 	nbits = nbytes * 8;
 	if (nbytes > 0)
 		nbits -= count_leading_zeros(src[0]) - (BITS_PER_LONG - 8);
-	// printk("nbytes: %d\n", nbytes);
-	// printk("nbits: %d\n", nbits);
+
 	print_dram(src, nbytes);
-	// i = length - 1;
-	// for (j = 0; j < length; j++, i--)
-	// 	dst[j] = src[i];
+
 	ndw = DIV_ROUND_UP(nbytes, BYTES_PER_DWORD);
+
 	if (nbytes > 0) {
 		i = BYTES_PER_DWORD - nbytes % BYTES_PER_DWORD;
 		i %= BYTES_PER_DWORD;
@@ -160,20 +158,6 @@ int aspeed_acry_rsa_ctx_copy(void *buf, const void *xbuf, size_t nbytes, int mod
 	return nbits;
 }
 
-static int aspeed_acry_rsa_complete(struct aspeed_acry_dev *acry_dev, int err)
-{
-	struct akcipher_request *req = acry_dev->akcipher_req;
-
-	RSA_DBG("\n");
-	acry_dev->flags &= ~CRYPTO_FLAGS_BUSY;
-	if (acry_dev->is_async)
-		req->base.complete(&req->base, err);
-
-	aspeed_acry_handle_queue(acry_dev, NULL);
-
-	return err;
-}
-
 static int aspeed_acry_rsa_transfer(struct aspeed_acry_dev *acry_dev)
 {
 	struct akcipher_request *req = acry_dev->akcipher_req;
@@ -187,6 +171,7 @@ static int aspeed_acry_rsa_transfer(struct aspeed_acry_dev *acry_dev)
 	RSA_DBG("\n");
 
 	aspeed_acry_write(acry_dev, ACRY_CMD_DMA_SRAM_AHB_CPU, ASPEED_ACRY_DMA_CMD);
+	udelay(1);
 	// printk("sram result:\n");
 	// print_dram(sram_buffer, ASPEED_ACRY_RSA_MAX_LEN * 3);
 
@@ -212,7 +197,10 @@ static int aspeed_acry_rsa_transfer(struct aspeed_acry_dev *acry_dev)
 		printk("RSA engine error!\n");
 	}
 	aspeed_acry_write(acry_dev, ACRY_CMD_DMA_SRAM_AHB_ENGINE, ASPEED_ACRY_DMA_CMD);
-	return aspeed_acry_rsa_complete(acry_dev, 0);
+
+	memzero_explicit(acry_dev->buf_addr, ASPEED_ACRY_BUFF_SIZE);
+
+	return aspeed_acry_complete(acry_dev, 0);
 }
 
 static inline int aspeed_acry_rsa_wait_for_data_ready(struct aspeed_acry_dev *acry_dev,
@@ -240,24 +228,27 @@ int aspeed_acry_rsa_trigger(struct aspeed_acry_dev *acry_dev)
 {
 	struct akcipher_request *req = acry_dev->akcipher_req;
 	struct crypto_akcipher *cipher = crypto_akcipher_reqtfm(req);
-	struct aspeed_acry_rsa_ctx *ctx = crypto_tfm_ctx(&cipher->base);
+	struct aspeed_acry_ctx *acry_ctx = crypto_tfm_ctx(&cipher->base);
+	struct aspeed_acry_rsa_ctx *ctx = &acry_ctx->ctx.rsa_ctx;
+
+	int ne;
+	int nm;
 
 	RSA_DBG("\n");
+
+	memset(acry_dev->buf_addr, 0, ASPEED_ACRY_BUFF_SIZE);
+
+	aspeed_acry_rsa_sg_copy_to_buffer(acry_dev->buf_addr, req->src, req->src_len);
+
+	nm = aspeed_acry_rsa_ctx_copy(acry_dev->buf_addr, ctx->key.n, ctx->key.n_sz, 1);
 	if (ctx->enc) {
-		aspeed_acry_rsa_sg_copy_to_buffer(ctx->rsa_pub_addr, req->src, req->src_len);
-		// printk("dram:\n");
-		// print_dram(ctx->rsa_pub_addr, req->src_len * 3);
-		aspeed_acry_write(acry_dev, ctx->rsa_pub_dma_addr, ASPEED_ACRY_DMA_SRC_BASE);
-		aspeed_acry_write(acry_dev, (ctx->ne << 16) + ctx->nm, ASPEED_ACRY_RSA_KEY_LEN);
-		// printk("exp bits:%d , mod bits:%d\n", ctx->ne, ctx->nm);
+		ne = aspeed_acry_rsa_ctx_copy(acry_dev->buf_addr, ctx->key.e, ctx->key.e_sz, 0);
 	} else {
-		aspeed_acry_rsa_sg_copy_to_buffer(ctx->rsa_priv_addr, req->src, req->src_len);
-		// printk("dram:\n");
-		// print_dram(ctx->rsa_priv_addr, req->src_len * 3);
-		aspeed_acry_write(acry_dev, ctx->rsa_priv_dma_addr, ASPEED_ACRY_DMA_SRC_BASE);
-		aspeed_acry_write(acry_dev, (ctx->nd << 16) + ctx->nm, ASPEED_ACRY_RSA_KEY_LEN);
-		// printk("exp bits:%d , mod bits:%d\n", ctx->nd, ctx->nm);
+		ne = aspeed_acry_rsa_ctx_copy(acry_dev->buf_addr, ctx->key.d, ctx->key.d_sz, 0);
 	}
+
+	aspeed_acry_write(acry_dev, acry_dev->buf_dma_addr, ASPEED_ACRY_DMA_SRC_BASE);
+	aspeed_acry_write(acry_dev, (ne << 16) + nm, ASPEED_ACRY_RSA_KEY_LEN);
 	aspeed_acry_write(acry_dev, DMA_DEST_LEN(0x1800), ASPEED_ACRY_DMA_DEST); //TODO check length
 	acry_dev->resume = aspeed_acry_rsa_transfer;
 
@@ -274,11 +265,14 @@ int aspeed_acry_rsa_trigger(struct aspeed_acry_dev *acry_dev)
 static int aspeed_acry_rsa_enc(struct akcipher_request *req)
 {
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
-	struct aspeed_acry_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_ctx *acry_ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_rsa_ctx *ctx = &acry_ctx->ctx.rsa_ctx;
 	struct aspeed_acry_dev *acry_dev = ctx->acry_dev;
 
 	RSA_DBG("\n");
+	acry_ctx->trigger = aspeed_acry_rsa_trigger;
 	ctx->enc = 1;
+
 
 	return aspeed_acry_handle_queue(acry_dev, &req->base);
 
@@ -287,10 +281,12 @@ static int aspeed_acry_rsa_enc(struct akcipher_request *req)
 static int aspeed_acry_rsa_dec(struct akcipher_request *req)
 {
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
-	struct aspeed_acry_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_ctx *acry_ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_rsa_ctx *ctx = &acry_ctx->ctx.rsa_ctx;
 	struct aspeed_acry_dev *acry_dev = ctx->acry_dev;
 
 	RSA_DBG("\n");
+	acry_ctx->trigger = aspeed_acry_rsa_trigger;
 	ctx->enc = 0;
 
 	return aspeed_acry_handle_queue(acry_dev, &req->base);
@@ -299,56 +295,25 @@ static int aspeed_acry_rsa_dec(struct akcipher_request *req)
 static int aspeed_acry_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 				  unsigned int keylen, int priv)
 {
-	struct aspeed_acry_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
-	struct rsa_key raw_key;
-	// struct aspeed_acry_rsa_key *rsa_key = &ctx->key;
+	struct aspeed_acry_ctx *acry_ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_rsa_ctx *ctx = &acry_ctx->ctx.rsa_ctx;
 	int ret;
 
 	RSA_DBG("\n");
-	/* Free the old RSA key if any */
-	memset(ctx->rsa_pub_addr, 0, ASPEED_ACRY_BUFF_SIZE * 2);
 	if (priv)
-		ret = rsa_parse_priv_key(&raw_key, key, keylen);
+		ret = rsa_parse_priv_key(&ctx->key, key, keylen);
 	else
-		ret = rsa_parse_pub_key(&raw_key, key, keylen);
+		ret = rsa_parse_pub_key(&ctx->key, key, keylen);
 	if (ret)
 		return ret;
+
 	// printk("raw_key.n_sz %d, raw_key.e_sz %d, raw_key.d_sz %d, raw_key.p_sz %d, raw_key.q_sz %d, raw_key.dp_sz %d, raw_key.dq_sz %d, raw_key.qinv_sz %d\n",
 	//        raw_key.n_sz, raw_key.e_sz, raw_key.d_sz,
 	//        raw_key.p_sz, raw_key.q_sz, raw_key.dp_sz,
 	//        raw_key.dq_sz, raw_key.qinv_sz);
-	if (raw_key.n_sz > 513)
+	if (ctx->key.n_sz > 512)
 		return -EINVAL;
 
-	ctx->n_sz = raw_key.n_sz;
-	ctx->nm = aspeed_acry_rsa_ctx_copy(ctx->rsa_priv_addr, raw_key.n,
-					   raw_key.n_sz, 1);
-	if (ctx->nm < 0)
-		return -ENOMEM;
-	memcpy(ctx->rsa_pub_addr, ctx->rsa_priv_addr, ASPEED_ACRY_BUFF_SIZE);
-
-	if (priv) {
-		ctx->d_sz = raw_key.d_sz;
-		ctx->nd = aspeed_acry_rsa_ctx_copy(ctx->rsa_priv_addr,
-						   raw_key.d, raw_key.d_sz, 0);
-		if (ctx->nd < 0)
-			return -ENOMEM;
-	}
-
-	ctx->e_sz = raw_key.e_sz;
-	ctx->ne = aspeed_acry_rsa_ctx_copy(ctx->rsa_pub_addr, raw_key.e,
-					   raw_key.e_sz, 0);
-	// printk("rsa_pub_addr:\n");
-	// // print_dram(ctx->rsa_pub_addr, 2048 * 3);
-	// print_sram(ctx->rsa_pub_addr, ctx->n_sz, 1);
-	// print_sram(ctx->rsa_pub_addr, ctx->e_sz, 0);
-	// printk("rsa_priv_addr:\n");
-	// // print_dram(ctx->rsa_priv_addr, 2048 * 3);
-	// print_sram(ctx->rsa_priv_addr, ctx->n_sz, 1);
-	// print_sram(ctx->rsa_priv_addr, ctx->d_sz, 0);
-
-	if (ctx->ne < 0)
-		return -ENOMEM;
 	return 0;
 }
 
@@ -370,15 +335,17 @@ static int aspeed_acry_rsa_set_priv_key(struct crypto_akcipher *tfm, const void 
 
 static unsigned int aspeed_acry_rsa_max_size(struct crypto_akcipher *tfm)
 {
-	struct aspeed_acry_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_ctx *acry_ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_rsa_ctx *ctx = &acry_ctx->ctx.rsa_ctx;
 
-	RSA_DBG("key->n_sz %d\n", ctx->n_sz);
-	return (ctx->n_sz) ? ctx->n_sz : -EINVAL;
+	RSA_DBG("key->n_sz %d\n", ctx->key.n_sz);
+	return (ctx->key.n_sz) ? ctx->key.n_sz : -EINVAL;
 }
 
 static int aspeed_acry_rsa_init_tfm(struct crypto_akcipher *tfm)
 {
-	struct aspeed_acry_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_ctx *acry_ctx = akcipher_tfm_ctx(tfm);
+	struct aspeed_acry_rsa_ctx *ctx = &acry_ctx->ctx.rsa_ctx;
 	struct akcipher_alg *alg = __crypto_akcipher_alg(tfm->base.__crt_alg);
 	struct aspeed_acry_alg *algt;
 
@@ -388,23 +355,12 @@ static int aspeed_acry_rsa_init_tfm(struct crypto_akcipher *tfm)
 
 	ctx->acry_dev = algt->acry_dev;
 
-	ctx->rsa_pub_addr = dma_alloc_coherent(ctx->acry_dev->dev,
-					       ASPEED_ACRY_BUFF_SIZE * 2,
-					       &ctx->rsa_pub_dma_addr, GFP_KERNEL);
-	ctx->rsa_priv_addr = ctx->rsa_pub_addr + ASPEED_ACRY_BUFF_SIZE;
-	ctx->rsa_priv_dma_addr = ctx->rsa_pub_dma_addr + ASPEED_ACRY_BUFF_SIZE;
-
 	return 0;
 }
 
 static void aspeed_acry_rsa_exit_tfm(struct crypto_akcipher *tfm)
 {
-	struct aspeed_acry_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
 
-	RSA_DBG("\n");
-
-	dma_free_coherent(ctx->acry_dev->dev, ASPEED_ACRY_BUFF_SIZE * 2,
-			  ctx->rsa_pub_addr, ctx->rsa_pub_dma_addr);
 }
 
 struct aspeed_acry_alg aspeed_acry_akcipher_algs[] = {
@@ -427,7 +383,7 @@ struct aspeed_acry_alg aspeed_acry_akcipher_algs[] = {
 				CRYPTO_ALG_ASYNC |
 				CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_module = THIS_MODULE,
-				.cra_ctxsize = sizeof(struct aspeed_acry_rsa_ctx),
+				.cra_ctxsize = sizeof(struct aspeed_acry_ctx),
 			},
 		},
 	},

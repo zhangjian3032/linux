@@ -50,11 +50,13 @@ struct aspeed_espi_peripheral {
 
 	int 					irq;					//LPC IRQ number
 	int 					rest_irq;					//espi reset irq
-	int						dma_mode;		/* o:disable , 1:enable */
+	int						dma_mode;		/* 0:disable, 1:enable */
+	int 					mmbi_mode;		/* 0:disable, 1:enable */
 
 	phys_addr_t			host_mapping_mem_base;
 	phys_addr_t			mapping_mem_base;
 	resource_size_t		mapping_mem_size;
+	void 				*mapping_mem_virt;
 
 	struct mq_msg		*write_curr;
 	int			wtruncated; /* drop current if truncated */
@@ -175,6 +177,9 @@ static int aspeed_espi_peripheral_mmap(struct file *file, struct vm_area_struct 
 	struct aspeed_espi_peripheral *espi_peripheral = file_aspeed_espi_peripherial(file);
 	unsigned long vsize = vma->vm_end - vma->vm_start;
 	pgprot_t prot = vma->vm_page_prot;
+
+	if (espi_peripheral->mmbi_mode)
+		return -EPERM;
 
 	if (vma->vm_pgoff + vsize > espi_peripheral->mapping_mem_base + espi_peripheral->mapping_mem_size)
 		return -EINVAL;
@@ -489,8 +494,7 @@ MODULE_DEVICE_TABLE(of, aspeed_espi_peripheral_match);
 static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource resm;
-	struct device_node *node;
+	struct device_node *mmbi_np;
 	struct aspeed_espi_peripheral *espi_peripheral;
 	const struct of_device_id *dev_id;
 	int rc;
@@ -503,12 +507,7 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 	if (!dev_id)
 		return -EINVAL;
 
-	dev_id = of_match_device(aspeed_espi_peripheral_match, &pdev->dev);
-	if (!dev_id)
-		return -EINVAL;
-
 	espi_peripheral->espi_version = (unsigned long)dev_id->data;
-
 
 	if (of_property_read_bool(pdev->dev.of_node, "dma-mode"))
 		espi_peripheral->dma_mode = 1;
@@ -519,21 +518,40 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* If memory-region is described in device tree then store */
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (!node) {
-		dev_dbg(dev, "Didn't find reserved memory\n");
-	} else {
+	espi_peripheral->irq = platform_get_irq(pdev, 0);
+	if (espi_peripheral->irq < 0) {
+		dev_err(&pdev->dev, "no irq specified\n");
+		return espi_peripheral->irq;
+	}
+
+	mmbi_np = of_parse_phandle(dev->of_node, "aspeed,espi-mmbi", 0);
+	if (mmbi_np) {
+		espi_peripheral->mmbi_mode = of_device_is_available(mmbi_np);
+		of_node_put(mmbi_np);
+	}
+
+	if (!espi_peripheral->mmbi_mode) {
 		rc = of_property_read_u32(dev->of_node, "host-map-addr", &espi_peripheral->host_mapping_mem_base);
-		if (!rc) {
-			printk("no host mapping address \n");
+		if (rc) {
+			dev_err(dev, "Couldn't get host mapping address\n");
+			return -ENODEV;
 		}
 
-		rc = of_address_to_resource(node, 0, &resm);
-		of_node_put(node);
-		if (!rc) {
-			espi_peripheral->mapping_mem_size = resource_size(&resm);
-			espi_peripheral->mapping_mem_base = resm.start;
+		rc = of_property_read_u32(dev->of_node, "map-size", &espi_peripheral->mapping_mem_size);
+		if (rc) {
+			dev_err(dev, "Couldn't get mapping size\n");
+			return -ENODEV;
+		}
+
+		if (espi_peripheral->mapping_mem_size < 0x10000)
+			espi_peripheral->mapping_mem_size = 0x10000;
+
+		espi_peripheral->mapping_mem_size = roundup_pow_of_two(espi_peripheral->mapping_mem_size);
+		espi_peripheral->mapping_mem_virt = dma_alloc_coherent(dev, espi_peripheral->mapping_mem_size,
+				&espi_peripheral->mapping_mem_base, GFP_KERNEL);
+		if (IS_ERR_OR_NULL(espi_peripheral->mapping_mem_virt)) {
+			dev_err(dev, "Failed to allocate memory cycle region\n");
+			return -ENOMEM;
 		}
 
 		if(espi_peripheral->espi_version == ESPI_AST2500) {
@@ -543,6 +561,8 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 		} else {
 			regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_SADDR, espi_peripheral->host_mapping_mem_base);
 			regmap_write(espi_peripheral->map, ASPEED_ESPI_PC_RX_TADDR, espi_peripheral->mapping_mem_base);
+			regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_PC_RX_TADDRM,
+					GENMASK(31, 16), ~(espi_peripheral->mapping_mem_size - 1));
 			regmap_update_bits(espi_peripheral->map, ASPEED_ESPI_CTRL2,
 					ESPI_DISABLE_PERP_MEM_READ | ESPI_DISABLE_PERP_MEM_WRITE, 0 );
 		}
@@ -581,11 +601,6 @@ static int aspeed_espi_peripheral_probe(struct platform_device *pdev)
 		espi_peripheral->np_tx_channel.buff = espi_peripheral->p_tx_channel.buff  + MAX_XFER_BUFF_SIZE;
 	}
 
-	espi_peripheral->irq = platform_get_irq(pdev, 0);
-	if (espi_peripheral->irq < 0) {
-		dev_err(&pdev->dev, "no irq specified\n");
-		return espi_peripheral->irq;
-	}
 
 	rc = devm_request_irq(&pdev->dev, espi_peripheral->irq, aspeed_espi_peripheral_irq, IRQF_SHARED,
 				dev_name(&pdev->dev), espi_peripheral);
@@ -639,6 +654,12 @@ static int aspeed_espi_peripheral_remove(struct platform_device *pdev)
 	struct aspeed_espi_peripheral *espi_peripheral = dev_get_drvdata(&pdev->dev);
 
 	misc_deregister(&espi_peripheral->miscdev);
+
+	if (!IS_ERR_OR_NULL(espi_peripheral->mapping_mem_virt)) {
+		dma_free_coherent(&pdev->dev, espi_peripheral->mapping_mem_size,
+				espi_peripheral->mapping_mem_virt, espi_peripheral->mapping_mem_base);
+	}
+
 	return 0;
 }
 

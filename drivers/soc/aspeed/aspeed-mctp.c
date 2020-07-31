@@ -237,7 +237,7 @@ struct aspeed_mctp_xfer {
 struct aspeed_mctp_info {
 	void __iomem *reg_base;
 	void __iomem *pci_bdf_regs;
-	struct miscdevice *misc_dev;
+	struct miscdevice misc_dev;
 	bool is_open;
 	int irq;
 	int pcie_irq;
@@ -368,8 +368,15 @@ static int aspeed_mctp_g6_tx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct a
 		return -EFAULT;
 	}
 
-	//TODO check tx is full or not
+	/* 
+	 * write MCTP_HW_READ_PT_UPDATE and wait until that bit back to 0,
+	 * and then do it again, these steps can guarantee hw read pt will 
+	 * update. 
+	 */
 	aspeed_mctp_write(aspeed_mctp, MCTP_HW_READ_PT_UPDATE, ASPEED_MCTP_TX_READ_PT);
+	while (aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_TX_READ_PT) & MCTP_HW_READ_PT_UPDATE);
+	aspeed_mctp_write(aspeed_mctp, MCTP_HW_READ_PT_UPDATE, ASPEED_MCTP_TX_READ_PT);
+	while (aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_TX_READ_PT) & MCTP_HW_READ_PT_UPDATE);
 	hw_read_pt = aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_TX_READ_PT) & MCTP_HW_READ_PT_NUM_MASK;
 
 	if (((aspeed_mctp->tx_idx + needs_fifo) % MCTP_G6_TX_FIFO_NUM) == hw_read_pt) {
@@ -524,7 +531,8 @@ static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 	int i = 0;
 
 	MCTP_DBUG("dram base %x \n", aspeed_mctp->dram_base);
-	aspeed_mctp_write(aspeed_mctp, aspeed_mctp->dram_base, ASPEED_MCTP_EID);
+	aspeed_mctp_write(aspeed_mctp, (aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_EID) & 0xff) |
+			  aspeed_mctp->dram_base, ASPEED_MCTP_EID);
 
 	aspeed_mctp->tx_idx = 0;
 
@@ -551,15 +559,21 @@ static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 		aspeed_mctp->rx_recv_idx = 0;
 		aspeed_mctp->rx_first_loop = 1;
 		aspeed_mctp->rx_reboot = 1;
+
+		/* reserved 4 cmd for reboot issue workaround, it will be minused
+		 * after first circle.
+		*/
+		aspeed_mctp->rx_cmd_num = aspeed_mctp->rx_fifo_num * 4 + 4;
+
 		for (i = 0; i < aspeed_mctp->rx_cmd_num; i++) {
 			rx_cmd_header = (u32 *)aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * i);
 			*rx_cmd_header = 0;
 			rx_cmd_desc[i] = (u32)aspeed_mctp->rx_pool_dma + (aspeed_mctp->rx_fifo_size * i);
 			MCTP_DBUG("Rx [%d]: desc: %x , \n", i, rx_cmd_desc[i]);
 		}
-		aspeed_mctp_write(aspeed_mctp, aspeed_mctp->rx_cmd_desc_dma, ASPEED_MCTP_RX_DESC_ADDR);
 		aspeed_mctp_write(aspeed_mctp, aspeed_mctp->rx_fifo_num, ASPEED_MCTP_RX_DESC_NUM);
 		aspeed_mctp_write(aspeed_mctp, 0, ASPEED_MCTP_RX_READ_PT);
+		aspeed_mctp_write(aspeed_mctp, aspeed_mctp->rx_cmd_desc_dma, ASPEED_MCTP_RX_DESC_ADDR);
 		aspeed_mctp_write(aspeed_mctp, MCTP_TX_CMD_WRONG | MCTP_RX_NO_CMD, ASPEED_MCTP_IER);
 		aspeed_mctp_write(aspeed_mctp, aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_CTRL) | MCTP_RX_CMD_RDY, ASPEED_MCTP_CTRL);
 		aspeed_mctp_write(aspeed_mctp, MCTP_HW_READ_PT_UPDATE, ASPEED_MCTP_RX_WRITE_PT);
@@ -640,7 +654,7 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 		       unsigned long arg)
 {
 	struct miscdevice *c = file->private_data;
-	struct aspeed_mctp_info *aspeed_mctp = dev_get_drvdata(c->this_device);
+	struct aspeed_mctp_info *aspeed_mctp = container_of(c, struct aspeed_mctp_info, misc_dev);
 	struct aspeed_mctp_xfer mctp_xfer;
 	void __user *argp = (void __user *)arg;
 	int recv_length;
@@ -678,7 +692,7 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 			hw_read_pt = aspeed_mctp_read(aspeed_mctp, ASPEED_MCTP_RX_WRITE_PT) & MCTP_HW_READ_PT_NUM_MASK;
 
 			if (aspeed_mctp->rx_idx == hw_read_pt) {
-				MCTP_DBUG("No rx data\n");
+				// MCTP_DBUG("No rx data\n");
 				return 0;
 			} else {
 				struct pcie_vdm_header *vdm;
@@ -695,13 +709,35 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 					aspeed_mctp->rx_recv_idx++;
 				}
 				if (aspeed_mctp->rx_first_loop) {
+					int wrap_around = 0;
 					header_dw = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
-					if (*header_dw == 0) {
-						aspeed_mctp->rx_recv_idx = 0;
+					while (*header_dw == 0) {
+						MCTP_DBUG("first loop header_dw == 0");
+						MCTP_DBUG("first loop rx_recv_idx:%d", aspeed_mctp->rx_recv_idx);
+						aspeed_mctp->rx_recv_idx++;
+						if (aspeed_mctp->rx_recv_idx >= aspeed_mctp->rx_cmd_num)
+							wrap_around = 1;
+						aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_cmd_num;
+						header_dw = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
+					}
+					if (wrap_around) {
+						MCTP_DBUG("wrap around");
 						aspeed_mctp->rx_first_loop = 0;
 						aspeed_mctp->rx_cmd_num -= 4;
 					}
+				} else {
+					header_dw = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
+					while (*header_dw == 0) {
+						MCTP_DBUG("header_dw == 0");
+						aspeed_mctp->rx_recv_idx++;
+						aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_cmd_num;
+						header_dw = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
+					}
 				}
+
+				MCTP_DBUG("rx_recv_idx:%d, rx_idx:%d", aspeed_mctp->rx_recv_idx, aspeed_mctp->rx_idx);
+				MCTP_DBUG("rx_cmd_num:%d, rx_fifo_num:%d", aspeed_mctp->rx_cmd_num, aspeed_mctp->rx_fifo_num);
+				MCTP_DBUG("rx_first_loop:%d, rx_reboot:%d", aspeed_mctp->rx_first_loop, aspeed_mctp->rx_reboot);
 
 				vdm = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
 				header_dw = (u32 *)vdm;
@@ -791,7 +827,7 @@ static long mctp_ioctl(struct file *file, unsigned int cmd,
 static int mctp_open(struct inode *inode, struct file *file)
 {
 	struct miscdevice *c = file->private_data;
-	struct aspeed_mctp_info *aspeed_mctp = dev_get_drvdata(c->this_device);
+	struct aspeed_mctp_info *aspeed_mctp = container_of(c, struct aspeed_mctp_info, misc_dev);
 
 	MCTP_DBUG("\n");
 	if (aspeed_mctp->is_open) {
@@ -805,7 +841,7 @@ static int mctp_open(struct inode *inode, struct file *file)
 static int mctp_release(struct inode *inode, struct file *file)
 {
 	struct miscdevice *c = file->private_data;
-	struct aspeed_mctp_info *aspeed_mctp = dev_get_drvdata(c->this_device);
+	struct aspeed_mctp_info *aspeed_mctp = container_of(c, struct aspeed_mctp_info, misc_dev);
 
 	MCTP_DBUG("\n");
 	aspeed_mctp->is_open = false;
@@ -834,7 +870,7 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct aspeed_mctp_info *aspeed_mctp;
 	struct device_node *np = pdev->dev.of_node;
-	struct miscdevice *misc_dev;
+	// struct miscdevice *misc_dev;
 	const struct of_device_id *mctp_dev_id;
 	int max_reserved_idx;
 	int idx;
@@ -936,11 +972,6 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		fifo_num = ((MCTP_G6_RX_BUFF_POOL_SIZE / aspeed_mctp->rx_fifo_size) / 4) - 1;
 		aspeed_mctp->rx_fifo_num = fifo_num - ((fifo_num - 1) % 4);
 
-		/* reserved 4 cmd for reboot issue workaround, it will be minused
-		 * after first circle.
-		*/
-		aspeed_mctp->rx_cmd_num = aspeed_mctp->rx_fifo_num * 4 + 4;
-
 		aspeed_mctp->dram_base = G6_DRAM_BASE_ADDR;
 		break;
 	default:
@@ -1019,11 +1050,11 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		reset_control_deassert(aspeed_mctp->reset);
 	}
 
-	misc_dev = (struct miscdevice *)devm_kzalloc(&pdev->dev, sizeof(struct miscdevice), GFP_KERNEL);
-	if (!misc_dev) {
-		pr_err("failed to allocate misc device\n");
-		goto out_region;
-	}
+	// aspeed_mctp->misc_dev = (struct miscdevice *)devm_kzalloc(&pdev->dev, sizeof(struct miscdevice), GFP_KERNEL);
+	// if (!misc_dev) {
+	// 	pr_err("failed to allocate misc device\n");
+	// 	goto out_region;
+	// }
 
 	if (reserved_idx == -1) {
 		max_reserved_idx = of_alias_get_highest_id("mctp");
@@ -1036,11 +1067,11 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		idx = ++reserved_idx;
 	}
 
-	misc_dev->minor = MISC_DYNAMIC_MINOR;
-	misc_dev->name = kasprintf(GFP_KERNEL, "aspeed-mctp%d", idx);
-	misc_dev->fops = &aspeed_mctp_fops;
+	aspeed_mctp->misc_dev.minor = MISC_DYNAMIC_MINOR;
+	aspeed_mctp->misc_dev.name = kasprintf(GFP_KERNEL, "aspeed-mctp%d", idx);
+	aspeed_mctp->misc_dev.fops = &aspeed_mctp_fops;
 
-	ret = misc_register(misc_dev);
+	ret = misc_register(&aspeed_mctp->misc_dev);
 
 	if (ret) {
 		printk(KERN_ERR "MCTP : failed to request interrupt\n");
@@ -1048,9 +1079,9 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, aspeed_mctp);
-	dev_set_drvdata(misc_dev->this_device, aspeed_mctp);
+	// dev_set_drvdata(misc_dev->this_device, aspeed_mctp);
 
-	aspeed_mctp->misc_dev = misc_dev;
+	// aspeed_mctp->misc_dev = misc_dev;
 
 	aspeed_mctp->tx_idx = 0;
 
@@ -1104,9 +1135,9 @@ static int aspeed_mctp_remove(struct platform_device *pdev)
 
 	MCTP_DBUG("\n");
 
-	misc_deregister(aspeed_mctp->misc_dev);
+	misc_deregister(&aspeed_mctp->misc_dev);
 
-	kfree_const(aspeed_mctp->misc_dev->name);
+	kfree_const(aspeed_mctp->misc_dev.name);
 
 	free_irq(aspeed_mctp->irq, aspeed_mctp);
 

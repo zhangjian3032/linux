@@ -38,6 +38,28 @@ int exp_dw_mapping[512];
 int mod_dw_mapping[512];
 int data_byte_mapping[2048];
 
+int aspeed_acry_sts_polling(struct aspeed_acry_dev *acry_dev, u32 sts)
+{
+	int ret, err;
+	int i;
+
+	err = 1;
+	for (i = 0; i < 10; i++) {
+		ret = aspeed_acry_read(acry_dev, ASPEED_ACRY_STATUS);
+		if (ret & sts) {
+			aspeed_acry_write(acry_dev, 0, ASPEED_ACRY_TRIGGER);
+			aspeed_acry_write(acry_dev, 0x7, ASPEED_ACRY_STATUS);
+			err = 0;
+			break;
+		}
+		udelay(50);
+	}
+	if (err) {
+		return -1;
+	}
+	return 0;
+}
+
 static irqreturn_t aspeed_acry_irq(int irq, void *dev)
 {
 	struct aspeed_acry_dev *acry_dev = (struct aspeed_acry_dev *)dev;
@@ -52,7 +74,14 @@ static irqreturn_t aspeed_acry_irq(int irq, void *dev)
 		if (acry_dev->flags & CRYPTO_FLAGS_BUSY)
 			tasklet_schedule(&acry_dev->done_task);
 		else
-			dev_warn(acry_dev->dev, "CRYPTO interrupt when no active requests.\n");
+			dev_warn(acry_dev->dev, "RSA interrupt when no active requests.\n");
+		handle = IRQ_HANDLED;
+	} else if (sts & ACRY_ECC_ISR) {
+		aspeed_acry_write(acry_dev, 0, ASPEED_ACRY_TRIGGER);
+		if (acry_dev->flags & CRYPTO_FLAGS_BUSY)
+			tasklet_schedule(&acry_dev->done_task);
+		else
+			dev_warn(acry_dev->dev, "ECC interrupt when no active requests.\n");
 		handle = IRQ_HANDLED;
 	}
 
@@ -63,6 +92,8 @@ int aspeed_acry_handle_queue(struct aspeed_acry_dev *acry_dev,
 			     struct crypto_async_request *new_areq)
 {
 	struct crypto_async_request *areq, *backlog;
+	struct aspeed_acry_ctx *acry_ctx = NULL;
+	struct crypto_akcipher *tfm = NULL;
 	unsigned long flags;
 	int err, ret = 0;
 
@@ -88,9 +119,12 @@ int aspeed_acry_handle_queue(struct aspeed_acry_dev *acry_dev,
 
 	acry_dev->is_async = (areq != new_areq);
 	acry_dev->akcipher_req = container_of(areq, struct akcipher_request, base);
+	tfm = crypto_akcipher_reqtfm(acry_dev->akcipher_req);
+	acry_ctx = akcipher_tfm_ctx(tfm);
 
-	err = aspeed_acry_rsa_trigger(acry_dev);
+	err = acry_ctx->trigger(acry_dev);
 
+	/* -EINPROGRESS, -EBUSY, -EINVAL */
 	return (acry_dev->is_async) ? ret : err;
 }
 static void aspeed_acry_sram_mapping(void)
@@ -109,16 +143,20 @@ static void aspeed_acry_sram_mapping(void)
 		j++;
 		j = j % 4 ? j : j + 8;
 	}
-	// printk("aspeed_acry_sram_mapping\n");
-	// printk("exp_dw_mapping\n");
-	// for (i = 0; i < ASPEED_ACRY_RSA_MAX_LEN / BYTES_PER_DWORD; i++) {
-	// 	if (i % 0x10 == 0)
-	// 		printk(KERN_CONT "%05x: ", i);
-	// 	printk(KERN_CONT "%02x ", exp_dw_mapping[i]);
-	// 	if ((i - 0xf) % 0x10 == 0)
-	// 		printk(KERN_CONT "\n");
-	// }
-	// printk(KERN_CONT "\n");
+}
+
+int aspeed_acry_complete(struct aspeed_acry_dev *acry_dev, int err)
+{
+	struct akcipher_request *req = acry_dev->akcipher_req;
+
+	ACRY_DBUG("\n");
+	acry_dev->flags &= ~CRYPTO_FLAGS_BUSY;
+	if (acry_dev->is_async)
+		req->base.complete(&req->base, err);
+
+	aspeed_acry_handle_queue(acry_dev, NULL);
+
+	return err;
 }
 
 static void aspeed_acry_done_task(unsigned long data)
@@ -133,14 +171,16 @@ static void aspeed_acry_done_task(unsigned long data)
 
 static int aspeed_acry_register(struct aspeed_acry_dev *acry_dev)
 {
-	aspeed_register_acry_rsa_algs(acry_dev);
+	if (aspeed_register_acry_rsa_algs(acry_dev))
+		return -EFAULT;
+
 	return 0;
 }
 
-static void aspeed_acry_unregister(void)
-{
-	return;
-}
+// static void aspeed_acry_unregister(void)
+// {
+// 	return;
+// }
 
 static const struct of_device_id aspeed_acry_of_matches[] = {
 	{ .compatible = "aspeed,ast2600-acry", .data = (void *) 6,},
@@ -211,6 +251,9 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	acry_dev->buf_addr = dma_alloc_coherent(dev, ASPEED_ACRY_BUFF_SIZE,
+						&acry_dev->buf_dma_addr, GFP_KERNEL);
+	memzero_explicit(acry_dev->buf_addr, ASPEED_ACRY_BUFF_SIZE);
 
 	printk("ASPEED RSA Accelerator successfully registered \n");
 

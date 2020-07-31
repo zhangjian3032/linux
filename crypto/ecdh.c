@@ -14,7 +14,8 @@
 #include <crypto/kpp.h>
 #include <crypto/ecdh.h>
 #include <linux/scatterlist.h>
-#include "ecc.h"
+
+#include "ecc_ecdh.h"
 
 struct ecdh_ctx {
 	unsigned int curve_id;

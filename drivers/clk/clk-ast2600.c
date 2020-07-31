@@ -189,11 +189,10 @@ static const struct clk_div_table ast2600_uart_div_table[] = {
 	{ 0 }
 };
 
-//for hpll/dpll/epll/mpll
+//for dpll/epll/mpll
 static struct clk_hw *aspeed_ast2600_calc_pll(const char *name, u32 val)
 {
 	unsigned int mult, div;
-
 	if (val & BIT(24)) {
 		/* Pass through mode */
 		mult = div = 1;
@@ -202,6 +201,41 @@ static struct clk_hw *aspeed_ast2600_calc_pll(const char *name, u32 val)
 		u32 m = val  & 0x1fff;
 		u32 n = (val >> 13) & 0x3f;
 		u32 p = (val >> 19) & 0xf;
+		mult = (m + 1) / (n + 1);
+		div = (p + 1);
+	}
+	return clk_hw_register_fixed_factor(NULL, name, "clkin", 0,
+			mult, div);
+};
+
+static struct clk_hw *aspeed_ast2600_calc_hpll(const char *name, u32 hwstrap, u32 val)
+{
+	unsigned int mult, div;
+	/* 
+	HPLL Numerator (M) = fix 0x5F when SCU500[10]=1
+						 fix 0xBF when SCU500[10]=0 and SCU500[8]=1
+	SCU200[12:0] (default 0x8F) when SCU510[10]=0 and SCU510[8]=0 
+	HPLL Denumerator (N) =	SCU200[18:13] (default 0x2)
+	HPLL Divider (P)	 =	SCU200[22:19] (default 0x0)
+	HPLL Bandwidth Adj (NB) =  fix 0x2F when SCU500[10]=1
+							   fix 0x5F when SCU500[10]=0 and SCU500[8]=1
+	SCU204[11:0] (default 0x31) when SCU500[10]=0 and SCU500[8]=0 
+	*/
+	if (val & BIT(24)) {
+		/* Pass through mode */
+		mult = div = 1;
+	} else {
+		/* F = 25Mhz * [(M + 2) / (n + 1)] / (p + 1) */
+		u32 m = val  & 0x1fff;
+		u32 n = (val >> 13) & 0x3f;
+		u32 p = (val >> 19) & 0xf;
+		if(hwstrap & BIT(10))
+			m = 0x5F;
+		else {
+			if(hwstrap & BIT(8))
+				m = 0xBF;
+			//otherwise keep default 0x8F
+		}
 		mult = (m + 1) / (n + 1);
 		div = (p + 1);
 	}
@@ -243,7 +277,6 @@ static const struct aspeed_clk_soc_data ast2600_data = {
 	.div_table = ast2600_div_table,
 	.mac_div_table = ast2600_mac_div_table,
 	.eclk_div_table = ast2600_eclk_div_table,	
-	.calc_pll = aspeed_ast2600_calc_pll,
 };
 
 static int aspeed_g6_clk_is_enabled(struct clk_hw *hw)
@@ -878,7 +911,7 @@ static u32 ast2600_a1_axi_ahb_default_table[] = {
 static void __init aspeed_ast2600_cc(struct regmap *map)
 {
 	struct clk_hw *hw;
-	u32 val, freq, div, chip_id, axi_div, ahb_div;
+	u32 val, freq, div, chip_id, axi_div, ahb_div, hwstrap;
 
 	freq = 25000000;
 
@@ -890,7 +923,8 @@ static void __init aspeed_ast2600_cc(struct regmap *map)
 	 * and we assume that it is enabled
 	 */
 	regmap_read(map, ASPEED_HPLL_PARAM, &val);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_HPLL] = aspeed_ast2600_calc_pll("hpll", val);
+	regmap_read(map, 0x500, &hwstrap);	
+	aspeed_g6_clk_data->hws[ASPEED_CLK_HPLL] = aspeed_ast2600_calc_hpll("hpll", hwstrap, val);
 
 	regmap_read(map, ASPEED_MPLL_PARAM, &val);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_MPLL] = aspeed_ast2600_calc_pll("mpll", val);
@@ -950,22 +984,22 @@ static void __init aspeed_ast2600_cc(struct regmap *map)
 	}
 
 	regmap_read(map, 0x04, &chip_id);
-	regmap_read(map, 0x500, &val);
 
 	if (chip_id & BIT(16)) {
-		if (val & BIT(16)) {
-			ast2600_a1_axi_ahb_div1_table[0] = ast2600_a1_axi_ahb_default_table[(val >> 8) & 0x3];
+		//ast2600a1
+		if (hwstrap & BIT(16)) {
+			ast2600_a1_axi_ahb_div1_table[0] = ast2600_a1_axi_ahb_default_table[(hwstrap >> 8) & 0x3];
 			axi_div = 1;
-			ahb_div = ast2600_a1_axi_ahb_div1_table[(val >> 11) & 0x3];
+			ahb_div = ast2600_a1_axi_ahb_div1_table[(hwstrap >> 11) & 0x3];
 		} else {
-			ast2600_a1_axi_ahb_div0_table[0] = ast2600_a1_axi_ahb_default_table[(val >> 8) & 0x3];
+			ast2600_a1_axi_ahb_div0_table[0] = ast2600_a1_axi_ahb_default_table[(hwstrap >> 8) & 0x3];
 			axi_div = 2;
-			ahb_div = ast2600_a1_axi_ahb_div0_table[(val >> 11) & 0x3];
+			ahb_div = ast2600_a1_axi_ahb_div0_table[(hwstrap >> 11) & 0x3];
 		}
 	} else {
-		//a0 : fix axi = hpll/2
+		//ast2600a0 : fix axi = hpll/2
 		axi_div = 2;
-		ahb_div = ast2600_a0_axi_ahb_div_table[(val >> 11) & 0x3];
+		ahb_div = ast2600_a0_axi_ahb_div_table[(hwstrap >> 11) & 0x3];
 	}
 
 	hw = clk_hw_register_fixed_factor(NULL, "ahb", "hpll", 0, 1, axi_div * ahb_div);

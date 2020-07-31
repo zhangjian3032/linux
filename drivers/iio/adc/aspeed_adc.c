@@ -65,16 +65,28 @@
 #define REF_VLOTAGE_900mV  (3 << 6)
 /* [8] */
 #define ASPEED_ADC_CTRL_INIT_RDY BIT(8)
-/* [23:16] */
+/* [12] */
+#define ASPEED_ADC_CH7_VOLTAGE_NORMAL  (0 << 12)
+#define ASPEED_ADC_CH7_VOLTAGE_BATTERY (1 << 12)
+/* [13] */
+#define ASPEED_ADC_EN_BATTERY_SESING BIT(13)
+/* [31:16] */
 #define ASPEED_ADC_CTRL_CH_EN(n)  (1 << (16 + n))
-#define ASPEED_ADC_CTRL_CH_EN_ALL GENMASK(23, 16)
+#define ASPEED_ADC_CTRL_CH_EN_ALL GENMASK(31, 16)
+
+/**********************************************************
+ * ADC bit field meaning
+ *********************************************************/
+/* offset 0[6] */
+#define BATTERY_SENSING_VOL_DIVIDE_2_3 (0 << 6)
+#define BATTERY_SENSING_VOL_DIVIDE_1_3 (1 << 6)
 
 /**********************************************************
  * Software setting
  *********************************************************/
 #define ASPEED_ADC_INIT_POLLING_TIME 500
 #define ASPEED_ADC_INIT_TIMEOUT	     500000
-#define ASPEED_ADC_CLOCK_PERIOD	     0x63
+#define ASPEED_ADC_SAMPLE_FREQ	     65000
 
 struct aspeed_adc_trim_locate {
 	unsigned int scu_offset;
@@ -94,11 +106,14 @@ struct aspeed_adc_model_data {
 struct aspeed_adc_data {
 	struct device *dev;
 	void __iomem *base;
+	u32 vref_voltage; //mv
 	spinlock_t clk_lock;
 	struct regmap *scu;
 	struct clk_hw *clk_prescaler;
 	struct clk_hw *clk_scaler;
 	struct reset_control *rst;
+	bool battery_sensing_en;
+	bool battery_sensing_div; // 0: 2/3, 1: 1/3
 	int cv; //Compensating value
 };
 
@@ -126,21 +141,49 @@ static const struct iio_chan_spec ast2600_adc_iio_channels[] = {
 	ASPEED_CHAN(6, 0x1C), ASPEED_CHAN(7, 0x1E),
 };
 
+static void aspeed_adc_battery_read(int *val, struct aspeed_adc_data *data,
+				    unsigned long chan_address)
+{
+	u32 eng_ctrl = readl(data->base + ASPEED_REG_ENGINE_CONTROL);
+	writel(eng_ctrl | ASPEED_ADC_CH7_VOLTAGE_BATTERY |
+		       ASPEED_ADC_EN_BATTERY_SESING,
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
+	mdelay(1);
+	*val = readw(data->base + chan_address) + data->cv;
+	if (*val >= (1 << ASPEED_RESOLUTION_BITS))
+		*val = (1 << ASPEED_RESOLUTION_BITS) - 1;
+	else if (*val < 0)
+		*val = 0;
+	if (data->battery_sensing_div) {
+		*val = (*val * 3) / 2;
+	} else {
+		*val = (*val * 3);
+	}
+	writel(eng_ctrl & (~(GENMASK(13, 12))),
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
+}
+
 static int aspeed_adc_read_raw(struct iio_dev *indio_dev,
 			       struct iio_chan_spec const *chan, int *val,
 			       int *val2, long mask)
 {
 	struct aspeed_adc_data *data = iio_priv(indio_dev);
-	const struct aspeed_adc_model_data *model_data =
-		of_device_get_match_data(data->dev);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		*val = readw(data->base + chan->address) + data->cv;
+		if (data->battery_sensing_en && chan->channel == 7) {
+			aspeed_adc_battery_read(val, data, chan->address);
+		} else {
+			*val = readw(data->base + chan->address) + data->cv;
+			if (*val >= (1 << ASPEED_RESOLUTION_BITS))
+				*val = (1 << ASPEED_RESOLUTION_BITS) - 1;
+			else if (*val < 0)
+				*val = 0;
+		}
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
-		*val = model_data->vref_voltage;
+		*val = data->vref_voltage;
 		*val2 = ASPEED_RESOLUTION_BITS;
 		return IIO_VAL_FRACTIONAL_LOG2;
 
@@ -213,29 +256,28 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 	struct aspeed_adc_trim_locate trim_locate;
 	u32 trim;
 	u32 compensating_trim;
+	int ret;
 	eng_ctrl = readl(data->base + ASPEED_REG_ENGINE_CONTROL);
 	eng_ctrl |= (ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE);
-	/* Clock setting
-     * Set wait a sensing cycle t (s) = 12 * (1/PCLK) * 2 * (ADC0c[15:0] +1)
-	 * ex : pclk = 37.5Mhz , sensing cycle t (s) = 6.4 * 10^-7 * (ADC0c[15:0] +1)
-     * if ADC0c[15:0] = 0x63 = 99:
-     * sensing cycle t = 6.4 * 10^-7 * (99+1) = 0.000064s
-     */
-	writel(ASPEED_ADC_CLOCK_PERIOD, data->base + ASPEED_REG_CLOCK_CONTROL);
 	/* Trimming data setting */
-	of_property_read_u32_array(data->dev->of_node, "trim_locate",
-				   (u32 *)&trim_locate,
-				   sizeof(trim_locate) / 4);
-	if (regmap_read(data->scu, trim_locate.scu_offset, &scu_otp)) {
-		printk("read scu trim value fail \n");
+	ret = of_property_read_u32_array(data->dev->of_node, "trim_locate",
+					 (u32 *)&trim_locate,
+					 sizeof(trim_locate) / 4);
+	if (ret < 0) {
+		printk(KERN_WARNING "Get trim_locate fail, ret %d\n", ret);
 		trim = 0x0;
 	} else {
-		trim = (scu_otp >> trim_locate.bit_offset) &
-		       trim_locate.bit_mask;
+		if (regmap_read(data->scu, trim_locate.scu_offset, &scu_otp)) {
+			printk(KERN_WARNING "read scu trim value fail \n");
+			trim = 0x0;
+		} else {
+			trim = (scu_otp >> trim_locate.bit_offset) &
+			       trim_locate.bit_mask;
+		}
 	}
 	if ((trim == 0x0))
 		trim = 0x8;
-	printk(KERN_INFO "aspeed_adc: trim %d \n", trim);
+	dev_dbg(data->dev, "aspeed_adc: trim %d \n", trim);
 	compensating_trim = readl(data->base + ASPEED_REG_COMPENSATION_TRIM);
 	compensating_trim = (compensating_trim & (~(GENMASK(3, 0)))) | trim;
 	writel(compensating_trim, data->base + ASPEED_REG_COMPENSATION_TRIM);
@@ -249,7 +291,30 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 
 	data->cv = 0x200 - (readl(data->base + 0x10) & GENMASK(9, 0));
 
-	printk(KERN_INFO "aspeed_adc: cv %d \n", data->cv);
+	dev_dbg(data->dev, "aspeed_adc: cv %d \n", data->cv);
+
+	/* Disable Compensating Sensing mode */
+	writel(eng_ctrl & (~ASPEED_CTRL_COMPENSATION),
+	       data->base + ASPEED_REG_ENGINE_CONTROL);
+	/* Clock setting:
+	 * Our ADC will round-robin all of the 12 channels all the time, 
+	 * so if we want the sampling rate of a channel is n we need to set the clock equal to 12*n
+	 */
+	clk_set_rate(data->clk_scaler->clk,
+		     ASPEED_ADC_SAMPLE_FREQ * ASPEED_CLOCKS_PER_SAMPLE);
+	dev_dbg(data->dev, "aspeed_adc: freq %ld \n",
+	       clk_get_rate(data->clk_scaler->clk) / ASPEED_CLOCKS_PER_SAMPLE);
+	/* Battery Sensing setting */
+	if (of_find_property(data->dev->of_node, "battery-sensing", NULL)) {
+		data->battery_sensing_en = 1;
+		if (readl(data->base + ASPEED_REG_ENGINE_CONTROL) &
+		    BATTERY_SENSING_VOL_DIVIDE_2_3) {
+			data->battery_sensing_div = 0;
+		} else {
+			data->battery_sensing_div = 1;
+		}
+		dev_dbg(data->dev, "aspeed_adc: battery-sensing enable \n");
+	}
 }
 
 static void aspeed_g5_adc_init(struct aspeed_adc_data *data)
@@ -407,10 +472,12 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	if (!strcmp(model_data->model_name, "ast2300-adc") ||
 	    !strcmp(model_data->model_name, "ast2400-adc") ||
 	    !strcmp(model_data->model_name, "ast2500-adc")) {
+		/* Divider config */
 		snprintf(prescaler_clk_name, sizeof(prescaler_clk_name),
 			 "prescaler-%s", pdev->name);
 		data->clk_prescaler = clk_hw_register_divider(
-			&pdev->dev, prescaler_clk_name, clk_parent_name, 0,
+			&pdev->dev, prescaler_clk_name, clk_parent_name,
+			CLK_SET_RATE_UNGATE,
 			data->base + ASPEED_REG_CLOCK_CONTROL, 17, 15, 0,
 			&data->clk_lock);
 		if (IS_ERR(data->clk_prescaler))
@@ -424,24 +491,46 @@ static int aspeed_adc_probe(struct platform_device *pdev)
         */
 		data->clk_scaler = clk_hw_register_divider(
 			&pdev->dev, scaler_clk_name, prescaler_clk_name,
-			CLK_SET_RATE_PARENT,
+			CLK_SET_RATE_PARENT | CLK_SET_RATE_UNGATE,
 			data->base + ASPEED_REG_CLOCK_CONTROL, 0, 10, 0,
 			&data->clk_lock);
 		if (IS_ERR(data->clk_scaler)) {
 			ret = PTR_ERR(data->clk_scaler);
 			goto scaler_error;
 		}
+		/* ref_voltage config */
+		ref_voltage = model_data->vref_voltage;
 	} else if (!strcmp(model_data->model_name, "ast2600-adc")) {
+		/* Divider config */
 		snprintf(scaler_clk_name, sizeof(scaler_clk_name), "scaler-%s",
 			 pdev->name);
 		data->clk_scaler = clk_hw_register_divider(
 			&pdev->dev, scaler_clk_name, clk_parent_name,
-			CLK_SET_RATE_GATE,
+			CLK_SET_RATE_UNGATE,
 			data->base + ASPEED_REG_CLOCK_CONTROL, 0, 15,
 			CLK_DIVIDER_ONE_BASED, &data->clk_lock);
 		if (IS_ERR(data->clk_scaler))
 			return PTR_ERR(data->clk_scaler);
+		/* ref_voltage config */
+		if (!of_property_read_u32(pdev->dev.of_node, "ref_voltage",
+					  &ref_voltage)) {
+			if (ref_voltage == 2500)
+				eng_ctrl = REF_VLOTAGE_2500mV;
+			else if (ref_voltage == 1200)
+				eng_ctrl = REF_VLOTAGE_1200mV;
+			else if ((ref_voltage >= 1550) && (ref_voltage <= 2700))
+				eng_ctrl = REF_VLOTAGE_1550mV;
+			else if ((ref_voltage >= 900) && (ref_voltage <= 1650))
+				eng_ctrl = REF_VLOTAGE_900mV;
+			else {
+				eng_ctrl = 0;
+			}
+		} else {
+			ref_voltage = 1200;
+			eng_ctrl = REF_VLOTAGE_1200mV;
+		}
 	}
+	data->vref_voltage = ref_voltage;
 
 	data->rst = devm_reset_control_get_shared(&pdev->dev, NULL);
 	if (IS_ERR(data->rst)) {
@@ -451,41 +540,11 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		goto reset_error;
 	}
 	reset_control_deassert(data->rst);
-
-	if (!of_property_read_u32(pdev->dev.of_node, "ref_voltage",
-				  &ref_voltage)) {
-		if (ref_voltage == 2500)
-			eng_ctrl = REF_VLOTAGE_2500mV;
-		else if (ref_voltage == 1200)
-			eng_ctrl = REF_VLOTAGE_1200mV;
-		else if ((ref_voltage >= 1550) && (ref_voltage <= 2700))
-			eng_ctrl = REF_VLOTAGE_1550mV;
-		else if ((ref_voltage >= 900) && (ref_voltage <= 1650))
-			eng_ctrl = REF_VLOTAGE_900mV;
-		else {
-			eng_ctrl = 0;
-		}
-	} else {
-		if (model_data->vref_voltage == 2500)
-			eng_ctrl = REF_VLOTAGE_2500mV;
-		else if (model_data->vref_voltage == 1200)
-			eng_ctrl = REF_VLOTAGE_1200mV;
-		else if ((model_data->vref_voltage >= 1550) &&
-			 (model_data->vref_voltage <= 2700))
-			eng_ctrl = REF_VLOTAGE_1550mV;
-		else if ((model_data->vref_voltage >= 900) &&
-			 (model_data->vref_voltage <= 1650))
-			eng_ctrl = REF_VLOTAGE_900mV;
-		else {
-			eng_ctrl = 0;
-		}
-	}
+	/* Enable engine in normal mode. */
+	eng_ctrl |= ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE;
+	writel(eng_ctrl, data->base + ASPEED_REG_ENGINE_CONTROL);
 
 	if (model_data->wait_init_sequence) {
-		/* Enable engine in normal mode. */
-		eng_ctrl |= ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE;
-		writel(eng_ctrl, data->base + ASPEED_REG_ENGINE_CONTROL);
-
 		/* Wait for initial sequence complete. */
 		ret = readl_poll_timeout(
 			data->base + ASPEED_REG_ENGINE_CONTROL,
@@ -522,13 +581,11 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		aspeed_g6_adc_init(data);
 	} else
 		goto adc_init_error;
-
-	adc_engine_control_reg_val = eng_ctrl | ASPEED_ADC_CTRL_CH_EN_ALL |
-				     ASPEED_OPERATION_MODE_NORMAL |
-				     ASPEED_ENGINE_ENABLE;
-	writel(adc_engine_control_reg_val,
+	eng_ctrl = readl(data->base + ASPEED_REG_ENGINE_CONTROL);
+	writel(eng_ctrl | ASPEED_ADC_CTRL_CH_EN_ALL,
 	       data->base + ASPEED_REG_ENGINE_CONTROL);
-
+	dev_dbg(data->dev, "aspeed_adc: write to engine control 0x%08lx \n",
+	       eng_ctrl | ASPEED_ADC_CTRL_CH_EN_ALL);
 	model_data = of_device_get_match_data(&pdev->dev);
 	indio_dev->name = model_data->model_name;
 	indio_dev->dev.parent = &pdev->dev;
@@ -595,8 +652,8 @@ static const struct aspeed_adc_model_data ast2500_model_data = {
 
 static const struct aspeed_adc_model_data ast2600_model_data = {
 	.model_name = "ast2600-adc",
-	// mV --> can be 1.2v or 2.5 or ext 1.55~2.7v, 0.9v ~1.65v
-	.vref_voltage = 1800,
+	/* Not a const data, config in dts */
+	.vref_voltage = 0,
 	.min_sampling_rate = 1,
 	.max_sampling_rate = 1000000,
 	.wait_init_sequence = true,

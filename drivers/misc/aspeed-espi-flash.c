@@ -267,6 +267,18 @@ static int aspeed_espi_flash_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	espi_flash->irq = platform_get_irq(pdev, 0);
+	if (espi_flash->irq < 0) {
+		dev_err(&pdev->dev, "no irq specified\n");
+		return espi_flash->irq;
+	}
+
+	espi_flash->rest_irq = platform_get_irq(pdev, 1);
+	if (espi_flash->rest_irq < 0) {
+		dev_err(&pdev->dev, "no rest_irq specified\n");
+		return espi_flash->rest_irq;
+	}
+
 	rc = sysfs_create_group(&pdev->dev.kobj, &espi_flash_attribute_group);
 	if (rc) {
 		printk(KERN_ERR "aspeed_espi_flash: failed to create sysfs device attributes.\n");
@@ -291,11 +303,6 @@ static int aspeed_espi_flash_probe(struct platform_device *pdev)
 		espi_flash->rx_buff = espi_flash->tx_buff + MAX_XFER_BUFF_SIZE;
 	}
 
-	espi_flash->irq = platform_get_irq(pdev, 0);
-	if (espi_flash->irq < 0) {
-		dev_err(&pdev->dev, "no irq specified\n");
-		return espi_flash->irq;
-	}
 	rc = devm_request_irq(&pdev->dev, espi_flash->irq, aspeed_espi_flash_irq, IRQF_SHARED,
 				dev_name(&pdev->dev), espi_flash);
 	if (rc) {
@@ -303,11 +310,6 @@ static int aspeed_espi_flash_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	espi_flash->rest_irq = platform_get_irq(pdev, 1);
-	if (espi_flash->rest_irq < 0) {
-		dev_err(&pdev->dev, "no rest_irq specified\n");
-		return espi_flash->rest_irq;
-	}
 	rc = devm_request_irq(&pdev->dev, espi_flash->rest_irq, aspeed_espi_flash_reset_irq, IRQF_SHARED,
 				dev_name(&pdev->dev), espi_flash);
 	if (rc) {
