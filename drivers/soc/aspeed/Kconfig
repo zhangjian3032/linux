@@ -50,10 +50,9 @@ config ASPEED_SSP
 source "drivers/soc/aspeed/rvas/Kconfig"
 
 config ASPEED_UART_ROUTING
-	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
-	tristate "Aspeed ast2400/2500 UART routing control"
+	tristate "Aspeed UART routing control"
 	help
-	  Control Aspeed ast2400/ast2500 UART routing via sysfs. This enables UART
+	  Control Aspeed UART routing via sysfs. This enables UART
 	  and I/O components to be dynamically connected at runtime.
 
 endmenu
