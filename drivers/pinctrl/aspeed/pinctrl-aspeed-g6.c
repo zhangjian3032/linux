@@ -41,12 +41,12 @@
 #define SCU500		0x500 /* Hardware Strap 1 */
 #define SCU510		0x510 /* Hardware Strap 2 */
 #define SCU610		0x610 /* Disable GPIO Internal Pull-Down #0 */
-#define SCU614		0x610 /* Disable GPIO Internal Pull-Down #1 */
-#define SCU618		0x610 /* Disable GPIO Internal Pull-Down #2 */
-#define SCU61C		0x610 /* Disable GPIO Internal Pull-Down #3 */
-#define SCU620		0x610 /* Disable GPIO Internal Pull-Down #4 */
-#define SCU634		0x610 /* Disable GPIO Internal Pull-Down #5 */
-#define SCU638		0x610 /* Disable GPIO Internal Pull-Down #6 */
+#define SCU614		0x614 /* Disable GPIO Internal Pull-Down #1 */
+#define SCU618		0x618 /* Disable GPIO Internal Pull-Down #2 */
+#define SCU61C		0x61C /* Disable GPIO Internal Pull-Down #3 */
+#define SCU620		0x620 /* Disable GPIO Internal Pull-Down #4 */
+#define SCU634		0x634 /* Disable GPIO Internal Pull-Down #5 */
+#define SCU638		0x638 /* Disable GPIO Internal Pull-Down #6 */
 #define SCU690		0x690 /* Multi-function Pin Control #24 */
 #define SCU694		0x694 /* Multi-function Pin Control #25 */
 #define SCU69C		0x69C /* Multi-function Pin Control #27 */
