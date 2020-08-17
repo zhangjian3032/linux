@@ -622,22 +622,6 @@ struct fbinfo {
 };
 
 //For Socket Transfer head formate ..
-struct compress_header {
-	u32 data_len;
-	u32 block_changed;
-	u16	user_width;
-	u16	user_height;
-	u8	first_frame;
-	u8	compress_type;
-	u8	trigger_mode;
-	u8	data_format;
-	u8	mode;
-	u8	VQMode;
-	u8	Y_JPEGTableSelector;
-	u8	UV_JPEGTableSelector;
-	u8	AdvanceTableSelector;
-	u8	Visual_Lossless;
-};
 
 struct aspeed_video_config {
 	u8		version;	
@@ -660,7 +644,6 @@ struct ast_video_data {
 	struct clk 			*vclk;
 	struct clk 			*eclk;
 //	compress_header
-	struct compress_header			compress_mode;
 
 	struct aspeed_video_mem		video_mem;
 
