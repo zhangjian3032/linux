@@ -244,6 +244,26 @@ static struct clk_hw *aspeed_ast2600_calc_hpll(const char *name, u32 hwstrap, u3
 };
 
 //for apll
+static struct clk_hw *aspeed_ast2600a2_calc_apll(const char *name, u32 val)
+{
+	unsigned int mult, div;
+
+	if (val & BIT(24)) {
+		/* Pass through mode */
+		mult = div = 1;
+	} else {
+		/* F = 25Mhz * [(m + 1) / (n + 1)] / (p + 1) */
+		u32 m = val & 0x1fff;
+		u32 n = (val >> 13) & 0x3f;
+		u32 p = (val >> 19) & 0xf;
+	
+		mult = (m + 1);
+		div = (n + 1) * (p + 1);
+	}
+	return clk_hw_register_fixed_factor(NULL, name, "clkin", 0,
+			mult, div);
+};
+
 static struct clk_hw *aspeed_ast2600_calc_apll(const char *name, u32 val)
 {
 	unsigned int mult, div;
@@ -908,6 +928,8 @@ static u32 ast2600_a1_axi_ahb_default_table[] = {
 	3, 4, 3, 4, 2, 2, 2, 2,
 };
 
+#define CHIP_REVISION_ID GENMASK(23, 16)
+
 static void __init aspeed_ast2600_cc(struct regmap *map)
 {
 	struct clk_hw *hw;
@@ -936,7 +958,12 @@ static void __init aspeed_ast2600_cc(struct regmap *map)
 	aspeed_g6_clk_data->hws[ASPEED_CLK_EPLL] = aspeed_ast2600_calc_pll("epll", val);
 
 	regmap_read(map, ASPEED_APLL_PARAM, &val);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_APLL] = aspeed_ast2600_calc_apll("apll", val);
+
+	regmap_read(map, 0x14, &chip_id);
+	if (((chip_id & CHIP_REVISION_ID) >> 16) >= 3)
+		aspeed_g6_clk_data->hws[ASPEED_CLK_APLL] = aspeed_ast2600_calc_apll("apll", val);
+	else
+		aspeed_g6_clk_data->hws[ASPEED_CLK_APLL] = aspeed_ast2600a2_calc_apll("apll", val);
 
 	//uart5 
 	regmap_read(map, ASPEED_G6_MISC_CTRL, &val);
@@ -982,8 +1009,6 @@ static void __init aspeed_ast2600_cc(struct regmap *map)
 			aspeed_g6_clk_data->hws[ASPEED_CLK_UARTX] = clk_hw_register_fixed_factor(NULL, "uartx", "ahb", 0, 1, 1);
 			break;
 	}
-
-	regmap_read(map, 0x04, &chip_id);
 
 	if (chip_id & BIT(16)) {
 		//ast2600a1
