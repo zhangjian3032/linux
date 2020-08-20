@@ -647,19 +647,19 @@ struct ast_video_data {
 
 	struct aspeed_video_mem		video_mem;
 
-	phys_addr_t             *stream_phy;            /* phy */
+	dma_addr_t             stream_phy;            /* phy */
 	u32                             *stream_virt;           /* virt */
-	phys_addr_t             *buff0_phy;             /* phy */
+	dma_addr_t             buff0_phy;             /* phy */
 	u32                             *buff0_virt;            /* virt */
-	phys_addr_t             *buff1_phy;             /* phy */
+	dma_addr_t             buff1_phy;             /* phy */
 	u32                             *buff1_virt;            /* virt */
-	phys_addr_t             *bcd_phy;               /* phy */
+	dma_addr_t             bcd_phy;               /* phy */
 	u32                             *bcd_virt;              /* virt */
-	phys_addr_t             *jpeg_phy;              /* phy */
+	dma_addr_t             jpeg_phy;              /* phy */
 	u32                             *jpeg_virt;             /* virt */
-	phys_addr_t             *jpeg_buf0_phy;              /* phy */
+	dma_addr_t             jpeg_buf0_phy;              /* phy */
 	u32                             *jpeg_buf0_virt;             /* virt */
-	phys_addr_t             *jpeg_tbl_phy;          /* phy */
+	dma_addr_t             jpeg_tbl_phy;          /* phy */
 	u32                             *jpeg_tbl_virt;         /* virt */
 
 	//config
@@ -1355,10 +1355,12 @@ static u32 get_vga_mem_base(void)
 static void ast_video_encryption_key_setup(struct ast_video_data *ast_video)
 {
 	int i, j, k, a, StringLength;
-	struct rc4_state  s;
-	u8 expkey[256];
+	struct rc4_state *s = kmalloc(sizeof (struct rc4_state), GFP_KERNEL);
+	u8 *expkey = kmalloc(256, GFP_KERNEL);
 	u32     temp;
 
+	if (!s || !expkey)
+		goto out_free;
 	//key expansion
 	StringLength = strlen(ast_video->EncodeKeys);
 //	printk("key %s , len = %d \n",ast_video->EncodeKeys, StringLength);
@@ -1368,26 +1370,30 @@ static void ast_video_encryption_key_setup(struct ast_video_data *ast_video)
 	}
 //	printk("\n");
 	//rc4 setup
-	s.x = 0;
-	s.y = 0;
+	s->x = 0;
+	s->y = 0;
 
 	for (i = 0; i < 256; i++) {
-		s.m[i] = i;
+		s->m[i] = i;
 	}
 
 	j = k = 0;
 	for (i = 0; i < 256; i++) {
-		a = s.m[i];
+		a = s->m[i];
 		j = (unsigned char)(j + a + expkey[k]);
-		s.m[i] = s.m[j];
-		s.m[j] = a;
+		s->m[i] = s->m[j];
+		s->m[j] = a;
 		k++;
 	}
 	for (i = 0; i < 64; i++) {
-		temp = s.m[i * 4] + ((s.m[i * 4 + 1]) << 8) + ((s.m[i * 4 + 2]) << 16) + ((s.m[i * 4 + 3]) << 24);
+		temp = s->m[i * 4] + ((s->m[i * 4 + 1]) << 8) + ((s->m[i * 4 + 2]) << 16) + ((s->m[i * 4 + 3]) << 24);
 		ast_video_write(ast_video, temp, AST_VIDEO_ENCRYPT_SRAM + i * 4);
 	}
-
+out_free:
+	if (s)
+		kfree(s);
+	if (expkey)
+		kfree(expkey);
 }
 
 static u8 ast_get_vga_signal(struct ast_video_data *ast_video)
@@ -1451,6 +1457,7 @@ static u8 ast_get_vga_signal(struct ast_video_data *ast_video)
 	}
 }
 
+#if 0
 static u8 ast_video_mode_detect_analog(struct ast_video_data *ast_video)
 {
 	u32 ctrl;
@@ -1538,7 +1545,7 @@ static u8 ast_video_mode_detect_digital(struct ast_video_data *ast_video)
 
 	return 0;
 }
-
+#endif
 static void ast_video_set_eng_config(struct ast_video_data *ast_video, struct ast_video_config *video_config)
 {
 	int i, base = 0;
@@ -2045,7 +2052,6 @@ static void ast_video_compression_trigger(struct ast_video_data *ast_video, stru
 	int total_frames = 0;
 
 	VIDEO_DBG("\n");
-	//u8 *buff = ast_video->stream_virt;
 
 	if (ast_video->mode_change) {
 		compression_mode->mode_change = ast_video->mode_change;
@@ -2187,7 +2193,6 @@ static void ast_video_auto_mode_trigger(struct ast_video_data *ast_video, struct
 	int timeout = 0;
 
 	VIDEO_DBG("\n");
-	//u8 *buff = ast_video->stream_virt;
 
 	if (ast_video->mode_change) {
 		auto_mode->mode_change = ast_video->mode_change;
@@ -2422,7 +2427,7 @@ static void ast_video_multi_jpeg_automode_trigger(struct ast_video_data *ast_vid
 		yuv_shift = 3;
 	}
 
-	VIDEO_DBG("w %d, h %d bcd phy [%x]\n", ast_video->src_fbinfo.x, ast_video->src_fbinfo.y, ast_video->bcd_phy);
+	VIDEO_DBG("w %d, h %d bcd phy [%x]\n", ast_video->src_fbinfo.x, ast_video->src_fbinfo.y, (u32)ast_video->bcd_phy);
 
 	if(auto_mode.differential) {
 		//find bonding box
@@ -3438,25 +3443,25 @@ static int ast_video_probe(struct platform_device *pdev)
 	}
 
 	ast_video->stream_phy = ast_video->video_mem.dma;
-	ast_video->buff0_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x400000);   //4M : size 10MB
-	ast_video->buff1_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0xe00000);   //14M : size 10MB
-	ast_video->bcd_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x1800000);    //24M : size 1MB
-	ast_video->jpeg_buf0_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x1900000);   //25MB: size 10 MB
+	ast_video->buff0_phy = ast_video->video_mem.dma + 0x400000;   //4M : size 10MB
+	ast_video->buff1_phy = ast_video->video_mem.dma + 0xe00000;   //14M : size 10MB
+	ast_video->bcd_phy = ast_video->video_mem.dma + 0x1800000;    //24M : size 1MB
+	ast_video->jpeg_buf0_phy = ast_video->video_mem.dma + 0x1900000;   //25MB: size 10 MB
 	ast_video->video_jpeg_offset = 0x2300000;						//TODO define
-	ast_video->jpeg_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x2300000);   //35MB: size 4 MB
-	ast_video->jpeg_tbl_phy = (phys_addr_t *)(ast_video->video_mem.dma + 0x2700000);       //39MB: size 1 MB
+	ast_video->jpeg_phy = ast_video->video_mem.dma + 0x2300000;   //35MB: size 4 MB
+	ast_video->jpeg_tbl_phy = ast_video->video_mem.dma + 0x2700000;       //39MB: size 1 MB
 
 	VIDEO_DBG("\nstream_phy: %x, buff0_phy: %x, buff1_phy:%x, bcd_phy:%x \njpeg_phy:%x, jpeg_tbl_phy:%x \n",
 			  (u32)ast_video->stream_phy, (u32)ast_video->buff0_phy, (u32)ast_video->buff1_phy, (u32)ast_video->bcd_phy, (u32)ast_video->jpeg_phy, (u32)ast_video->jpeg_tbl_phy);
 
 	//virt assign
 	ast_video->stream_virt = ast_video->video_mem.virt;
-	ast_video->buff0_virt = (u32)ast_video->stream_virt + 0x400000; //4M : size 10MB
-	ast_video->buff1_virt = (u32)ast_video->stream_virt + 0xe00000; //14M : size 10MB
-	ast_video->bcd_virt = (u32)ast_video->stream_virt + 0x1800000;  //24M : size 4MB
+	ast_video->buff0_virt = (u32 *)ast_video->stream_virt + 0x400000; //4M : size 10MB
+	ast_video->buff1_virt = (u32 *)ast_video->stream_virt + 0xe00000; //14M : size 10MB
+	ast_video->bcd_virt = (u32 *)ast_video->stream_virt + 0x1800000;  //24M : size 4MB
 	ast_video->jpeg_buf0_virt = ast_video->stream_virt + 0x1900000;  //25MB: size x MB
-	ast_video->jpeg_virt = (u32)ast_video->stream_virt + 0x2300000; //35MB: size 4 MB
-	ast_video->jpeg_tbl_virt = (u32)ast_video->stream_virt + 0x2700000;     //39MB: size 1 MB
+	ast_video->jpeg_virt = (u32 *)ast_video->stream_virt + 0x2300000; //35MB: size 4 MB
+	ast_video->jpeg_tbl_virt = (u32 *)ast_video->stream_virt + 0x2700000;     //39MB: size 1 MB
 
 	VIDEO_DBG("\nstream_virt: %x, buff0_virt: %x, buff1_virt:%x, bcd_virt:%x \njpeg_virt:%x, jpeg_tbl_virt:%x \n",
 			  (u32)ast_video->stream_virt, (u32)ast_video->buff0_virt, (u32)ast_video->buff1_virt, (u32)ast_video->bcd_virt, (u32)ast_video->jpeg_virt, (u32)ast_video->jpeg_tbl_virt);
