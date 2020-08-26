@@ -141,10 +141,10 @@ static void aspeed_espi_mmbi_h2b_rwp_int(u32 sts_mmbi,void *dev_id)
 	struct aspeed_espi_mmbi_data *aspeed_espi_mmbi = dev_id;
 	u8 h2b_rwp_sts = 0;
 	u8 app_index = 0;
-	u32 flags;
+	unsigned long flags;
 
 	for (app_index=0;app_index<MAX_APP_INSTANCES;app_index++) {
-		if (h2b_rwp_sts=(sts_mmbi & 0x3)) {
+		if ( (h2b_rwp_sts=(sts_mmbi & 0x3)) ) {
 			ESPI_MMBI_DBUG("APP #%d interrupt status : %x\n", app_index, h2b_rwp_sts);
 			spin_lock_irqsave(&aspeed_espi_mmbi->espi_mmbi_lock, flags);
 			if (h2b_rwp_sts &1) {
@@ -187,7 +187,7 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	int ret = 0;
 	struct miscdevice *c = file->private_data;
 	struct aspeed_espi_mmbi_data *aspeed_espi_mmbi = dev_get_drvdata(c->this_device);
-	u32 flags;
+	unsigned long flags;
 	struct aspeed_espi_mmbi_xfer espi_mmbi_xfer = {0};
 	struct aspeed_espi_mmbi_ints espi_mmbi_ints = {0};
 	struct aspeed_espi_mmbi_partition_op espi_mmbi_pop = {0};
@@ -198,7 +198,10 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	switch (cmd) {
 	case ASPEED_ESPI_MMBI_IOCRX:
 		ESPI_MMBI_DBUG(" ASPEED_ESPI_MMBI_IOCRX\n");
-		copy_from_user(&espi_mmbi_xfer, (void*)arg, sizeof(espi_mmbi_xfer));
+		if (copy_from_user(&espi_mmbi_xfer, (void*)arg, sizeof(espi_mmbi_xfer)) ) {
+			ESPI_MMBI_DBUG("copy_from_user  fail\n");
+			ret = -EFAULT;
+		}
 		ESPI_MMBI_DBUG(" App: %d, Offset: 0x%x, len:0x%x \n",
 				espi_mmbi_xfer.app_index,
 				espi_mmbi_xfer.offset,
@@ -208,9 +211,12 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 				espi_mmbi_xfer.len);
 
 		if (mmbi_ptr){
-			copy_to_user(espi_mmbi_xfer.xfer_buf,
+			if (copy_to_user(espi_mmbi_xfer.xfer_buf,
 					mmbi_ptr,
-					espi_mmbi_xfer.len);
+					espi_mmbi_xfer.len) ) {
+				ESPI_MMBI_DBUG("copy_to_user  fail\n");
+				ret = -EFAULT;
+			}
 			spin_lock_irqsave(&aspeed_espi_mmbi->espi_mmbi_lock, flags);
 //			aspeed_espi_mmbi->espi_mmbi_intr_sts[app_index] &= (~0x1);
 			spin_unlock_irqrestore(&aspeed_espi_mmbi->espi_mmbi_lock, flags);
@@ -220,7 +226,10 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		break;
 	case ASPEED_ESPI_MMBIP_IOCTX:
 		ESPI_MMBI_DBUG(" ASPEED_ESPI_MMBIP_IOCTX\n");
-		copy_from_user(&espi_mmbi_xfer, (void*)arg, sizeof(espi_mmbi_xfer));
+		if (copy_from_user(&espi_mmbi_xfer, (void*)arg, sizeof(espi_mmbi_xfer))){
+			ESPI_MMBI_DBUG("copy_to_user  fail\n");
+			ret = -EFAULT;
+		}
 		ESPI_MMBI_DBUG(" App: %d, Offset: 0x%x, len:0x%x \n",
 				espi_mmbi_xfer.app_index,
 				espi_mmbi_xfer.offset,
@@ -230,9 +239,12 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 				espi_mmbi_xfer.len);
 
 		if (mmbi_ptr){
-			copy_from_user(mmbi_ptr,
+			if (copy_from_user(mmbi_ptr,
 						espi_mmbi_xfer.xfer_buf,
-						espi_mmbi_xfer.len);
+						espi_mmbi_xfer.len) ) {
+				ESPI_MMBI_DBUG("copy_from_user  fail\n");
+				ret = -EFAULT;
+			}
 			spin_lock_irqsave(&aspeed_espi_mmbi->espi_mmbi_lock, flags);
 //			aspeed_espi_mmbi->espi_mmbi_intr_sts[app_index] &= (~0x2);
 			spin_unlock_irqrestore(&aspeed_espi_mmbi->espi_mmbi_lock, flags);
@@ -242,7 +254,10 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		break;
 	case ASPEED_ESPI_MMBI_IOWFI:
 		ESPI_MMBI_DBUG(" ASPEED_ESPI_MMBI_IOWFI\n");
-		copy_from_user(&espi_mmbi_ints, (void*)arg, sizeof(espi_mmbi_ints));
+		if (copy_from_user(&espi_mmbi_ints, (void*)arg, sizeof(espi_mmbi_ints))) {
+			ESPI_MMBI_DBUG("copy_from_user  fail\n");
+			ret = -EFAULT;
+		}
 		ESPI_MMBI_DBUG(" APP index: %d\n",espi_mmbi_ints.app_index);
 
 		wait_event_interruptible(aspeed_espi_mmbi->espi_mmbi_intr_wq[espi_mmbi_ints.app_index],
@@ -256,11 +271,17 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		espi_mmbi_ints.host_rwp[0] = aspeed_espi_mmbi->arr_mmbi_host_rwp[app_index].b2h_host_rd;
 		espi_mmbi_ints.host_rwp[1] = aspeed_espi_mmbi->arr_mmbi_host_rwp[app_index].h2b_host_wr;
 		spin_unlock_irqrestore(&aspeed_espi_mmbi->espi_mmbi_lock, flags);
-		copy_to_user((void*)arg, &espi_mmbi_ints, sizeof(espi_mmbi_ints));
+		if (copy_to_user((void*)arg, &espi_mmbi_ints, sizeof(espi_mmbi_ints))) {
+			ESPI_MMBI_DBUG("copy_to_user  fail\n");
+			ret = -EFAULT;
+		}
 		break;
 	case ASPEED_ESPI_MMBI_IOREAD:
 		ESPI_MMBI_DBUG(" ASPEED_ESPI_MMBI_IOREAD\n");
-		copy_from_user(&espi_mmbi_pop, (void*)arg, sizeof(espi_mmbi_pop));
+		if (copy_from_user(&espi_mmbi_pop, (void*)arg, sizeof(espi_mmbi_pop))) {
+			ESPI_MMBI_DBUG("copy_from_user  fail\n");
+			ret = -EFAULT;
+		}
 		ESPI_MMBI_DBUG(" Offset: 0x%x, len:0x%x \n",
 						espi_mmbi_pop.offset, espi_mmbi_pop.len);
 		mmbi_ptr = aspeed_espi_mmbi_get_mem_loc(aspeed_espi_mmbi,
@@ -270,7 +291,7 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 			if (copy_to_user(espi_mmbi_pop.data_buf,
 					mmbi_ptr,
 					espi_mmbi_pop.len) ) {
-				ESPI_MMBI_DBUG("copy_from_user  fail\n");
+				ESPI_MMBI_DBUG("copy_to_user  fail\n");
 				ret = -EFAULT;
 			}
 		} else {
@@ -279,7 +300,10 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		break;
 	case ASPEED_ESPI_MMBI_IOWRITE:
 		ESPI_MMBI_DBUG(" ASPEED_ESPI_MMBI_IOWRITE\n");
-		copy_from_user(&espi_mmbi_pop, (void*)arg, sizeof(espi_mmbi_pop));
+		if (copy_from_user(&espi_mmbi_pop, (void*)arg, sizeof(espi_mmbi_pop))) {
+			ESPI_MMBI_DBUG("copy_from_user  fail\n");
+			ret = -EFAULT;
+		}
 		ESPI_MMBI_DBUG(" Offset: 0x%x, len:0x%x \n",
 				espi_mmbi_pop.offset, espi_mmbi_pop.len);
 		mmbi_ptr = aspeed_espi_mmbi_get_mem_loc(aspeed_espi_mmbi,
@@ -299,7 +323,10 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		break;
 	case ASPEED_ESPI_MMBI_REG:
 		ESPI_MMBI_DBUG(" ASPEED_ESPI_MMBI_REG\n");
-		copy_from_user(&espi_mmbi_reg, (void*)arg, sizeof(espi_mmbi_reg));
+		if (copy_from_user(&espi_mmbi_reg, (void*)arg, sizeof(espi_mmbi_reg))) {
+			ESPI_MMBI_DBUG("copy_from_user  fail\n");
+			ret = -EFAULT;
+		}
 		ESPI_MMBI_DBUG(" read Offset: 0x%x\n",espi_mmbi_reg.offset);
 		espi_mmbi_reg.value = aspeed_espi_mmbi_read(aspeed_espi_mmbi, espi_mmbi_reg.offset);
 		if (copy_to_user((void*)arg, &espi_mmbi_reg, sizeof(espi_mmbi_reg))) {
@@ -417,12 +444,12 @@ static int aspeed_espi_mmbi_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	ESPI_MMBI_DBUG("aspeed_espi_mmbi->reg_base=0x%x\n", aspeed_espi_mmbi->reg_base );
+	ESPI_MMBI_DBUG("aspeed_espi_mmbi->reg_base=0x%p\n", aspeed_espi_mmbi->reg_base );
 	//dma_alloc_coherent 64KB MMBI block and program mmbi control register
 	aspeed_espi_mmbi->mmbi_blk_virt = dma_alloc_coherent(&pdev->dev, MMBI_TOTAL_SIZE, &aspeed_espi_mmbi->mmbi_blk_phys, GFP_KERNEL);
 	//TODO add allocation error checking
-	ESPI_MMBI_DBUG("aspeed_espi_mmbi->mmbi_blk_virt =0x%x\n", aspeed_espi_mmbi->mmbi_blk_virt );
-	ESPI_MMBI_DBUG("aspeed_espi_mmbi->mmbi_blk_phys =0x%x\n", aspeed_espi_mmbi->mmbi_blk_phys );
+	ESPI_MMBI_DBUG("aspeed_espi_mmbi->mmbi_blk_virt =0x%p\n", aspeed_espi_mmbi->mmbi_blk_virt );
+	ESPI_MMBI_DBUG("aspeed_espi_mmbi->mmbi_blk_phys =0x%x\n", (u32)aspeed_espi_mmbi->mmbi_blk_phys );
 	aspeed_espi_mmbi_write(aspeed_espi_mmbi, aspeed_espi_mmbi->mmbi_blk_phys, ASPEED_ESPI_PC_RX_SADDR);
 	aspeed_espi_mmbi_write(aspeed_espi_mmbi, aspeed_espi_mmbi->mmbi_blk_phys, ASPEED_ESPI_PC_RX_TADDR);
 	// peripheral channel memory W/R cycle enable
