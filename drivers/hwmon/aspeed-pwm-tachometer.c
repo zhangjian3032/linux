@@ -650,8 +650,12 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 
 	if(fan_ctrl == 0)
 		aspeed_set_pwm_channel_enable(priv->regmap, index, false);
-	else
-		regmap_update_bits(priv->regmap, ASPEED_PWM_DUTY_CYCLE_CH(index), GENMASK(15, 8), (fan_ctrl << PWM_RISING_FALLING_BIT));
+	else {
+		if(fan_ctrl == DEF_PWM_PERIOD)
+			regmap_update_bits(priv->regmap, ASPEED_PWM_DUTY_CYCLE_CH(index), GENMASK(15, 0), 0);
+		else
+			regmap_update_bits(priv->regmap, ASPEED_PWM_DUTY_CYCLE_CH(index), GENMASK(15, 8), (fan_ctrl << PWM_RISING_FALLING_BIT));
+	}
 
 	if(org_falling == 0)
 		aspeed_set_pwm_channel_enable(priv->regmap, index, true);
