@@ -4,7 +4,7 @@
 #include "aspeed-g6.dtsi"
 
 / {
-	model = "AST2600 EVB";
+	model = "AST2600 FPGA EVB";
 	compatible = "aspeed,ast2600";
 
 	aliases {
@@ -91,6 +91,94 @@
 
 &uart5 {
 		status = "okay";
+};
+
+&i2c_gr0 {
+	status = "okay";
+};
+
+&i2c0 {
+        status = "okay";
+};
+
+&i2c1 {
+        status = "okay";
+};
+
+&i2c2 {
+        status = "okay";
+};
+
+&i2c3 {
+        status = "okay";
+};
+
+&i2c4 {
+        status = "okay";
+};
+
+&i2c5 {
+        status = "okay";
+};
+
+&i2c6 {
+        status = "okay";
+};
+
+&i2c7 {
+        status = "okay";
+};
+
+&i2c8 {
+        status = "okay";
+};
+
+&i2c9 {
+        status = "okay";
+};
+
+&i2c10 {
+        status = "okay";
+};
+
+&i2c11 {
+        status = "okay";
+};
+
+&i2c12 {
+        status = "okay";
+};
+
+&i2c13 {
+        status = "okay";
+};
+
+&i2c14 {
+        status = "okay";
+};
+
+&i2c15 {
+        status = "okay";
+};
+
+&i2c16 {
+        status = "okay";
+};
+
+&i2c17 {
+        status = "okay";
+};
+
+&i2c18 {
+        status = "okay";
+};
+
+&i2c19 {
+        status = "okay";
+};
+
+&ehci1 {
+        status = "okay";
 };
 
 #if 0

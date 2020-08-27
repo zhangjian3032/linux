@@ -577,6 +577,7 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 
 	if (AST_I2CS_PKT_DONE & sts) {
 		sts &= ~(AST_I2CS_PKT_DONE | AST_I2CS_PKT_ERROR);
+		aspeed_i2c_write(i2c_bus, AST_I2CS_PKT_DONE, AST_I2CS_ISR);
 		switch (sts) {
 			case AST_I2CS_SLAVE_MATCH | AST_I2CS_STOP:
 				dev_dbg(i2c_bus->dev, "S : Sw|P \n");
@@ -791,10 +792,9 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 				break;
 #endif
 			default:
-				printk("TODO slave sts case %x\n", aspeed_i2c_read(i2c_bus, AST_I2CS_ISR));
+				printk("TODO slave sts case %x, now %x \n", sts, aspeed_i2c_read(i2c_bus, AST_I2CS_ISR));
 				break;
 		}
-		aspeed_i2c_write(i2c_bus, AST_I2CS_PKT_DONE, AST_I2CS_ISR);
 		ret = 1;
 	} else {
 		//only coming for byte mode 
