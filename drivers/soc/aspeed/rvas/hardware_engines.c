@@ -446,16 +446,22 @@ void ioctl_get_tse_tsicr(RvasIoctl *ri, AstRVAS *pAstRVAS)
 	ri->rs = SuccessStatus;
 }
 
-u32 get_screen_offset(u32 grc_reg_base)
+// Get the screen offset from the GRC registers
+u32 get_screen_offset(AstRVAS *pAstRVAS)
 {
-	u32 addrVGACRC = grc_reg_base + GRCE_CRTC + 0xC; // Ch
-	u32 addrVGACRD = grc_reg_base + GRCE_CRTC + 0xD; // Dh
-	u32 addrVGACRAF = grc_reg_base + GRCE_CRTCEXT + 0x2F;
+	u32 dwScreenOffset = 0;
+	u32 addrVGACRC = pAstRVAS->grce_reg_base + GRCE_CRTC + 0xC; // Ch
+	u32 addrVGACRD = pAstRVAS->grce_reg_base + GRCE_CRTC + 0xD; // Dh
+	u32 addrVGACRAF = pAstRVAS->grce_reg_base + GRCE_CRTCEXT + 0x2F;
 
-	u32 dwScreenOffset = ((readb((void*)addrVGACRAF)) << 16) | ((readb((void*)addrVGACRC)) << 8)
-	        | (readb((void*)addrVGACRD));
+	if (pAstRVAS->current_vg.gmt == AGAGraphicsMode) {
+		dwScreenOffset = ((readb((void*)addrVGACRAF)) << 16) | ((readb((void*)addrVGACRC)) << 8) |
+				(readb((void*)addrVGACRD));
+		dwScreenOffset *= pAstRVAS->current_vg.byBitsPerPixel >> 3;
+	}
 
 	VIDEO_DBG("ScreenOffset: %#8.8x\n", dwScreenOffset);
+
 	return dwScreenOffset;
 }
 
@@ -496,30 +502,10 @@ void set_snoop_engine(bool b_geom_chg,AstRVAS *pAstRVAS)
 	ContextTable** ppctContextTable = pAstRVAS->ppctContextTable;
 
 	// Calculate Start Address into the Frame Buffer
-	new_tsfbsa = get_screen_offset(pAstRVAS->grce_reg_base);
+	new_tsfbsa = get_screen_offset(pAstRVAS);
 	tscmd = readl((void*)(pAstRVAS->fg_reg_base + TSE_SnoopCommand_Register_Offset));
 
 	tscmd &= (1<<TSCMD_INT_ENBL_BIT);
-
-	switch (pAstRVAS->current_vg.byBitsPerPixel) {
-	case 8:
-		new_tsfbsa <<= 3;
-		break;
-
-	case 16:
-		new_tsfbsa <<= 2;
-		break;
-
-	case 24:
-		new_tsfbsa <<= 3;
-		break;
-
-	case 32:
-		new_tsfbsa <<= 1;
-		break;
-	}
-
-	new_tsfbsa *= (pAstRVAS->current_vg.byBitsPerPixel >> 3);
 
 	VIDEO_DBG("Latest TSFBSA: %#8.8x\n", new_tsfbsa);
 //	VIDEO_DBG(
@@ -535,7 +521,7 @@ void set_snoop_engine(bool b_geom_chg,AstRVAS *pAstRVAS)
 	        pAstRVAS->current_vg.wScreenHeight,
 	        pAstRVAS->current_vg.wStride);
 
-	if (b_geom_chg || (readl((void*)tscmd_reg) != new_tsfbsa)) {
+	if (b_geom_chg || (readl((void*)tsfbsa_reg) != new_tsfbsa)) {
 		byBytesPerPixel = pAstRVAS->current_vg.byBitsPerPixel >> 3;
 
 		if ((pAstRVAS->current_vg.gmt == VGAGraphicsMode)
@@ -1500,7 +1486,7 @@ void on_fetch_text_data(RvasIoctl *ri, bool bRLEOn, AstRVAS *pAstRVAS)
 	dwCtrlRegValue |= 1;
 	dwCtrlRegValue &= TFCTL_DESCRIPTOR_IN_DDR_MASK;
 	// set up the text alignment
-	dwScreenOffset = get_screen_offset(pAstRVAS->grce_reg_base);
+	dwScreenOffset = get_screen_offset(pAstRVAS);
 	dwSourceAddress += dwScreenOffset;
 	VIDEO_DBG("screen offset:%#x, Source start Addr: %#x\n", dwScreenOffset,
 	        dwSourceAddress);
@@ -2064,14 +2050,14 @@ void ioctl_fetch_mode_13_data(RvasIoctl *ri, AstRVAS *pAstRVAS)
 u32 get_phy_fb_start_address(AstRVAS *pAstRVAS)
 {
 #if 1
-	if (pAstRVAS->FBInfo.dwFBPhysStart==0) {
-		pAstRVAS->FBInfo.dwFBPhysStart = DDR_BASE+aspeed_get_dram_size()-aspeed_get_vga_size();
-		pAstRVAS->FBInfo.dwVGASize = aspeed_get_vga_size();
+	u32 dw_offset = get_screen_offset(pAstRVAS);
 
-		VIDEO_DBG("Frame buffer start address 0x%x, size 0x%x\n",
-			pAstRVAS->FBInfo.dwFBPhysStart,
-			pAstRVAS->FBInfo.dwVGASize);
-	}
+	pAstRVAS->FBInfo.dwFBPhysStart = DDR_BASE+aspeed_get_dram_size()-aspeed_get_vga_size() + dw_offset;
+	pAstRVAS->FBInfo.dwVGASize = aspeed_get_vga_size();
+
+	VIDEO_DBG("Frame buffer start address 0x%x, size 0x%x\n",
+		pAstRVAS->FBInfo.dwFBPhysStart,
+		pAstRVAS->FBInfo.dwVGASize);
 
 	return pAstRVAS->FBInfo.dwFBPhysStart;
 #else
@@ -2116,7 +2102,7 @@ static void disable_tse_interrupt(AstRVAS *pAstRVAS)
 static void enable_grce_interrupt(AstRVAS *pAstRVAS)
 {
 	u32 reg_val = 0;
-	u32 reg_addr = pAstRVAS->fg_reg_base + GRCE_CTL0;
+	u32 reg_addr = pAstRVAS->grce_reg_base + GRCE_CTL0;
 	reg_val = readl((void*)reg_addr);
 	reg_val |= GRC_IRQ_MASK;
 	writel(reg_val, (void*)reg_addr);

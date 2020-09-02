@@ -52,8 +52,20 @@ static irqreturn_t fge_handler(int irq, void *dev_id);
 static void video_os_init_sleep_struct(Video_OsSleepStruct *Sleep);
 static void video_ss_wakeup_on_timeout(Video_OsSleepStruct *Sleep);
 static void enable_rvas_engines(AstRVAS *pAstRVAS);
+static ssize_t store_video_reset(struct device *dev, struct device_attribute *attr, const char *buf, size_t count);
 
 long video_os_sleep_on_timeout(Video_OsSleepStruct *Sleep, u8 *Var, long msecs);
+
+static DEVICE_ATTR(rvas_reset, S_IRUGO | S_IWUSR, NULL, store_video_reset);
+
+static struct attribute *ast_rvas_attributes[] = {
+	&dev_attr_rvas_reset.attr,
+	NULL
+};
+
+static const struct attribute_group rvas_attribute_group = {
+	.attrs = ast_rvas_attributes
+};
 
 static AstRVAS *pAstRVAS = NULL;
 
@@ -782,6 +794,7 @@ static irqreturn_t fge_handler(int irq, void *dev_id)
 	bool bBSEItr = false;
 	bool bLdmaItr = false;
 	bool vg_changed = false;
+	u32 dw_screen_offset = 0;
 	AstRVAS *pAstRVAS = (AstRVAS*) dev_id;
 	VideoGeometry* cur_vg = NULL;
 
@@ -793,8 +806,18 @@ static irqreturn_t fge_handler(int irq, void *dev_id)
 		VIDEO_DBG("GRC Status Changed: %#x\n", dwGRCEStatus);
 		eduFge_status.dw |= dwGRCEStatus & GRC_INT_STS_MASK;
 		bFgeItr = true;
+
+		if (dwGRCEStatus & 0x30) {
+			dw_screen_offset = get_screen_offset(pAstRVAS);
+
+			if (pAstRVAS->dwScreenOffset != dw_screen_offset) {
+				pAstRVAS->dwScreenOffset = dw_screen_offset;
+				vg_changed = true;
+			}
+		}
 	}
-	if (video_geometry_change(pAstRVAS,dwGRCEStatus)) {
+	vg_changed |= video_geometry_change(pAstRVAS,dwGRCEStatus);
+	if (vg_changed) {
 		eduFge_status.em.bGeometryChanged = true;
 		bFgeItr = true;
 		set_snoop_engine(vg_changed, pAstRVAS);
@@ -854,7 +877,6 @@ static irqreturn_t fge_handler(int irq, void *dev_id)
 		//VIDEO_DBG(" Unknown Interrupt\n");
 //      VIDEO_DBG("TFE CRT [%#x].", *fge_intr);
 		return (IRQ_NONE);
-//      return (IRQ_HANDLED);
 	}
 
 	if (bFgeItr) {
@@ -975,8 +997,6 @@ static ssize_t store_video_reset(struct device *dev, struct device_attribute *at
 
 	return count;
 }
-
-static DEVICE_ATTR(video_reset, S_IRUGO | S_IWUSR, NULL, store_video_reset);
 
 bool sleep_on_tfe_busy(AstRVAS *pAstRVAS, u32 dwTFEDescriptorAddr,
         u32 dwTFEControlR, u32 dwTFERleLimitor, u32 *pdwRLESize,
@@ -1134,9 +1154,7 @@ void sleep_on_ldma_busy(AstRVAS *pAstRVAS, u32 dwDescriptorAddress)
 	VIDEO_DBG("LDMA:  DTBR  [%#x]\n", readl((void*)addrLDMADTBR));
 
 	while (!pAstRVAS->ldma_engine.finished) {
-#if 0
-		video_OsSleepOnTimeout(&pAstRVAS->ldma_engine.wait,(u8*)&pAstRVAS->ldma_engine.finished,1000); // loop if bse timedout
-#endif
+		video_os_sleep_on_timeout(&pAstRVAS->ldma_engine.wait,(u8*)&pAstRVAS->ldma_engine.finished,1000); // loop if bse timedout
 	}
 
 	VIDEO_DBG("LDMA wake up\n");
@@ -1221,6 +1239,11 @@ static int video_drv_probe(struct platform_device *pdev)
 	}
 	pr_info("Video misc minor %d\n", video_misc.minor);
 
+	if (sysfs_create_group(&pdev->dev.kobj, &rvas_attribute_group)) {
+		pr_err("Failed in creating group\n");
+		return -1;
+	}
+
 	VIDEO_DBG("Disabling interrupts...\n");
 	disable_grce_tse_interrupt(pAstRVAS);
 
@@ -1269,6 +1292,8 @@ static int video_drv_remove(struct platform_device *pdev)
 
 	VIDEO_DBG("disable_grce_tse_interrupt...\n");
 	disable_grce_tse_interrupt(pAstRVAS);
+
+	sysfs_remove_group(&pdev->dev.kobj, &rvas_attribute_group);
 
 	VIDEO_DBG("misc_deregister...\n");
 	misc_deregister(&video_misc);

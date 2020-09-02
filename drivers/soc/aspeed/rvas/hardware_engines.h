@@ -390,6 +390,7 @@ typedef struct tagAstRVAS {
 	u8 reserved[2];
 	ContextTable *ppctContextTable[MAX_NUM_CONTEXT];
 	u32 dwMemoryTableSize;
+	u32 dwScreenOffset;
 	MemoryMapTable *ppmmtMemoryTable[MAX_NUM_MEM_TBL];
 } AstRVAS;
 
@@ -423,7 +424,7 @@ u32 clear_tse_interrupt(AstRVAS *ast_rvas);
 bool clear_ldma_interrupt(AstRVAS *ast_rvas);
 bool clear_tfe_interrupt(AstRVAS *ast_rvas);
 bool clear_bse_interrupt(AstRVAS *ast_rvas);
-
+u32 get_screen_offset(AstRVAS *ast_rvas);
 //
 void setup_lmem(AstRVAS *ast_rvas);
 //
