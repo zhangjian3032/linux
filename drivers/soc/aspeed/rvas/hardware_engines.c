@@ -259,6 +259,7 @@ void update_video_geometry(AstRVAS *ast_rvas)
 		cur_vg->wScreenWidth = pDE->HDE;
 		cur_vg->wScreenHeight = pDE->VDE;
 		cur_vg->byBitsPerPixel = pNMIH->byColorDepth;
+		cur_vg->byModeID = pModeInfo->byModeID;
 	} else
 		ast_video_get_indexed_mode(pModeInfo, cur_vg);
 
