@@ -164,7 +164,7 @@ static long video_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case CMD_IOCTL_NEW_CONTEXT:
-		VIDEO_DBG(" Command CMD_IOCTL_NEW_CONTEXT\n");
+		CONTEXT_DBG(" Command CMD_IOCTL_NEW_CONTEXT\n");
 		ioctl_new_context(file, &ri, pAstRVAS);
 		break;
 
@@ -301,17 +301,17 @@ static int video_release(struct inode* inode, struct file* filp)
 	u32 dw_index;
 	ContextTable **ppctContextTable = pAstRVAS->ppctContextTable;
 
-	VIDEO_DBG("Start\n");
+	CONTEXT_DBG("Start\n");
 
 	free_all_mem_entries(pAstRVAS);
 
-	VIDEO_DBG("ppctContextTable: 0x%p\n", ppctContextTable);
+	CONTEXT_DBG("ppctContextTable: 0x%p\n", ppctContextTable);
 
 	disable_grce_tse_interrupt(pAstRVAS);
 
 	for (dw_index = 0; dw_index < MAX_NUM_CONTEXT; ++dw_index) {
-		if (ppctContextTable[dw_index]
-		        && (ppctContextTable[dw_index]->pf == filp)) {
+
+		if (ppctContextTable[dw_index]) {
 			VIDEO_DBG("Releasing Context dw_index: %u\n", dw_index);
 			kfree(ppctContextTable[dw_index]);
 			ppctContextTable[dw_index] = NULL;
@@ -334,7 +334,7 @@ void ioctl_new_context(struct file *file, RvasIoctl *pri, AstRVAS *pAstRVAS)
 {
 	ContextTable* pct;
 
-	VIDEO_DBG("Start\n");
+	CONTEXT_DBG("Start\n");
 	pct = get_new_context_table_entry(pAstRVAS);
 
 	if (pct) {
@@ -343,15 +343,20 @@ void ioctl_new_context(struct file *file, RvasIoctl *pri, AstRVAS *pAstRVAS)
 			pri->rs = MemoryAllocError;
 			return;
 		}
+		pri->rc = pct->rc;
+
 	} else {
 		pri->rs = MemoryAllocError;
 	}
+	CONTEXT_DBG("end: return status: %d\n", pri->rs);
+
 }
 
 void ioctl_delete_context(RvasIoctl *pri, AstRVAS *pAstRVAS)
 {
-	VIDEO_DBG("Start\n");
+	CONTEXT_DBG("Start\n");
 
+	CONTEXT_DBG("pri->rc: %d \n", pri->rc);
 	if (remove_context_table_entry(pri->rc, pAstRVAS)) {
 		VIDEO_DBG("Success in removing\n");
 		pri->rs = SuccessStatus;
@@ -580,7 +585,7 @@ void release_osr_es(AstRVAS *pAstRVAS)
 	u32 dw_index;
 	ContextTable **ppctContextTable = pAstRVAS->ppctContextTable;
 
-	VIDEO_DBG("Removing contexts...\n");
+	CONTEXT_DBG("Removing contexts...\n");
 	for (dw_index = 0; dw_index < MAX_NUM_CONTEXT; ++dw_index) {
 		if (ppctContextTable[dw_index]) {
 			kfree(ppctContextTable[dw_index]);
@@ -642,23 +647,24 @@ bool remove_context_table_entry(const RVASContext crc, AstRVAS *pAstRVAS)
 {
 	bool b_ret = false;
 	u32 dw_index = (u32) crc;
-	VIDEO_DBG("Start\n");
-	VIDEO_DBG("dw_index: %u\n", dw_index);
+	CONTEXT_DBG("Start\n");
+
+	CONTEXT_DBG("dw_index: %u\n", dw_index);
 
 	if (dw_index < MAX_NUM_CONTEXT) {
 		ContextTable *ctx_entry = pAstRVAS->ppctContextTable[dw_index];
-		VIDEO_DBG("ctx_entry: 0x%p\n", ctx_entry);
+		CONTEXT_DBG("ctx_entry: 0x%p\n", ctx_entry);
 
 		if (ctx_entry) {
 			disable_grce_tse_interrupt(pAstRVAS);
 			if (!ctx_entry->desc_virt) {
-				VIDEO_DBG("Removing memory, virt: 0x%p phys: %#x\n",
+				CONTEXT_DBG("Removing memory, virt: 0x%p phys: %#x\n",
 				        ctx_entry->desc_virt,
 				        ctx_entry->desc_phy);
 
 				dma_free_coherent(NULL, PAGE_SIZE, ctx_entry->desc_virt, ctx_entry->desc_phy);
 			}
-			VIDEO_DBG("Removing memory: 0x%p\n", ctx_entry);
+			CONTEXT_DBG("Removing memory: 0x%p\n", ctx_entry);
 			pAstRVAS->ppctContextTable[dw_index] = NULL;
 			kfree(ctx_entry);
 			b_ret = true;
