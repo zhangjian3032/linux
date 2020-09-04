@@ -65,11 +65,11 @@
 #define 	PCCR2_PAT_A_RST		BIT(9)
 #define 	PCCR2_PAT_A_INT		BIT(8)
 #define 	PCCR2_DMA_DONE		BIT(4)
+#define 	PCCR2_DATA_RDY		PCCR2_DMA_DONE
 #define 	PCCR2_RX_OVR_INT	BIT(3)
 #define 	PCCR2_RX_TMOUT_INT	BIT(2)
 #define 	PCCR2_RX_AVAIL_INT	BIT(1)
 #define PCCR3	0xBC
-#define 	PCCR3_DATA_RDY		BIT(23)
 #define 	PCCR3_FIFO_DATA_MASK	GENMASK(7, 0)
 
 #define PCC_DMA_MAX_BUFSZ	(PAGE_SIZE)
@@ -278,7 +278,10 @@ static irqreturn_t aspeed_pcc_isr(int irq, void *arg)
 				if (kfifo_is_full(&pcc->fifo))
 					kfifo_skip(&pcc->fifo);
 				kfifo_put(&pcc->fifo, val & PCCR3_FIFO_DATA_MASK);
-			} while (val & PCCR3_DATA_RDY); 
+
+				if (regmap_read(pcc->regmap, PCCR2, &val))
+					break;
+			} while (val & PCCR2_DATA_RDY);
 
 			wake_up_interruptible(&pcc->wq);
 		}
