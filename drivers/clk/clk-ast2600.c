@@ -961,9 +961,9 @@ static void __init aspeed_ast2600_cc(struct regmap *map)
 
 	regmap_read(map, 0x14, &chip_id);
 	if (((chip_id & CHIP_REVISION_ID) >> 16) >= 3)
-		aspeed_g6_clk_data->hws[ASPEED_CLK_APLL] = aspeed_ast2600_calc_apll("apll", val);
-	else
 		aspeed_g6_clk_data->hws[ASPEED_CLK_APLL] = aspeed_ast2600a2_calc_apll("apll", val);
+	else
+		aspeed_g6_clk_data->hws[ASPEED_CLK_APLL] = aspeed_ast2600_calc_apll("apll", val);
 
 	//uart5 
 	regmap_read(map, ASPEED_G6_MISC_CTRL, &val);
