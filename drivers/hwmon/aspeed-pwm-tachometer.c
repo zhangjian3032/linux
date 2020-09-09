@@ -481,46 +481,22 @@ static void aspeed_set_pwm_channel_enable(struct regmap *regmap, u8 pwm_channel,
 static void aspeed_set_fan_tach_ch_enable(struct aspeed_pwm_tachometer_data *priv, u8 fan_tach_ch,
 					  bool enable)
 {
-	u32 i = 0;
-	u32 divide_val = 0;
-	u32 target_div = 0;
 	u32 reg_value = 0;
 
 	if(enable) {
-		//4 ^ n
-//		printk("=== %ld \n", (priv->clk_freq * 60 / priv->techo_channel[fan_tach_ch].min_rpm * 2));
-		target_div = (priv->clk_freq * 60 / priv->techo_channel[fan_tach_ch].min_rpm * 2) / (0xfffff + 1);
-//		printk("min_rpm %d , target_div %d \n", priv->techo_channel[fan_tach_ch].min_rpm, target_div);
-		if(target_div) {
-			for(i = 0; i < 12; i++) {
-				divide_val = BIT(i) * BIT(i);
-				if(divide_val > target_div)
-					break;
-
-			}
-//			printk("xx i %d divide_val %x \n", i, divide_val);
-			//add some toleerance for aviod fan/board design glitch
-			if(i <= 2)
-				i = 3;
-			divide_val = BIT(i) * BIT(i);
-//			printk("00 i %d divide_val %x \n", i, divide_val);
-		} else {
-			i = 0;
-			divide_val = 1;
-		}
-		priv->techo_channel[fan_tach_ch].divide = divide_val;
-//		printk("i : %d ,target_div %d, divide_val %d, priv->clk_freq/divide_val %ld ", i, target_div, divide_val, priv->clk_freq/divide_val);		
+		/* divide = 2^(DEFAULT_TECHO_DIV*2) */
+		priv->tacho_channel[fan_tach_ch].divide = 1 << (DEFAULT_TECHO_DIV << 1);
 
 		reg_value = TECHO_ENABLE | 
-				(priv->techo_channel[fan_tach_ch].tacho_edge << TECHIO_EDGE_BIT) |
-				(i << TECHO_CLK_DIV_BIT) |
-				(priv->techo_channel[fan_tach_ch].tacho_debounce << TECHO_DEBOUNCE_BIT);
+				(priv->tacho_channel[fan_tach_ch].tacho_edge << TECHIO_EDGE_BIT) |
+				(DEFAULT_TECHO_DIV << TECHO_CLK_DIV_BIT) |
+				(priv->tacho_channel[fan_tach_ch].tacho_debounce << TECHO_DEBOUNCE_BIT);
 
-		if(priv->techo_channel[fan_tach_ch].limited_inverse)
+		if(priv->tacho_channel[fan_tach_ch].limited_inverse)
 			reg_value |= TECHO_INVERS_LIMIT;
 
-		if(priv->techo_channel[fan_tach_ch].threshold)
-			reg_value |= (TECHO_IER | priv->techo_channel[fan_tach_ch].threshold); 
+		if(priv->tacho_channel[fan_tach_ch].threshold)
+			reg_value |= (TECHO_IER | priv->tacho_channel[fan_tach_ch].threshold); 
 
 		regmap_write(priv->regmap, ASPEED_TECHO_CTRL_CH(fan_tach_ch), reg_value);
 	} else
