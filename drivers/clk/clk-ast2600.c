@@ -786,10 +786,15 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_LHCLK] = hw;
-
-	//gfx d1clk : use dp clk
-#if 1	
+	
+#if 0
+#if 0
+	//gfx use dp clk
 	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(10, 8), BIT(10));
+#else
+	//hpll
+	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(10, 8), GENMASK(10, 8));
+#endif
 	/* SoC Display clock selection */
 	hw = clk_hw_register_mux(dev, "d1clk", d1clk_parent_names,
 			ARRAY_SIZE(d1clk_parent_names), 0,
@@ -798,11 +803,18 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_D1CLK] = hw;
+#if 0
+	//dpll div 2
 	//d1 clk div 0x308[17:15] x [14:12] - 8,7,6,5,4,3,2,1
-	regmap_write(map, 0x308, 0xa000); //2x3 = 6
+//	regmap_write(map, 0x308, 0xa000); //2x3 = 6
 	//d1 clk div 0x308[17:15] x [14:12] - 8,7,6,5,4,3,2,1
-	regmap_write(map, 0x308, 0xa000); //2x3 = 6
+	regmap_write(map, 0x308, 0x1000);
 #else
+	//hpll div 6
+	regmap_write(map, 0x308, 0x1b000);
+#endif	
+#else
+	//gfx usb phy
 	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(10, 8), BIT(9));
 	/* SoC Display clock selection */
 	hw = clk_hw_register_mux(dev, "d1clk", d1clk_parent_names,
