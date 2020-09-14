@@ -928,8 +928,13 @@ static int dm_late_init(void *handle)
 	struct dmcu_iram_parameters params;
 	unsigned int linear_lut[16];
 	int i;
-	struct dmcu *dmcu = adev->dm.dc->res_pool->dmcu;
-	bool ret = false;
+	struct dmcu *dmcu = NULL;
+	bool ret;
+
+	if (!adev->dm.fw_dmcu)
+		return detect_mst_link_for_all_connectors(adev->ddev);
+
+	dmcu = adev->dm.dc->res_pool->dmcu;
 
 	for (i = 0; i < 16; i++)
 		linear_lut[i] = 0xFFFF * i / 15;
@@ -945,13 +950,10 @@ static int dm_late_init(void *handle)
 	 */
 	params.min_abm_backlight = 0x28F;
 
-	/* todo will enable for navi10 */
-	if (adev->asic_type <= CHIP_RAVEN) {
-		ret = dmcu_load_iram(dmcu, params);
+	ret = dmcu_load_iram(dmcu, params);
 
-		if (!ret)
-			return -EINVAL;
-	}
+	if (!ret)
+		return -EINVAL;
 
 	return detect_mst_link_for_all_connectors(adev->ddev);
 }
@@ -1432,6 +1434,7 @@ amdgpu_dm_update_connector_after_detect(struct amdgpu_dm_connector *aconnector)
 
 			drm_connector_update_edid_property(connector,
 							   aconnector->edid);
+			drm_add_edid_modes(connector, aconnector->edid);
 
 			if (aconnector->dc_link->aux_mode)
 				drm_dp_cec_set_edid(&aconnector->dm_dp_aux.aux,
@@ -7226,6 +7229,30 @@ cleanup:
 	*out_type = update_type;
 	return ret;
 }
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+static int add_affected_mst_dsc_crtcs(struct drm_atomic_state *state, struct drm_crtc *crtc)
+{
+	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
+	struct amdgpu_dm_connector *aconnector = NULL;
+	int i;
+	for_each_new_connector_in_state(state, connector, conn_state, i) {
+		if (conn_state->crtc != crtc)
+			continue;
+
+		aconnector = to_amdgpu_dm_connector(connector);
+		if (!aconnector->port || !aconnector->mst_port)
+			aconnector = NULL;
+		else
+			break;
+	}
+
+	if (!aconnector)
+		return 0;
+
+	return drm_dp_mst_add_affected_dsc_crtcs(state, &aconnector->mst_port->mst_mgr);
+}
+#endif
 
 /**
  * amdgpu_dm_atomic_check() - Atomic check implementation for AMDgpu DM.
@@ -7279,6 +7306,40 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
+	/* Check connector changes */
+	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
+		struct dm_connector_state *dm_old_con_state = to_dm_connector_state(old_con_state);
+		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
+
+		/* Skip connectors that are disabled or part of modeset already. */
+		if (!old_con_state->crtc && !new_con_state->crtc)
+			continue;
+
+		if (!new_con_state->crtc)
+			continue;
+
+		new_crtc_state = drm_atomic_get_crtc_state(state, new_con_state->crtc);
+		if (IS_ERR(new_crtc_state)) {
+			ret = PTR_ERR(new_crtc_state);
+			goto fail;
+		}
+
+		if (dm_old_con_state->abm_level !=
+		    dm_new_con_state->abm_level)
+			new_crtc_state->connectors_changed = true;
+	}
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (adev->asic_type >= CHIP_NAVI10) {
+		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+			if (drm_atomic_crtc_needs_modeset(new_crtc_state)) {
+				ret = add_affected_mst_dsc_crtcs(state, crtc);
+				if (ret)
+					goto fail;
+			}
+		}
+	}
+#endif
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		if (!drm_atomic_crtc_needs_modeset(new_crtc_state) &&
 		    !new_crtc_state->color_mgmt_changed &&
@@ -7462,20 +7523,38 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		 * the same resource. If we have a new DC context as part of
 		 * the DM atomic state from validation we need to free it and
 		 * retain the existing one instead.
+		 *
+		 * Furthermore, since the DM atomic state only contains the DC
+		 * context and can safely be annulled, we can free the state
+		 * and clear the associated private object now to free
+		 * some memory and avoid a possible use-after-free later.
 		 */
-		struct dm_atomic_state *new_dm_state, *old_dm_state;
 
-		new_dm_state = dm_atomic_get_new_state(state);
-		old_dm_state = dm_atomic_get_old_state(state);
+		for (i = 0; i < state->num_private_objs; i++) {
+			struct drm_private_obj *obj = state->private_objs[i].ptr;
 
-		if (new_dm_state && old_dm_state) {
-			if (new_dm_state->context)
-				dc_release_state(new_dm_state->context);
+			if (obj->funcs == adev->dm.atomic_obj.funcs) {
+				int j = state->num_private_objs-1;
 
-			new_dm_state->context = old_dm_state->context;
+				dm_atomic_destroy_state(obj,
+						state->private_objs[i].state);
 
-			if (old_dm_state->context)
-				dc_retain_state(old_dm_state->context);
+				/* If i is not at the end of the array then the
+				 * last element needs to be moved to where i was
+				 * before the array can safely be truncated.
+				 */
+				if (i != j)
+					state->private_objs[i] =
+						state->private_objs[j];
+
+				state->private_objs[j].ptr = NULL;
+				state->private_objs[j].state = NULL;
+				state->private_objs[j].old_state = NULL;
+				state->private_objs[j].new_state = NULL;
+
+				state->num_private_objs = j;
+				break;
+			}
 		}
 	}
 

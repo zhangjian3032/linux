@@ -155,23 +155,34 @@ int pmbus_set_page(struct i2c_client *client, int page)
 		return 0;
 
 	if (!(data->info->func[page] & PMBUS_PAGE_VIRTUAL)) {
+		int i;
+
 		dev_dbg(&client->dev, "Want page %u, %u cached\n", page,
 			data->currpage);
 
-		rv = i2c_smbus_write_byte_data(client, PMBUS_PAGE, page);
-		if (rv) {
+		for (i = 0; i < 2; i++) {
 			rv = i2c_smbus_write_byte_data(client, PMBUS_PAGE,
 						       page);
-			dev_dbg(&client->dev,
-				"Failed to set page %u, performed one-shot retry %s: %d\n",
-				page, rv ? "and failed" : "with success", rv);
+			if (rv)
+				continue;
+
+			rv = i2c_smbus_read_byte_data(client, PMBUS_PAGE);
+			if (rv < 0)
+				continue;
+
+			/* Success, exit loop */
+			if (rv == page)
+				break;
+
+			rv = i2c_smbus_read_byte_data(client, PMBUS_STATUS_CML);
+			if (rv < 0)
+				continue;
+
+			if (rv & PB_CML_FAULT_INVALID_DATA)
+				return -EIO;
 		}
 
-		rv = i2c_smbus_read_byte_data(client, PMBUS_PAGE);
-		if (rv < 0)
-			return rv;
-
-		if (rv != page)
+		if (i == 2)
 			return -EIO;
 	}
 
