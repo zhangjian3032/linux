@@ -340,6 +340,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@1 {
@@ -348,6 +349,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x01>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@2 {
@@ -356,6 +358,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x02>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@3 {
@@ -364,6 +367,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x03>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@4 {
@@ -372,6 +376,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x04>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@5 {
@@ -380,6 +385,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x05>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@6 {
@@ -388,6 +394,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x06>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@7 {
@@ -396,6 +403,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x07>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@8 {
@@ -404,6 +412,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x08>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@9 {
@@ -412,6 +421,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x09>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@10 {
@@ -420,6 +430,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0a>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@11 {
@@ -428,6 +439,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0b>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@12 {
@@ -436,6 +448,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0c>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@13 {
@@ -444,6 +457,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0d>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@14 {
@@ -452,6 +466,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0e>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@15 {
@@ -460,6 +475,7 @@
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0f>;
 		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 };
 
