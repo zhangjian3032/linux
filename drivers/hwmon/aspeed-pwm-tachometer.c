@@ -479,17 +479,17 @@ static void aspeed_set_pwm_channel_enable(struct regmap *regmap, u8 pwm_channel,
 }
 
 static void aspeed_set_fan_tach_ch_enable(struct aspeed_pwm_tachometer_data *priv, u8 fan_tach_ch,
-					  bool enable)
+					  bool enable, u32 tacho_div)
 {
 	u32 reg_value = 0;
 
 	if(enable) {
-		/* divide = 2^(DEFAULT_TECHO_DIV*2) */
-		priv->tacho_channel[fan_tach_ch].divide = 1 << (DEFAULT_TECHO_DIV << 1);
+		/* divide = 2^(tacho_div*2) */
+		priv->tacho_channel[fan_tach_ch].divide = 1 << (tacho_div << 1);
 
 		reg_value = TECHO_ENABLE | 
 				(priv->tacho_channel[fan_tach_ch].tacho_edge << TECHIO_EDGE_BIT) |
-				(DEFAULT_TECHO_DIV << TECHO_CLK_DIV_BIT) |
+				(tacho_div << TECHO_CLK_DIV_BIT) |
 				(priv->tacho_channel[fan_tach_ch].tacho_debounce << TECHO_DEBOUNCE_BIT);
 
 		if(priv->tacho_channel[fan_tach_ch].limited_inverse)
@@ -793,7 +793,7 @@ static void aspeed_create_pwm_channel(struct aspeed_pwm_tachometer_data *priv,
 }
 
 static void aspeed_create_fan_tach_channel(struct aspeed_pwm_tachometer_data *priv,
-					   u8 *fan_tach_ch, int count, u32 fan_pulse_pr)
+					   u8 *fan_tach_ch, int count, u32 fan_pulse_pr, u32 tacho_div)
 {
 	u8 val, index;
 
@@ -801,7 +801,7 @@ static void aspeed_create_fan_tach_channel(struct aspeed_pwm_tachometer_data *pr
 		index = fan_tach_ch[val];
 		priv->fan_tach_present[index] = true;
 		priv->tacho_channel[index].pulse_pr = fan_pulse_pr;
-		aspeed_set_fan_tach_ch_enable(priv, index, true);
+		aspeed_set_fan_tach_ch_enable(priv, index, true, tacho_div);
 	}
 }
 
@@ -898,6 +898,7 @@ static int aspeed_pwm_create_fan(struct device *dev,
 {
 	u8 *fan_tach_ch;
 	u32 fan_pulse_pr;
+	u32 tacho_div;
 	u32 pwm_channel;
 	u32 target_pwm_freq = 0;
 	int ret, count;
@@ -936,8 +937,12 @@ static int aspeed_pwm_create_fan(struct device *dev,
 	ret = of_property_read_u32(child, "aspeed,pulse-pr", &fan_pulse_pr);
 	if (ret)
 		fan_pulse_pr = DEFAULT_FAN_PULSE_PR;
+
+	ret = of_property_read_u32(child, "aspeed,tacho-div", &tacho_div);
+	if (ret)
+		tacho_div = DEFAULT_TECHO_DIV;
 	
-	aspeed_create_fan_tach_channel(priv, fan_tach_ch, count, fan_pulse_pr);
+	aspeed_create_fan_tach_channel(priv, fan_tach_ch, count, fan_pulse_pr, tacho_div);
 
 	return 0;
 }
