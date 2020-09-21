@@ -30,6 +30,7 @@
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/mm.h>
 #include <stdbool.h>
 #include <linux/of_reserved_mem.h>
@@ -68,6 +69,7 @@ static const struct attribute_group rvas_attribute_group = {
 };
 
 static AstRVAS *pAstRVAS = NULL;
+static void __iomem *dp_base;
 
 static long video_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -516,10 +518,17 @@ void ioctl_update_lms(u8 lms_on,AstRVAS *pAstRVAS)
 	u32 reg_scu418 = 0;
 	u32 reg_scu0C0 = 0;
 	u32 reg_scu0D0 = 0;
+        u32 reg_dptx100 = 0;
+	u32 reg_dptx104 = 0;
 
 	regmap_read(pAstRVAS->scu, SCU418_Pin_Ctrl, &reg_scu418);
 	regmap_read(pAstRVAS->scu, SCU0C0_Misc1_Ctrl, &reg_scu0C0);
 	regmap_read(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, &reg_scu0D0);
+        if (dp_base) {
+		reg_dptx100 = readl(dp_base + DPTX_Configuration_Register);
+		reg_dptx104 = readl(dp_base + DPTX_PHY_Configuration_Register);
+	}
+
 	if (lms_on) {
 		if (!(reg_scu418 & (VGAVS_ENBL|VGAHS_ENBL))) {
 			reg_scu418 |= (VGAVS_ENBL|VGAHS_ENBL);
@@ -533,6 +542,11 @@ void ioctl_update_lms(u8 lms_on,AstRVAS *pAstRVAS)
 			reg_scu0D0 &= ~PWR_OFF_VDAC;
 			regmap_write(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, reg_scu0D0);
 		}
+                //dp output
+		if (dp_base) {
+			reg_dptx100 |= 1 << AUX_RESETN;
+			writel(reg_dptx100, dp_base + DPTX_Configuration_Register);
+		}
 	} else { //turn off
 		if (reg_scu418 & (VGAVS_ENBL|VGAHS_ENBL)) {
 			reg_scu418 &= ~(VGAVS_ENBL|VGAHS_ENBL);
@@ -545,6 +559,13 @@ void ioctl_update_lms(u8 lms_on,AstRVAS *pAstRVAS)
 		if (!(reg_scu0D0 & PWR_OFF_VDAC)) {
 			reg_scu0D0 |= PWR_OFF_VDAC;
 			regmap_write(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, reg_scu0D0);
+		}
+                //dp output
+		if (dp_base) {
+			reg_dptx100 &= ~(1 << AUX_RESETN);
+			writel(reg_dptx100, dp_base + DPTX_Configuration_Register);
+			reg_dptx104 &= ~(1 << DP_TX_I_MAIN_ON);
+			writel(reg_dptx104, dp_base + DPTX_PHY_Configuration_Register);
 		}
 	}
 }
@@ -1174,6 +1195,7 @@ static int video_drv_probe(struct platform_device *pdev)
 	struct resource *io_fg;
 	struct resource *io_grc;
 	struct regmap *sdram_edac;
+        struct device_node *dp_node;
 
 	printk("RVAS driver probe\n");
 	pAstRVAS = devm_kzalloc(&pdev->dev, sizeof(AstRVAS), GFP_KERNEL);
@@ -1227,6 +1249,15 @@ static int video_drv_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Cannot map GRC registers\n");
 		pAstRVAS->grce_reg_base = 0;
 		return result;
+	}
+        dp_node = of_find_compatible_node(NULL, NULL, "aspeed,ast2600-displayport");
+	if (!dp_node) {
+		dev_err(&pdev->dev, "cannot find dp node\n");
+	} else {
+		dp_base = of_iomap(dp_node, 0);
+		if (!dp_base) {
+			dev_err(&pdev->dev, "failed to iomem of display port\n");
+		}
 	}
 	sdram_edac = syscon_regmap_lookup_by_compatible("aspeed,ast2600-scu");
 	VIDEO_DBG("sdram_edac: 0x%p\n", sdram_edac);

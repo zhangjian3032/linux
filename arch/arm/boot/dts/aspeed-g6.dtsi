@@ -633,6 +633,13 @@
 				status = "disabled";
 			};
 
+                        display_port:  dp@1e6eb000 {
+                            compatible = "aspeed,ast2600-displayport";
+                            reg = <0x1e6eb000 0x200>;
+                            interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+                            status = "disabled";
+                        };
+
 			espi: espi@1e6ee000 {
 				compatible = "aspeed,ast2600-espi", "simple-mfd", "syscon";
 				reg = <0x1e6ee000 0x200>;

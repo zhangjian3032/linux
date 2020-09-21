@@ -66,6 +66,14 @@
 #define SCU_RVAS_ENGINE_BIT			BIT(9)
 #define SCU_RVAS_STOP_CLOCK_BIT			BIT(25)
 
+//DP
+#define DPTX_Configuration_Register			(0x100)
+#define DPTX_PHY_Configuration_Register		(0x104)
+//DPTX100
+#define AUX_RESETN							(24)
+//DPTX104
+#define DP_TX_I_MAIN_ON						(8)
+
 //TOP REG
 #define TOP_REG_OFFSET				(0x0)
 #define TOP_REG_CTL				(TOP_REG_OFFSET + 0x00)
