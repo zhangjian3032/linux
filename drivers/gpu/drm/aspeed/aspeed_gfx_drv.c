@@ -74,8 +74,25 @@ static void aspeed_gfx_setup_mode_config(struct drm_device *drm)
 	drm->mode_config.min_height = 0;
 
 	if(priv->version == GFX_AST2600) {
-		drm->mode_config.max_width = 1024;
-		drm->mode_config.max_height = 768;
+		u32 clk_src;
+		regmap_read(priv->scu, 0x300, &clk_src);
+		if (((clk_src >> 8) & 0x7) == 0x2) {
+			//usb 40Mhz
+			drm->mode_config.max_width = 800;
+			drm->mode_config.max_height = 600;
+		} else if (((clk_src >> 8) & 0x7) == 0x7) {
+			//hpll div 16 = 75Mhz
+			drm->mode_config.max_width = 1024;
+			drm->mode_config.max_height = 768;
+		} else if (((clk_src >> 8) & 0x7) == 0x4) {
+			//dp div2 = 135Mhz
+			drm->mode_config.max_width = 1280;
+			drm->mode_config.max_height = 1024;
+		} else {
+			printk("unknow clk source \n");
+			drm->mode_config.max_width = 800;
+			drm->mode_config.max_height = 600;			
+		}
 	} else {
 		drm->mode_config.max_width = 800;
 		drm->mode_config.max_height = 600;
