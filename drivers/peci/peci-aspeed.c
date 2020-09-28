@@ -150,6 +150,7 @@ struct aspeed_peci {
 	u32			cmd_timeout_ms;
 	int 		xfer_mode;	/* 0: older 32 bytes, 1 : 64bytes mode */
 };
+static int aspeed_peci_init_ctrl(struct aspeed_peci *priv);
 
 static int aspeed_peci_xfer_native(struct aspeed_peci *priv,
 				   struct peci_xfer_msg *msg)
@@ -213,6 +214,9 @@ static int aspeed_peci_xfer_native(struct aspeed_peci *priv,
 			goto err_irqrestore;
 		} else if (err == 0) {
 			dev_dbg(priv->dev, "Timeout waiting for a response!\n");
+			reset_control_assert(priv->rst);
+			reset_control_deassert(priv->rst);
+			aspeed_peci_init_ctrl(priv);
 			rc = -ETIMEDOUT;
 			goto err_irqrestore;
 		}
