@@ -1038,16 +1038,19 @@ int aspeed_new_i2c_master_irq(struct aspeed_new_i2c_bus *i2c_bus)
 	}
 
 	if (AST_I2CM_SMBUS_ALT & sts) {
-		printk("AST_I2CM_SMBUS_ALT 0x%02x\n", sts);
-		dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CM_SMBUS_ALT= %x\n", sts);
-		//Disable ALT INT
-		aspeed_i2c_write(i2c_bus, aspeed_i2c_read(i2c_bus, AST_I2CM_IER) &
-			      ~AST_I2CM_SMBUS_ALT,
-			      AST_I2CM_IER);
-		aspeed_i2c_write(i2c_bus, AST_I2CM_SMBUS_ALT, AST_I2CM_ISR);
-		dev_err(i2c_bus->dev, "TODO aspeed_master_alert_recv bus id %d, Disable Alt, Please Imple \n",
-			   i2c_bus->adap.nr);
-		return 1;
+		if (aspeed_i2c_read(i2c_bus, AST_I2CM_IER) & AST_I2CM_SMBUS_ALT) {
+			printk("AST_I2CM_SMBUS_ALT 0x%02x\n", sts);
+			dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CM_SMBUS_ALT= %x\n", sts);
+			//Disable ALT INT
+			aspeed_i2c_write(i2c_bus, aspeed_i2c_read(i2c_bus, AST_I2CM_IER) &
+				      ~AST_I2CM_SMBUS_ALT,
+				      AST_I2CM_IER);
+			aspeed_i2c_write(i2c_bus, AST_I2CM_SMBUS_ALT, AST_I2CM_ISR);
+			dev_err(i2c_bus->dev, "TODO aspeed_master_alert_recv bus id %d, Disable Alt, Please Imple \n",
+				   i2c_bus->adap.nr);
+			return 1;
+		} else 
+			sts &= ~AST_I2CM_SMBUS_ALT;
 	}
 
 	i2c_bus->cmd_err = aspeed_new_i2c_is_irq_error(sts);
@@ -1337,8 +1340,12 @@ static void aspeed_new_i2c_init(struct aspeed_new_i2c_bus *i2c_bus)
 	aspeed_i2c_write(i2c_bus, 0xfffffff, AST_I2CM_ISR);
 
 	/* Set interrupt generation of I2C master controller */
-	aspeed_i2c_write(i2c_bus, AST_I2CM_PKT_DONE | AST_I2CM_BUS_RECOVER |
-					AST_I2CM_SMBUS_ALT, AST_I2CM_IER);
+	if (of_property_read_bool(pdev->dev.of_node, "smbus-alert"))
+		aspeed_i2c_write(i2c_bus, AST_I2CM_PKT_DONE | AST_I2CM_BUS_RECOVER |
+						AST_I2CM_SMBUS_ALT, AST_I2CM_IER);
+	else
+		aspeed_i2c_write(i2c_bus, AST_I2CM_PKT_DONE | AST_I2CM_BUS_RECOVER,
+						AST_I2CM_IER);
 
 #ifdef CONFIG_I2C_SLAVE
 	//for memory buffer initial
