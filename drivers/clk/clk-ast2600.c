@@ -77,9 +77,9 @@ static struct aspeed_gate_data aspeed_g6_gates[] = {
 	//From dpll
 	[ASPEED_CLK_GATE_DCLK] 			= {  5, -1, 			"dclk-gate",	NULL,	CLK_IS_CRITICAL }, 	/* DAC */
 	[ASPEED_CLK_GATE_REF0CLK] 		= {  6, -1, 			"ref0clk-gate",	"clkin", CLK_IS_CRITICAL },
-	[ASPEED_CLK_GATE_USBPORT2CLK] 		= {  7,  ASPEED_RESET_EHCI_P2, 	"usb-port2-gate",NULL,	0 }, 			/* USB2.0 Host port 2 */
-	//reserved 8
-	[ASPEED_CLK_GATE_USBUHCICLK] 		= {  9,  ASPEED_RESET_UHCI, 	"usb-uhci-gate", NULL,	0 }, 			/* USB1.1 (requires port 2 enabled) */
+	[ASPEED_CLK_GATE_USBPORT2CLK]	= {  7,  3, "usb-port2-gate",	NULL,	 0 },	/* USB2.0 Host port 2 */
+	/* Reserved 8 */
+	[ASPEED_CLK_GATE_USBUHCICLK]	= {  9, 15, "usb-uhci-gate",	NULL,	 0 },	/* USB1.1 (requires port 2 enabled) */
 	//from dpll/epll/40mhz usb p1 phy/gpioc6/dp phy pll
 	[ASPEED_CLK_GATE_D1CLK] 		= { 10,  ASPEED_RESET_CRT, 	"d1clk-gate",	"d1clk",0 }, 			/* GFX CRT */
 	//reserved 11/12
@@ -129,12 +129,6 @@ static struct aspeed_gate_data aspeed_g6_gates[] = {
 	[ASPEED_CLK_GATE_FSICLK] 		= { 62, ASPEED_RESET_FSI, 		"fsiclk-gate",	NULL,	0 }, 		/* fsi */
 };
 
-static const char * const eclk_parent_names[] = {
-	"mpll",
-	"hpll",
-	"dpll",
-};
-
 static const struct clk_div_table ast2600_eclk_div_table[] = {
 	{ 0x0, 2 },
 	{ 0x1, 2 },
@@ -148,7 +142,7 @@ static const struct clk_div_table ast2600_eclk_div_table[] = {
 };
 
 static const struct clk_div_table ast2600_mac_div_table[] = {
-	{ 0x0, 4 }, /* Yep, really. Aspeed confirmed this is correct */
+	{ 0x0, 4 },
 	{ 0x1, 4 },
 	{ 0x2, 6 },
 	{ 0x3, 8 },
@@ -187,6 +181,12 @@ static const struct clk_div_table ast2600_uart_div_table[] = {
 	{ 0x0, 4 }, 
 	{ 0x1, 2 },
 	{ 0 }
+};
+
+static const char * const eclk_parent_names[] = {
+	"mpll",
+	"hpll",
+	"dpll",
 };
 
 //for dpll/epll/mpll
@@ -384,6 +384,7 @@ static int aspeed_g6_clk_enable(struct clk_hw *hw)
 		
 
 	spin_lock_irqsave(gate->lock, flags);
+
 	if (aspeed_g6_clk_is_enabled(hw)) {
 		spin_unlock_irqrestore(gate->lock, flags);
 		return 0;
@@ -836,7 +837,6 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_BCLK] = hw;
 
-	//vclk - check 
 	/* Video Capture clock selection */
 	hw = clk_hw_register_mux(dev, "vclk", vclk_parent_names,
 			ARRAY_SIZE(vclk_parent_names), 0,
@@ -942,15 +942,12 @@ static u32 ast2600_a1_axi_ahb_default_table[] = {
 
 #define CHIP_REVISION_ID GENMASK(23, 16)
 
-static void __init aspeed_ast2600_cc(struct regmap *map)
+static void __init aspeed_g6_cc(struct regmap *map)
 {
 	struct clk_hw *hw;
 	u32 val, freq, div, chip_id, axi_div, ahb_div, hwstrap;
 
-	freq = 25000000;
-
-	hw = clk_hw_register_fixed_rate(NULL, "clkin", NULL, 0, freq);
-	pr_debug("clkin @%u MHz\n", freq / 1000000);
+	clk_hw_register_fixed_rate(NULL, "clkin", NULL, 0, 25000000);
 
 	/*
 	 * High-speed PLL clock derived from the crystal. This the CPU clock,
@@ -1097,6 +1094,12 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 	for (i = 0; i < ASPEED_G6_NUM_CLKS; i++)
 		aspeed_g6_clk_data->hws[i] = ERR_PTR(-EPROBE_DEFER);
 
+	/*
+	 * We check that the regmap works on this very first access,
+	 * but as this is an MMIO-backed regmap, subsequent regmap
+	 * access is not going to fail and we skip error checks from
+	 * this point.
+	 */
 	map = syscon_node_to_regmap(np);
 	if (IS_ERR(map)) {
 		pr_err("no syscon regmap\n");
@@ -1147,17 +1150,10 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, BIT(19), BIT(19));	
 	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(27, 26), (2 << 26));	
 
-	/*
-	 * We check that the regmap works on this very first access,
-	 * but as this is an MMIO-backed regmap, subsequent regmap
-	 * access is not going to fail and we skip error checks from
-	 * this point.
-	 */
-	aspeed_ast2600_cc(map);	
+	aspeed_g6_cc(map);
 	aspeed_g6_clk_data->num = ASPEED_G6_NUM_CLKS;
 	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, aspeed_g6_clk_data);
 	if (ret)
 		pr_err("failed to add DT provider: %d\n", ret);
-
 };
 CLK_OF_DECLARE_DRIVER(aspeed_cc_g6, "aspeed,ast2600-scu", aspeed_g6_cc_init);
