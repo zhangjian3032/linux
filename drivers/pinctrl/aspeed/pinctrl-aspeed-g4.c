@@ -2590,6 +2590,14 @@ static int aspeed_g4_sig_expr_set(const struct aspeed_pinmux_data *ctx,
 	return 0;
 }
 
+static const struct aspeed_pin_config_map aspeed_g4_pin_config_map[] = {
+	{ PIN_CONFIG_BIAS_PULL_DOWN,  0, 1, BIT_MASK(0)},
+	{ PIN_CONFIG_BIAS_PULL_DOWN, -1, 0, BIT_MASK(0)},
+	{ PIN_CONFIG_BIAS_DISABLE,   -1, 1, BIT_MASK(0)},
+	{ PIN_CONFIG_DRIVE_STRENGTH,  8, 0, BIT_MASK(0)},
+	{ PIN_CONFIG_DRIVE_STRENGTH, 16, 1, BIT_MASK(0)},
+};
+
 static const struct aspeed_pinmux_ops aspeed_g4_ops = {
 	.set = aspeed_g4_sig_expr_set,
 };
@@ -2606,6 +2614,8 @@ static struct aspeed_pinctrl_data aspeed_g4_pinctrl_data = {
 	},
 	.configs = aspeed_g4_configs,
 	.nconfigs = ARRAY_SIZE(aspeed_g4_configs),
+	.confmaps = aspeed_g4_pin_config_map,
+	.nconfmaps = ARRAY_SIZE(aspeed_g4_pin_config_map),
 };
 
 static const struct pinmux_ops aspeed_g4_pinmux_ops = {
@@ -2656,6 +2666,10 @@ static int aspeed_g4_pinctrl_probe(struct platform_device *pdev)
 
 static const struct of_device_id aspeed_g4_pinctrl_of_match[] = {
 	{ .compatible = "aspeed,ast2400-pinctrl", },
+	/*
+	 * The aspeed,g4-pinctrl compatible has been removed the from the
+	 * bindings, but keep the match in case of old devicetrees.
+	 */
 	{ .compatible = "aspeed,g4-pinctrl", },
 	{ },
 };

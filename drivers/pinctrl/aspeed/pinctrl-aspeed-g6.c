@@ -2368,10 +2368,11 @@ static const struct aspeed_pin_function aspeed_g6_functions[] = {
 	ASPEED_PINCTRL_FUNC(UART7),
 	ASPEED_PINCTRL_FUNC(UART8),
 	ASPEED_PINCTRL_FUNC(UART9),
-	ASPEED_PINCTRL_FUNC(USB2ADP),
-	ASPEED_PINCTRL_FUNC(USB2AD),
-	ASPEED_PINCTRL_FUNC(USB2AH),
 	ASPEED_PINCTRL_FUNC(USB11BHID),
+	ASPEED_PINCTRL_FUNC(USB2AD),
+	ASPEED_PINCTRL_FUNC(USB2ADP),
+	ASPEED_PINCTRL_FUNC(USB2AH),
+	ASPEED_PINCTRL_FUNC(USB2AHP),
 	ASPEED_PINCTRL_FUNC(USB2BD),
 	ASPEED_PINCTRL_FUNC(USB2BH),
 	ASPEED_PINCTRL_FUNC(VB),
@@ -2706,6 +2707,20 @@ static int aspeed_g6_sig_expr_set(const struct aspeed_pinmux_data *ctx,
 	return 0;
 }
 
+static const struct aspeed_pin_config_map aspeed_g6_pin_config_map[] = {
+	{ PIN_CONFIG_BIAS_PULL_DOWN,  0,   1, BIT_MASK(0)},
+	{ PIN_CONFIG_BIAS_PULL_DOWN, -1,   0, BIT_MASK(0)},
+	{ PIN_CONFIG_BIAS_PULL_UP,    0,   1, BIT_MASK(0)},
+	{ PIN_CONFIG_BIAS_PULL_UP,   -1,   0, BIT_MASK(0)},
+	{ PIN_CONFIG_BIAS_DISABLE,   -1,   1, BIT_MASK(0)},
+	{ PIN_CONFIG_DRIVE_STRENGTH,  4,   0, GENMASK(1, 0)},
+	{ PIN_CONFIG_DRIVE_STRENGTH,  8,   1, GENMASK(1, 0)},
+	{ PIN_CONFIG_DRIVE_STRENGTH, 12,   2, GENMASK(1, 0)},
+	{ PIN_CONFIG_DRIVE_STRENGTH, 16,   3, GENMASK(1, 0)},
+	{ PIN_CONFIG_POWER_SOURCE,   3300, 0, BIT_MASK(0)},
+	{ PIN_CONFIG_POWER_SOURCE,   1800, 1, BIT_MASK(0)},
+};
+
 static const struct aspeed_pinmux_ops aspeed_g5_ops = {
 	.set = aspeed_g6_sig_expr_set,
 };
@@ -2722,6 +2737,8 @@ static struct aspeed_pinctrl_data aspeed_g6_pinctrl_data = {
 	},
 	.configs = aspeed_g6_configs,
 	.nconfigs = ARRAY_SIZE(aspeed_g6_configs),
+	.confmaps = aspeed_g6_pin_config_map,
+	.nconfmaps = ARRAY_SIZE(aspeed_g6_pin_config_map),
 };
 
 static const struct pinmux_ops aspeed_g6_pinmux_ops = {
