@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
+// Copyright IBM Corp
 
 #define pr_fmt(fmt) "clk-aspeed: " fmt
 
@@ -13,6 +14,7 @@
 #include <linux/spinlock.h>
 
 #include <dt-bindings/clock/aspeed-clock.h>
+
 #include "clk-aspeed.h"
 
 #define ASPEED_NUM_CLKS		37
@@ -29,6 +31,7 @@
 #define  AST2400_HPLL_BYPASS_EN	BIT(17)
 #define ASPEED_MISC_CTRL	0x2c
 #define  UART_DIV13_EN		BIT(12)
+#define ASPEED_MAC_CLK_DLY	0x48
 #define ASPEED_STRAP		0x70
 #define  CLKIN_25MHZ_EN		BIT(23)
 #define  AST2400_CLK_SOURCE_SEL	BIT(18)
@@ -59,8 +62,8 @@ static const struct aspeed_gate_data aspeed_gates[] = {
 	[ASPEED_CLK_GATE_D1CLK] =	{ 10, 13, "d1clk-gate",		NULL,	0 }, /* GFX CRT */
 	[ASPEED_CLK_GATE_YCLK] =	{ 13,  4, "yclk-gate",		NULL,	0 }, /* HAC */
 	[ASPEED_CLK_GATE_USBPORT1CLK] = { 14, 14, "usb-port1-gate",	NULL,	0 }, /* USB2 hub/USB2 host port 1/USB1.1 dev */
-	[ASPEED_CLK_GATE_UART1CLK] =	{ 15, -1, "uart1clk-gate",	"uart",	0 }, /* UART1 */
-	[ASPEED_CLK_GATE_UART2CLK] =	{ 16, -1, "uart2clk-gate",	"uart",	0 }, /* UART2 */
+	[ASPEED_CLK_GATE_UART1CLK] =	{ 15, -1, "uart1clk-gate",	"uart",	CLK_IS_CRITICAL }, /* UART1 */
+	[ASPEED_CLK_GATE_UART2CLK] =	{ 16, -1, "uart2clk-gate",	"uart",	CLK_IS_CRITICAL }, /* UART2 */
 	[ASPEED_CLK_GATE_UART5CLK] =	{ 17, -1, "uart5clk-gate",	"uart",	0 }, /* UART5 */
 	[ASPEED_CLK_GATE_ESPICLK] =	{ 19, -1, "espiclk-gate",	NULL,	CLK_IS_CRITICAL }, /* eSPI */
 	[ASPEED_CLK_GATE_MAC1CLK] =	{ 20, 11, "mac1clk-gate",	"mac",	0 }, /* MAC1 */
@@ -275,12 +278,11 @@ static const u8 aspeed_resets[] = {
 	[ASPEED_RESET_ADC]	= 23,
 	[ASPEED_RESET_JTAG_MASTER] = 22,
 	[ASPEED_RESET_MIC]	= 18,
-	[ASPEED_RESET_PECI]	= 10,
 	[ASPEED_RESET_PWM]	=  9,
-	[ASPEED_RESET_VIDEO]	=  6,
+	[ASPEED_RESET_PECI]	= 10,
 	[ASPEED_RESET_I2C]	=  2,
 	[ASPEED_RESET_AHB]	=  1,
-
+	[ASPEED_RESET_VIDEO]	=  6,
 	/*
 	 * SCUD4 resets start at an offset to separate them from
 	 * the SCU04 resets.
@@ -551,12 +553,7 @@ static struct platform_driver aspeed_clk_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-
-static int __init aspeed_clk_init(void)
-{
-	return platform_driver_register(&aspeed_clk_driver);
-}
-core_initcall(aspeed_clk_init);
+builtin_platform_driver(aspeed_clk_driver);
 
 static void __init aspeed_ast2400_cc(struct regmap *map)
 {
