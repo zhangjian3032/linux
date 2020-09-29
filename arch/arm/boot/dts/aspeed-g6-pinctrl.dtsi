@@ -1139,31 +1139,31 @@
 
 	pinctrl_usb2ah_default: usb2ah_default {
 		function = "USB2AH";
-		groups = "USB2AH";
+		groups = "USBA";
 	};
 	pinctrl_usb2ad_default: usb2ad_default {
 		function = "USB2AD";
-		groups = "USB2AD";
+		groups = "USBA";
 	};
 
 	pinctrl_usb2bh_default: usb2bh_default {
 		function = "USB2BH";
-		groups = "USB2BH";
+		groups = "USBB";
 	};
 
 	pinctrl_usb2bd_default: usb2bd_default {
 		function = "USB2BD";
-		groups = "USB2BD";
+		groups = "USBB";
 	};
 
 	pinctrl_usb2adp_default: usb2adp_default {
 		function = "USB2ADP";
-		groups = "USB2ADP";
+		groups = "USBA";
 	};
 
 	pinctrl_usb11bhid_default: usb11bhid_default {
 		function = "USB11BHID";
-		groups = "USB11BHID";
+		groups = "USBB";
 	};
 
 	pinctrl_vb_default: vb_default {
