@@ -19,6 +19,7 @@
 
 #define SCU400		0x400 /* Multi-function Pin Control #1  */
 #define SCU404		0x404 /* Multi-function Pin Control #2  */
+#define SCU40C		0x40C /* Multi-function Pin Control #3  */
 #define SCU410		0x410 /* Multi-function Pin Control #4  */
 #define SCU414		0x414 /* Multi-function Pin Control #5  */
 #define SCU418		0x418 /* Multi-function Pin Control #6  */
@@ -43,7 +44,7 @@
 #define SCU610		0x610 /* Disable GPIO Internal Pull-Down #0 */
 #define SCU614		0x614 /* Disable GPIO Internal Pull-Down #1 */
 #define SCU618		0x618 /* Disable GPIO Internal Pull-Down #2 */
-#define SCU61C		0x61C /* Disable GPIO Internal Pull-Down #3 */
+#define SCU61C		0x61c /* Disable GPIO Internal Pull-Down #3 */
 #define SCU620		0x620 /* Disable GPIO Internal Pull-Down #4 */
 #define SCU634		0x634 /* Disable GPIO Internal Pull-Down #5 */
 #define SCU638		0x638 /* Disable GPIO Internal Pull-Down #6 */
@@ -1615,6 +1616,7 @@ FUNC_GROUP_DECL(I3C2, AF22, AE22);
 #define USB2ADP_DESC   { ASPEED_IP_SCU, SCU440, GENMASK(25, 24), 0, 0 }
 #define USB2AD_DESC    { ASPEED_IP_SCU, SCU440, GENMASK(25, 24), 1, 0 }
 #define USB2AH_DESC    { ASPEED_IP_SCU, SCU440, GENMASK(25, 24), 2, 0 }
+#define USB2AHP_DESC   { ASPEED_IP_SCU, SCU440, GENMASK(25, 24), 3, 0 }
 #define USB11BHID_DESC { ASPEED_IP_SCU, SCU440, GENMASK(29, 28), 0, 0 }
 #define USB2BD_DESC    { ASPEED_IP_SCU, SCU440, GENMASK(29, 28), 1, 0 }
 #define USB2BH_DESC    { ASPEED_IP_SCU, SCU440, GENMASK(29, 28), 2, 0 }
@@ -1630,12 +1632,14 @@ PIN_DECL_(A4, SIG_EXPR_LIST_PTR(A4, USB2ADPDP), SIG_EXPR_LIST_PTR(A4, USB2ADDP),
 SIG_EXPR_LIST_DECL_SESG(B4, USB2ADPDN, USB2ADP, USB2ADP_DESC);
 SIG_EXPR_LIST_DECL_SESG(B4, USB2ADDN, USB2AD, USB2AD_DESC);
 SIG_EXPR_LIST_DECL_SESG(B4, USB2AHDN, USB2AH, USB2AH_DESC);
+SIG_EXPR_LIST_DECL_SESG(B4, USB2AHDN, USB2AHP, USB2AHP_DESC);
 PIN_DECL_(B4, SIG_EXPR_LIST_PTR(B4, USB2ADPDN), SIG_EXPR_LIST_PTR(B4, USB2ADDN), 
 		SIG_EXPR_LIST_PTR(B4, USB2AHDN));
 
 FUNC_GROUP_DECL(USB2ADP, A4, B4);
 FUNC_GROUP_DECL(USB2AD, A4, B4);
 FUNC_GROUP_DECL(USB2AH, A4, B4);
+FUNC_GROUP_DECL(USB2AHP, A4, B4);
 
 #define A6 254
 SIG_EXPR_LIST_DECL_SESG(A6, USB11BDP, USB11BHID, USB11BHID_DESC);
