@@ -1,3 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+/*
+ * Structures used by ASPEED clock drivers
+ *
+ * Copyright 2019 IBM Corp.
+ */
+
+#include <linux/clk-provider.h>
+#include <linux/kernel.h>
+#include <linux/reset-controller.h>
+#include <linux/spinlock.h>
+
+struct clk_div_table;
+struct regmap;
+
 /**
  * struct aspeed_gate_data - Aspeed gated clocks
  * @clock_idx: bit used to gate this clock in the clock register
@@ -40,13 +55,6 @@ struct aspeed_clk_gate {
 
 #define to_aspeed_clk_gate(_hw) container_of(_hw, struct aspeed_clk_gate, hw)
 
-struct aspeed_clk_soc_data {
-	const struct clk_div_table *div_table;
-	const struct clk_div_table *eclk_div_table;
-	const struct clk_div_table *mac_div_table;
-	struct clk_hw *(*calc_pll)(const char *name, u32 val);
-};
-
 /**
  * struct aspeed_reset - Aspeed reset controller
  * @map: regmap to access the containing system controller
@@ -59,5 +67,16 @@ struct aspeed_reset {
 
 #define to_aspeed_reset(p) container_of((p), struct aspeed_reset, rcdev)
 
-
-
+/**
+ * struct aspeed_clk_soc_data - Aspeed SoC specific divisor information
+ * @div_table: Common divider lookup table
+ * @eclk_div_table: Divider lookup table for ECLK
+ * @mac_div_table: Divider lookup table for MAC (Ethernet) clocks
+ * @calc_pll: Callback to maculate common PLL settings
+ */
+struct aspeed_clk_soc_data {
+	const struct clk_div_table *div_table;
+	const struct clk_div_table *eclk_div_table;
+	const struct clk_div_table *mac_div_table;
+	struct clk_hw *(*calc_pll)(const char *name, u32 val);
+};
