@@ -574,7 +574,16 @@ u32 ioctl_get_lm_status(AstRVAS *pAstRVAS) {
 	u32 reg_val = 0;
 
 	regmap_read(pAstRVAS->scu, SCU418_Pin_Ctrl, &reg_val);
-	return (reg_val & (VGAVS_ENBL|VGAHS_ENBL));
+	if (reg_val & (VGAVS_ENBL|VGAHS_ENBL)) {
+	    regmap_read(pAstRVAS->scu, SCU0C0_Misc1_Ctrl, &reg_val);
+	    if (!(reg_val & VGA_CRT_DISBL)) {
+			regmap_read(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, &reg_val);
+			if (!(reg_val & PWR_OFF_VDAC)) {
+				return 1;
+			}
+	    }
+	}
+	return 0;
 }
 
 void init_osr_es(AstRVAS *pAstRVAS)
