@@ -43,6 +43,8 @@
 
 #define ASPEED_G6_STRAP1		0x500
 
+#define ASPEED_UARTCLK_FROM_UXCLK	0x338
+
 #define ASPEED_MAC12_CLK_DLY		0x340
 #define ASPEED_MAC12_CLK_DLY_100M	0x348
 #define ASPEED_MAC12_CLK_DLY_10M	0x34C
@@ -68,10 +70,15 @@ static struct clk_hw_onecell_data *aspeed_g6_clk_data;
 
 static void __iomem *scu_g6_base;
 
-//TODO list
-//64 ~ xx : 0x300 ext emmc bit 15 -> --- map to 64 -->0x40
-//64 ~ xx : 0x310 ext sd bit -> --- map to 65 -->0x41
-
+/*
+ * Clocks marked with CLK_IS_CRITICAL:
+ *
+ *  ref0 and ref1 are essential for the SoC to operate
+ *  mpll is required if SDRAM is used
+ * TODO list
+ * 64 ~ xx : 0x300 ext emmc bit 15 -> --- map to 64 -->0x40
+ * 64 ~ xx : 0x310 ext sd bit -> --- map to 65 -->0x41
+ */
 static struct aspeed_gate_data aspeed_g6_gates[] = {
 	/*				    clk rst  name		parent	 flags */
 	[ASPEED_CLK_GATE_MCLK]		= {  0, -1, "mclk-gate",	"mpll",	 CLK_IS_CRITICAL }, /* SDRAM */
@@ -158,6 +165,18 @@ static const struct clk_div_table ast2600_emmc_extclk_div_table[] = {
 	{ 0 }
 };
 
+static const struct clk_div_table ast2600_sd_div_table[] = {
+	{ 0x0, 2 },
+	{ 0x1, 4 },
+	{ 0x2, 6 },
+	{ 0x3, 8 },
+	{ 0x4, 10 },
+	{ 0x5, 12 },
+	{ 0x6, 14 },
+	{ 0x7, 16 },
+	{ 0 }
+};
+
 static const struct clk_div_table ast2600_mac_div_table[] = {
 	{ 0x0, 4 },
 	{ 0x1, 4 },
@@ -179,18 +198,6 @@ static const struct clk_div_table ast2600_div_table[] = {
 	{ 0x5, 24 },
 	{ 0x6, 28 },
 	{ 0x7, 32 },
-	{ 0 }
-};
-
-static const struct clk_div_table ast2600_sd_div_table[] = {
-	{ 0x0, 2 },
-	{ 0x1, 4 },
-	{ 0x2, 6 },
-	{ 0x3, 8 },
-	{ 0x4, 10 },
-	{ 0x5, 12 },
-	{ 0x6, 14 },
-	{ 0x7, 16 },
 	{ 0 }
 };
 
@@ -226,9 +233,10 @@ static struct clk_hw *ast2600_calc_pll(const char *name, u32 val)
 			mult, div);
 };
 
-static struct clk_hw *ast2600_calc_apll(const char *name, u32 chip_id, u32 val)
+static struct clk_hw *ast2600_calc_apll(const char *name, u32 val)
 {
 	unsigned int mult, div;
+	u32 chip_id = readl(scu_g6_base + ASPEED_G6_SILICON_REV);
 
 	if (((chip_id & CHIP_REVISION_ID) >> 16) >= 3) {
 		if (val & BIT(24)) {
@@ -261,9 +269,10 @@ static struct clk_hw *ast2600_calc_apll(const char *name, u32 chip_id, u32 val)
 			mult, div);
 };
 
-static struct clk_hw *ast2600_calc_hpll(const char *name, u32 hwstrap, u32 val)
+static struct clk_hw *ast2600_calc_hpll(const char *name, u32 val)
 {
 	unsigned int mult, div;
+	u32 hwstrap = readl(scu_g6_base + ASPEED_G6_STRAP1);
 	/* 
 	HPLL Numerator (M) = fix 0x5F when SCU500[10]=1
 						 fix 0xBF when SCU500[10]=0 and SCU500[8]=1
@@ -296,103 +305,61 @@ static struct clk_hw *ast2600_calc_hpll(const char *name, u32 hwstrap, u32 val)
 			mult, div);
 };
 
-struct aspeed_g6_clk_soc_data {
-	const struct clk_div_table *div_table;
-	const struct clk_div_table *eclk_div_table;
-	const struct clk_div_table *mac_div_table;
-	struct clk_hw *(*calc_pll)(const char *name, u32 val);
-	unsigned int nr_resets;
-};
+static u32 get_bit(u8 idx)
+{
+	return BIT(idx % 32);
+}
 
-static const struct aspeed_clk_soc_data ast2600_data = {
-	.div_table = ast2600_div_table,
-	.mac_div_table = ast2600_mac_div_table,
-	.eclk_div_table = ast2600_eclk_div_table,	
-};
+static u32 get_reset_reg(struct aspeed_clk_gate *gate)
+{
+	if (gate->reset_idx < 32)
+		return ASPEED_G6_RESET_CTRL;
+
+	return ASPEED_G6_RESET_CTRL2;
+}
+
+static u32 get_clock_reg(struct aspeed_clk_gate *gate)
+{
+	if (gate->clock_idx < 32)
+		return ASPEED_G6_CLK_STOP_CTRL;
+
+	return ASPEED_G6_CLK_STOP_CTRL2;
+}
 
 static int aspeed_g6_clk_is_enabled(struct clk_hw *hw)
 {
-	u32 clk = 0;
-	u32 rst = 0;
-	u32 reg;	
-	u32 enval = 0;
-	int clk_sel_flag = 0;
 	struct aspeed_clk_gate *gate = to_aspeed_clk_gate(hw);
+	u32 clk = get_bit(gate->clock_idx);
+	u32 rst = get_bit(gate->reset_idx);
+	u32 reg;
+	u32 enval;
 
-	if(gate->reset_idx & 0x20)
-		rst = BIT(gate->reset_idx - 32);
-	else
-		rst = BIT((gate->reset_idx));
+	/*
+	 * If the IP is in reset, treat the clock as not enabled,
+	 * this happens with some clocks such as the USB one when
+	 * coming from cold reset. Without this, aspeed_clk_enable()
+	 * will fail to lift the reset.
+	 */
+	if (gate->reset_idx >= 0) {
+		regmap_read(gate->map, get_reset_reg(gate), &reg);
 
-	if(gate->clock_idx & 0x40)
-		clk_sel_flag = 1;
-	else if(gate->clock_idx & 0x20)
-		clk = BIT(gate->clock_idx - 32);
-	else
-		clk = BIT((gate->clock_idx));
-
-	if(clk_sel_flag) {
-		if (gate->clock_idx == 64) {
-			//ext emmc 
-			regmap_read(gate->map, ASPEED_G6_CLK_SELECTION1, &reg);
-			printk("ext emmc 0x300 %x \n", reg);
-			return (reg & BIT(15)) ? 1 : 0;
-		} else if (gate->clock_idx == 65) {
-			//ext sd
-			regmap_read(gate->map, ASPEED_G6_CLK_SELECTION4, &reg);
-			printk("ext sd 0x310 %x \n", reg);
-			return (reg & BIT(31)) ? 1 : 0;
-		} else {
-			printk("error \n");
+		if (reg & rst)
 			return 0;
-		}
-	} else {
-		enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? 0 : clk;
-		/*
-		 * If the IP is in reset, treat the clock as not enabled,
-		 * this happens with some clocks such as the USB one when
-		 * coming from cold reset. Without this, aspeed_clk_enable()
-		 * will fail to lift the reset.
-		 */
-		if (gate->reset_idx >= 0) {
-			if(gate->reset_idx & 0x20)
-				regmap_read(gate->map, ASPEED_G6_RESET_CTRL2, &reg);
-			else
-				regmap_read(gate->map, ASPEED_G6_RESET_CTRL, &reg);
-
-			if (reg & rst)
-				return 0;
-		}
-
-		if(gate->clock_idx & 0x20)
-			regmap_read(gate->map, ASPEED_G6_CLK_STOP_CTRL2, &reg);
-		else
-			regmap_read(gate->map, ASPEED_G6_CLK_STOP_CTRL, &reg);
-
-		return ((reg & clk) == enval) ? 1 : 0;
 	}
+
+	regmap_read(gate->map, get_clock_reg(gate), &reg);
+
+	enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? 0 : clk;
+
+	return ((reg & clk) == enval) ? 1 : 0;
 }
 
 static int aspeed_g6_clk_enable(struct clk_hw *hw)
 {
 	struct aspeed_clk_gate *gate = to_aspeed_clk_gate(hw);
 	unsigned long flags;
-	u32 enval;
-	u32 clk = 0;
-	u32 rst = 0;
-	int clk_sel_flag = 0;
-
-	if(gate->reset_idx & 0x20)
-		rst = BIT(gate->reset_idx - 32);
-	else
-		rst = BIT((gate->reset_idx));
-	if(gate->clock_idx & 0x40)
-		clk_sel_flag = 1;
-	else if(gate->clock_idx & 0x20)
-		clk = BIT(gate->clock_idx - 32);
-	else
-		clk = BIT((gate->clock_idx));
-		
+	u32 clk = get_bit(gate->clock_idx);
+	u32 rst = get_bit(gate->reset_idx);
 
 	spin_lock_irqsave(gate->lock, flags);
 
@@ -401,54 +368,27 @@ static int aspeed_g6_clk_enable(struct clk_hw *hw)
 		return 0;
 	}
 
-	if (clk_sel_flag) {
-		printk("todo ext emmc /sd clk \n");
+	if (gate->reset_idx >= 0) {
+		/* Put IP in reset */
+		regmap_write(gate->map, get_reset_reg(gate), rst);
+		/* Delay 100us */
+		udelay(100);
+	}
+
+	/* Enable clock */
+	if (gate->flags & CLK_GATE_SET_TO_DISABLE) {
+		/* Clock is clear to enable, so use set to clear register */
+		regmap_write(gate->map, get_clock_reg(gate) + 0x04, clk);
 	} else {
-		if (gate->reset_idx >= 0) {
-			/* Put IP in reset */
-			if(gate->reset_idx & 0x20)
-				regmap_write(gate->map, ASPEED_G6_RESET_CTRL2, rst);
-			else
-				regmap_write(gate->map, ASPEED_G6_RESET_CTRL, rst);
-			/* Delay 100us */
-			udelay(100);
-		}
+		/* Clock is set to enable, so use write to set register */
+		regmap_write(gate->map, get_clock_reg(gate), clk);
+	}
 
-		/* Enable clock */
-#if 0		
-		if(gate->clock_idx == aspeed_g6_gates[ASPEED_CLK_GATE_SDEXTCLK].clock_idx) {
-			/* sd ext clk */
-			printk("enable sd card clk xxxxx\n");
-			regmap_update_bits(gate->map, ASPEED_G6_CLK_SELECTION4, BIT(31), BIT(31));
-		} else if(gate->clock_idx == aspeed_g6_gates[ASPEED_CLK_GATE_EMMCEXTCLK].clock_idx) {
-			/* emmc ext clk */
-			regmap_update_bits(gate->map, ASPEED_G6_CLK_SELECTION1, BIT(15), BIT(15));
-			printk("enable emmc card clk xxxxx\n");
-		} else {
-#endif			
-			enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? 0 : clk;
-			if(enval) {
-				if(gate->clock_idx & 0x20)
-					regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL2, clk);
-				else
-					regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL, clk);
-			} else {
-				if(gate->clock_idx & 0x20)
-					regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL2 + 0x04, clk);
-				else
-					regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL + 0x04, clk);
-			}
-//		}
-
-		if (gate->reset_idx >= 0) {
-			/* A delay of 10ms is specified by the ASPEED docs */
-			mdelay(10);
-			/* Take IP out of reset */
-			if(gate->reset_idx & 0x20)
-				regmap_write(gate->map, ASPEED_G6_RESET_CTRL2 + 0x04, rst);
-			else
-				regmap_write(gate->map, ASPEED_G6_RESET_CTRL + 0x04, rst);
-		}
+	if (gate->reset_idx >= 0) {
+		/* A delay of 10ms is specified by the ASPEED docs */
+		mdelay(10);
+		/* Take IP out of reset */
+		regmap_write(gate->map, get_reset_reg(gate) + 0x4, rst);
 	}
 
 	spin_unlock_irqrestore(gate->lock, flags);
@@ -460,41 +400,17 @@ static void aspeed_g6_clk_disable(struct clk_hw *hw)
 {
 	struct aspeed_clk_gate *gate = to_aspeed_clk_gate(hw);
 	unsigned long flags;
-	u32 clk;
-	u32 enval;
-	int clk_sel_flag = 0;
-
-	if(gate->clock_idx & 0x40) {
-		clk_sel_flag = 1;
-	} else if(gate->clock_idx & 0x1f)
-		clk = BIT((gate->clock_idx));
-	else
-		clk = BIT(gate->clock_idx - 32);
+	u32 clk = get_bit(gate->clock_idx);
 
 	spin_lock_irqsave(gate->lock, flags);
 
-	if(clk_sel_flag) {
-		if(gate->clock_idx == 64) {
-			regmap_update_bits(gate->map, ASPEED_G6_CLK_SELECTION1, BIT(15), 0);
-		} else if(gate->clock_idx == 65) {
-			regmap_update_bits(gate->map, ASPEED_G6_CLK_SELECTION4, BIT(31), 0);
-		} else 	
-			printk("todo disable clk \n");
+	if (gate->flags & CLK_GATE_SET_TO_DISABLE) {
+		regmap_write(gate->map, get_clock_reg(gate), clk);
 	} else {
-		enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? clk : 0;
-
-		if(enval) {
-			if(gate->clock_idx & 0x20)
-				regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL2, clk);
-			else
-				regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL, clk);
-		} else {
-			if(gate->clock_idx & 0x20)
-				regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL2 + 0x04, clk);
-			else
-				regmap_write(gate->map, ASPEED_G6_CLK_STOP_CTRL + 0x04, clk);
-		}
+		/* Use set to clear register */
+		regmap_write(gate->map, get_clock_reg(gate) + 0x4, clk);
 	}
+
 	spin_unlock_irqrestore(gate->lock, flags);
 }
 
@@ -505,44 +421,40 @@ static const struct clk_ops aspeed_g6_clk_gate_ops = {
 };
 
 static int aspeed_g6_reset_deassert(struct reset_controller_dev *rcdev,
-				 unsigned long id)
+				    unsigned long id)
 {
 	struct aspeed_reset *ar = to_aspeed_reset(rcdev);
+	u32 rst = get_bit(id);
+	u32 reg = id >= 32 ? ASPEED_G6_RESET_CTRL2 : ASPEED_G6_RESET_CTRL;
 
-	if(id >= 32) 
-		return regmap_write(ar->map, ASPEED_G6_RESET_CTRL2 + 0x04, BIT(id - 32));
-	else
-		return regmap_write(ar->map, ASPEED_G6_RESET_CTRL + 0x04, BIT(id));
+	/* Use set to clear register */
+	return regmap_write(ar->map, reg + 0x04, rst);
 }
 
 static int aspeed_g6_reset_assert(struct reset_controller_dev *rcdev,
-			       unsigned long id)
+				  unsigned long id)
 {
 	struct aspeed_reset *ar = to_aspeed_reset(rcdev);
+	u32 rst = get_bit(id);
+	u32 reg = id >= 32 ? ASPEED_G6_RESET_CTRL2 : ASPEED_G6_RESET_CTRL;
 
-	if(id >= 32) 
-		return regmap_write(ar->map, ASPEED_G6_RESET_CTRL2, BIT(id - 32));
-	else
-		return regmap_write(ar->map, ASPEED_G6_RESET_CTRL, BIT(id));
+	return regmap_write(ar->map, reg, rst);
 }
 
 static int aspeed_g6_reset_status(struct reset_controller_dev *rcdev,
-			       unsigned long id)
+				  unsigned long id)
 {
 	struct aspeed_reset *ar = to_aspeed_reset(rcdev);
-	u32 reg = ASPEED_G6_RESET_CTRL;
-	int ret, val;
-
-	if (id >= 32) {
-		id -= 32;
-		reg = ASPEED_G6_RESET_CTRL2;
-	}
+	int ret;
+	u32 val;
+	u32 rst = get_bit(id);
+	u32 reg = id >= 32 ? ASPEED_G6_RESET_CTRL2 : ASPEED_G6_RESET_CTRL;
 
 	ret = regmap_read(ar->map, reg, &val);
 	if (ret)
 		return ret;
 
-	return !!(val & BIT(id));
+	return !!(val & rst);
 }
 
 static const struct reset_control_ops aspeed_g6_reset_ops = {
@@ -605,7 +517,6 @@ static const char * const d1clk_parent_names[] = {
 
 static int aspeed_g6_clk_probe(struct platform_device *pdev)
 {
-	const struct aspeed_clk_soc_data *soc_data;
 	struct device *dev = &pdev->dev;
 	struct aspeed_reset *ar;
 	struct regmap *map;
@@ -636,15 +547,9 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* SoC generations share common layouts but have different divisors */
-	soc_data = of_device_get_match_data(dev);
-	if (!soc_data) {
-		dev_err(dev, "no match data for platform\n");
-		return -EINVAL;
-	}
 
 	//uxclk
-	regmap_read(map, 0x338, &val);
+	regmap_read(map, ASPEED_UARTCLK_FROM_UXCLK, &val);
 	div = ((val >> 8) & 0x3ff) * 2;
 	mult = val & 0xff;
 
@@ -738,7 +643,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	/* MAC1/2 AHB bus clock divider */
 	hw = clk_hw_register_divider_table(dev, "mac12", "hpll", 0,
 			scu_g6_base + ASPEED_G6_CLK_SELECTION1, 16, 3, 0,
-			soc_data->mac_div_table,
+			ast2600_mac_div_table,
 			&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
@@ -768,7 +673,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	/* MAC3/4 AHB bus clock divider */
 	hw = clk_hw_register_divider_table(dev, "mac34", "hpll", 0,
 			scu_g6_base + 0x310, 24, 3, 0,
-			soc_data->mac_div_table,
+			ast2600_mac_div_table,
 			&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
@@ -793,7 +698,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	/* LPC Host (LHCLK) clock divider */
 	hw = clk_hw_register_divider_table(dev, "lhclk", "hpll", 0,
 			scu_g6_base + ASPEED_G6_CLK_SELECTION1, 20, 3, 0,
-			soc_data->div_table,
+			ast2600_div_table,
 			&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
@@ -841,7 +746,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	/* P-Bus (BCLK) clock divider */
 	hw = clk_hw_register_divider_table(dev, "bclk", "hpll", 0,
 			scu_g6_base + ASPEED_G6_CLK_SELECTION1, 20, 3, 0,
-			soc_data->div_table,
+			ast2600_div_table,
 			&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
@@ -858,10 +763,10 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 
 	//eclk -check
 	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(31, 28), 0);
-	/* Video Engine clock divider */ 
+	/* Video Engine clock divider */
 	hw = clk_hw_register_divider_table(dev, "eclk", NULL, 0,
-			scu_g6_base + 0x300, 28, 3, 0,
-			soc_data->eclk_div_table,
+			scu_g6_base + ASPEED_G6_CLK_SELECTION1, 28, 3, 0,
+			ast2600_eclk_div_table,
 			&aspeed_g6_clk_lock);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
@@ -914,14 +819,14 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 };
 
 static const struct of_device_id aspeed_g6_clk_dt_ids[] = {
-	{ .compatible = "aspeed,ast2600-scu", .data = &ast2600_data },
+	{ .compatible = "aspeed,ast2600-scu" },
 	{ }
 };
 
 static struct platform_driver aspeed_g6_clk_driver = {
 	.probe  = aspeed_g6_clk_probe,
 	.driver = {
-		.name = "aspeed-g6-clk",
+		.name = "ast2600-clk",
 		.of_match_table = aspeed_g6_clk_dt_ids,
 		.suppress_bind_attrs = true,
 	},
@@ -932,11 +837,11 @@ static u32 ast2600_a0_axi_ahb_div_table[] = {
 	2, 2, 3, 4,
 };
 
-static u32 ast2600_a1_axi_ahb_div0_table[] = {
+static u32 ast2600_a1_axi_ahb_div0_tbl[] = {
 	3, 2, 3, 4,
 };
 
-static u32 ast2600_a1_axi_ahb_div1_table[] = {
+static u32 ast2600_a1_axi_ahb_div1_tbl[] = {
 	3, 4, 6, 8,
 };
 
@@ -951,14 +856,12 @@ static void __init aspeed_g6_cc(struct regmap *map)
 
 	clk_hw_register_fixed_rate(NULL, "clkin", NULL, 0, 25000000);
 
-	regmap_read(map, ASPEED_G6_STRAP1, &hwstrap);
-	regmap_read(map, ASPEED_G6_SILICON_REV, &chip_id);
 	/*
 	 * High-speed PLL clock derived from the crystal. This the CPU clock,
 	 * and we assume that it is enabled
 	 */
 	regmap_read(map, ASPEED_HPLL_PARAM, &val);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_HPLL] = ast2600_calc_hpll("hpll", hwstrap, val);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_HPLL] = ast2600_calc_hpll("hpll", val);
 
 	regmap_read(map, ASPEED_MPLL_PARAM, &val);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_MPLL] = ast2600_calc_pll("mpll", val);
@@ -970,8 +873,7 @@ static void __init aspeed_g6_cc(struct regmap *map)
 	aspeed_g6_clk_data->hws[ASPEED_CLK_EPLL] = ast2600_calc_pll("epll", val);
 
 	regmap_read(map, ASPEED_APLL_PARAM, &val);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_APLL] = ast2600_calc_apll("apll", chip_id, val);
-
+	aspeed_g6_clk_data->hws[ASPEED_CLK_APLL] = ast2600_calc_apll("apll", val);
 
 	//uart5 
 	regmap_read(map, ASPEED_G6_MISC_CTRL, &val);
@@ -1018,16 +920,19 @@ static void __init aspeed_g6_cc(struct regmap *map)
 			break;
 	}
 
+	regmap_read(map, ASPEED_G6_STRAP1, &hwstrap);
+	regmap_read(map, ASPEED_G6_SILICON_REV, &chip_id);
+
 	if (chip_id & BIT(16)) {
 		//ast2600a1
 		if (hwstrap & BIT(16)) {
-			ast2600_a1_axi_ahb_div1_table[0] = ast2600_a1_axi_ahb_default_table[(hwstrap >> 8) & 0x3];
+			ast2600_a1_axi_ahb_div1_tbl[0] = ast2600_a1_axi_ahb_default_table[(hwstrap >> 8) & 0x3];
 			axi_div = 1;
-			ahb_div = ast2600_a1_axi_ahb_div1_table[(hwstrap >> 11) & 0x3];
+			ahb_div = ast2600_a1_axi_ahb_div1_tbl[(hwstrap >> 11) & 0x3];
 		} else {
-			ast2600_a1_axi_ahb_div0_table[0] = ast2600_a1_axi_ahb_default_table[(hwstrap >> 8) & 0x3];
+			ast2600_a1_axi_ahb_div0_tbl[0] = ast2600_a1_axi_ahb_default_table[(hwstrap >> 8) & 0x3];
 			axi_div = 2;
-			ahb_div = ast2600_a1_axi_ahb_div0_table[(hwstrap >> 11) & 0x3];
+			ahb_div = ast2600_a1_axi_ahb_div0_tbl[(hwstrap >> 11) & 0x3];
 		}
 	} else {
 		//ast2600a0 : fix axi = hpll/2
