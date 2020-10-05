@@ -825,3 +825,11 @@
 
 	status = "okay";
 };
+
+&ehci1 {
+	status = "okay";
+};
+
+&uhci {
+	status = "okay";
+};

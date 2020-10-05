@@ -1141,6 +1141,7 @@
 		function = "USB2AH";
 		groups = "USBA";
 	};
+
 	pinctrl_usb2ad_default: usb2ad_default {
 		function = "USB2AD";
 		groups = "USBA";
