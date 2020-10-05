@@ -334,3 +334,17 @@
 	pinctrl-0 = <&pinctrl_usb2adp_default>;
 #endif
 };
+
+&pcie {
+	status = "okay";
+
+	interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
+
+	pcie_intc0: legacy-interrupt-controller {
+		interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+	};
+};
+
+&h2x {
+	status = "okay";
+};
