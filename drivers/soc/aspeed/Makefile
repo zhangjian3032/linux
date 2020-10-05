@@ -11,4 +11,5 @@ obj-$(CONFIG_ASPEED_ESPI)	+= aspeed-espi.o \
 				aspeed-espi-vw.o \
 				aspeed-espi-flash.o \
 				aspeed-espi-oob.o
-obj-$(CONFIG_ASPEED_ESPI_MMBI)	+= aspeed-espi-mmbi.o \
+obj-$(CONFIG_ASPEED_ESPI_MMBI)	+= aspeed-espi-mmbi.o
+obj-$(CONFIG_ASPEED_JTAG)	+= aspeed-jtag.o
