@@ -19,13 +19,22 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
+
+/* I2C Global Registers */
+/* 0x00 : I2CG Interrupt Status Register  */
+/* 0x08 : I2CG Interrupt Target Assignment  */
+/* 0x0c : I2CG Global Control Register (AST2500)  */
+#define ASPEED_I2CG_GLOBAL_CTRL_REG			0x0c
+#define  ASPEED_I2CG_SRAM_BUFFER_EN			BIT(0)
 
 /* I2C Register */
 #define ASPEED_I2C_FUN_CTRL_REG				0x00
@@ -970,6 +979,20 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 	struct clk *parent_clk;
 	struct resource *res;
 	int irq, ret;
+
+	if (of_device_is_compatible(pdev->dev.of_node,
+					"aspeed,ast2600-i2c-bus")) {
+		u32 global_ctrl;
+		struct regmap *gr_regmap = syscon_regmap_lookup_by_compatible("aspeed,ast2600-i2c-global");
+
+		if (IS_ERR(gr_regmap))
+			ret = PTR_ERR(gr_regmap);
+		else {
+			regmap_read(gr_regmap, ASPEED_I2CG_GLOBAL_CTRL_REG, &global_ctrl);
+			if(global_ctrl & BIT(2))
+				return -EIO;
+		}
+	}
 
 	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
 	if (!bus)
