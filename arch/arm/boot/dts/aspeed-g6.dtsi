@@ -312,6 +312,16 @@
 			#size-cells = <1>;
 			ranges;
 
+			pwm_tacho: pwm-tacho-controller@1e610000 {
+				compatible = "aspeed,ast2600-pwm-tachometer";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x1e610000 0x100>;
+				clocks = <&syscon ASPEED_CLK_AHB>;
+				resets = <&syscon ASPEED_RESET_PWM>;
+				status = "disabled";
+			};
+			
 			syscon: syscon@1e6e2000 {
 				compatible = "aspeed,ast2600-scu", "syscon", "simple-mfd";
 				reg = <0x1e6e2000 0x1000>;
@@ -352,6 +362,28 @@
 				quality = <100>;
 			};
 
+			jtag0: jtag@1e6e4000 {
+				compatible = "aspeed,ast2600-jtag";
+				reg= <0x1e6e4000 0x20>;
+				interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_AHB>;
+				resets = <&syscon ASPEED_RESET_JTAG_MASTER>;
+				reset-names = "jtag";
+				status = "disabled";
+			};
+
+			jtag1: jtag@1e6e4100 {
+				compatible = "aspeed,ast2600-jtag";
+				reg= <0x1e6e4100 0x20>;
+				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_AHB>;
+				resets = <&syscon ASPEED_RESET_JTAG_MASTER2>;
+				reset-names = "jtag";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_jtagm_default>;
+				status = "disabled";
+			};
+
 			xdma: xdma@1e6e7000 {
 				compatible = "aspeed,ast2600-xdma";
 				reg = <0x1e6e7000 0x100>;
@@ -363,6 +395,28 @@
 				aspeed,pcie-device = "bmc";
 				aspeed,scu = <&syscon>;
 				sdmc = <&sdmc>;
+				status = "disabled";
+			};
+
+			adc0: adc@1e6e9000 {
+				compatible = "aspeed,ast2600-adc";
+				reg = <0x1e6e9000 0x100>;
+				clocks = <&syscon ASPEED_CLK_APB2>;
+				resets = <&syscon ASPEED_RESET_ADC>;
+				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+				#io-channel-cells = <1>;
+				trim_locate = <0x5D0 0 0xf>;
+				status = "disabled"; 
+			}; 
+
+			adc1: adc@1e6e9100 {
+				compatible = "aspeed,ast2600-adc";
+				reg = <0x1e6e9100 0x100>;
+				clocks = <&syscon ASPEED_CLK_APB2>;
+				resets = <&syscon ASPEED_RESET_ADC>;
+				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+				#io-channel-cells = <1>;
+				trim_locate = <0x5D0 4 0xf>;
 				status = "disabled";
 			};
 
