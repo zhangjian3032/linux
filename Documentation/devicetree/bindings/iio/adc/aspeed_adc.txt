@@ -3,20 +3,69 @@ Aspeed ADC
 This device is a 10-bit converter for 16 voltage channels.  All inputs are
 single ended.
 
+After ast2600, This device split into two individual IPs and each contains 8 voltage channels.
+
+Chip level dtsi:
 Required properties:
-- compatible: Should be "aspeed,ast2400-adc" or "aspeed,ast2500-adc"
+- compatible: Should be "aspeed,ast2400-adc" or "aspeed,ast2500-adc" or "aspeed,ast2600-adc"
 - reg: memory window mapping address and length
 - clocks: Input clock used to derive the sample clock. Expected to be the
           SoC's APB clock.
 - resets: Reset controller phandle
 - #io-channel-cells: Must be set to <1> to indicate channels are selected
                      by index.
+- trim_locate: (ast2600 only)
+	- First cell is the scu register offset
+	- Second cell is the bit field offset
+	- Third cell is bit mask (length of the trim data)
 
 Example:
-	adc@1e6e9000 {
-		compatible = "aspeed,ast2400-adc";
-		reg = <0x1e6e9000 0xb0>;
-		clocks = <&syscon ASPEED_CLK_APB>;
+adc0: adc@1e6e9000 {
+		compatible = "aspeed,ast2600-adc";
+		reg = <0x1e6e9000 0x100>;
+		clocks = <&syscon ASPEED_CLK_APB2>;
 		resets = <&syscon ASPEED_RESET_ADC>;
+		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 		#io-channel-cells = <1>;
-	};
+		trim_locate = <0x5D0 0 0xf>;
+		status = "disabled"; 
+	}; 
+adc1: adc@1e6e9100 {
+	compatible = "aspeed,ast2600-adc";
+	reg = <0x1e6e9100 0x100>;
+	clocks = <&syscon ASPEED_CLK_APB2>;
+	resets = <&syscon ASPEED_RESET_ADC>;
+	interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+	#io-channel-cells = <1>;
+	trim_locate = <0x5D0 4 0xf>;
+	status = "disabled";
+};
+Board level dts:
+Required properties:
+- ref_voltage: (ast2600 only)
+	- Reference voltage in millivolts for the conversions
+- battery-sensing: (ast2600 only)
+	- Inform the driver that last channel will be used to sensor battery
+Example:
+&adc0 {
+	trim_locate = <0x5D0 0 0xf>;
+	ref_voltage = <2500>;
+	status = "okay";
+	battery-sensing;
+
+	pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
+		&pinctrl_adc2_default &pinctrl_adc3_default
+		&pinctrl_adc4_default &pinctrl_adc5_default
+		&pinctrl_adc6_default &pinctrl_adc7_default>;
+};
+
+&adc1 {
+	trim_locate = <0x5D0 4 0xf>;
+	ref_voltage = <1800>;
+	status = "okay";
+
+	pinctrl-0 = <&pinctrl_adc8_default &pinctrl_adc9_default
+		&pinctrl_adc10_default &pinctrl_adc11_default
+		&pinctrl_adc12_default &pinctrl_adc13_default
+		&pinctrl_adc14_default &pinctrl_adc15_default>;
+};
