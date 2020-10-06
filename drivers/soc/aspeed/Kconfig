@@ -13,6 +13,12 @@ config ASPEED_BMC_MISC
 	  Say yes to expose VGA and LPC scratch registers, and other
 	  miscellaneous control interfaces specific to the ASPEED BMC SoCs
 
+config ASPEED_VIDEO
+	tristate "ASPEED Video Engine driver"
+	default n
+	help
+	  Driver for AST Video Engine
+
 config ASPEED_LPC_CTRL
 	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
 	tristate "Aspeed ast2400/2500 HOST LPC to BMC bridge control"

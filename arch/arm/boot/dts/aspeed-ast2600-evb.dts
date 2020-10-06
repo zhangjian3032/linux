@@ -350,3 +350,15 @@
 &h2x {
 	status = "okay";
 };
+
+#if 1
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
+#else
+&rvas {
+	status = "okay";
+	memory-region = <&rvas_memory>;
+};
+#endif
