@@ -88,6 +88,7 @@ enum aspeed_sgpio_reg {
 	reg_irq_type1,
 	reg_irq_type2,
 	reg_irq_status,
+	reg_tolerance,
 };
 
 #define GPIO_IRQ_OFFSET_ENABLE     0x00
