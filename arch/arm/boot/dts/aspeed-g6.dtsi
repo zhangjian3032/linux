@@ -633,6 +633,7 @@
 				reg = <0x1e780700 0x40>;
 				interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB2>;
+				status = "disabled";
 			};
 
 			sgpios1: sgpios@1e780740 {
@@ -642,6 +643,7 @@
 				reg = <0x1e780740 0x40>;
 				interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB2>;
+				status = "disabled";
 			};
 
 			gpio1: gpio@1e780800 {
@@ -655,6 +657,7 @@
 				clocks = <&syscon ASPEED_CLK_APB1>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				status = "disabled";
 			};
 
 			rtc: rtc@1e781000 {
