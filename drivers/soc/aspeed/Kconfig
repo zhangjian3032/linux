@@ -52,6 +52,13 @@ config ASPEED_LPC_PCC
 	  allowing the BMC to snoop data bytes written by the
 	  the host to an arbitrary LPC I/O port.
 
+config ASPEED_LPC_MBOX
+	tristate "Aspeed LPC Mailbox Controller"
+	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
+	help
+	  Expose teh ASPEED LPC MBOX registers found on Aspeed SoCs
+	  to userspace.
+
 config ASPEED_P2A_CTRL
 	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
 	tristate "Aspeed ast2400/2500 HOST P2A VGA MMIO to BMC bridge control"
