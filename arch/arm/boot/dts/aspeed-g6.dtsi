@@ -898,6 +898,10 @@
 					interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 					sdhci,auto-cmd12;
 					clocks = <&syscon ASPEED_CLK_SDIO>;
+					power-gpio = <&gpio0 ASPEED_GPIO(V, 0) GPIO_ACTIVE_LOW>;
+					power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 1) GPIO_ACTIVE_LOW>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_sd1_default>;
 					status = "disabled";
 				};
 
@@ -907,6 +911,10 @@
 					interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 					sdhci,auto-cmd12;
 					clocks = <&syscon ASPEED_CLK_SDIO>;
+					power-gpio = <&gpio0 ASPEED_GPIO(V, 2) GPIO_ACTIVE_LOW>;
+					power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 3) GPIO_ACTIVE_LOW>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_sd2_default>;
 					status = "disabled";
 				};
 			};
@@ -1096,6 +1104,12 @@
 				ranges = <0 0x1e7a8000 0x1000>;
 			};
 
+			bmc_dev: bmc_dev@1e7e0000 {
+				compatible = "aspeed,ast2600-bmc-device";
+				reg = <0x1e7e0000 0xB000>;
+				interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
 		};
 	};
 };
