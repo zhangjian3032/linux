@@ -2,6 +2,11 @@
 // Copyright 2019 IBM Corp.
 
 &pinctrl {
+	pinctrl_pcie1rc_default: pcie1rc_default {
+		function = "PCIERC1";
+		groups = "PCIERC1";
+	};
+
 	pinctrl_adc0_default: adc0_default {
 		function = "ADC0";
 		groups = "ADC0";
@@ -295,6 +300,16 @@
 	pinctrl_i2c9_default: i2c9_default {
 		function = "I2C9";
 		groups = "I2C9";
+	};
+
+	pinctrl_i3c1_default: i3c1_default {
+		function = "I3C1";
+		groups = "I3C1";
+	};
+
+	pinctrl_i3c2_default: i3c2_default {
+		function = "I3C2";
+		groups = "I3C2";
 	};
 
 	pinctrl_i3c3_default: i3c3_default {
@@ -857,6 +872,11 @@
 		groups = "EMMCG4";
 	};
 
+	pinctrl_emmcg8_default: emmcg8_default {
+		function = "EMMC";
+		groups = "EMMCG8";
+	};
+
 	pinctrl_sgpm1_default: sgpm1_default {
 		function = "SGPM1";
 		groups = "SGPM1";
@@ -1181,4 +1201,10 @@
 		function = "WDTRST4";
 		groups = "WDTRST4";
 	};
+
+	pinctrl_fwspi18_default: fwspi18_default {
+		function = "FWSPI18";
+		groups = "FWSPI18";
+	};
+
 };
