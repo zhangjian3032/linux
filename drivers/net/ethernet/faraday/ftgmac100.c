@@ -1707,8 +1707,10 @@ static void ftgmac100_destroy_mdio(struct net_device *netdev)
 		return;
 
 	phy_disconnect(netdev->phydev);
-	mdiobus_unregister(priv->mii_bus);
-	mdiobus_free(priv->mii_bus);
+	if (priv->mii_bus) {
+		mdiobus_unregister(priv->mii_bus);
+		mdiobus_free(priv->mii_bus);
+	}
 }
 
 static void ftgmac100_ncsi_handler(struct ncsi_dev *nd)
