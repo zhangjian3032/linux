@@ -19,6 +19,9 @@ config ASPEED_BMC_DEV
 config ASPEED_HOST_BMC
 	tristate "PCI Host BMC"
 
+config ASPEED_HID
+	tristate "ASPEED HID"
+
 config ASPEED_VIDEO
 	tristate "ASPEED Video Engine driver"
 	default n

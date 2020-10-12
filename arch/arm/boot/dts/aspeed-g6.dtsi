@@ -384,6 +384,17 @@
 				quality = <100>;
 			};
 
+			hid: hid@1e6e1000 {
+				compatible = "aspeed,ast2600-hid";
+				reg= <0x1e6e1000 0x20>;
+				interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_USBPORT2CLK>;
+				resets = <&syscon ASPEED_RESET_EHCI_P2>;
+				reset-names = "hid";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usb11bhid_default>;
+			};
+
 			jtag0: jtag@1e6e4000 {
 				compatible = "aspeed,ast2600-jtag";
 				reg= <0x1e6e4000 0x20>;
