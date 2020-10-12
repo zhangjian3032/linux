@@ -105,6 +105,12 @@
 			    <0x40466000 0x2000>;
 			};
 
+		sram: sram@10000000 {
+			compatible = "mmio-sram";
+			/* the first 64K is with parity check */
+			reg = <0x10000000 0x16000>;
+		};
+
 		fmc: spi@1e620000 {
 			reg = < 0x1e620000 0xc4
 				0x20000000 0x10000000 >;
