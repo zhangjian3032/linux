@@ -14,12 +14,11 @@
 #include <linux/regmap.h>
 #include "edac_module.h"
 
-
 #define DRV_NAME "aspeed-edac"
-
 
 #define ASPEED_MCR_PROT        0x00 /* protection key register */
 #define ASPEED_MCR_CONF        0x04 /* configuration register */
+#define ASPEED_MCR_REQ  	   0x08	/* Graphics Memory Protection register */
 #define ASPEED_MCR_INTR_CTRL   0x50 /* interrupt control/status register */
 #define ASPEED_MCR_ADDR_UNREC  0x58 /* address of first un-recoverable error */
 #define ASPEED_MCR_ADDR_REC    0x5c /* address of last recoverable error */
@@ -34,9 +33,7 @@
 #define ASPEED_MCR_INTR_CTRL_CNT_UNREC GENMASK(15, 12)
 #define ASPEED_MCR_INTR_CTRL_ENABLE  (BIT(0) | BIT(1))
 
-
 static struct regmap *aspeed_regmap;
-
 
 static int regmap_reg_write(void *context, unsigned int reg, unsigned int val)
 {
@@ -53,7 +50,6 @@ static int regmap_reg_write(void *context, unsigned int reg, unsigned int val)
 	return 0;
 }
 
-
 static int regmap_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
 	void __iomem *regs = (void __iomem *)context;
@@ -62,6 +58,76 @@ static int regmap_reg_read(void *context, unsigned int reg, unsigned int *val)
 
 	return 0;
 }
+
+extern void
+aspeed_sdmc_disable_mem_protection(u8 req)
+{
+	u32 req_val = 0;
+	regmap_read(aspeed_regmap, ASPEED_MCR_REQ, &req_val);
+
+	req_val &= ~BIT(req);
+
+	regmap_write(aspeed_regmap, ASPEED_MCR_REQ, req_val);
+}
+EXPORT_SYMBOL(aspeed_sdmc_disable_mem_protection);
+
+static const u32 ast2400_dram_table[] = {
+	0x04000000,	//64MB
+	0x08000000,	//128MB
+	0x10000000, //256MB
+	0x20000000,	//512MB
+};
+
+static const u32 ast2500_dram_table[] = {
+	0x08000000,	//128MB
+	0x10000000,	//256MB
+	0x20000000,	//512MB
+	0x40000000,	//1024MB
+};
+
+static const u32 ast2600_dram_table[] = {
+	0x10000000,	//256MB
+	0x20000000,	//512MB
+	0x40000000,	//1024MB
+	0x80000000,	//2048MB
+};
+
+extern u32 aspeed_get_dram_size(void)
+{
+	u32 reg04;
+	u32 size;
+
+	regmap_read(aspeed_regmap, ASPEED_MCR_CONF, &reg04);
+
+#if defined(CONFIG_MACH_ASPEED_G6)
+	size = ast2600_dram_table[reg04 & 0x3];
+#elif defined(CONFIG_MACH_ASPEED_G5)
+	size = ast2500_dram_table[reg04 & 0x3];
+#else
+	size = ast2400_dram_table[reg04 & 0x3];
+#endif
+	return size;
+}
+EXPORT_SYMBOL(aspeed_get_dram_size);
+
+static const u32 aspeed_vga_table[] = {
+	0x800000,	//8MB
+	0x1000000,	//16MB
+	0x2000000,	//32MB
+	0x4000000,	//64MB
+};
+
+extern u32 aspeed_get_vga_size(void)
+{
+	u32 reg04;
+	u32 size;
+
+	regmap_read(aspeed_regmap, ASPEED_MCR_CONF, &reg04);
+
+	size = aspeed_vga_table[((reg04 & 0xC) >> 2)];
+	return size;
+}
+EXPORT_SYMBOL(aspeed_get_vga_size);
 
 static bool regmap_is_volatile(struct device *dev, unsigned int reg)
 {
@@ -239,7 +305,11 @@ static int init_csrows(struct mem_ctl_info *mci)
 	int rc;
 
 	/* retrieve info about physical memory from device tree */
-	np = of_find_node_by_path("/memory");
+#ifdef CONFIG_MACH_ASPEED_G4
+	np = of_find_node_by_path("/memory@40000000");
+#else
+	np = of_find_node_by_path("/memory@80000000");
+#endif
 	if (!np) {
 		dev_err(mci->pdev, "dt: missing /memory node\n");
 		return -ENODEV;
@@ -255,6 +325,9 @@ static int init_csrows(struct mem_ctl_info *mci)
 	};
 
 	dev_dbg(mci->pdev, "dt: /memory node resources: first page r.start=0x%x, resource_size=0x%x, PAGE_SHIFT macro=0x%x\n",
+		r.start, resource_size(&r), PAGE_SHIFT);
+
+	printk("dt: /memory node resources: first page r.start=0x%x, resource_size=0x%x, PAGE_SHIFT macro=0x%x\n",
 		r.start, resource_size(&r), PAGE_SHIFT);
 
 	csrow->first_page = r.start >> PAGE_SHIFT;
@@ -281,10 +354,13 @@ static int aspeed_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct edac_mc_layer layers[2];
 	struct mem_ctl_info *mci;
+	struct device_node *np;
 	struct resource *res;
 	void __iomem *regs;
-	u32 reg04;
 	int rc;
+
+	/* setup regmap */
+	np = dev->of_node;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -300,11 +376,11 @@ static int aspeed_probe(struct platform_device *pdev)
 		return PTR_ERR(aspeed_regmap);
 
 	/* bail out if ECC mode is not configured */
-	regmap_read(aspeed_regmap, ASPEED_MCR_CONF, &reg04);
-	if (!(reg04 & ASPEED_MCR_CONF_ECC)) {
-		dev_err(&pdev->dev, "ECC mode is not configured in u-boot\n");
-		return -EPERM;
-	}
+	// regmap_read(aspeed_regmap, ASPEED_MCR_CONF, &reg04);
+	// if (!(reg04 & ASPEED_MCR_CONF_ECC)) {
+	// 	dev_err(&pdev->dev, "ECC mode is not configured in u-boot\n");
+	// 	return -EPERM;
+	// }
 
 	edac_op_state = EDAC_OPSTATE_INT;
 
@@ -378,12 +454,12 @@ static int aspeed_remove(struct platform_device *pdev)
 	return 0;
 }
 
-
 static const struct of_device_id aspeed_of_match[] = {
+	{ .compatible = "aspeed,ast2400-sdram-edac" },
 	{ .compatible = "aspeed,ast2500-sdram-edac" },
+	{ .compatible = "aspeed,ast2600-sdram-edac" },	
 	{},
 };
-
 
 static struct platform_driver aspeed_driver = {
 	.driver		= {
@@ -400,18 +476,15 @@ static int __init aspeed_init(void)
 	return platform_driver_register(&aspeed_driver);
 }
 
-
 static void __exit aspeed_exit(void)
 {
 	platform_driver_unregister(&aspeed_driver);
 }
 
-
 module_init(aspeed_init);
 module_exit(aspeed_exit);
 
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Stefan Schaeckeler <sschaeck@cisco.com>");
-MODULE_DESCRIPTION("Aspeed AST2500 EDAC driver");
+MODULE_DESCRIPTION("Aspeed EDAC driver");
 MODULE_VERSION("1.0");

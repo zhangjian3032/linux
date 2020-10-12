@@ -509,8 +509,8 @@ config EDAC_QCOM
 	  health, you should probably say 'Y' here.
 
 config EDAC_ASPEED
-	tristate "Aspeed AST 2500 SoC"
-	depends on MACH_ASPEED_G5
+	tristate "Aspeed AST BMC SoC"
+	depends on (MACH_ASPEED_G5 || MACH_ASPEED_G6)
 	help
 	  Support for error detection and correction on the Aspeed AST 2500 SoC.
 
