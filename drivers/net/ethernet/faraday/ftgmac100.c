@@ -108,7 +108,7 @@ struct ftgmac100 {
 	bool aneg_pause;
 
 	/* Misc */
-	bool need_mac_restart;
+	volatile bool need_mac_restart;
 	bool is_aspeed;
 };
 
@@ -1310,7 +1310,7 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 	 */
 	if (unlikely(priv->need_mac_restart)) {
 		ftgmac100_start_hw(priv);
-
+		priv->need_mac_restart = false;
 		/* Re-enable "bad" interrupts */
 		iowrite32(FTGMAC100_INT_BAD,
 			  priv->base + FTGMAC100_OFFSET_IER);
