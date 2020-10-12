@@ -165,7 +165,7 @@ struct trst_reset {
 #define ASPEED_JTAG_DEBUG
 
 #ifdef ASPEED_JTAG_DEBUG
-#define JTAG_DBUG(fmt, args...) printk(KERN_INFO "%s() " fmt, __FUNCTION__, ## args)
+#define JTAG_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
 #else
 #define JTAG_DBUG(fmt, args...)
 #endif
