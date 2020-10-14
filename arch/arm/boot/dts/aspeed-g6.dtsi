@@ -915,6 +915,14 @@
 				sio_regs: regs {
 					compatible = "aspeed,bmc-misc";
 				};
+
+				mbox: mbox@200 {
+					compatible = "aspeed,ast2600-mbox";
+					reg = <0x200 0x5c>;
+					interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+					#mbox-cells = <1>;
+					status = "disabled";
+				};
 			};
 
 			sdc: sdc@1e740000 {
