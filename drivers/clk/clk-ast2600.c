@@ -831,15 +831,10 @@ static struct platform_driver aspeed_g6_clk_driver = {
 	},
 };
 
-#if 1
 static int __init aspeed_g6_clk_init(void)
 {
 	return platform_driver_register(&aspeed_g6_clk_driver);
 }
-core_initcall(aspeed_g6_clk_init);
-#else
-builtin_platform_driver(aspeed_g6_clk_driver);
-#endif
 
 static u32 ast2600_a0_axi_ahb_div_table[] = {
 	2, 2, 3, 4,
