@@ -34,7 +34,7 @@ properties:
     description: |
       Clock source for PECI controller. Should reference the external
       oscillator clock.
-    maxItems: 1
+    maxItems: 2
 
   resets:
     maxItems: 1
@@ -45,6 +45,12 @@ properties:
     # addr-timing to meet the value.
     minimum: 2000
     maximum: 2000000
+
+  clock-sel-hclk:
+    type: boolean
+    description: |
+      At ast2600, peci can select the bus clock to Ref. clock (default) or HCLK.
+      This value determine the bus clock mux to hclk.
 
   # msg-timing:
   #   description: |
