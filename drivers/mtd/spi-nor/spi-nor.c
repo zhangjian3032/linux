@@ -484,6 +484,7 @@ static int set_4byte(struct spi_nor *nor, bool enable)
 	case SNOR_MFR_MACRONIX:
 	case SNOR_MFR_WINBOND:
 	case SNOR_MFR_GIGADEVICE:
+	case SNOR_MFR_ISSI:
 		if (need_wren)
 			write_enable(nor);
 
@@ -1956,6 +1957,9 @@ static const struct flash_info spi_nor_ids[] = {
 			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
 			SPI_NOR_4B_OPCODES)
 			.fixups = &is25lp256_fixups },
+	{ "is25lp512m",  INFO(0x9d601a, 0, 64 * 1024, 1024,
+			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			SPI_NOR_4B_OPCODES)},
 	{ "is25wp032",  INFO(0x9d7016, 0, 64 * 1024,  64,
 			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ "is25wp064",  INFO(0x9d7017, 0, 64 * 1024, 128,
