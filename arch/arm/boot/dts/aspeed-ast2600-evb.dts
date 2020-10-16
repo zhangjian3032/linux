@@ -103,6 +103,10 @@
 	status = "okay";
 };
 
+&peci0 {
+	status = "okay";
+};
+
 &mdio0 {
 	status = "okay";
 
