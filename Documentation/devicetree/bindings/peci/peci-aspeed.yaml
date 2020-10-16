@@ -40,31 +40,33 @@ properties:
     maxItems: 1
 
   clock-frequency:
-    # Operation frequency of PECI controller in units of Hz.
-    minimum: 187500
-    maximum: 24000000
+    # The bit frequency of PECI negotiation stage in units of Hz.
+    # Driver will calculate the best divisor setting of msg-timing and
+    # addr-timing to meet the value.
+    minimum: 2000
+    maximum: 2000000
 
-  msg-timing:
-    description: |
-      Message timing negotiation period. This value will determine the period
-      of message timing negotiation to be issued by PECI controller. The unit
-      of the programmed value is four times of PECI clock period.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 0
-        maximum: 255
-        default: 1
+  # msg-timing:
+  #   description: |
+  #     Message timing negotiation period. This value will determine the period
+  #     of message timing negotiation to be issued by PECI controller. The unit
+  #     of the programmed value is four times of PECI clock period.
+  #   allOf:
+  #     - $ref: /schemas/types.yaml#/definitions/uint32
+  #     - minimum: 0
+  #       maximum: 255
+  #       default: 1
 
-  addr-timing:
-    description: |
-      Address timing negotiation period. This value will determine the period
-      of address timing negotiation to be issued by PECI controller. The unit
-      of the programmed value is four times of PECI clock period.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 0
-        maximum: 255
-        default: 1
+  # addr-timing:
+  #   description: |
+  #     Address timing negotiation period. This value will determine the period
+  #     of address timing negotiation to be issued by PECI controller. The unit
+  #     of the programmed value is four times of PECI clock period.
+  #   allOf:
+  #     - $ref: /schemas/types.yaml#/definitions/uint32
+  #     - minimum: 0
+  #       maximum: 255
+  #       default: 1
 
   rd-sampling-point:
     description: |
@@ -114,9 +116,7 @@ examples:
             interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&syscon ASPEED_CLK_GATE_REF0CLK>;
             resets = <&syscon ASPEED_RESET_PECI>;
-            clock-frequency = <24000000>;
-            msg-timing = <1>;
-            addr-timing = <1>;
+            clock-frequency = <2000000>;
             rd-sampling-point = <8>;
             cmd-timeout-ms = <1000>;
         };
