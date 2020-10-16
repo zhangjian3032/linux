@@ -11,6 +11,9 @@
 
 	aliases {
 		serial4 = &uart5;
+		mmc0 = &emmc;
+		mmc1 = &sdhci0;
+		mmc2 = &sdhci1;
 	};
 
 	chosen {
@@ -300,6 +303,52 @@
 	status = "okay";
 };
 
+&emmc_controller {
+	status = "okay";
+	timing-phase = <0x700FF>;
+};
+
+&emmc {
+	status = "okay";
+
+	non-removable;
+	max-frequency = <100000000>;
+	sdhci-drive-type = /bits/ 8 <3>;
+#if 1
+	bus-width = <4>;
+#else
+	bus-width = <8>;
+	pinctrl-0 = <&pinctrl_emmc_default
+			&pinctrl_emmcg8_default>;
+#endif
+};
+
+&sdc {
+	status = "okay";
+	timing-phase = <0xc6ffff>;
+};
+
+&sdhci0 {
+	status = "okay";
+
+	bus-width = <4>;
+	max-frequency = <100000000>;
+	sdhci-drive-type = /bits/ 8 <3>;
+	/* SDR104/DDR50/SDR50 bits in CAPA2 is not supported */
+	sdhci-caps-mask = <0x7 0x580000>;
+	sdhci,wp-inverted;
+};
+
+&sdhci1 {
+	status = "okay";
+
+	bus-width = <4>;
+	max-frequency = <100000000>;
+	sdhci-drive-type = /bits/ 8 <3>;
+	sdhci-caps-mask = <0x7 0x580000>;
+	sdhci,wp-inverted;
+};
+
 #if 0
 &ehci0 {
 	status = "okay";
@@ -317,7 +366,7 @@
 &vhub {
 	status = "okay";
 	pinctrl-names = "default";
-#if 0
+#if 1
 	pinctrl-0 = <&pinctrl_usb2adp_default>;
 #endif
 };

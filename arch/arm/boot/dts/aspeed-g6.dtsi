@@ -978,6 +978,7 @@
 					clocks = <&syscon ASPEED_CLK_EMMC>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_emmc_default>;
+					status = "disabled";
 				};
 			};
 
