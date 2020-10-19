@@ -131,4 +131,9 @@ config ASPEED_ESPI_MMBI
 	help
 	  Control Aspeed eSPI MMBI driver
 
+config ASPEED_SSP
+	tristate "ASPEED SSP loader"
+        default n
+        help
+          Driver for loading secondary-service-processor binary
 endmenu
