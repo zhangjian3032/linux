@@ -124,8 +124,8 @@ static struct aspeed_gate_data aspeed_g6_gates[] = {
 	[ASPEED_CLK_GATE_I3C4CLK] 		= { 44,  ASPEED_RESET_I3C4, 	"i3c4clk-gate",	"i3cclk",	0 }, 				/* I3C4 */
 	[ASPEED_CLK_GATE_I3C5CLK] 		= { 45,  ASPEED_RESET_I3C5, 	"i3c5clk-gate",	"i3cclk",	0 }, 				/* I3C5 */
 	[ASPEED_CLK_GATE_I3C6CLK] 		= { 46,  ASPEED_RESET_I3C6, 	"i3c6clk-gate",	"i3cclk",	0 }, 				/* I3C6 */
-	[ASPEED_CLK_GATE_UART1CLK] 		= { 48, -1, 					"uart1clk-gate",	"uxclk",		0 }, /* UART1 */
-	[ASPEED_CLK_GATE_UART2CLK] 		= { 49, -1, 					"uart2clk-gate",	"uxclk",		0 }, /* UART2 */
+	[ASPEED_CLK_GATE_UART1CLK] 		= { 48, -1, 					"uart1clk-gate",	"uxclk",		CLK_IS_CRITICAL }, /* UART1 */
+	[ASPEED_CLK_GATE_UART2CLK] 		= { 49, -1, 					"uart2clk-gate",	"uxclk",		CLK_IS_CRITICAL }, /* UART2 */
 	[ASPEED_CLK_GATE_UART3CLK] 		= { 50, -1, 					"uart3clk-gate",	"uxclk",		0 }, /* UART3 */
 	[ASPEED_CLK_GATE_UART4CLK] 		= { 51, -1, 					"uart4clk-gate",	"uxclk",		0 }, /* UART4 */
 	[ASPEED_CLK_GATE_MAC3CLK] 		= { 52,  ASPEED_RESET_MAC3, 	"mac3clk-gate",		"mac34",	0 }, 			/* MAC3 */
@@ -831,7 +831,13 @@ static struct platform_driver aspeed_g6_clk_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-builtin_platform_driver(aspeed_g6_clk_driver);
+
+static int __init aspeed_g6_clk_init(void)
+{
+	return platform_driver_register(&aspeed_g6_clk_driver);
+}
+
+core_initcall(aspeed_g6_clk_init);
 
 static u32 ast2600_a0_axi_ahb_div_table[] = {
 	2, 2, 3, 4,
