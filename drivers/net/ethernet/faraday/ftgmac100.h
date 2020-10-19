@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Faraday FTGMAC100 Gigabit Ethernet
  *
@@ -138,6 +137,7 @@
  * Feature Register
  */
 #define FTGMAC100_REVR_NEW_MDIO_INTERFACE	BIT(31)
+#define FTGMAC100_INTERNAL_LOOPBACK_EN		BIT(30)
 
 /*
  * Receive buffer size register
@@ -271,4 +271,10 @@ struct ftgmac100_rxdes {
 #define FTGMAC100_RXDES1_UDP_CHKSUM_ERR	(1 << 26)
 #define FTGMAC100_RXDES1_IP_CHKSUM_ERR	(1 << 27)
 
+
+/* self test */
+#define FTGMAC100_NUM_TESTS		2
+
+#define FTGMAC100_MAC_LOOPBACK		0
+#define FTGMAC100_EXT_LOOPBACK		1
 #endif /* __FTGMAC100_H */
