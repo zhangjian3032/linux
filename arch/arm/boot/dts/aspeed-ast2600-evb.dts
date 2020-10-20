@@ -631,3 +631,7 @@
 			  0x08 0x04
 			  0x08 0x04>;
 };
+
+&ssp {
+	memory-region = <&ssp_memory>;
+};
