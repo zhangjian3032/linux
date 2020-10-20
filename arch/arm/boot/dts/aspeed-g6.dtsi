@@ -1438,7 +1438,7 @@
 				reg = <0x1e7c8000 0x800 0x1e6ec000 0x800 0x1e7c0000 0x2000>;
 				clocks = <&syscon ASPEED_CLK_GATE_RVASCLK>;
 				clock-names = "rvasclk-gate";
-				interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
 				resets = <&syscon ASPEED_RESET_RVAS>;
 				status = "disabled";
 			};

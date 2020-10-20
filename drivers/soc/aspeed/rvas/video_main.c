@@ -836,6 +836,7 @@ static irqreturn_t fge_handler(int irq, void *dev_id)
 
 	memset(&eduFge_status, 0x0, sizeof(EmDwordUnion));
 	bFgeItr = false;
+	VIDEO_DBG("fge_handler");
 	// Checking for GRC status changes
 	dwGRCEStatus = readl((void*)(pAstRVAS->grce_reg_base + GRCE_STATUS_REGISTER));
 	if (dwGRCEStatus & GRC_INT_STS_MASK) {
@@ -1206,7 +1207,7 @@ static int video_drv_probe(struct platform_device *pdev)
 	struct regmap *sdram_edac;
         struct device_node *dp_node;
 
-	printk("RVAS driver probe\n");
+   VIDEO_DBG("RVAS driver probe\n");
 	pAstRVAS = devm_kzalloc(&pdev->dev, sizeof(AstRVAS), GFP_KERNEL);
 	VIDEO_DBG("pAstRVAS: 0x%p\n", pAstRVAS);
 
@@ -1235,7 +1236,12 @@ static int video_drv_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "NO FGE irq entry\n");
 		return -ENOENT;
 	}
-
+	pAstRVAS->irq_vga = platform_get_irq(pdev, 1);
+	VIDEO_DBG("irq_vga: %#x\n", pAstRVAS->irq_vga);
+		if (pAstRVAS->irq_vga < 0) {
+			dev_err(&pdev->dev, "NO VGA irq entry\n");
+			return -ENOENT;
+		}
 	pAstRVAS->reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(pAstRVAS->reset)) {
 		dev_err(&pdev->dev, "can't get video reset\n");
@@ -1310,6 +1316,15 @@ static int video_drv_probe(struct platform_device *pdev)
 	if (result) {
 		pr_err("Error in requesting IRQ\n");
 		pr_err("RVAS: Failed request FGE irq %d\n", pAstRVAS->irq_fge);
+		misc_deregister(&video_misc);
+		return result;
+	}
+
+	result = devm_request_irq(&pdev->dev, pAstRVAS->irq_vga, fge_handler, 0,
+		        dev_name(&pdev->dev), pAstRVAS);
+	if (result) {
+		pr_err("Error in requesting IRQ\n");
+		pr_err("RVAS: Failed request vga irq %d\n", pAstRVAS->irq_vga);
 		misc_deregister(&video_misc);
 		return result;
 	}

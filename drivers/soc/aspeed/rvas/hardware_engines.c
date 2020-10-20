@@ -515,7 +515,7 @@ void set_snoop_engine(bool b_geom_chg,AstRVAS *pAstRVAS)
 //	        ri->vg.wScreenWidth, ri->vg.wScreenHeight, ri->vg.wStride,
 //	        b_geom_chg);
 	VIDEO_DBG(
-	        "pAstRVAS->current_vg: bpp: %u Mode: %#x gmt: %d Width: %u Height: %u Stride: %u\n",
+	        "pAstRVAS->current_vg: bpp %u Mode:%#x gmt:%d Width:%u Height:%u Stride:%u\n",
 	        pAstRVAS->current_vg.byBitsPerPixel,
 	        pAstRVAS->current_vg.byModeID, pAstRVAS->current_vg.gmt,
 	        pAstRVAS->current_vg.wScreenWidth,
@@ -561,6 +561,7 @@ void set_snoop_engine(bool b_geom_chg,AstRVAS *pAstRVAS)
 		        | (1 << TSCMD_RPT_BIT)
 		        | (byTSCMDBytesPerPixel << TSCMD_BPP_BIT)
 		        | (1 << TSCMD_VGA_MODE_BIT) | (1 << TSCMD_TSE_ENBL_BIT);
+		VIDEO_DBG("tscmd: %#8.8x\n", tscmd);
 		// set the TSFBSA & TSULR
 		writel(new_tsfbsa, (void*)tsfbsa_reg);
 		writel(BSE_UPPER_LIMIT, (void*)tsulr_reg);
@@ -598,14 +599,14 @@ void get_snoop_map_data(AstRVAS *pAstRVAS)
 	        (const void*) (pAstRVAS->fg_reg_base + TSE_SnoopMap_Offset),
 	        sizeof(aqwSnoopMap));
 
-	VIDEO_DBG("Snoop Map:\n");
-	VIDEO_DBG("==========\n");
+	//VIDEO_DBG("Snoop Map:\n");
+	//VIDEO_DBG("==========\n");
 
 	for (dw_iter = 0; dw_iter < SNOOP_MAP_QWORD_COUNT; ++dw_iter) {
-		VIDEO_DBG("[%2u]: 0x%16.16llx\n", dw_iter, aqwSnoopMap[dw_iter]);
+		//VIDEO_DBG("[%2u]: 0x%16.16llx\n", dw_iter, aqwSnoopMap[dw_iter]);
 	}
 
-	VIDEO_DBG("==========\n\n");
+	//VIDEO_DBG("==========\n\n");
 
 	// copy 512 snoop map
 	for (dwSMDword = 0; dwSMDword < SNOOP_MAP_QWORD_COUNT; ++dwSMDword)
@@ -2133,7 +2134,7 @@ u32 clear_tse_interrupt(AstRVAS *pAstRVAS)
 	u32 tse_tile_status = 0;
 	u32 tse_snoop_ctrl = 0;
 	u32 tse_ctrl_addr = pAstRVAS->fg_reg_base + TSE_SnoopCommand_Register_Offset;
-
+	VIDEO_DBG("clear tse inerrupt");
 	tse_sts = readl((void*)(pAstRVAS->fg_reg_base + TSE_Status_Register_Offset));
 	tse_snoop_ctrl = readl((void*)(pAstRVAS->fg_reg_base + TSE_SnoopCommand_Register_Offset));
 
