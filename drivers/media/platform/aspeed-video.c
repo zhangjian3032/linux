@@ -72,11 +72,11 @@
 #define  VE_SEQ_CTRL_CAP_BUSY		BIT(16)
 #define  VE_SEQ_CTRL_COMP_BUSY		BIT(18)
 
-#ifdef CONFIG_MACH_ASPEED_G5
-#define  VE_SEQ_CTRL_JPEG_MODE		BIT(13)	/* AST2500 */
-#else
+#ifdef CONFIG_MACH_ASPEED_G4
 #define  VE_SEQ_CTRL_JPEG_MODE		BIT(8)	/* AST2400 */
-#endif /* CONFIG_MACH_ASPEED_G5 */
+#else
+#define  VE_SEQ_CTRL_JPEG_MODE		BIT(13)	/* AST2500/2600 */
+#endif
 
 #define VE_CTRL				0x008
 #define  VE_CTRL_HSYNC_POL		BIT(0)
@@ -134,6 +134,8 @@
 #define  VE_COMP_CTRL_HQ_DCT_LUM	GENMASK(31, 27)
 
 #define VE_OFFSET_COMP_STREAM		0x078
+
+#define VE_JPEG_COMP_SIZE_READ_BACK	0x084
 
 #define VE_SRC_LR_EDGE_DET		0x090
 #define  VE_SRC_LR_EDGE_DET_LEFT	GENMASK(11, 0)
@@ -572,7 +574,7 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 	if (sts & VE_INTERRUPT_COMP_COMPLETE) {
 		struct aspeed_video_buffer *buf;
 		u32 frame_size = aspeed_video_read(video,
-						   VE_OFFSET_COMP_STREAM);
+						   VE_JPEG_COMP_SIZE_READ_BACK);
 
 		spin_lock(&video->lock);
 		clear_bit(VIDEO_FRAME_INPRG, &video->flags);
@@ -1719,6 +1721,7 @@ static int aspeed_video_remove(struct platform_device *pdev)
 static const struct of_device_id aspeed_video_of_match[] = {
 	{ .compatible = "aspeed,ast2400-video-engine" },
 	{ .compatible = "aspeed,ast2500-video-engine" },
+	{ .compatible = "aspeed,ast2600-video-engine" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, aspeed_video_of_match);
