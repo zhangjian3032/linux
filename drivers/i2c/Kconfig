@@ -121,7 +121,7 @@ config I2C_SLAVE_EEPROM
 
 config I2C_SLAVE_MQUEUE_MESSAGE_SIZE
         int "The message size of I2C mqueue slave"
-        default 120
+        default 256
 
 config I2C_SLAVE_MQUEUE_QUEUE_SIZE
         int "The queue size of I2C mqueue slave"
