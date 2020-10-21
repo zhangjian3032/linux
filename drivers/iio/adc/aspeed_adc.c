@@ -152,9 +152,9 @@ static void aspeed_adc_battery_read(int *val, struct aspeed_adc_data *data,
 	else if (*val < 0)
 		*val = 0;
 	if (data->battery_sensing_div) {
-		*val = (*val * 3) / 2;
-	} else {
 		*val = (*val * 3);
+	} else {
+		*val = (*val * 3) / 2;
 	}
 	writel(eng_ctrl & (~(GENMASK(13, 12))),
 	       data->base + ASPEED_REG_ENGINE_CONTROL);
@@ -305,10 +305,10 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 	if (of_find_property(data->dev->of_node, "battery-sensing", NULL)) {
 		data->battery_sensing_en = 1;
 		if (readl(data->base + ASPEED_REG_ENGINE_CONTROL) &
-		    BATTERY_SENSING_VOL_DIVIDE_2_3) {
-			data->battery_sensing_div = 0;
-		} else {
+		    BATTERY_SENSING_VOL_DIVIDE_1_3) {
 			data->battery_sensing_div = 1;
+		} else {
+			data->battery_sensing_div = 0;
 		}
 		dev_dbg(data->dev, "aspeed_adc: battery-sensing enable \n");
 	}
