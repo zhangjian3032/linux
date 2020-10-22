@@ -333,16 +333,6 @@
 	pinctrl-0 = <&pinctrl_rgmii4_default>;
 };
 
-&emmc_controller {
-	status = "okay";
-};
-
-&emmc {
-	non-removable;
-	bus-width = <4>;
-	max-frequency = <52000000>;
-};
-
 &rtc {
 	status = "okay";
 };
