@@ -58,14 +58,23 @@ static void aspeed_gfx_enable_controller(struct aspeed_gfx *priv)
 {
 	u32 ctrl1 = readl(priv->base + CRT_CTRL1);
 	u32 ctrl2 = readl(priv->base + CRT_CTRL2);
+	u32 val;
+	int rc;
 
-	/* SCU2C: set DAC source for display output to Graphics CRT (GFX) */
-	if(priv->version == GFX_AST2600)
-		regmap_update_bits(priv->scu, 0xc0, BIT(16), BIT(16));
-	else
-		regmap_update_bits(priv->scu, 0x2c, BIT(16), BIT(16));
+	rc = regmap_read(priv->pcie, 0xc4, &val);
+	if (rc)
+		goto enable;
 
+	/* 1: pcie host power on */
+	if(val & BIT(19)) {
+		/* SCU2C: set DAC source for display output to Graphics CRT (GFX) */
+		if(priv->version == GFX_AST2600)
+			regmap_update_bits(priv->scu, 0xc0, BIT(16), BIT(16));
+		else
+			regmap_update_bits(priv->scu, 0x2c, BIT(16), BIT(16));
+	}
 
+enable:
 	writel(ctrl1 | CRT_CTRL_EN, priv->base + CRT_CTRL1);
 	writel(ctrl2 | CRT_CTRL_DAC_EN, priv->base + CRT_CTRL2);
 }

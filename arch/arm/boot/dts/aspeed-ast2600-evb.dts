@@ -557,12 +557,10 @@
 };
 #endif
 
-#if 0
 &gfx {
 	status = "okay";
 	memory-region = <&gfx_memory>;
 };
-#endif
 
 &pcie {
 	status = "okay";

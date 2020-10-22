@@ -471,7 +471,7 @@
 			};
 
 			pcie_ep:pcie_ep@1e6ed000 {
-				compatible = "aspeed,aspeed-pcie";
+				compatible = "aspeed,aspeed-pcie", "syscon";
 				reg = <0x1e6ed000 0x100>;
 
 				resets = <&syscon ASPEED_RESET_PCIE_DEV_O>;
