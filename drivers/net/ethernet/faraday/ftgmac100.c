@@ -820,8 +820,8 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 	 * before setting the OWN bit on the first descriptor.
 	 */
 	dma_wmb();
-	WRITE_ONCE(first->txdes0, cpu_to_le32(f_ctl_stat));
-	READ_ONCE(first->txdes0);
+	first->txdes0 = cpu_to_le32(f_ctl_stat);
+
 	/* Update next TX pointer */
 	priv->tx_pointer = pointer;
 
