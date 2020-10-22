@@ -1,0 +1,620 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright 2019 IBM Corp.
+
+/dts-v1/;
+
+#include "aspeed-g6.dtsi"
+
+/ {
+	model = "AST2600 EVB";
+	compatible = "aspeed,ast2600";
+
+	aliases {
+		serial4 = &uart5;
+		mmc0 = &emmc;
+		mmc1 = &sdhci0;
+		mmc2 = &sdhci1;
+	};
+
+	chosen {
+		bootargs = "console=ttyS4,115200n8";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x80000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		video_engine_memory: video {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		rvas_memory: rvas {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		ssp_memory: ssp_memory {
+			size = <0x02000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		bmc_dev_memory: bmc_dev_memory {
+			size = <0x00100000>;
+			alignment = <0x00100000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+	};
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
+				<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
+				<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
+				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
+	};
+};
+
+&adc0 {
+	ref_voltage = <2500>;
+	status = "okay";
+
+	pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
+		&pinctrl_adc2_default &pinctrl_adc3_default
+		&pinctrl_adc4_default &pinctrl_adc5_default
+		&pinctrl_adc6_default &pinctrl_adc7_default>;
+};
+
+&adc1 {
+	ref_voltage = <2500>;
+	status = "okay";
+
+	pinctrl-0 = <&pinctrl_adc8_default &pinctrl_adc9_default
+		&pinctrl_adc10_default &pinctrl_adc11_default
+		&pinctrl_adc12_default &pinctrl_adc13_default
+		&pinctrl_adc14_default &pinctrl_adc15_default>;
+};
+
+&sgpiom0 {
+        status = "okay";
+};
+
+&jtag1 {
+	status = "okay";
+};
+
+&peci0 {
+	status = "okay";
+};
+
+&pwm_tacho {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_tach0_default
+			&pinctrl_pwm1_default &pinctrl_tach1_default
+			&pinctrl_pwm2_default &pinctrl_tach2_default
+			&pinctrl_pwm3_default &pinctrl_tach3_default
+			&pinctrl_pwm4_default &pinctrl_tach4_default
+			&pinctrl_pwm5_default &pinctrl_tach5_default
+			&pinctrl_pwm6_default &pinctrl_tach6_default
+			&pinctrl_pwm7_default &pinctrl_tach7_default
+			&pinctrl_pwm8g1_default &pinctrl_tach8_default
+			&pinctrl_pwm9g1_default &pinctrl_tach9_default
+			&pinctrl_pwm10g1_default &pinctrl_tach10_default
+			&pinctrl_pwm11g1_default &pinctrl_tach11_default
+			&pinctrl_pwm12g1_default &pinctrl_tach12_default
+			&pinctrl_pwm13g1_default &pinctrl_tach13_default
+			&pinctrl_pwm14g1_default &pinctrl_tach14_default
+			&pinctrl_pwm15g1_default &pinctrl_tach15_default>;
+
+	fan@0 {
+		reg = <0x00>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@1 {
+		reg = <0x01>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x01>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@2 {
+		reg = <0x02>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x02>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@3 {
+		reg = <0x03>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x03>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@4 {
+		reg = <0x04>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x04>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@5 {
+		reg = <0x05>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x05>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@6 {
+		reg = <0x06>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x06>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@7 {
+		reg = <0x07>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x07>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@8 {
+		reg = <0x08>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x08>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@9 {
+		reg = <0x09>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x09>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@10 {
+		reg = <0x0a>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x0a>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@11 {
+		reg = <0x0b>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x0b>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@12 {
+		reg = <0x0c>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x0c>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@13 {
+		reg = <0x0d>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x0d>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@14 {
+		reg = <0x0e>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x0e>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@15 {
+		reg = <0x0f>;
+		aspeed,target_pwm = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x0f>;
+		aspeed,pulse-pr = <2>;
+	};
+};
+
+&mdio0 {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mdio1 {
+	status = "okay";
+
+	ethphy1: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+
+&mac0 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy0>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii1_default>;
+};
+
+
+&mac1 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii2_default>;
+};
+
+&mac2 {
+	status = "okay";
+
+	phy-mode = "rmii";
+	use-ncsi;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii3_default>;
+};
+
+&mac3 {
+	status = "okay";
+
+	phy-mode = "rmii";
+	use-ncsi;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii4_default>;
+};
+
+&emmc_controller {
+	status = "okay";
+};
+
+&emmc {
+	non-removable;
+	bus-width = <4>;
+	max-frequency = <52000000>;
+};
+
+&rtc {
+	status = "okay";
+};
+
+&fmc {
+	status = "okay";
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "bmc";
+		spi-max-frequency = <50000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			u-boot@0 {
+				reg = <0x0 0xe0000>; // 896KB
+				label = "u-boot";
+			};
+
+			u-boot-env@e0000 {
+				reg = <0xe0000 0x10000>; // 64KB
+				label = "u-boot-env";
+			};
+
+			kernel@100000 {
+				reg = <0x100000 0x1000000>; // 16MB
+				label = "kernel";
+			};
+
+			rofs@a00000 {
+				reg = <0x1100000 0x1500000>; // 21MB
+				label = "rofs";
+			};
+
+			rwfs@6000000 {
+				reg = <0x2a00000 0x1600000>; // 22MB
+				label = "rwfs";
+			};
+		};
+	};
+};
+
+&spi1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi1_default>;
+
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "pnor";
+		spi-max-frequency = <100000000>;
+	};
+};
+
+&i2c4 {
+	status = "okay";
+};
+
+&i2c5 {
+	status = "okay";
+};
+
+&i2c6 {
+	status = "okay";
+};
+
+&i2c7 {
+	status = "okay";
+
+	temp@2e {
+		compatible = "adi,adt7490";
+		reg = <0x2e>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c08";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+
+};
+
+&i2c8 {
+	status = "okay";
+
+	lm75@4d {
+		compatible = "national,lm75";
+		reg = <0x4d>;
+	};
+
+};
+
+&i2c9 {
+	status = "okay";
+};
+
+&fsim0 {
+	status = "okay";
+};
+
+&kcs1 {
+	kcs_addr = <0xca0>;
+	status = "okay";
+};
+
+&kcs2 {
+	kcs_addr = <0xca8>;
+	status = "okay";
+};
+
+&kcs3 {
+	kcs_addr = <0xca2>;
+	status = "okay";
+};
+
+&kcs4 {
+	kcs_addr = <0xca4>;
+	status = "okay";
+};
+
+&espi {
+	status = "okay";
+	resets = <&syscon ASPEED_RESET_ESPI>;
+	delay-timing = <0x7>;
+};
+
+&peripheral {
+	status = "okay";
+	host-map-addr = <0x98000000>;
+	map-size = <0x10000>;
+};
+
+&virtial_wire {
+	status = "okay";
+};
+
+&oob {
+	status = "okay";
+};
+
+&flash {
+	status = "okay";
+};
+
+&emmc_controller {
+	status = "okay";
+	timing-phase = <0x700FF>;
+};
+
+&emmc {
+	status = "okay";
+
+	non-removable;
+	max-frequency = <100000000>;
+	sdhci-drive-type = /bits/ 8 <3>;
+#if 1
+	bus-width = <4>;
+#else
+	bus-width = <8>;
+	pinctrl-0 = <&pinctrl_emmc_default
+			&pinctrl_emmcg8_default>;
+#endif
+};
+
+&sdc {
+	status = "okay";
+	timing-phase = <0xc6ffff>;
+};
+
+&sdhci0 {
+	status = "okay";
+
+	bus-width = <4>;
+	max-frequency = <100000000>;
+	sdhci-drive-type = /bits/ 8 <3>;
+	/* SDR104/DDR50/SDR50 bits in CAPA2 is not supported */
+	sdhci-caps-mask = <0x7 0x580000>;
+	sdhci,wp-inverted;
+};
+
+&sdhci1 {
+	status = "okay";
+
+	bus-width = <4>;
+	max-frequency = <100000000>;
+	sdhci-drive-type = /bits/ 8 <3>;
+	sdhci-caps-mask = <0x7 0x580000>;
+	sdhci,wp-inverted;
+};
+
+#if 0
+&ehci0 {
+	status = "okay";
+};
+#endif
+
+&ehci1 {
+	status = "okay";
+};
+
+&uhci {
+	status = "okay";
+};
+
+&vhub {
+	status = "okay";
+	pinctrl-names = "default";
+#if 1
+	pinctrl-0 = <&pinctrl_usb2adp_default>;
+#endif
+};
+
+#if 0
+&udc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb2bd_default>;
+};
+#endif
+
+#if 0
+&gfx {
+	status = "okay";
+	memory-region = <&gfx_memory>;
+};
+#endif
+
+&pcie {
+	status = "okay";
+
+	interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
+
+	pcie_intc0: legacy-interrupt-controller {
+		interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+	};
+};
+
+&h2x {
+	status = "okay";
+};
+
+#if 1
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
+#else
+&rvas {
+	status = "okay";
+	memory-region = <&rvas_memory>;
+};
+#endif
+
+
+&i3c0 {
+	status = "okay";
+	jdec-spd;
+	/* IDT IMX3102 multiplexer w/ thermal sensor */
+	imx3102: i3cmux@0f,3C000000000 {
+		reg = <0x0f 0x3C0 0x00000000>;
+		assigned-address = <0x0f>;
+	};
+
+	/* Renesas SPD5118 */
+	spd5118: spd@50,3C000000001 {
+		reg = <0x50 0x3C0 0x00000001>;
+		assigned-address = <0x50>;
+	};
+};
+
+&syscon {
+	mac0-clk-delay = <0x1d 0x1b
+			  0x10 0x17
+			  0x10 0x17>;
+	mac1-clk-delay = <0x1d 0x10
+			  0x10 0x10
+			  0x10 0x10>;
+	mac2-clk-delay = <0x0a 0x04
+			  0x08 0x04
+			  0x08 0x04>;
+	mac3-clk-delay = <0x0e 0x04
+			  0x08 0x04
+			  0x08 0x04>;
+};
+
+&ssp {
+	memory-region = <&ssp_memory>;
+};
