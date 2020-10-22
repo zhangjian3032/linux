@@ -150,7 +150,7 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	dev_id = of_match_device(aspeed_gfx_match, &pdev->dev);
 	if (!dev_id)
 		return -EINVAL;
-	
+
 	priv->version = (int)dev_id->data;
 	priv->scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
 	if (IS_ERR(priv->scu)) {
@@ -232,8 +232,6 @@ static int aspeed_gfx_load(struct drm_device *drm)
 
 	drm_kms_helper_poll_init(drm);
 
-	drm_fbdev_generic_setup(drm, 32);
-
 	return 0;
 }
 
@@ -263,6 +261,79 @@ static struct drm_driver aspeed_gfx_driver = {
 	.minor = 0,
 };
 
+static ssize_t dac_mux_store(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct aspeed_gfx *priv = drm->dev_private;
+	u32 val;
+	int rc;
+
+	rc = kstrtou32(buf, 0, &val);
+	if (rc)
+		return rc;
+
+	if (val > 3)
+		return -EINVAL;
+
+	if(priv->version == GFX_AST2600)
+		rc = regmap_update_bits(priv->scu, 0xc0, BIT(16), val << 16);
+	else 
+		rc = regmap_update_bits(priv->scu, 0x2c, BIT(16), val << 16);
+	if (rc < 0)
+		return 0;
+
+	return count;
+}
+
+static ssize_t dac_mux_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct aspeed_gfx *priv = drm->dev_private;
+	u32 reg;
+	int rc;
+
+	if(priv->version == GFX_AST2600)
+		rc = regmap_read(priv->scu, 0xc0, &reg);
+	else 
+		rc = regmap_read(priv->scu, 0x2c, &reg);
+	
+	if (rc)
+		return rc;
+
+	return sprintf(buf, "%u\n", (reg >> 16) & 0x3);
+}
+static DEVICE_ATTR_RW(dac_mux);
+
+static ssize_t
+vga_pw_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct aspeed_gfx *priv = drm->dev_private;
+	u32 reg;
+	int rc;
+
+	if(priv->version == GFX_AST2600)
+		rc = regmap_read(priv->scu, 0xe00, &reg);
+	else
+		rc = regmap_read(priv->scu, 0x50, &reg);
+	if (rc)
+		return rc;
+
+	return sprintf(buf, "%u\n", reg & 1);
+}
+static DEVICE_ATTR_RO(vga_pw);
+
+static struct attribute *aspeed_sysfs_entries[] = {
+	&dev_attr_vga_pw.attr,
+	&dev_attr_dac_mux.attr,
+	NULL,
+};
+
+static struct attribute_group aspeed_sysfs_attr_group = {
+	.attrs = aspeed_sysfs_entries,
+};
+
 static int aspeed_gfx_probe(struct platform_device *pdev)
 {
 	struct drm_device *drm;
@@ -276,14 +347,23 @@ static int aspeed_gfx_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_free;
 
+	dev_set_drvdata(&pdev->dev, drm);
+
+	ret = sysfs_create_group(&pdev->dev.kobj, &aspeed_sysfs_attr_group);
+	if (ret)
+		return ret;
+
 	ret = drm_dev_register(drm, 0);
 	if (ret)
 		goto err_unload;
 
+	drm_fbdev_generic_setup(drm, 32);
 	return 0;
 
 err_unload:
+	sysfs_remove_group(&pdev->dev.kobj, &aspeed_sysfs_attr_group);
 	aspeed_gfx_unload(drm);
+
 err_free:
 	drm_dev_put(drm);
 
@@ -294,6 +374,7 @@ static int aspeed_gfx_remove(struct platform_device *pdev)
 {
 	struct drm_device *drm = platform_get_drvdata(pdev);
 
+	sysfs_remove_group(&pdev->dev.kobj, &aspeed_sysfs_attr_group);
 	drm_dev_unregister(drm);
 	aspeed_gfx_unload(drm);
 	drm_dev_put(drm);
