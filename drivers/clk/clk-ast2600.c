@@ -923,7 +923,7 @@ static void __init aspeed_g6_cc(struct regmap *map)
 	regmap_read(map, ASPEED_G6_STRAP1, &val);
 	divbits = (val >> 11) & 0x3;
 	regmap_read(map, ASPEED_G6_SILICON_REV, &chip_id);
-	if (chip_id & BIT(16)) {
+	if ((chip_id & CHIP_REVISION_ID) >> 16) {
 		//ast2600a1
 		if (val & BIT(16)) {
 			ast2600_a1_axi_ahb_div1_tbl[0] = ast2600_a1_axi_ahb_default_table[(val >> 8) & 0x3];
