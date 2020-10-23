@@ -557,10 +557,17 @@
 };
 #endif
 
+#if 0
 &gfx {
 	status = "okay";
 	memory-region = <&gfx_memory>;
 };
+
+&dac_ctrl {
+	status = "okay";
+};
+
+#endif
 
 &pcie {
 	status = "okay";
