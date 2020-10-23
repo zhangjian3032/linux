@@ -16,6 +16,9 @@ config ASPEED_BMC_MISC
 config ASPEED_BMC_DEV
 	tristate "HOST BMC DEVICE"
 
+config ASPEED_DAC_CTRL
+	tristate "DAC CTRL"
+
 config ASPEED_HOST_BMC
 	tristate "PCI Host BMC"
 

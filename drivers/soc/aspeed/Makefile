@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_ASPEED_BMC_MISC)	+= aspeed-bmc-misc.o
 obj-$(CONFIG_ASPEED_BMC_DEV)	+= aspeed-bmc-dev.o
+obj-$(CONFIG_ASPEED_DAC_CTRL)	+= aspeed-dac-ctrl.o
 obj-$(CONFIG_ASPEED_HOST_BMC)	+= aspeed-host-bmc-dev.o
 obj-$(CONFIG_ASPEED_HID)	+= aspeed-hid.o
 obj-$(CONFIG_ASPEED_LPC_CTRL)	+= aspeed-lpc-ctrl.o
