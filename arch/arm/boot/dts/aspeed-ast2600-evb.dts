@@ -544,7 +544,7 @@
 &vhub {
 	status = "okay";
 	pinctrl-names = "default";
-#if 1
+#if 0
 	pinctrl-0 = <&pinctrl_usb2adp_default>;
 #endif
 };
