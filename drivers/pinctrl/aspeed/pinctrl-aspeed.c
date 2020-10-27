@@ -292,7 +292,7 @@ static bool aspeed_expr_is_gpio(const struct aspeed_sig_expr *expr)
 	 *
 	 * expr->signal might look like "GPIOT3" in the GPIO case.
 	 */
-	return strncmp(expr->signal, "GPIO", 4) == 0;
+	return strncmp(expr->signal, "GPI", 3) == 0;
 }
 
 static bool aspeed_gpio_in_exprs(const struct aspeed_sig_expr **exprs)
