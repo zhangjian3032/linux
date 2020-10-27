@@ -62,6 +62,14 @@ config SPI_ALTERA
 	help
 	  This is the driver for the Altera SPI Controller.
 
+config SPI_ASPEED
+	tristate "ASPEED SPI Controller"
+	depends on OF && HAS_IOMEM
+	help
+	  This is a driver for ASPEED SPI Controller. This driver
+	  is not a generic pure SPI driver, which is especially
+	  designed for spi-mem framework.
+
 config SPI_ATH79
 	tristate "Atheros AR71XX/AR724X/AR913X SPI controller driver"
 	depends on ATH79 || COMPILE_TEST

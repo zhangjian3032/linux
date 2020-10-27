@@ -161,6 +161,7 @@
 			clocks = <&syscon ASPEED_CLK_AHB>;
 			status = "disabled";
 			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+			number_of_chip_select = <3>;
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
@@ -188,6 +189,7 @@
 			#size-cells = <0>;
 			compatible = "aspeed,ast2600-spi";
 			clocks = <&syscon ASPEED_CLK_AHB>;
+			number_of_chip_select = <2>;
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;
@@ -210,6 +212,7 @@
 			#size-cells = <0>;
 			compatible = "aspeed,ast2600-spi";
 			clocks = <&syscon ASPEED_CLK_AHB>;
+			number_of_chip_select = <3>;
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;

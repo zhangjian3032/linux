@@ -603,8 +603,8 @@
 		m25p,fast-read;
 		label = "bmc";
 		spi-max-frequency = <50000000>;
-		spi-bus-width = <4>;
-
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 		partitions {
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
@@ -633,7 +633,8 @@
 		m25p,fast-read;
 		label = "fmc0:1";
 		spi-max-frequency = <50000000>;
-		spi-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 
 	flash@2 {
@@ -649,14 +650,16 @@
 	status = "okay";
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default &pinctrl_qspi1_default>;
+	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default
+				&pinctrl_qspi1_default>;
 
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
 		label = "spi1:0";
 		spi-max-frequency = <50000000>;
-		spi-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 
 	flash@1 {
@@ -664,7 +667,8 @@
 		m25p,fast-read;
 		label = "spi1:1";
 		spi-max-frequency = <50000000>;
-		spi-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 };
 
@@ -672,15 +676,16 @@
 	status = "okay";
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default &pinctrl_spi2cs2_default
-				&pinctrl_qspi2_default>;
+	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default
+				&pinctrl_spi2cs2_default &pinctrl_qspi2_default>;
 
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
 		label = "spi2:0";
 		spi-max-frequency = <50000000>;
-		spi-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 
 	flash@1 {
@@ -688,7 +693,8 @@
 		m25p,fast-read;
 		label = "spi2:1";
 		spi-max-frequency = <50000000>;
-		spi-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 
 	flash@2 {
@@ -696,7 +702,8 @@
 		m25p,fast-read;
 		label = "spi2:2";
 		spi-max-frequency = <50000000>;
-		spi-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 
 };
