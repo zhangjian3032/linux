@@ -4,7 +4,6 @@
  *
  * Author: Vitor Soares <vitor.soares@synopsys.com>
  */
-#define DEBUG 1
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
@@ -198,7 +197,14 @@
 #define SLAVE_CONFIG			0xec
 
 #define DEV_ADDR_TABLE_LEGACY_I2C_DEV	BIT(31)
+#ifdef IBI_WIP
+#define DEV_ADDR_TABLE_IBI_WITH_DATA	BIT(12)
+#define DEV_ADDR_TABLE_IBI_PEC_EN	BIT(11)
+#define DEV_ADDR_TABLE_DYNAMIC_ADDR(x)                                         \
+	((((x) << 16) & GENMASK(23, 16)) | DEV_ADDR_TABLE_IBI_WITH_DATA)
+#else
 #define DEV_ADDR_TABLE_DYNAMIC_ADDR(x)	(((x) << 16) & GENMASK(23, 16))
+#endif
 #define DEV_ADDR_TABLE_STATIC_ADDR(x)	((x) & GENMASK(6, 0))
 #define DEV_ADDR_TABLE_LOC(start, idx)	((start) + ((idx) << 2))
 
@@ -481,7 +487,7 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 
 #ifdef IBI_WIP
 	int j = 0;
-	u32 nibi, ibi_data[17];
+	u32 nibi;
 
 	/* consume the IBI data */
 	nibi = readl(master->regs + QUEUE_STATUS_LEVEL);
@@ -491,22 +497,9 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 		u32 ibi;
 		for (i = 0; i < nibi; i++) {
 			ibi = readl(master->regs + IBI_QUEUE_DATA);
-			if (master->ibi_valid == 0) {
-				if (IBI_VALID_START(ibi)) {
-					ibi_data[j++] = ibi;
-					master->ibi_valid = 1;
-				}
-			} else {
-				ibi_data[j++] = ibi;
-				if (IBI_VALID_END(ibi))
-					master->ibi_valid = 0;
-			}
+			for (j = 0; j < (ibi & 0xff); j += 4)
+				dev_dbg(master->dev, "ibi: %08x\n", readl(master->regs + IBI_QUEUE_DATA));
 		}
-
-		/* debug: dump IBI queue */
-		for (i = 0; i < j; i++)
-			dev_dbg(master->dev, "%08x", ibi_data[i]);
-
 		writel(RESET_CTRL_IBI_QUEUE, master->regs + RESET_CTRL);
 	}
 #endif
