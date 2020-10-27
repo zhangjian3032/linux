@@ -98,7 +98,7 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 	if (!(jregd0 & 0x80) || !(jregd1 & 0x10)) {
 		/* Double check it's actually working */
 		data = ast_read32(ast, 0xf004);
-		if (data != 0xFFFFFFFF) {
+		if ((data != 0xFFFFFFFF) && (data != 0x00)) {		// for AST2600, data == 0x00
 			/* P2A works, grab silicon revision */
 			ast->config_mode = ast_use_p2a;
 
@@ -139,6 +139,10 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	ast_open_key(ast);
 	ast_enable_mmio(dev);
 
+#if 1
+	/* disable standard VGA decode */
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
+#endif
 	/* Find out whether P2A works or whether to use device-tree */
 	ast_detect_config_mode(dev, &scu_rev);
 
@@ -147,7 +151,10 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 		ast->chip = AST1100;
 		DRM_INFO("AST 1180 detected\n");
 	} else {
-		if (dev->pdev->revision >= 0x40) {
+		if (dev->pdev->revision >= 0x50) {
+			ast->chip = AST2600;
+			DRM_INFO("AST 2600 detected\n");
+		} else if (dev->pdev->revision >= 0x40) {
 			ast->chip = AST2500;
 			DRM_INFO("AST 2500 detected\n");
 		} else if (dev->pdev->revision >= 0x30) {
@@ -206,6 +213,8 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 				ast->support_wide_screen = true;
 			if (ast->chip == AST2500 &&
 			    scu_rev == 0x100)           /* ast2510 */
+				ast->support_wide_screen = true;
+			if (ast->chip == AST2600)           /* ast2600 */
 				ast->support_wide_screen = true;
 		}
 		break;
@@ -429,7 +438,37 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	struct ast_private *ast;
 	bool need_post;
 	int ret = 0;
+#if 1
+	int i;
 
+	uint8_t temp;
+	uint8_t SLT_CR[256]= {
+		0x0e, 0xef, 0xef, 0x92, 0xf5, 0x1a, 0x63, 0x00, 0x00, 0x40, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00,
+		0x3b, 0x80, 0x37, 0xc0, 0x40, 0x37, 0x64, 0xa3, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x02, 0x20,
+		0xff, 0xff, 0x20, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x07, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xa8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x01, 0x38, 0x40,
+		0x20, 0xa8, 0x20, 0x94, 0x80, 0x07, 0x38, 0x04, 0x94, 0xc0, 0x00, 0x00, 0x80, 0x38, 0x47, 0x3f,
+		0x7f, 0x06, 0x1f, 0x08, 0x40, 0x00, 0x60, 0x78, 0x02, 0x00, 0x09, 0xd0, 0x01, 0x04, 0x8f, 0x00,
+		0x03, 0xb8, 0x11, 0x42, 0x00, 0x00, 0xa4, 0x30, 0x9d, 0xe0, 0x0a, 0x8f, 0x2c, 0xe7, 0x95, 0x62,
+		0x1f, 0x45, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00 };
+
+	uint8_t SLT_SR[5]= {0x03, 0x01, 0x0f, 0x00, 0x0e};
+	uint8_t SLT_AR[20] = {
+		0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+		0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
+		0x01,0x00,0x00,0x00};
+	uint8_t SLT_GR[9] = {
+		0x00,0x00,0x00,0x00,0x00,0x00,0x05,0x0f,
+		0xff};
+#endif
 	ast = kzalloc(sizeof(struct ast_private), GFP_KERNEL);
 	if (!ast)
 		return -ENOMEM;
@@ -448,11 +487,12 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	 * assume the chip has MMIO enabled by default (rev 0x20
 	 * and higher).
 	 */
-	if (!(pci_resource_flags(dev->pdev, 2) & IORESOURCE_IO)) {
+//	if (!(pci_resource_flags(dev->pdev, 2) & IORESOURCE_IO)) {
 		DRM_INFO("platform has no IO space, trying MMIO\n");
 		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
-	}
+//	}
 
+#if 0
 	/* "map" IO regs if the above hasn't done so already */
 	if (!ast->ioregs) {
 		ast->ioregs = pci_iomap(dev->pdev, 2, 0);
@@ -461,6 +501,7 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 			goto out_free;
 		}
 	}
+#endif
 
 	ast_detect_chip(dev, &need_post);
 
@@ -481,6 +522,28 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto out_free;
 
+#if 1
+	/* set MR */
+	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x2F);
+	/* Set GR */
+	for (i = 0; i < 9; i++)
+		ast_set_index_reg(ast, AST_IO_GR_PORT, i, SLT_GR[i]);
+
+	/* Set CR */
+	for (i=0; i<256; i++)	// for ARM-MMIO on AST2600A1
+	{
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x00);
+		temp = SLT_CR[i];
+//		DRM_ERROR("CR[i] = %x\n", temp);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, temp);
+//		DRM_ERROR("CR[%x] = %x\n", i, ast_get_index_reg(ast, AST_IO_CRTC_PORT, i));
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x80);
+	}
+
+	/* Set SR */
+	for (i=0; i<5; i++)
+		ast_set_index_reg(ast, AST_IO_SEQ_PORT, i, SLT_SR[i]);
+#endif
 	drm_mode_config_init(dev);
 
 	dev->mode_config.funcs = (void *)&ast_mode_funcs;
@@ -495,6 +558,7 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	    ast->chip == AST2300 ||
 	    ast->chip == AST2400 ||
 	    ast->chip == AST2500 ||
+	    ast->chip == AST2600 ||
 	    ast->chip == AST1180) {
 		dev->mode_config.max_width = 1920;
 		dev->mode_config.max_height = 2048;
@@ -507,6 +571,42 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto out_free;
 
+#if 1
+	/* set MR */
+	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x2F);
+
+	/* set AR */
+	temp = ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ);
+	for (i = 0; i < 20; i++) {
+		temp = SLT_AR[i];
+		ast_io_write8(ast, AST_IO_AR_PORT_WRITE, (u8)i);
+		ast_io_write8(ast, AST_IO_AR_PORT_WRITE, temp);
+	}
+	ast_io_write8(ast, AST_IO_AR_PORT_WRITE, 0x14);
+	ast_io_write8(ast, AST_IO_AR_PORT_WRITE, 0x00);
+
+	temp = ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ);
+	ast_io_write8(ast, AST_IO_AR_PORT_WRITE, 0x20);
+
+	/* Set GR */
+	for (i = 0; i < 9; i++)
+		ast_set_index_reg(ast, AST_IO_GR_PORT, i, SLT_GR[i]);
+
+	/* Set CR */
+	for (i=0; i<256; i++)	// for ARM-MMIO on AST2600A1
+	{
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x00);
+		temp = SLT_CR[i];
+//		DRM_ERROR("CR[i] = %x\n", temp);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, temp);
+//		DRM_ERROR("CR[%x] = %x\n", i, ast_get_index_reg(ast, AST_IO_CRTC_PORT, i));
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x80);
+	}
+
+	/* Set SR */
+	for (i=0; i<5; i++)
+		ast_set_index_reg(ast, AST_IO_SEQ_PORT, i, SLT_SR[i]);
+#endif
 	ret = drm_fbdev_generic_setup(dev, 32);
 	if (ret)
 		goto out_free;

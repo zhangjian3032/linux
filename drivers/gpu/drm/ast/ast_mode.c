@@ -283,7 +283,7 @@ static void ast_set_crtc_reg(struct drm_crtc *crtc, struct drm_display_mode *mod
 	u8 jreg05 = 0, jreg07 = 0, jreg09 = 0, jregAC = 0, jregAD = 0, jregAE = 0;
 	u16 temp, precache = 0;
 
-	if ((ast->chip == AST2500) &&
+	if (((ast->chip == AST2500) || (ast->chip == AST2600)) &&
 	    (vbios_mode->enh_table->flags & AST2500PreCatchCRT))
 		precache = 40;
 
@@ -323,6 +323,12 @@ static void ast_set_crtc_reg(struct drm_crtc *crtc, struct drm_display_mode *mod
 
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAC, 0x00, jregAC);
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAD, 0x00, jregAD);
+
+	//HSync Time non octave pixels (1920x1080@60Hz HSync 44 pixels); VGACRFC[1]=1 for 1080p only.
+	if ((ast->chip == AST2600) && (crtc->mode.crtc_vdisplay == 1080))
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xFC, 0xFD, 0x02);
+	else
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xFC, 0xFD, 0x00);
 
 	/* vert timings */
 	temp = (mode->crtc_vtotal) - 2;
@@ -403,7 +409,7 @@ static void ast_set_dclk_reg(struct drm_device *dev, struct drm_display_mode *mo
 	struct ast_private *ast = dev->dev_private;
 	const struct ast_vbios_dclk_info *clk_info;
 
-	if (ast->chip == AST2500)
+	if ((ast->chip == AST2500) || (ast->chip == AST2600))
 		clk_info = &dclk_table_ast2500[vbios_mode->enh_table->dclk_index];
 	else
 		clk_info = &dclk_table[vbios_mode->enh_table->dclk_index];
@@ -447,7 +453,7 @@ static void ast_set_ext_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 
 	/* Set Threshold */
 	if (ast->chip == AST2300 || ast->chip == AST2400 ||
-	    ast->chip == AST2500) {
+	    ast->chip == AST2500 || ast->chip == AST2600) {
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa7, 0x78);
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa6, 0x60);
 	} else if (ast->chip == AST2100 ||
@@ -602,6 +608,16 @@ static int ast_crtc_mode_set(struct drm_crtc *crtc,
 
 static void ast_crtc_disable(struct drm_crtc *crtc)
 {
+#if 1
+	struct ast_private *ast = crtc->dev->dev_private;
+
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x0C, 0x00);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x80, 0xa8);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa8, 0x00);
+#endif
+	printk("ast_crtc_disable \n");
+	return;
+//#endif
 	DRM_DEBUG_KMS("\n");
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {
@@ -799,7 +815,8 @@ static enum drm_mode_status ast_mode_valid(struct drm_connector *connector,
 
 		if ((ast->chip == AST2100) || (ast->chip == AST2200) ||
 		    (ast->chip == AST2300) || (ast->chip == AST2400) ||
-		    (ast->chip == AST2500) || (ast->chip == AST1180)) {
+		    (ast->chip == AST2500) || (ast->chip == AST1180) ||
+			(ast->chip == AST2600)) {
 			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1080))
 				return MODE_OK;
 
