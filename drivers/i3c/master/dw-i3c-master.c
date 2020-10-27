@@ -267,7 +267,6 @@ struct dw_i3c_master {
 	char version[5];
 	char type[5];
 	u8 addrs[MAX_DEVS];
-	int ibi_valid;
 };
 
 struct dw_i3c_i2c_dev_data {
@@ -477,9 +476,6 @@ static void dw_i3c_master_dequeue_xfer(struct dw_i3c_master *master,
 	dw_i3c_master_dequeue_xfer_locked(master, xfer);
 	spin_unlock_irqrestore(&master->xferqueue.lock, flags);
 }
-
-#define IBI_VALID_START(_ibi_)	((_ibi_ & BIT(31)) && ((_ibi_ & 0x0000ff00) != 0x0000ff00))
-#define IBI_VALID_END(_ibi_)	(_ibi_ & BIT(30))
 
 static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 {
@@ -1383,7 +1379,6 @@ static int dw_i3c_probe(struct platform_device *pdev)
 	writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(ret),
 	       master->regs + DEV_ADDR_TABLE_LOC(master->datstartaddr, master->maxdevs - 1));
 #endif
-	master->ibi_valid = 0;
 	master->dev = &pdev->dev;
 	ret = i3c_master_register(&master->base, &pdev->dev,
 				  &dw_mipi_i3c_ops, false);
