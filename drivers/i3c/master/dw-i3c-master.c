@@ -80,8 +80,10 @@
 #define IBI_QUEUE_DATA_STATUS_MASK	GENMASK(31, 28)
 #define IBI_QUEUE_DATA_PAYLOAD_MASK	GENMASK(15, 8)
 #define QUEUE_THLD_CTRL			0x1c
-#define QUEUE_THLD_CTRL_IBI_BUF_MASK	GENMASK(31, 24)
-#define QUEUE_THLD_CTRL_IBI_BUF(x)	(((x) - 1) << 24)
+#define QUEUE_THLD_CTRL_IBI_STA_MASK	GENMASK(31, 24)
+#define QUEUE_THLD_CTRL_IBI_STA(x)	(((x) - 1) << 24)
+#define QUEUE_THLD_CTRL_IBI_DAT_MASK	GENMASK(23, 16)
+#define QUEUE_THLD_CTRL_IBI_DAT(x)	((x) << 16)
 #define QUEUE_THLD_CTRL_RESP_BUF_MASK	GENMASK(15, 8)
 #define QUEUE_THLD_CTRL_RESP_BUF(x)	(((x) - 1) << 8)
 
@@ -739,8 +741,10 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 
 #ifdef IBI_WIP
 	thld_ctrl = readl(master->regs + QUEUE_THLD_CTRL);
-	thld_ctrl &= ~QUEUE_THLD_CTRL_IBI_BUF_MASK;
-	thld_ctrl |= QUEUE_THLD_CTRL_IBI_BUF(1);
+	thld_ctrl &=
+		~(QUEUE_THLD_CTRL_IBI_STA_MASK | QUEUE_THLD_CTRL_IBI_DAT_MASK);
+	thld_ctrl |= QUEUE_THLD_CTRL_IBI_STA(1);
+	thld_ctrl |= QUEUE_THLD_CTRL_IBI_DAT(1);
 	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
 
 	writel(0, master->regs + IBI_SIR_REQ_REJECT);
