@@ -365,7 +365,7 @@ int aspeed_2600_spi_timing_calibration(struct aspeed_spi_controller *ast_ctrl,
 	/* From HCLK/2 to HCLK/5 */
 	for (i = 0; i < ARRAY_SIZE(hclk_masks); i++) {
 		if (max_freq < (uint32_t)ast_ctrl->ahb_clk / (i + 2)) {
-			dev_info(dev, "skipping freq %d\n",
+			dev_dbg(dev, "skipping freq %d\n",
 				 (uint32_t)ast_ctrl->ahb_clk / (i + 2));
 			continue;
 		}
