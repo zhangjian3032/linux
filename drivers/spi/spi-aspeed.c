@@ -48,6 +48,8 @@
 #define CTRL_STOP_ACTIVE BIT(2)
 
 #define CALIBRATION_LEN 0x400
+#define SPI_DAM_REQUEST BIT(31)
+#define SPI_DAM_GRANT BIT(30)
 #define SPI_DMA_CALIB_MODE BIT(3)
 #define SPI_DMA_CALC_CKSUM BIT(2)
 #define SPI_DMA_ENABLE BIT(0)
@@ -205,6 +207,12 @@ static u32 aspeed_2600_spi_dma_checksum(struct aspeed_spi_controller *ast_ctrl,
 	uint32_t ctrl_val;
 	u32 checksum;
 
+	writel(0xaeed0000, ast_ctrl->regs + OFFSET_DMA_CTRL);
+	if (readl(ast_ctrl->regs + OFFSET_DMA_CTRL) & SPI_DAM_REQUEST) {
+		while (!(readl(ast_ctrl->regs + OFFSET_DMA_CTRL) & SPI_DAM_GRANT))
+			;
+	}
+
 	writel((uint32_t)ast_ctrl->chips[cs].ahb_base_phy,
 	       ast_ctrl->regs + OFFSET_DMA_FLASH_ADDR_REG);
 	writel(CALIBRATION_LEN, ast_ctrl->regs + OFFSET_DMA_LEN_REG);
@@ -218,7 +226,9 @@ static u32 aspeed_2600_spi_dma_checksum(struct aspeed_spi_controller *ast_ctrl,
 
 	checksum = readl(ast_ctrl->regs + OFFSET_DMA_CHECKSUM_RESULT);
 
+	writel(0xdeea0000, ast_ctrl->regs + OFFSET_DMA_CTRL);
 	writel(0x0, ast_ctrl->regs + OFFSET_DMA_CTRL);
+
 	return checksum;
 }
 
@@ -429,7 +439,7 @@ no_calib:
 	for (i = 0; i < ASPEED_SPI_MAX; i++)
 		chip->ctrl_val[i] = (chip->ctrl_val[i] & 0xf0fff0ff) | hclk_div;
 
-	dev_info(dev, "max_freq: %dMHz [0x%x]\n", max_freq / 1000000, reg_val);
+	dev_info(dev, "freq: %dMHz [0x%08x]\n", max_freq / 1000000, reg_val);
 
 	if (check_buf)
 		kfree(check_buf);
