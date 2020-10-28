@@ -386,7 +386,8 @@
 		m25p,fast-read;
 		label = "fmc0:2";
 		spi-max-frequency = <50000000>;
-		spi-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 };
 
