@@ -184,15 +184,6 @@
 #define VIDEO_CAPTURE_TRIGGER			(1 << 1)
 #define VIDEO_DETECT_TRIGGER			(1 << 0)
 
-
-#define VIDEO_HALT_ENG_RB				(1 << 21)
-#define VIDEO_HALT_ENG_RB				(1 << 21)
-#define VIDEO_HALT_ENG_RB				(1 << 21)
-#define VIDEO_HALT_ENG_RB				(1 << 21)
-#define VIDEO_HALT_ENG_RB				(1 << 21)
-#define VIDEO_HALT_ENG_RB				(1 << 21)
-
-
 /*	AST_VIDEO_PASS_CTRL			0x008		Video Pass1 Control register	*/
 #define G6_VIDEO_MULTI_JPEG_FLAG_MODE	(1 << 31)
 #define G6_VIDEO_MULTI_JPEG_MODE		(1 << 30)
