@@ -377,22 +377,22 @@
 		groups = "LSIRQ";
 	};
 
-	pinctrl_mac1link_default: mac1link_default {
+	pinctrl_maclink1_default: maclink1_default {
 		function = "MACLINK1";
 		groups = "MACLINK1";
 	};
 
-	pinctrl_mac2link_default: mac2link_default {
+	pinctrl_maclink2_default: maclink2_default {
 		function = "MACLINK2";
 		groups = "MACLINK2";
 	};
 
-	pinctrl_mac3link_default: mac3link_default {
+	pinctrl_maclink3_default: maclink3_default {
 		function = "MACLINK3";
 		groups = "MACLINK3";
 	};
 
-	pinctrl_mac4link_default: mac4link_default {
+	pinctrl_maclink4_default: maclink4_default {
 		function = "MACLINK4";
 		groups = "MACLINK4";
 	};

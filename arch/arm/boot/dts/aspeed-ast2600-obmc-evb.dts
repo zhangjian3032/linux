@@ -126,7 +126,7 @@
 	phy-handle = <&ethphy0>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_mac1link_default>;
+	pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_maclink1_default>;
 };
 
 &mdio1 {
@@ -145,7 +145,7 @@
 	phy-handle = <&ethphy1>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mac2link_default>;
+	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_maclink2_default>;
 };
 
 &mdio2 {
@@ -164,7 +164,7 @@
 	phy-handle = <&ethphy2>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_mac3link_default>;
+	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_maclink3_default>;
 };
 
 &mdio3 {
@@ -183,7 +183,7 @@
 	phy-handle = <&ethphy3>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_mac4link_default>;
+	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_maclink4_default>;
 };
 
 &uart1 {
