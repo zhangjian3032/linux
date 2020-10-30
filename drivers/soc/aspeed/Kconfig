@@ -116,12 +116,6 @@ config ASPEED_ESPI_OOB
 	help
 	  Control Aspeed eSPI out-of-band channel driver
 
-config ASPEED_JTAG
-	tristate "ASPEED JTAG Controller"
-	default n
-	help
-	  Driver for JTAG Controller
-
 config ASPEED_ESPI_FLASH
 	tristate "Aspeed eSPI flash channel driver"
 	depends on ASPEED_ESPI
@@ -133,6 +127,12 @@ config ASPEED_ESPI_MMBI
 	depends on ASPEED_ESPI
 	help
 	  Control Aspeed eSPI MMBI driver
+
+config ASPEED_JTAG
+	tristate "ASPEED JTAG Controller"
+	default n
+	help
+	  Driver for JTAG Controller
 
 config ASPEED_SSP
 	tristate "ASPEED SSP loader"
