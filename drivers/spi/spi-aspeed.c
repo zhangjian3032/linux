@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
+
 /*
- * SPDX-License-Identifier: GPL-2.0-or-later
- *
  * ASPEED FMC/SPI Controller driver
  *
  * Copyright (c) 2020, ASPEED Corporation.
+ * Copyright (c) 2015-2016, IBM Corporation.
  */
 
 #include <linux/bitops.h>
@@ -25,35 +26,35 @@
 #include <linux/spi/spi-mem.h>
 
 /* ASPEED FMC/SPI control register related */
-#define OFFSET_CE_TYPE_SETTING 0x00
-#define OFFSET_CE_ADDR_MODE_CTRL 0x04
-#define OFFSET_INTR_CTRL_STATUS 0x08
-#define OFFSET_ADDR_DATA_MASK 0x0c
-#define OFFSET_CE0_CTRL_REG 0x10
-#define OFFSET_CE0_DECODE_RANGE_REG 0x30
-#define OFFSET_DMA_CTRL 0x80
-#define OFFSET_DMA_FLASH_ADDR_REG 0x84
-#define OFFSET_DMA_RAM_ADDR_REG 0x88
-#define OFFSET_DMA_LEN_REG 0x8c
-#define OFFSET_DMA_CHECKSUM_RESULT 0x90
-#define OFFSET_CE0_TIMING_COMPENSATION 0x94
+#define OFFSET_CE_TYPE_SETTING          0x00
+#define OFFSET_CE_ADDR_MODE_CTRL        0x04
+#define OFFSET_INTR_CTRL_STATUS         0x08
+#define OFFSET_ADDR_DATA_MASK           0x0c
+#define OFFSET_CE0_CTRL_REG             0x10
+#define OFFSET_CE0_DECODE_RANGE_REG     0x30
+#define OFFSET_DMA_CTRL                 0x80
+#define OFFSET_DMA_FLASH_ADDR_REG       0x84
+#define OFFSET_DMA_RAM_ADDR_REG         0x88
+#define OFFSET_DMA_LEN_REG              0x8c
+#define OFFSET_DMA_CHECKSUM_RESULT      0x90
+#define OFFSET_CE0_TIMING_COMPENSATION  0x94
 
-#define CTRL_IO_SINGLE_DATA 0
-#define CTRL_IO_DUAL_DATA BIT(29)
-#define CTRL_IO_QUAD_DATA BIT(30)
+#define CTRL_IO_SINGLE_DATA  0
+#define CTRL_IO_DUAL_DATA    BIT(29)
+#define CTRL_IO_QUAD_DATA    BIT(30)
 
-#define CTRL_IO_MODE_USER GENMASK(1, 0)
-#define CTRL_IO_MODE_CMD_READ BIT(0)
-#define CTRL_IO_MODE_CMD_WRITE BIT(1)
-#define CTRL_STOP_ACTIVE BIT(2)
+#define CTRL_IO_MODE_USER       GENMASK(1, 0)
+#define CTRL_IO_MODE_CMD_READ   BIT(0)
+#define CTRL_IO_MODE_CMD_WRITE  BIT(1)
+#define CTRL_STOP_ACTIVE        BIT(2)
 
-#define CALIBRATION_LEN 0x400
-#define SPI_DAM_REQUEST BIT(31)
-#define SPI_DAM_GRANT BIT(30)
-#define SPI_DMA_CALIB_MODE BIT(3)
-#define SPI_DMA_CALC_CKSUM BIT(2)
-#define SPI_DMA_ENABLE BIT(0)
-#define SPI_DMA_STATUS BIT(11)
+#define CALIBRATION_LEN     0x400
+#define SPI_DAM_REQUEST     BIT(31)
+#define SPI_DAM_GRANT       BIT(30)
+#define SPI_DMA_CALIB_MODE  BIT(3)
+#define SPI_DMA_CALC_CKSUM  BIT(2)
+#define SPI_DMA_ENABLE      BIT(0)
+#define SPI_DMA_STATUS      BIT(11)
 
 enum aspeed_spi_ctl_reg_value {
 	ASPEED_SPI_BASE,
@@ -97,17 +98,10 @@ struct aspeed_spi_controller {
 	void __iomem *ahb_base;
 	uint32_t ahb_base_phy; /* physical addr of AHB window  */
 	uint32_t ahb_window_sz; /* AHB window size */
-	uint32_t num_ce;
+	uint32_t num_cs;
 	uint64_t ahb_clk;
 	struct aspeed_spi_chip *chips; /* pointers to attached chips */
 };
-
-static int
-aspeed_spi_decode_range_config(struct aspeed_spi_controller *ast_ctrl,
-			       uint32_t decode_sz_arr[]);
-int aspeed_2600_spi_timing_calibration(struct aspeed_spi_controller *ast_ctrl,
-				       uint32_t cs);
-void aspeed_2600_adjust_decode_sz(uint32_t decode_sz_arr[], int len);
 
 static uint32_t
 aspeed_2600_spi_segment_start(struct aspeed_spi_controller *ast_ctrl,
@@ -150,7 +144,6 @@ static void aspeed_spi_chip_set_4byte(struct aspeed_spi_controller *ast_ctrl,
 	reg_val = readl(ast_ctrl->regs + OFFSET_CE_ADDR_MODE_CTRL);
 	reg_val |= 0x11 << cs;
 	writel(reg_val, ast_ctrl->regs + OFFSET_CE_ADDR_MODE_CTRL);
-	return;
 }
 
 uint32_t aspeed_spi_get_io_mode(uint32_t bus_width)
@@ -167,20 +160,7 @@ uint32_t aspeed_spi_get_io_mode(uint32_t bus_width)
 	}
 }
 
-static const struct aspeed_spi_info ast2600_spi_info = {
-	.max_data_bus_width = 4,
-	.cmd_io_ctrl_mask = 0xf0ff40c3,
-	/* for ast2600, the minimum decode size for each CE is 2MB */
-	.min_decode_sz = 0x200000,
-	.set_4byte = aspeed_spi_chip_set_4byte,
-	.calibrate = aspeed_2600_spi_timing_calibration,
-	.adjust_decode_sz = aspeed_2600_adjust_decode_sz,
-	.segment_start = aspeed_2600_spi_segment_start,
-	.segment_end = aspeed_2600_spi_segment_end,
-	.segment_reg = aspeed_2600_spi_segment_reg,
-};
-
-/* 
+/*
  * Check whether the data is not all 0 or 1 in order to
  * avoid calibriate umount spi-flash.
  */
@@ -193,23 +173,24 @@ static bool aspeed_spi_calibriation_enable(const uint8_t *buf, uint32_t sz)
 	for (i = 0; i < (sz / 4); i++) {
 		if (buf_32[i] != 0 && buf_32[i] != 0xffffffff)
 			valid_count++;
-		if (100 < valid_count)
+		if (valid_count > 100)
 			return true;
 	}
 
 	return false;
 }
 
-static u32 aspeed_2600_spi_dma_checksum(struct aspeed_spi_controller *ast_ctrl,
-					uint32_t cs, uint32_t div,
-					uint32_t delay)
+static uint32_t
+aspeed_2600_spi_dma_checksum(struct aspeed_spi_controller *ast_ctrl,
+			     uint32_t cs, uint32_t div, uint32_t delay)
 {
 	uint32_t ctrl_val;
-	u32 checksum;
+	uint32_t checksum;
 
 	writel(0xaeed0000, ast_ctrl->regs + OFFSET_DMA_CTRL);
 	if (readl(ast_ctrl->regs + OFFSET_DMA_CTRL) & SPI_DAM_REQUEST) {
-		while (!(readl(ast_ctrl->regs + OFFSET_DMA_CTRL) & SPI_DAM_GRANT))
+		while (!(readl(ast_ctrl->regs + OFFSET_DMA_CTRL) &
+			 SPI_DAM_GRANT))
 			;
 	}
 
@@ -252,8 +233,8 @@ static int get_mid_point_of_longest_one(uint8_t *buf, uint32_t len)
 		}
 	}
 
-	/* 
-	 * In order to get stable spi read/write timing,
+	/*
+	 * In order to get stable SPI read/write timing,
 	 * abandon the result if the length of longest
 	 * consecutive good points is too short.
 	 */
@@ -305,10 +286,10 @@ aspeed_2600_spi_clk_basic_setting(struct aspeed_spi_controller *ast_ctrl,
 	return hclk_div;
 }
 
-/* 
+/*
  * If SPI frequency is too high, timing compensation is needed,
- * otherwise, spi controller will sample unready data. For AST2600
- * SPI-flash controller, only the first four frequency levels
+ * otherwise, SPI controller will sample unready data. For AST2600
+ * SPI flash controller, only the first four frequency levels
  * (HCLK/2, HCLK/3,..., HCKL/5) may need timing compensation.
  * Here, for each frequency, we will get a sequence of reading
  * result (pass or fail) compared to golden data. Then, getting the
@@ -342,14 +323,14 @@ int aspeed_2600_spi_timing_calibration(struct aspeed_spi_controller *ast_ctrl,
 	}
 
 	dev_dbg(dev, "calculate timing compensation :\n");
-	/* 
+	/*
 	 * use the related low frequency to get check calibration data
 	 * and get golden data.
 	 */
 	reg_val = chip->ctrl_val[ASPEED_SPI_READ] & 0xf0fff0ff;
 	writel(reg_val, ast_ctrl->regs + OFFSET_CE0_CTRL_REG + cs * 4);
 
-	check_buf = (uint8_t *)kzalloc(CALIBRATION_LEN, GFP_KERNEL);
+	check_buf = kzalloc(CALIBRATION_LEN, GFP_KERNEL);
 	if (!check_buf)
 		return -ENOMEM;
 
@@ -361,12 +342,12 @@ int aspeed_2600_spi_timing_calibration(struct aspeed_spi_controller *ast_ctrl,
 
 	gold_checksum = aspeed_2600_spi_dma_checksum(ast_ctrl, cs, 0, 0);
 
-	/* 
+	/*
 	 * allocate a space to record calibration result for
 	 * different timing compensation with fixed
 	 * HCLK division.
 	 */
-	calib_res = (uint8_t *)kzalloc(6 * 17, GFP_KERNEL);
+	calib_res = kzalloc(6 * 17, GFP_KERNEL);
 	if (!calib_res) {
 		ret = -ENOMEM;
 		goto no_calib;
@@ -376,7 +357,7 @@ int aspeed_2600_spi_timing_calibration(struct aspeed_spi_controller *ast_ctrl,
 	for (i = 0; i < ARRAY_SIZE(hclk_masks); i++) {
 		if (max_freq < (uint32_t)ast_ctrl->ahb_clk / (i + 2)) {
 			dev_dbg(dev, "skipping freq %d\n",
-				 (uint32_t)ast_ctrl->ahb_clk / (i + 2));
+				(uint32_t)ast_ctrl->ahb_clk / (i + 2));
 			continue;
 		}
 		max_freq = (uint32_t)ast_ctrl->ahb_clk / (i + 2);
@@ -430,7 +411,7 @@ no_calib:
 
 	hclk_div = aspeed_2600_spi_clk_basic_setting(ast_ctrl, &max_freq);
 
-	/* configure spi clock frequency */
+	/* configure SPI clock frequency */
 	reg_val = readl(ast_ctrl->regs + OFFSET_CE0_CTRL_REG + cs * 4);
 	reg_val = (reg_val & 0xf0fff0ff) | hclk_div;
 	writel(reg_val, ast_ctrl->regs + OFFSET_CE0_CTRL_REG + cs * 4);
@@ -439,19 +420,16 @@ no_calib:
 	for (i = 0; i < ASPEED_SPI_MAX; i++)
 		chip->ctrl_val[i] = (chip->ctrl_val[i] & 0xf0fff0ff) | hclk_div;
 
-	dev_info(dev, "freq: %dMHz [0x%08x]\n", max_freq / 1000000, reg_val);
+	dev_info(dev, "freq: %dMHz\n", max_freq / 1000000);
 
-	if (check_buf)
-		kfree(check_buf);
-
-	if (calib_res)
-		kfree(calib_res);
+	kfree(check_buf);
+	kfree(calib_res);
 
 	return ret;
 }
 
-/* 
- * AST2600 SPI-flash controllers support multiple chip selects.
+/*
+ * AST2600 SPI flash controllers support multiple chip selects.
  * The start address of a decode range should be multiple
  * of its related flash size. Namely, the total decoded size
  * from flash 0 to flash N should be multiple of flash (N + 1).
@@ -469,27 +447,95 @@ void aspeed_2600_adjust_decode_sz(uint32_t decode_sz_arr[], int len)
 		if (sz % decode_sz_arr[cs] != 0)
 			decode_sz_arr[0] += (sz % decode_sz_arr[cs]);
 	}
-
-	return;
 }
 
+static int
+aspeed_spi_decode_range_config(struct aspeed_spi_controller *ast_ctrl,
+			       uint32_t decode_sz_arr[])
+{
+	struct aspeed_spi_chip *chip = ast_ctrl->chips;
+	uint32_t i;
+	uint32_t cs;
+	uint32_t decode_reg_val;
+	uint32_t start_addr_phy, end_addr_phy, pre_end_addr_phy = 0;
+	uint32_t total_decode_sz = 0;
+
+	/* decode range sanity */
+	for (cs = 0; cs < ast_ctrl->num_cs; cs++) {
+		total_decode_sz += decode_sz_arr[cs];
+		if (ast_ctrl->ahb_window_sz < total_decode_sz) {
+			dev_err(ast_ctrl->dev, "insufficient decode size\n");
+			for (i = 0; i <= cs; i++)
+				dev_err(ast_ctrl->dev, "cs:%d %x\n", i,
+					decode_sz_arr[i]);
+			return -ENOSPC;
+		}
+	}
+
+	for (cs = 0; cs < ast_ctrl->num_cs; cs++) {
+		if (chip[cs].ahb_base)
+			devm_iounmap(ast_ctrl->dev, chip[cs].ahb_base);
+	}
+
+	/* configure each CE's decode range */
+	for (cs = 0; cs < ast_ctrl->num_cs; cs++) {
+		if (cs == 0)
+			start_addr_phy = ast_ctrl->ahb_base_phy;
+		else
+			start_addr_phy = pre_end_addr_phy;
+
+		chip[cs].ahb_base = devm_ioremap(ast_ctrl->dev, start_addr_phy,
+						 decode_sz_arr[cs]);
+		chip[cs].ahb_base_phy = (void __iomem *)start_addr_phy;
+
+		chip[cs].ahb_window_sz = decode_sz_arr[cs];
+		end_addr_phy = start_addr_phy + decode_sz_arr[cs];
+
+		decode_reg_val = ast_ctrl->info->segment_reg(
+			ast_ctrl, start_addr_phy, end_addr_phy);
+
+		writel(decode_reg_val,
+		       ast_ctrl->regs + OFFSET_CE0_DECODE_RANGE_REG + cs * 4);
+
+		pre_end_addr_phy = end_addr_phy;
+
+		dev_dbg(ast_ctrl->dev, "cs: %d, decode_reg: 0x%x\n", cs,
+			decode_reg_val);
+	}
+
+	return 0;
+}
+
+static const struct aspeed_spi_info ast2600_spi_info = {
+	.max_data_bus_width = 4,
+	.cmd_io_ctrl_mask = 0xf0ff40c3,
+	/* for ast2600, the minimum decode size for each CE is 2MB */
+	.min_decode_sz = 0x200000,
+	.set_4byte = aspeed_spi_chip_set_4byte,
+	.calibrate = aspeed_2600_spi_timing_calibration,
+	.adjust_decode_sz = aspeed_2600_adjust_decode_sz,
+	.segment_start = aspeed_2600_spi_segment_start,
+	.segment_end = aspeed_2600_spi_segment_end,
+	.segment_reg = aspeed_2600_spi_segment_reg,
+};
+
 /*
- * If the slave device is spi-flash, there are two types of
+ * If the slave device is SPI flash, there are two types of
  * command mode for ASPEED SPI controller used to transfer
  * data. The first one is user mode and the other is
- * command read/write mode. With user mode, all spi-flash
- * command, address and data processes are handled by CPU.
+ * command read/write mode. With user mode, SPI flash command,
+ * address and data processes are all handled by CPU.
  * But, when address filter is enabled to protect some flash
  * regions from being written, user mode will be disabled.
  * Thus, here, we use command read/write mode to issue
- * spi operations. After remapping flash space correctly,
+ * SPI operations. After remapping flash space correctly,
  * we can easily read/write data to flash by reading or
- * writing related remapped address, then, SPI-flash command
- * and address will be transfered to flash by SPI controller
+ * writing related remapped address, then, SPI flash command
+ * and address will be transferred to flash by SPI controller
  * automatically. Besides, ASPEED SPI controller can also
  * block address or data bytes by configure FMC0C/SPIR0C
  * address and data mask register in order to satisfy the
- * following spi-flash operation sequences: (command) only,
+ * following SPI flash operation sequences: (command) only,
  * (command and address) only or (coommand and data) only.
  */
 static int aspeed_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
@@ -647,6 +693,7 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	int ret = 0;
 	struct aspeed_spi_controller *ast_ctrl =
 		spi_controller_get_devdata(desc->mem->spi->master);
+	struct device *dev = ast_ctrl->dev;
 	const struct aspeed_spi_info *info = ast_ctrl->info;
 	struct spi_mem_op op_tmpl = desc->info.op_tmpl;
 	uint32_t decode_sz_arr[5];
@@ -655,7 +702,7 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_IN) {
 		/* record original decode size */
-		for (cs = 0; cs < ast_ctrl->num_ce; cs++) {
+		for (cs = 0; cs < ast_ctrl->num_cs; cs++) {
 			reg_val = readl(ast_ctrl->regs +
 					OFFSET_CE0_DECODE_RANGE_REG + cs * 4);
 			decode_sz_arr[cs] =
@@ -666,10 +713,12 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 		decode_sz_arr[target_cs] = desc->info.length;
 
 		if (info->adjust_decode_sz)
-			info->adjust_decode_sz(decode_sz_arr, ast_ctrl->num_ce);
+			info->adjust_decode_sz(decode_sz_arr, ast_ctrl->num_cs);
 
-		for (cs = 0; cs < ast_ctrl->num_ce; cs++)
-			dev_dbg(ast_ctrl->dev, "sz: 0x%x\n", decode_sz_arr[cs]);
+		for (cs = 0; cs < ast_ctrl->num_cs; cs++) {
+			dev_dbg(dev, "cs: %d, sz: 0x%x\n", cs,
+				decode_sz_arr[cs]);
+		}
 
 		ret = aspeed_spi_decode_range_config(ast_ctrl, decode_sz_arr);
 		if (ret)
@@ -687,11 +736,15 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 		writel(reg_val,
 		       ast_ctrl->regs + OFFSET_CE0_CTRL_REG + target_cs * 4);
 		ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_READ] = reg_val;
-
 		ast_ctrl->chips[target_cs].max_clk_freq =
 			desc->mem->spi->max_speed_hz;
 
 		ret = info->calibrate(ast_ctrl, target_cs);
+
+		dev_info(dev, "read bus width: %d [0x%08x]\n",
+			 op_tmpl.data.buswidth,
+			 ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_READ]);
+
 	} else if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_OUT) {
 		reg_val = readl(ast_ctrl->regs + OFFSET_CE0_CTRL_REG +
 				target_cs * 4) &
@@ -699,6 +752,10 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 		reg_val |= aspeed_spi_get_io_mode(op_tmpl.data.buswidth) |
 			   op_tmpl.cmd.opcode << 16 | CTRL_IO_MODE_CMD_WRITE;
 		ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_WRITE] = reg_val;
+
+		dev_info(dev, "write bus width: %d [0x%08x]\n",
+			 op_tmpl.data.buswidth,
+			 ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_WRITE]);
 	}
 
 	return ret;
@@ -720,23 +777,26 @@ static const char *aspeed_spi_get_name(struct spi_mem *mem)
 	return name;
 }
 
-/* currently, only support 1-1-1, 1-1-2 or 1-1-4 spi format */
+/*
+ * Currently, only support 1-1-1, 1-1-2 or 1-1-4
+ * SPI flash operation format.
+ */
 static bool aspeed_spi_support_op(struct spi_mem *mem,
 				  const struct spi_mem_op *op)
 {
 	struct aspeed_spi_controller *ast_ctrl =
 		spi_controller_get_devdata(mem->spi->master);
 
-	if (1 < op->cmd.buswidth)
+	if (op->cmd.buswidth > 1)
 		return false;
 
 	if (op->addr.nbytes != 0) {
-		if (1 < op->addr.buswidth || 4 < op->addr.nbytes)
+		if (op->addr.buswidth > 1 || op->addr.nbytes > 4)
 			return false;
 	}
 
 	if (op->dummy.nbytes != 0) {
-		if (1 < op->dummy.buswidth || 7 < (op->dummy.nbytes))
+		if (op->dummy.buswidth > 1 || op->dummy.nbytes > 7)
 			return false;
 	}
 
@@ -762,64 +822,8 @@ static const struct spi_controller_mem_ops aspeed_spi_mem_ops = {
 	.dirmap_write = aspeed_spi_dirmap_write,
 };
 
-static int
-aspeed_spi_decode_range_config(struct aspeed_spi_controller *ast_ctrl,
-			       uint32_t decode_sz_arr[])
-{
-	struct aspeed_spi_chip *chip = ast_ctrl->chips;
-	uint32_t i;
-	uint32_t cs;
-	uint32_t decode_reg_val;
-	uint32_t start_addr_phy, end_addr_phy, pre_end_addr_phy = 0;
-	uint32_t total_decode_sz = 0;
-
-	/* decode range sanity */
-	for (cs = 0; cs < ast_ctrl->num_ce; cs++) {
-		total_decode_sz += decode_sz_arr[cs];
-		if (ast_ctrl->ahb_window_sz < total_decode_sz) {
-			dev_err(ast_ctrl->dev, "insufficient decode size\n");
-			for (i = 0; i <= cs; i++)
-				dev_err(ast_ctrl->dev, "cs:%d %x\n", i,
-					decode_sz_arr[i]);
-			return -ENOSPC;
-		}
-	}
-
-	for (cs = 0; cs < ast_ctrl->num_ce; cs++) {
-		if (chip[cs].ahb_base)
-			devm_iounmap(ast_ctrl->dev, chip[cs].ahb_base);
-	}
-
-	/* configure each CE's decode range */
-	for (cs = 0; cs < ast_ctrl->num_ce; cs++) {
-		if (cs == 0)
-			start_addr_phy = ast_ctrl->ahb_base_phy;
-		else
-			start_addr_phy = pre_end_addr_phy;
-
-		chip[cs].ahb_base = devm_ioremap(ast_ctrl->dev, start_addr_phy,
-						 decode_sz_arr[cs]);
-		chip[cs].ahb_base_phy = (void __iomem *)start_addr_phy;
-
-		chip[cs].ahb_window_sz = decode_sz_arr[cs];
-		end_addr_phy = start_addr_phy + decode_sz_arr[cs];
-
-		decode_reg_val = ast_ctrl->info->segment_reg(
-			ast_ctrl, start_addr_phy, end_addr_phy);
-
-		writel(decode_reg_val,
-		       ast_ctrl->regs + OFFSET_CE0_DECODE_RANGE_REG + cs * 4);
-
-		pre_end_addr_phy = end_addr_phy;
-
-		dev_dbg(ast_ctrl->dev, "decode_reg: 0x%x\n", decode_reg_val);
-	}
-
-	return 0;
-}
-
-/* 
- * Initialize spi controller for each chip select.
+/*
+ * Initialize SPI controller for each chip select.
  * Here, only the minimum decode range is configured
  * in order to get device (flash) information at the
  * early stage.
@@ -833,17 +837,17 @@ static int aspeed_spi_ctrl_init(struct aspeed_spi_controller *ast_ctrl)
 
 	/* enable write capability for all CEs */
 	val = readl(ast_ctrl->regs + OFFSET_CE_TYPE_SETTING);
-	writel(val | GENMASK(ast_ctrl->num_ce, 0),
+	writel(val | (GENMASK(ast_ctrl->num_cs, 0) << 16),
 	       ast_ctrl->regs + OFFSET_CE_TYPE_SETTING);
 
 	/* initial each CE's controller register */
-	for (cs = 0; cs < ast_ctrl->num_ce; cs++) {
+	for (cs = 0; cs < ast_ctrl->num_cs; cs++) {
 		val = CTRL_STOP_ACTIVE | CTRL_IO_MODE_USER;
 		writel(val, ast_ctrl->regs + OFFSET_CE0_CTRL_REG + cs * 4);
 		ast_ctrl->chips[cs].ctrl_val[ASPEED_SPI_BASE] = val;
 	}
 
-	for (cs = 0; cs < ast_ctrl->num_ce && cs < ASPEED_SPI_MAX_CS; cs++)
+	for (cs = 0; cs < ast_ctrl->num_cs && cs < ASPEED_SPI_MAX_CS; cs++)
 		decode_sz_arr[cs] = ast_ctrl->info->min_decode_sz;
 
 	ret = aspeed_spi_decode_range_config(ast_ctrl, decode_sz_arr);
@@ -899,21 +903,20 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	ast_ctrl->ahb_clk = clk_get_rate(clk);
 	devm_clk_put(&pdev->dev, clk);
 
-	if (of_property_read_u32(dev->of_node, "number_of_chip_select",
-				 &ast_ctrl->num_ce)) {
+	if (of_property_read_u32(dev->of_node, "num-cs", &ast_ctrl->num_cs)) {
 		dev_err(dev, "Fail to get chip number.\n");
 		goto end;
 	}
 
-	if (ASPEED_SPI_MAX_CS < ast_ctrl->num_ce) {
-		dev_err(dev, "chip number, %d, exceeds %d.\n", ast_ctrl->num_ce,
+	if (ast_ctrl->num_cs > ASPEED_SPI_MAX_CS) {
+		dev_err(dev, "chip number, %d, exceeds %d.\n", ast_ctrl->num_cs,
 			ASPEED_SPI_MAX_CS);
 		goto end;
 	}
 
 	ast_ctrl->chips =
 		devm_kzalloc(dev,
-			     sizeof(struct aspeed_spi_chip) * ast_ctrl->num_ce,
+			     sizeof(struct aspeed_spi_chip) * ast_ctrl->num_cs,
 			     GFP_KERNEL);
 
 	platform_set_drvdata(pdev, ast_ctrl);
@@ -924,7 +927,7 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	spi_ctrl->bus_num = -1;
 	spi_ctrl->mem_ops = &aspeed_spi_mem_ops;
 	spi_ctrl->dev.of_node = dev->of_node;
-	spi_ctrl->num_chipselect = ast_ctrl->num_ce;
+	spi_ctrl->num_chipselect = ast_ctrl->num_cs;
 
 	ret = aspeed_spi_ctrl_init(ast_ctrl);
 	if (ret)
@@ -938,16 +941,23 @@ end:
 
 static int aspeed_spi_remove(struct platform_device *pdev)
 {
+	struct aspeed_spi_controller *ast_ctrl = platform_get_drvdata(pdev);
+	uint32_t val;
+
+	/* disable write capability for all CEs */
+	val = readl(ast_ctrl->regs + OFFSET_CE_TYPE_SETTING);
+	writel(val & ~(GENMASK(ast_ctrl->num_cs, 0) << 16),
+	       ast_ctrl->regs + OFFSET_CE_TYPE_SETTING);
+
 	return 0;
 }
 
 static struct platform_driver aspeed_spi_driver = {
-	.driver =
-		{
-			.name = "ASPEED_FMC_SPI",
-			.bus = &platform_bus_type,
-			.of_match_table = aspeed_spi_matches,
-		},
+	.driver = {
+		.name = "ASPEED_FMC_SPI",
+		.bus = &platform_bus_type,
+		.of_match_table = aspeed_spi_matches,
+	},
 	.probe = aspeed_spi_probe,
 	.remove = aspeed_spi_remove,
 };
@@ -955,4 +965,5 @@ module_platform_driver(aspeed_spi_driver);
 
 MODULE_DESCRIPTION("ASPEED FMC/SPI Controller Driver");
 MODULE_AUTHOR("Chin-Ting Kuo <chin-ting_kuo@aspeedtech.com>");
+MODULE_AUTHOR("Cedric Le Goater <clg@kaod.org>");
 MODULE_LICENSE("GPL v2");
