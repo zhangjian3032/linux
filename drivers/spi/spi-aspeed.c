@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 /*
- * ASPEED FMC/SPI Controller driver
+ * ASPEED FMC/SPI Memory Controller Driver
  *
  * Copyright (c) 2020, ASPEED Corporation.
  * Copyright (c) 2015-2016, IBM Corporation.
@@ -9,14 +9,12 @@
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
-#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -25,36 +23,36 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>
 
-/* ASPEED FMC/SPI control register related */
-#define OFFSET_CE_TYPE_SETTING          0x00
-#define OFFSET_CE_ADDR_MODE_CTRL        0x04
-#define OFFSET_INTR_CTRL_STATUS         0x08
-#define OFFSET_ADDR_DATA_MASK           0x0c
-#define OFFSET_CE0_CTRL_REG             0x10
-#define OFFSET_CE0_DECODE_RANGE_REG     0x30
-#define OFFSET_DMA_CTRL                 0x80
-#define OFFSET_DMA_FLASH_ADDR_REG       0x84
-#define OFFSET_DMA_RAM_ADDR_REG         0x88
-#define OFFSET_DMA_LEN_REG              0x8c
-#define OFFSET_DMA_CHECKSUM_RESULT      0x90
-#define OFFSET_CE0_TIMING_COMPENSATION  0x94
+/* ASPEED FMC/SPI memory control register related */
+#define OFFSET_CE_TYPE_SETTING		0x00
+#define OFFSET_CE_ADDR_MODE_CTRL	0x04
+#define OFFSET_INTR_CTRL_STATUS		0x08
+#define OFFSET_ADDR_DATA_MASK		0x0c
+#define OFFSET_CE0_CTRL_REG		0x10
+#define OFFSET_CE0_DECODE_RANGE_REG	0x30
+#define OFFSET_DMA_CTRL			0x80
+#define OFFSET_DMA_FLASH_ADDR_REG	0x84
+#define OFFSET_DMA_RAM_ADDR_REG		0x88
+#define OFFSET_DMA_LEN_REG		0x8c
+#define OFFSET_DMA_CHECKSUM_RESULT	0x90
+#define OFFSET_CE0_TIMING_COMPENSATION	0x94
 
-#define CTRL_IO_SINGLE_DATA  0
-#define CTRL_IO_DUAL_DATA    BIT(29)
-#define CTRL_IO_QUAD_DATA    BIT(30)
+#define CTRL_IO_SINGLE_DATA	0
+#define CTRL_IO_DUAL_DATA	BIT(29)
+#define CTRL_IO_QUAD_DATA	BIT(30)
 
-#define CTRL_IO_MODE_USER       GENMASK(1, 0)
-#define CTRL_IO_MODE_CMD_READ   BIT(0)
-#define CTRL_IO_MODE_CMD_WRITE  BIT(1)
-#define CTRL_STOP_ACTIVE        BIT(2)
+#define CTRL_IO_MODE_USER	GENMASK(1, 0)
+#define CTRL_IO_MODE_CMD_READ	BIT(0)
+#define CTRL_IO_MODE_CMD_WRITE	BIT(1)
+#define CTRL_STOP_ACTIVE	BIT(2)
 
-#define CALIBRATION_LEN     0x400
-#define SPI_DAM_REQUEST     BIT(31)
-#define SPI_DAM_GRANT       BIT(30)
-#define SPI_DMA_CALIB_MODE  BIT(3)
-#define SPI_DMA_CALC_CKSUM  BIT(2)
-#define SPI_DMA_ENABLE      BIT(0)
-#define SPI_DMA_STATUS      BIT(11)
+#define CALIBRATION_LEN		0x400
+#define SPI_DAM_REQUEST		BIT(31)
+#define SPI_DAM_GRANT		BIT(30)
+#define SPI_DMA_CALIB_MODE	BIT(3)
+#define SPI_DMA_CALC_CKSUM	BIT(2)
+#define SPI_DMA_ENABLE		BIT(0)
+#define SPI_DMA_STATUS		BIT(11)
 
 enum aspeed_spi_ctl_reg_value {
 	ASPEED_SPI_BASE,
@@ -234,7 +232,7 @@ static int get_mid_point_of_longest_one(uint8_t *buf, uint32_t len)
 	}
 
 	/*
-	 * In order to get stable SPI read/write timing,
+	 * In order to get a stable SPI read timing,
 	 * abandon the result if the length of longest
 	 * consecutive good points is too short.
 	 */
@@ -289,7 +287,7 @@ aspeed_2600_spi_clk_basic_setting(struct aspeed_spi_controller *ast_ctrl,
 /*
  * If SPI frequency is too high, timing compensation is needed,
  * otherwise, SPI controller will sample unready data. For AST2600
- * SPI flash controller, only the first four frequency levels
+ * SPI memory controller, only the first four frequency levels
  * (HCLK/2, HCLK/3,..., HCKL/5) may need timing compensation.
  * Here, for each frequency, we will get a sequence of reading
  * result (pass or fail) compared to golden data. Then, getting the
@@ -429,7 +427,7 @@ no_calib:
 }
 
 /*
- * AST2600 SPI flash controllers support multiple chip selects.
+ * AST2600 SPI memory controllers support multiple chip selects.
  * The start address of a decode range should be multiple
  * of its related flash size. Namely, the total decoded size
  * from flash 0 to flash N should be multiple of flash (N + 1).
@@ -520,20 +518,20 @@ static const struct aspeed_spi_info ast2600_spi_info = {
 };
 
 /*
- * If the slave device is SPI flash, there are two types of
- * command mode for ASPEED SPI controller used to transfer
- * data. The first one is user mode and the other is
- * command read/write mode. With user mode, SPI flash command,
- * address and data processes are all handled by CPU.
+ * If the slave device is SPI NOR flash, there are two types
+ * of command mode for ASPEED SPI memory controller used to
+ * transfer data. The first one is user mode and the other is
+ * command read/write mode. With user mode, SPI NOR flash
+ * command, address and data processes are all handled by CPU.
  * But, when address filter is enabled to protect some flash
  * regions from being written, user mode will be disabled.
- * Thus, here, we use command read/write mode to issue
- * SPI operations. After remapping flash space correctly,
- * we can easily read/write data to flash by reading or
- * writing related remapped address, then, SPI flash command
- * and address will be transferred to flash by SPI controller
- * automatically. Besides, ASPEED SPI controller can also
- * block address or data bytes by configure FMC0C/SPIR0C
+ * Thus, here, we use command read/write mode to issue SPI
+ * operations. After remapping flash space correctly, we can
+ * easily read/write data to flash by reading or writing
+ * related remapped address, then, SPI NOR flash command and
+ * address will be transferred to flash by controller
+ * automatically. Besides, ASPEED SPI memory controller can
+ * also block address or data bytes by configure FMC0C/SPIR0C
  * address and data mask register in order to satisfy the
  * following SPI flash operation sequences: (command) only,
  * (command and address) only or (coommand and data) only.
@@ -779,7 +777,7 @@ static const char *aspeed_spi_get_name(struct spi_mem *mem)
 
 /*
  * Currently, only support 1-1-1, 1-1-2 or 1-1-4
- * SPI flash operation format.
+ * SPI NOR flash operation format.
  */
 static bool aspeed_spi_support_op(struct spi_mem *mem,
 				  const struct spi_mem_op *op)
@@ -825,8 +823,8 @@ static const struct spi_controller_mem_ops aspeed_spi_mem_ops = {
 /*
  * Initialize SPI controller for each chip select.
  * Here, only the minimum decode range is configured
- * in order to get device (flash) information at the
- * early stage.
+ * in order to get device (SPI NOR flash) information
+ * at the early stage.
  */
 static int aspeed_spi_ctrl_init(struct aspeed_spi_controller *ast_ctrl)
 {
@@ -880,18 +878,18 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 
 	match = of_match_device(aspeed_spi_matches, dev);
 	if (!match || !match->data) {
-		dev_err(dev, "No compatible OF match\n");
+		dev_err(dev, "no compatible OF match\n");
 		return -ENODEV;
 	}
 
 	ast_ctrl->info = match->data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "spi_ctrl_reg");
 	ast_ctrl->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ast_ctrl->regs))
 		return PTR_ERR(ast_ctrl->regs);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "spi_mmap");
 	ast_ctrl->ahb_base_phy = res->start;
 	ast_ctrl->ahb_window_sz = resource_size(res);
 
@@ -904,7 +902,7 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	devm_clk_put(&pdev->dev, clk);
 
 	if (of_property_read_u32(dev->of_node, "num-cs", &ast_ctrl->num_cs)) {
-		dev_err(dev, "Fail to get chip number.\n");
+		dev_err(dev, "fail to get chip number.\n");
 		goto end;
 	}
 
@@ -963,7 +961,7 @@ static struct platform_driver aspeed_spi_driver = {
 };
 module_platform_driver(aspeed_spi_driver);
 
-MODULE_DESCRIPTION("ASPEED FMC/SPI Controller Driver");
+MODULE_DESCRIPTION("ASPEED FMC/SPI Memory Controller Driver");
 MODULE_AUTHOR("Chin-Ting Kuo <chin-ting_kuo@aspeedtech.com>");
 MODULE_AUTHOR("Cedric Le Goater <clg@kaod.org>");
 MODULE_LICENSE("GPL v2");
