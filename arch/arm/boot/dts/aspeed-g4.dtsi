@@ -29,6 +29,7 @@
 		serial3 = &uart4;
 		serial4 = &uart5;
 		serial5 = &vuart;
+		peci0 = &peci0;
 	};
 
 	cpus {
@@ -66,26 +67,6 @@
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
 				spi-max-frequency = <50000000>;
-				status = "disabled";
-			};
-			flash@1 {
-				reg = < 1 >;
-				compatible = "jedec,spi-nor";
-				status = "disabled";
-			};
-			flash@2 {
-				reg = < 2 >;
-				compatible = "jedec,spi-nor";
-				status = "disabled";
-			};
-			flash@3 {
-				reg = < 3 >;
-				compatible = "jedec,spi-nor";
-				status = "disabled";
-			};
-			flash@4 {
-				reg = < 4 >;
-				compatible = "jedec,spi-nor";
 				status = "disabled";
 			};
 		};
@@ -379,6 +360,20 @@
 					sio_regs: regs {
 						compatible = "aspeed,bmc-misc";
 					};
+
+					mbox: mbox@180 {
+						compatible = "aspeed,ast2400-mbox";
+						reg = <0x180 0x5c>;
+						interrupts = <46>;
+						#mbox-cells = <1>;
+						status = "disabled";
+					};
+				};
+
+				uart_routing: uart_routing@9c {
+					compatible = "aspeed,ast2400-uart-routing";
+					reg = <0x9c 0x4>;
+					status = "disabled";
 				};
 			};
 
