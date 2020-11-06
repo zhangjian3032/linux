@@ -45,4 +45,8 @@ config MACH_ASPEED_G6
 	 Say yes if you intend to run on an Aspeed ast2600 or similar
 	 sixth generation Aspeed BMCs.
 
+config ARCH_AST2605
+	bool "Aspeed AST2605"
+	help
+	 Say yes if you intend to run on ast2605 SoC.
 endif
