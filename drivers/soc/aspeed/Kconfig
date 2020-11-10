@@ -139,4 +139,7 @@ config ASPEED_SSP
         default n
         help
           Driver for loading secondary-service-processor binary
+
+source "drivers/soc/aspeed/rvas/Kconfig"
+
 endmenu

@@ -20,3 +20,4 @@ obj-$(CONFIG_ASPEED_ESPI) += aspeed-espi-ctrl.o \
 			     aspeed-espi-mmbi.o
 obj-$(CONFIG_ASPEED_JTAG)	+= aspeed-jtag.o
 obj-$(CONFIG_ASPEED_SSP)        += aspeed-ssp.o
+obj-$(CONFIG_ASPEED_RVAS)		+= rvas/
