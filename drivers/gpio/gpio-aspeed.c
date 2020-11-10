@@ -652,6 +652,13 @@ static int aspeed_gpio_set_type(struct irq_data *d, unsigned int type)
 		aspeed_gpio_copro_release(gpio, offset);
 	spin_unlock_irqrestore(&gpio->lock, flags);
 
+	rc = gpiochip_lock_as_irq(&gpio->chip, d->hwirq);
+	if (rc) {
+		dev_err(gpio->chip.parent, "unable to lock GPIO %lu as IRQ\n",
+			d->hwirq);
+		return rc;
+	}
+
 	irq_set_handler_locked(d, handler);
 
 	return 0;
