@@ -355,12 +355,12 @@
 			#size-cells = <1>;
 
 			u-boot@0 {
-				reg = <0x0 0xF0000>;
+				reg = <0x0 0xe0000>;
 				label = "u-boot";
 			};
 
 			u-boot-env@e0000 {
-				reg = <0xF0000 0x10000>;
+				reg = <0xe0000 0x10000>;
 				label = "u-boot-env";
 			};
 
