@@ -795,11 +795,3 @@
 &ssp {
 	memory-region = <&ssp_memory>;
 };
-
-&hace {
-	status = "okay";
-};
-
-&acry {
-	status = "okay";
-};

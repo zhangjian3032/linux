@@ -87,6 +87,7 @@ static int aspeed_espi_ctrl_probe(struct platform_device *pdev)
 	dev = &pdev->dev;
 
 	espi_ctrl = devm_kzalloc(dev, sizeof(*espi_ctrl), GFP_KERNEL);
+
 	if (!espi_ctrl)
 		return -ENOMEM;
 
