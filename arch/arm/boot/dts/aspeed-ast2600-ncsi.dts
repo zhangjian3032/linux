@@ -450,29 +450,37 @@
 	status = "okay";
 };
 
-&espi {
-	status = "okay";
-	resets = <&syscon ASPEED_RESET_ESPI>;
-	delay-timing = <0x7>;
-};
-
-&peripheral {
-	status = "okay";
-	host-map-addr = <0x98000000>;
-	map-size = <0x10000>;
-};
-
-&virtial_wire {
+&espi_ic {
 	status = "okay";
 };
 
-&oob {
-	status = "okay";
+&espi_ctrl {
+    status = "okay";
 };
 
-&flash {
-	status = "okay";
+&espi_peripheral {
+    status = "okay";
+    memcyc,map-src-addr = <0x98000000>;
+    memcyc,map-size = <0x10000>;
+    dma-mode;
 };
+
+&espi_vw {
+    status = "okay";
+};
+
+&espi_oob {
+    status = "okay";
+    dma-mode;
+    dma-tx-channel-num = <2>;
+    dma-rx-channel-num = <8>;
+};
+
+&espi_flash {
+    status = "okay";
+    safs-mode = <2>;
+};
+
 
 &emmc_controller {
 	status = "okay";

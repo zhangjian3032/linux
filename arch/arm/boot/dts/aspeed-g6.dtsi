@@ -5,6 +5,7 @@
 #include <dt-bindings/clock/ast2600-clock.h>
 #include <dt-bindings/gpio/aspeed-gpio.h>
 #include <dt-bindings/interrupt-controller/aspeed-scu-ic.h>
+#include <dt-bindings/interrupt-controller/aspeed-espi-ic.h>
 
 / {
 	model = "Aspeed BMC";
@@ -67,11 +68,13 @@
 			reg = <0xf00>;
 		};
 
+		/*
 		cpu@f01 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <0xf01>;
 		};
+		*/
 	};
 
 	timer {
@@ -575,55 +578,65 @@
 
 			espi: espi@1e6ee000 {
 				compatible = "aspeed,ast2600-espi", "simple-mfd", "syscon";
-				reg = <0x1e6ee000 0x200>;
-				reg-io-width = <4>;
-				interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
-						      <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
+				reg = <0x1e6ee000 0x1000>;
+
 				#address-cells = <1>;
 				#size-cells = <1>;
-				interrupt-controller;
-				#interrupt-cells = <1>;
-				ranges = <0x0 0x1e6ee000 0x200>;
-				status = "disabled";
+				ranges = <0x0 0x1e6ee000 0x1000>;
 
-				peripheral: peripheral-channel@0 {
+				espi_ic: espi-ic {
+					#interrupt-cells = <1>;
+					compatible = "aspeed,ast2600-espi-ic";
+					interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
+							      <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
+					interrupt-controller;
+					status = "disabled";
+				};
+
+				espi_ctrl: espi-ctrl {
+					compatible = "aspeed,ast2600-espi-ctrl";
+					interrupts-extended = <&espi_ic ASPEED_ESPI_IC_CTRL_EVENT>,
+							      <&espi_ic ASPEED_ESPI_IC_CTRL_RESET>;
+					resets = <&syscon ASPEED_CLK_GATE_ESPICLK>;
+					clocks = <&syscon ASPEED_RESET_ESPI>;
+					status = "disabled";
+				};
+
+				espi_peripheral: espi-peripheral-channel {
 					compatible = "aspeed,ast2600-espi-peripheral";
-					reg = <0x0 0x200>;
-					interrupts-extended = <&espi 0>, <&espi 4>;
-					dma-mode;
-					aspeed,espi-mmbi = <&espi_mmbi>;
+					interrupts-extended = <&espi_ic ASPEED_ESPI_IC_PERIF_EVENT>,
+							      <&espi_ic ASPEED_ESPI_IC_CHAN_RESET>;
 					status = "disabled";
 				};
 
-				virtial_wire: vw-channel@0 {
-					compatible = "aspeed,ast2600-espi-virtial-wire";
-					reg = <0x0 0x200>;
-					interrupts-extended = <&espi 1>, <&espi 4>;
+				espi_vw: espi-vw-channel {
+					compatible = "aspeed,ast2600-espi-vw";
+					interrupts-extended = <&espi_ic ASPEED_ESPI_IC_VW_EVENT>,
+							      <&espi_ic ASPEED_ESPI_IC_CHAN_RESET>;
 					status = "disabled";
 				};
 
-				oob: oob-channel@0 {
+				espi_oob: espi-oob-channel {
 					compatible = "aspeed,ast2600-espi-oob";
-					reg = <0x0 0x200>;
-					interrupts-extended = <&espi 2>, <&espi 4>;
-					dma-mode;
+					interrupts-extended = <&espi_ic ASPEED_ESPI_IC_OOB_EVENT>,
+							      <&espi_ic ASPEED_ESPI_IC_CHAN_RESET>;
 					status = "disabled";
 				};
 
-				flash: flash-channel@0 {
+				espi_flash: espi-flash-channel {
 					compatible = "aspeed,ast2600-espi-flash";
-					reg = <0x0 0x200>;
-					interrupts-extended = <&espi 3>, <&espi 4>;
-					dma-mode;
+					interrupts-extended = <&espi_ic ASPEED_ESPI_IC_FLASH_EVENT>,
+							      <&espi_ic ASPEED_ESPI_IC_CHAN_RESET>;
 					status = "disabled";
 				};
-			};
 
-			espi_mmbi: espi_mmbi@1e6ee800 {
-				compatible = "aspeed,ast2600-espi-mmbi";
-				interrupts-extended = <&gic GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
-				dma-mode;
-				status = "disabled";
+				mmbi: mmbi@800 {
+					compatible = "aspeed,ast2600-espi-mmbi";
+					reg = <0x800 0x50>;
+					interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+					aspeed,espi-peripheral = <&espi_peripheral>;
+					status = "disabled";
+				};
 			};
 
 			video: video@1e700000 {
