@@ -14,10 +14,10 @@ config ASPEED_BMC_MISC
 	  miscellaneous control interfaces specific to the ASPEED BMC SoCs
 
 config ASPEED_BMC_DEV
-	tristate "HOST BMC DEVICE"
+	tristate "ASPEED BMC Device"
 
-config ASPEED_HOST_BMC
-	tristate "PCI Host BMC"
+config ASPEED_HOST_BMC_DEV
+	tristate "ASPEED Host BMC Device"
 
 config ASPEED_HID
 	tristate "ASPEED HID"

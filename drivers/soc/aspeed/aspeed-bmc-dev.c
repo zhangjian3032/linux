@@ -102,6 +102,13 @@ struct aspeed_bmc_device {
 #define	 HOST2BMC_Q2_FULL_UNMASK		BIT(21)
 #define	 HOST2BMC_Q2_EMPTY_UNMASK		BIT(20)
 
+#define ASPEED_SCU_PCIE_CONF_CTRL	0xC20
+#define  SCU_PCIE_CONF_BMC_DEV_EN			 BIT(8)
+#define  SCU_PCIE_CONF_BMC_DEV_EN_MMIO		 BIT(9)
+#define  SCU_PCIE_CONF_BMC_DEV_EN_MSI		 BIT(11)
+#define  SCU_PCIE_CONF_BMC_DEV_EN_IRQ		 BIT(13)
+#define  SCU_PCIE_CONF_BMC_DEV_EN_DMA		 BIT(14)
+
 static struct aspeed_bmc_device *file_aspeed_bmc_device(struct file *file)
 {
 	return container_of(file->private_data, struct aspeed_bmc_device,
@@ -242,7 +249,9 @@ static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 //	printk("aspeed_bmc_device_init \n");
 
 	//enable bmc device mmio
-	regmap_update_bits(bmc_device->scu, 0xc20, BIT(13) | GENMASK(9, 8), BIT(13) | GENMASK(9, 8));
+	regmap_update_bits(bmc_device->scu, ASPEED_SCU_PCIE_CONF_CTRL,
+			SCU_PCIE_CONF_BMC_DEV_EN_IRQ | SCU_PCIE_CONF_BMC_DEV_EN_MMIO | SCU_PCIE_CONF_BMC_DEV_EN, 
+			SCU_PCIE_CONF_BMC_DEV_EN_IRQ | SCU_PCIE_CONF_BMC_DEV_EN_MMIO | SCU_PCIE_CONF_BMC_DEV_EN);
 
 #ifdef SCU_TRIGGER_MSI
 	//SCUC24[17]: Enable PCI device 1 INTx/MSI from SCU560[15]. Will be added in next version
