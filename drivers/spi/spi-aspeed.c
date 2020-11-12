@@ -30,6 +30,8 @@
 #define OFFSET_ADDR_DATA_MASK		0x0c
 #define OFFSET_CE0_CTRL_REG		0x10
 #define OFFSET_CE0_DECODE_RANGE_REG	0x30
+#define OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL4	0x6c
+#define OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL2	0x74
 #define OFFSET_DMA_CTRL			0x80
 #define OFFSET_DMA_FLASH_ADDR_REG	0x84
 #define OFFSET_DMA_RAM_ADDR_REG		0x88
@@ -79,6 +81,9 @@ struct aspeed_spi_info {
 				uint32_t reg);
 	uint32_t (*segment_reg)(struct aspeed_spi_controller *ast_ctrl,
 				uint32_t start, uint32_t end);
+	void (*safs_support)(struct aspeed_spi_controller *ast_ctrl,
+		enum spi_mem_data_dir dir, uint8_t cmd,
+		uint8_t bus_width, uint8_t dummy);
 };
 
 struct aspeed_spi_chip {
@@ -504,6 +509,53 @@ aspeed_spi_decode_range_config(struct aspeed_spi_controller *ast_ctrl,
 	return 0;
 }
 
+static const struct aspeed_spi_info ast2600_fmc_info = {
+	.max_data_bus_width = 4,
+	.cmd_io_ctrl_mask = 0xf0ff40c3,
+	/* for ast2600, the minimum decode size for each CE is 2MB */
+	.min_decode_sz = 0x200000,
+	.set_4byte = aspeed_spi_chip_set_4byte,
+	.calibrate = aspeed_2600_spi_timing_calibration,
+	.adjust_decode_sz = aspeed_2600_adjust_decode_sz,
+	.segment_start = aspeed_2600_spi_segment_start,
+	.segment_end = aspeed_2600_spi_segment_end,
+	.segment_reg = aspeed_2600_spi_segment_reg,
+};
+
+void aspeed_2600_spi_fill_safs_cmd(struct aspeed_spi_controller *ast_ctrl,
+		enum spi_mem_data_dir dir, uint8_t cmd,
+		uint8_t bus_width, uint8_t dummy)
+{
+	uint32_t tmp_val;
+
+	if (dir == SPI_MEM_DATA_IN) {
+		tmp_val = readl(ast_ctrl->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL4);
+		if (bus_width == 4)
+			tmp_val = (tmp_val & 0xffff00ff) | (cmd << 8);
+		else
+			tmp_val = (tmp_val & 0xffffff00) | cmd;
+
+		tmp_val = (tmp_val & 0x00ffffff) | aspeed_spi_get_io_mode(bus_width);
+
+		writel(tmp_val, ast_ctrl->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL4);
+
+	} else if (dir == SPI_MEM_DATA_OUT) {
+		tmp_val = readl(ast_ctrl->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL4);
+		tmp_val = (tmp_val & 0xff00ffff) |
+				(aspeed_spi_get_io_mode(bus_width) >> 8);
+
+		writel(tmp_val, ast_ctrl->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL4);
+
+		tmp_val = readl(ast_ctrl->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL2);
+		if (bus_width == 4)
+			tmp_val = (tmp_val & 0xffff00ff) | (cmd << 8);
+		else
+			tmp_val = (tmp_val & 0xffffff00) | cmd;
+
+		writel(tmp_val, ast_ctrl->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL2);
+	}
+}
+
 static const struct aspeed_spi_info ast2600_spi_info = {
 	.max_data_bus_width = 4,
 	.cmd_io_ctrl_mask = 0xf0ff40c3,
@@ -515,6 +567,7 @@ static const struct aspeed_spi_info ast2600_spi_info = {
 	.segment_start = aspeed_2600_spi_segment_start,
 	.segment_end = aspeed_2600_spi_segment_end,
 	.segment_reg = aspeed_2600_spi_segment_reg,
+	.safs_support = aspeed_2600_spi_fill_safs_cmd,
 };
 
 /*
@@ -632,7 +685,7 @@ static int aspeed_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	return 0;
 }
 
-static int aspeed_spi_dirmap_read(struct spi_mem_dirmap_desc *desc,
+static ssize_t aspeed_spi_dirmap_read(struct spi_mem_dirmap_desc *desc,
 				  uint64_t offs, size_t len, void *buf)
 {
 	struct aspeed_spi_controller *ast_ctrl =
@@ -655,7 +708,7 @@ static int aspeed_spi_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	return len;
 }
 
-static int aspeed_spi_dirmap_write(struct spi_mem_dirmap_desc *desc,
+static ssize_t aspeed_spi_dirmap_write(struct spi_mem_dirmap_desc *desc,
 				   uint64_t offs, size_t len, const void *buf)
 {
 	struct aspeed_spi_controller *ast_ctrl =
@@ -756,6 +809,12 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 			 ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_WRITE]);
 	}
 
+
+	if (info->safs_support) {
+		info->safs_support(ast_ctrl, desc->info.op_tmpl.data.dir,
+			op_tmpl.cmd.opcode, op_tmpl.data.buswidth, op_tmpl.dummy.nbytes);
+	}
+
 	return ret;
 }
 
@@ -854,7 +913,7 @@ static int aspeed_spi_ctrl_init(struct aspeed_spi_controller *ast_ctrl)
 }
 
 static const struct of_device_id aspeed_spi_matches[] = {
-	{ .compatible = "aspeed,ast2600-fmc", .data = &ast2600_spi_info },
+	{ .compatible = "aspeed,ast2600-fmc", .data = &ast2600_fmc_info },
 	{ .compatible = "aspeed,ast2600-spi", .data = &ast2600_spi_info },
 	{ /* sentinel */ }
 };
