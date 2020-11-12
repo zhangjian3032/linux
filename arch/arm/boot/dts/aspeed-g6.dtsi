@@ -88,7 +88,7 @@
 	};
 
 	edac: sdram@1e6e0000 {
-		compatible = "aspeed,ast2600-sdram-edac";
+		compatible = "aspeed,ast2600-sdram-edac", "syscon";
 		reg = <0x1e6e0000 0x174>;
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 	};
@@ -399,12 +399,7 @@
 			pinctrl-0 = <&pinctrl_usb2bd_default>;
 			status = "disabled";
 		};
-#if 0
-		sdmc: sdram@1e6e0000 {
-			compatible = "syscon";
-			reg = <0x1e6e0000 0xb8>;
-		};
-#endif
+
 		apb {
 			compatible = "simple-bus";
 			#address-cells = <1>;
@@ -560,10 +555,8 @@
 				interrupts-extended = <&gic GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
 						      <&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_PERST_LO_TO_HI>;
 				aspeed,pcie-device = "bmc";
-#if 0
 				aspeed,scu = <&syscon>;
-				sdmc = <&sdmc>;
-#endif
+				sdmc = <&edac>;
 				status = "disabled";
 			};
 
