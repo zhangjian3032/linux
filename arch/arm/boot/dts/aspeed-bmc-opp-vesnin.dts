@@ -82,7 +82,8 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-        label = "bmc";
+		label = "bmc";
+		reg = <0>;
 #include "openbmc-flash-layout.dtsi"
 	};
 
@@ -90,6 +91,7 @@
 		status = "okay";
 		m25p,fast-read;
 		label = "alt";
+		reg = <1>;
 	};
 };
 
