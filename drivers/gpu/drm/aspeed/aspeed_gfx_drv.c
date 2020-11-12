@@ -150,18 +150,12 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	dev_id = of_match_device(aspeed_gfx_match, &pdev->dev);
 	if (!dev_id)
 		return -EINVAL;
-
+	
 	priv->version = (int)dev_id->data;
 	priv->scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
 	if (IS_ERR(priv->scu)) {
 		dev_err(&pdev->dev, "failed to find SCU regmap\n");
 		return PTR_ERR(priv->scu);
-	}
-
-	priv->pcie = syscon_regmap_lookup_by_compatible("aspeed,aspeed-pcie");
-	if (IS_ERR(priv->pcie)) {
-		dev_err(&pdev->dev, "failed to find PCIe regmap\n");
-		return PTR_ERR(priv->pcie);
 	}
 
 	ret = of_reserved_mem_device_init(drm->dev);
@@ -274,20 +268,6 @@ static ssize_t dac_mux_store(struct device *dev, struct device_attribute *attr,
 	struct aspeed_gfx *priv = drm->dev_private;
 	u32 val;
 	int rc;
-
-	if(regmap_read(priv->pcie, 0xc4, &val))
-		return 0;
-
-	/* 1: pcie host power on */
-	if(val & BIT(19))
-		return 0;
-	
-	rc = kstrtou32(buf, 0, &val);
-	if (rc)
-		return rc;
-
-	if (val > 3)
-		return -EINVAL;
 
 	if(priv->version == GFX_AST2600)
 		rc = regmap_update_bits(priv->scu, 0xc0, BIT(16), val << 16);

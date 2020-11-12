@@ -462,13 +462,6 @@
 				quality = <100>;
 			};
 
-			dac_ctrl: dac_ctrl@1e6e20c0 {
-				compatible = "aspeed,ast2600-dac-ctrl";
-				interrupts-extended = <&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_PERST_LO_TO_HI>,
-						     		<&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_PERST_HI_TO_LO>;
-				status = "disabled";
-			};
-
 			hid: hid@1e6e1000 {
 				compatible = "aspeed,ast2600-hid";
 				reg= <0x1e6e1000 0x20>;

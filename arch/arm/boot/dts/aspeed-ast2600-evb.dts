@@ -699,10 +699,6 @@
 	memory-region = <&gfx_memory>;
 };
 
-&dac_ctrl {
-	status = "okay";
-};
-
 #endif
 
 &pcie {
