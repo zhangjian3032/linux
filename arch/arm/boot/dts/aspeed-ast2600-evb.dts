@@ -97,6 +97,18 @@
 		&pinctrl_adc14_default &pinctrl_adc15_default>;
 };
 
+&mctp0 {
+	tx-payload-bytes= <64>;
+	rx-payload-bytes= <64>;
+	status = "okay";
+};
+
+&mctp1 {
+	tx-payload-bytes= <64>;
+	rx-payload-bytes= <64>;
+	status = "okay";
+};
+
 &sgpiom0 {
         status = "okay";
 };
