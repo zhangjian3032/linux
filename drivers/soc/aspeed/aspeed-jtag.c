@@ -297,6 +297,32 @@ static void aspeed_jtag_wait_data_complete(struct aspeed_jtag_info *aspeed_jtag)
 	JTAG_DBUG("\n");
 	aspeed_jtag->flag = 0;
 }
+
+static int aspeed_jtag_run_to_idle(struct aspeed_jtag_info *aspeed_jtag)
+{
+	int tap_status;
+	tap_status = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW) & GENMASK(2, 0);
+	if (tap_status & JTAG_STS_ENG_IDLE)
+		return 0;
+	else if (tap_status & JTAG_STS_DATA_PAUSE) {
+		aspeed_jtag_write(aspeed_jtag,
+				  JTAG_ENG_EN | JTAG_ENG_OUT_EN |
+					  JTAG_G6_TERMINATE_XFER |
+					  JTAG_G6_LAST_XFER | JTAG_DATA_EN,
+				  ASPEED_JTAG_CTRL);
+		aspeed_jtag_wait_data_complete(aspeed_jtag);
+		return 0;
+	} else if (tap_status & JTAG_STS_INST_PAUSE) {
+		aspeed_jtag_write(aspeed_jtag,
+				JTAG_ENG_EN | JTAG_ENG_OUT_EN |
+					JTAG_G6_TERMINATE_XFER |
+					JTAG_G6_LAST_XFER | JTAG_G6_INST_EN,
+				ASPEED_JTAG_CTRL);
+		aspeed_jtag_wait_instruction_complete(aspeed_jtag);
+		return 0;
+	}
+	return -1;
+}
 /******************************************************************************/
 /* JTAG_reset() is to generate at leaspeed 9 TMS high and
  * 1 TMS low to force devices into Run-Test/Idle State
@@ -375,7 +401,7 @@ static void aspeed_jtag_run_test_idle(struct aspeed_jtag_info *aspeed_jtag, stru
 		if (runtest->reset)
 			aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN | JTAG_FORCE_TMS, ASPEED_JTAG_CTRL);	// x TMS high + 1 TMS low
 		else
-			aspeed_jtag_write(aspeed_jtag, JTAG_GO_IDLE, ASPEED_JTAG_IDLE);
+			aspeed_jtag_run_to_idle(aspeed_jtag);
 		mdelay(2);
 		aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO, ASPEED_JTAG_SW);
 		aspeed_jtag->sts = 0;
