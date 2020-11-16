@@ -729,17 +729,15 @@ static void aspeed_hw_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 		}
 		remain_xfer = remain_xfer - shift_bits;
 		//handle tdo data
-		if (!sdr->direct) {
-			tmp_idx = shift_bits / 32;
-			if (shift_bits % 32) tmp_idx += 1;
-			for (i = 0; i < tmp_idx; i++) {
-				if (shift_bits < 32)
-					aspeed_jtag->tdo[index + i] = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_DATA) >> (32 - shift_bits);
-				else
-					aspeed_jtag->tdo[index + i] = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_DATA);
-				JTAG_DBUG("R dr->dr_data[%d]: %x\n", index, aspeed_jtag->tdo[index]);
-				shift_bits -= 32;
-			}
+		tmp_idx = shift_bits / 32;
+		if (shift_bits % 32) tmp_idx += 1;
+		for (i = 0; i < tmp_idx; i++) {
+			if (shift_bits < 32)
+				aspeed_jtag->tdo[index + i] = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_DATA) >> (32 - shift_bits);
+			else
+				aspeed_jtag->tdo[index + i] = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_DATA);
+			JTAG_DBUG("R dr->dr_data[%d]: %x\n", index, aspeed_jtag->tdo[index]);
+			shift_bits -= 32;
 		}
 
 		index += tmp_idx;
