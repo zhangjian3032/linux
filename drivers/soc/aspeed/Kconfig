@@ -75,6 +75,14 @@ config ASPEED_XDMA
 	  SOCs. The XDMA engine can perform automatic PCI DMA operations
 	  between the AST2XXX (acting as a BMC) and a host processor.
 
+config ASPEED_MCTP
+	tristate "Aspeed MCTP Engine Driver"
+	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
+	help
+	  Enable support for the Aspeed MCTP Engine found on the Aspeed AST2XXX
+	  SOCs. The MCTP Engine receives Msg which carries MCTP packet through 
+	  PCIe from Host or sends it to Host.
+
 config ASPEED_UDMA
 	tristate "Aspeed UDMA Engine Driver"
 	depends on SOC_ASPEED && REGMAP && MFD_SYSCON && HAS_DMA
