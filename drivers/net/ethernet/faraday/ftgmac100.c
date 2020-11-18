@@ -837,14 +837,17 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 			netif_wake_queue(netdev);
 	}
 
-	/* For some uni-direction applications (e.g. sending data via UDP), it
-	 * is possoble that we never receive a packet to activate the scheduler
-	 * and hence we don't have chance to free the TX data.  So we check 
-	 * the un-cleared TX descriptor here and activate the scheduler if it is
-	 * necessary.
+	/* When sending UDP packets, we may never receive a packet to activate 
+	 * the NAPI scheduler. And hence we don't have chance to free the TX 
+	 * data.  The workaround is to enable FTGMAC100_INT_XPKT_ETH, then the 
+	 * NAPI scheduler can be woke up in the ISR.
 	*/
-	if ((priv->tx_q_entries - ftgmac100_tx_buf_avail(priv)) > TX_THRESHOLD)
-		napi_schedule_irqoff(&priv->napi);
+	if ((skb->protocol == cpu_to_be16(ETH_P_IP)) &&
+	    (IPPROTO_UDP == ip_hdr(skb)->protocol)) {
+		iowrite32(FTGMAC100_INT_XPKT_ETH |
+				  ioread32(priv->base + FTGMAC100_OFFSET_IER),
+			  priv->base + FTGMAC100_OFFSET_IER);
+	}
 
 	/* Poke transmitter to read the updated TX descriptors */
 	iowrite32(1, priv->base + FTGMAC100_OFFSET_NPTXPD);
