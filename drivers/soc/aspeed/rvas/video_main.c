@@ -340,7 +340,7 @@ void ioctl_new_context(struct file *file, RvasIoctl *pri, AstRVAS *pAstRVAS)
 	pct = get_new_context_table_entry(pAstRVAS);
 
 	if (pct) {
-		pct->desc_virt = dma_alloc_coherent(NULL, PAGE_SIZE, (dma_addr_t*) &pct->desc_phy, GFP_KERNEL);
+		pct->desc_virt = dma_alloc_coherent(pAstRVAS->pdev, PAGE_SIZE, (dma_addr_t*) &pct->desc_phy, GFP_KERNEL);
 		if (!pct->desc_virt) {
 			pri->rs = MemoryAllocError;
 			return;
@@ -692,7 +692,7 @@ bool remove_context_table_entry(const RVASContext crc, AstRVAS *pAstRVAS)
 				        ctx_entry->desc_virt,
 				        ctx_entry->desc_phy);
 
-				dma_free_coherent(NULL, PAGE_SIZE, ctx_entry->desc_virt, ctx_entry->desc_phy);
+				dma_free_coherent(pAstRVAS->pdev, PAGE_SIZE, ctx_entry->desc_virt, ctx_entry->desc_phy);
 			}
 			CONTEXT_DBG("Removing memory: 0x%p\n", ctx_entry);
 			pAstRVAS->ppctContextTable[dw_index] = NULL;
