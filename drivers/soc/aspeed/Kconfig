@@ -139,6 +139,12 @@ config ASPEED_JTAG
 	help
 	  Driver for JTAG Controller
 
+config ASPEED_CHASIS
+	tristate "ASPEED CHASIS Driver"
+	default n
+	help
+	  Driver for CHASIS Driver
+
 config ASPEED_SSP
 	tristate "ASPEED SSP loader"
         default n
