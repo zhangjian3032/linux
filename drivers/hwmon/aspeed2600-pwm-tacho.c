@@ -512,19 +512,23 @@ static void aspeed_set_pwm_channel_fan_ctrl(struct aspeed_pwm_tachometer_data *p
 {
 	u32 duty_value,	ctrl_value;
 	u32 div_h, div_l, cal_freq;
+	u8 div_found;
 
 	if (fan_ctrl == 0) {
 		aspeed_set_pwm_channel_enable(priv->regmap, index, false);
 	} else {
 		cal_freq = priv->clk_freq / (DEFAULT_PWM_PERIOD + 1);
-		//calculate for target frequence 
-		for(div_l = 0; div_l < 0x100; div_l++) {
-			for(div_h = 0; div_h < 0x10; div_h++) {
+		//calculate for target frequence
+		div_found = 0;
+		for (div_h = 0; div_h < 0x10; div_h++) {
+			for (div_l = 0; div_l < 0x100; div_l++) {
 //				printk("div h %x, l : %x , freq %ld \n", div_h, div_l, (cal_freq / (BIT(div_h) * (div_l + 1))));
-				if((cal_freq / (BIT(div_h) * (div_l + 1))) < priv->pwm_channel[index].target_freq)
+				if((cal_freq / (BIT(div_h) * (div_l + 1))) < priv->pwm_channel[index].target_freq) {
+					div_found = 1;
 					break;
+				}
 			}
-			if((cal_freq / (BIT(div_h) * (div_l + 1))) < priv->pwm_channel[index].target_freq)
+			if(div_found)
 				break;
 		}
 
