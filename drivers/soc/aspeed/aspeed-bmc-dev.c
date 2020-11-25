@@ -53,7 +53,8 @@ struct aspeed_bmc_device {
 
 	struct kernfs_node	*kn0;
 	struct kernfs_node	*kn1;
-	
+
+	int pcie2lpc;	
 	unsigned int irq;	
 };
 
@@ -108,6 +109,8 @@ struct aspeed_bmc_device {
 #define  SCU_PCIE_CONF_BMC_DEV_EN_MSI		 BIT(11)
 #define  SCU_PCIE_CONF_BMC_DEV_EN_IRQ		 BIT(13)
 #define  SCU_PCIE_CONF_BMC_DEV_EN_DMA		 BIT(14)
+#define  SCU_PCIE_CONF_BMC_DEV_EN_E2L		 BIT(15)
+#define  SCU_PCIE_CONF_BMC_DEV_EN_LPC_DECODE BIT(21)
 
 static struct aspeed_bmc_device *file_aspeed_bmc_device(struct file *file)
 {
@@ -249,9 +252,12 @@ static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 //	printk("aspeed_bmc_device_init \n");
 
 	//enable bmc device mmio
-	regmap_update_bits(bmc_device->scu, ASPEED_SCU_PCIE_CONF_CTRL,
-			SCU_PCIE_CONF_BMC_DEV_EN_IRQ | SCU_PCIE_CONF_BMC_DEV_EN_MMIO | SCU_PCIE_CONF_BMC_DEV_EN, 
-			SCU_PCIE_CONF_BMC_DEV_EN_IRQ | SCU_PCIE_CONF_BMC_DEV_EN_MMIO | SCU_PCIE_CONF_BMC_DEV_EN);
+	u32 pcie_config_ctl = SCU_PCIE_CONF_BMC_DEV_EN_IRQ | SCU_PCIE_CONF_BMC_DEV_EN_MMIO | SCU_PCIE_CONF_BMC_DEV_EN;
+	if(bmc_device->pcie2lpc)
+		pcie_config_ctl |= SCU_PCIE_CONF_BMC_DEV_EN_E2L | SCU_PCIE_CONF_BMC_DEV_EN_LPC_DECODE;
+		
+	regmap_update_bits(bmc_device->scu, ASPEED_SCU_PCIE_CONF_CTRL, pcie_config_ctl,
+			pcie_config_ctl);
 
 #ifdef SCU_TRIGGER_MSI
 	//SCUC24[17]: Enable PCI device 1 INTx/MSI from SCU560[15]. Will be added in next version
@@ -289,11 +295,14 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 	if (IS_ERR(bmc_device->reg_base))
 		goto out_region;
 
-	bmc_device->scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
+	bmc_device->scu = syscon_regmap_lookup_by_phandle(dev->of_node, "aspeed,scu");
 	if (IS_ERR(bmc_device->scu)) {
 		dev_err(&pdev->dev, "failed to find SCU regmap\n");
 		goto out_region;
 	}
+
+	if (of_property_read_bool(dev->of_node, "pcie2lpc"))
+		bmc_device->pcie2lpc = 1;
 
 	bmc_device->bmc_mem_virt = dma_alloc_coherent(&pdev->dev, BMC_MEM_BAR_SIZE, &bmc_device->bmc_mem_phy, GFP_KERNEL);
 	memset(bmc_device->bmc_mem_virt, 0, BMC_MEM_BAR_SIZE);
