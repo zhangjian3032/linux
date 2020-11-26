@@ -845,8 +845,6 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd1_default &pinctrl_rxd1_default>;
 				no-loopback-test;
-				dma-mode;
-				dma-channel = <0>;
 				status = "disabled";
 			};
 
