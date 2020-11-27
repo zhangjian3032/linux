@@ -72,6 +72,10 @@ config SERIAL_8250_FINTEK
 
 	  If unsure, say N.
 
+config SERIAL_8250_ASPEED_PCIE_LPC
+	bool "Support for Aspeed PCIe LPC UART"
+	depends on ARCH_ASPEED
+
 config SERIAL_8250_CONSOLE
 	bool "Console on 8250/16550 and compatible serial port"
 	depends on SERIAL_8250=y

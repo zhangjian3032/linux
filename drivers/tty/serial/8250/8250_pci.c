@@ -1682,6 +1682,50 @@ static int pci_fintek_f815xxa_init(struct pci_dev *dev)
 	return max_port;
 }
 
+#ifdef CONFIG_SERIAL_8250_ASPEED_PCIE_LPC
+static int pci_aspeed_probe(struct pci_dev *dev)
+{
+	/* modify class support for serial */
+	dev->class = (PCI_CLASS_COMMUNICATION_MULTISERIAL << 8);
+	return 0;
+}
+				
+static int pci_aspeed_setup(struct serial_private *priv,
+			    const struct pciserial_board *board,
+			    struct uart_8250_port *port, int idx)
+{
+	struct pci_dev *pdev = priv->dev;
+
+	port->port.iotype = UPIO_MEM32;
+	port->port.iobase = 0;
+	switch(idx) {
+		case 0:
+			port->port.mapbase = pci_resource_start(pdev, 1) + (0x2f8 * 4);
+			break;
+		case 1:
+			port->port.mapbase = pci_resource_start(pdev, 1) + (0x3f8 * 4);
+			break;
+	}
+	
+	port->port.membase = 0;
+	port->port.type = PORT_16550A;
+	port->port.flags |= (UPF_IOREMAP | UPF_FIXED_PORT | UPF_FIXED_TYPE);
+	port->port.regshift = 2;
+
+	return 0;
+}
+
+static int pci_aspeed_init(struct pci_dev *dev)
+{
+	u32 max_port = 2;
+	dev->class = (PCI_CLASS_SERIAL_IPMI_KCS << 8);
+	if (!(pci_resource_flags(dev, 1) & IORESOURCE_MEM))
+		return -ENODEV;
+
+	return max_port;
+}
+#endif
+
 static int skip_tx_en_setup(struct serial_private *priv,
 			const struct pciserial_board *board,
 			struct uart_8250_port *port, int idx)
@@ -2722,7 +2766,17 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.setup		= pci_fintek_f815xxa_setup,
 		.init		= pci_fintek_f815xxa_init,
 	},
-
+#ifdef CONFIG_SERIAL_8250_ASPEED_PCIE_LPC	
+	{
+		.vendor 	= 0x1a03,
+		.device 	= 0x2402,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.probe		= pci_aspeed_probe,
+		.setup		= pci_aspeed_setup,
+		.init		= pci_aspeed_init,
+	},
+#endif	
 	/*
 	 * Default "match everything" terminator entry
 	 */
@@ -2913,6 +2967,9 @@ enum pci_board_num_t {
 	pbn_fintek_F81504A,
 	pbn_fintek_F81508A,
 	pbn_fintek_F81512A,
+#ifdef CONFIG_SERIAL_8250_ASPEED_PCIE_LPC	
+	pbn_aspeed_pci_lpc,
+#endif	
 	pbn_wch382_2,
 	pbn_wch384_4,
 	pbn_pericom_PI7C9X7951,
@@ -3638,6 +3695,14 @@ static struct pciserial_board pci_boards[] = {
 		.uart_offset	= 8,
 		.base_baud	= 115200,
 	},
+#ifdef CONFIG_SERIAL_8250_ASPEED_PCIE_LPC
+	[pbn_aspeed_pci_lpc] = {
+		.num_ports	= 2,
+		.uart_offset	= 4,
+		.base_baud	= 115200,
+		.first_offset	= (0x2f8 * 4),
+	},
+#endif	
 	[pbn_wch382_2] = {
 		.flags		= FL_BASE0,
 		.num_ports	= 2,
@@ -5575,6 +5640,11 @@ static const struct pci_device_id serial_pci_tbl[] = {
 	{ PCI_DEVICE(0x1c29, 0x1204), .driver_data = pbn_fintek_F81504A },
 	{ PCI_DEVICE(0x1c29, 0x1208), .driver_data = pbn_fintek_F81508A },
 	{ PCI_DEVICE(0x1c29, 0x1212), .driver_data = pbn_fintek_F81512A },
+
+#ifdef CONFIG_SERIAL_8250_ASPEED_PCIE_LPC
+	/* aspeed PCI serial cards */
+	{ PCI_DEVICE(0x1a03, 0x2402), .driver_data = pbn_aspeed_pci_lpc },
+#endif	
 
 	/* MKS Tenta SCOM-080x serial cards */
 	{ PCI_DEVICE(0x1601, 0x0800), .driver_data = pbn_b0_4_1250000 },
