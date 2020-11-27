@@ -66,6 +66,13 @@
 			compatible = "shared-dma-pool";
 			no-map;
 		};
+	
+		/* 1GB memory */
+		vga_memory: region@bf000000 {
+			no-map;
+			compatible = "shared-dma-pool";
+			reg = <0xbf000000 0x01000000>;  /* 16M */
+		};
 
 	};
 	iio-hwmon {
@@ -795,3 +802,16 @@
 &ssp {
 	memory-region = <&ssp_memory>;
 };
+
+&bmc_dev {
+	status = "okay";
+
+	memory-region = <&bmc_dev_memory>;
+};
+
+#if 0
+&xdma {
+	status = "okay";
+	memory-region = <&vga_memory>;
+};
+#endif
