@@ -982,9 +982,7 @@ static int jtag_release(struct inode *inode, struct file *file)
 static ssize_t show_tdo(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct miscdevice *c = dev_get_drvdata(dev);
-	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
-
+	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(dev);
 	return sprintf(buf, "%s\n", aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW) & JTAG_SW_MODE_TDIO ? "1" : "0");
 }
 
@@ -994,9 +992,7 @@ static ssize_t store_tdi(struct device *dev,
 			 struct device_attribute *attr, const char *buf, size_t count)
 {
 	u32 tdi;
-	struct miscdevice *c = dev_get_drvdata(dev);
-	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
-
+	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(dev);
 	tdi = simple_strtoul(buf, NULL, 1);
 
 	aspeed_jtag_write(aspeed_jtag, aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW) | JTAG_SW_MODE_EN | (tdi * JTAG_SW_MODE_TDIO), ASPEED_JTAG_SW);
@@ -1010,9 +1006,7 @@ static ssize_t store_tms(struct device *dev,
 			 struct device_attribute *attr, const char *buf, size_t count)
 {
 	u32 tms;
-	struct miscdevice *c = dev_get_drvdata(dev);
-	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
-
+	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(dev);
 	tms = simple_strtoul(buf, NULL, 1);
 
 	aspeed_jtag_write(aspeed_jtag, aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW) | JTAG_SW_MODE_EN | (tms * JTAG_SW_MODE_TMS), ASPEED_JTAG_SW);
@@ -1026,9 +1020,7 @@ static ssize_t store_tck(struct device *dev,
 			 struct device_attribute *attr, const char *buf, size_t count)
 {
 	u32 tck;
-	struct miscdevice *c = dev_get_drvdata(dev);
-	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
-
+	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(dev);
 	tck = simple_strtoul(buf, NULL, 1);
 
 	aspeed_jtag_write(aspeed_jtag, aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW) | JTAG_SW_MODE_EN | (tck * JTAG_SW_MODE_TDIO), ASPEED_JTAG_SW);
@@ -1041,9 +1033,7 @@ static DEVICE_ATTR(tck, S_IWUSR, NULL, store_tck);
 static ssize_t show_sts(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct miscdevice *c = dev_get_drvdata(dev);
-	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
-
+	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(dev);
 	return sprintf(buf, "%s\n", aspeed_jtag->sts ? "Pause" : "Idle");
 }
 
@@ -1052,8 +1042,7 @@ static DEVICE_ATTR(sts, S_IRUGO, show_sts, NULL);
 static ssize_t show_frequency(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct miscdevice *c = dev_get_drvdata(dev);
-	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
+	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(dev);
 //	printk("PCLK = %d \n", aspeed_get_pclk());
 //	printk("DIV  = %d \n", JTAG_GET_TCK_DIVISOR(aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_TCK)) + 1);
 	return sprintf(buf, "Frequency : %d\n", aspeed_jtag->clkin / (JTAG_GET_TCK_DIVISOR(aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_TCK)) + 1));
@@ -1063,9 +1052,7 @@ static ssize_t store_frequency(struct device *dev,
 			       struct device_attribute *attr, const char *buf, size_t count)
 {
 	u32 val;
-	struct miscdevice *c = dev_get_drvdata(dev);
-	struct aspeed_jtag_info *aspeed_jtag = container_of(c, struct aspeed_jtag_info, misc_dev);
-
+	struct aspeed_jtag_info *aspeed_jtag = dev_get_drvdata(dev);
 	val = simple_strtoul(buf, NULL, 20);
 	aspeed_jtag_set_freq(aspeed_jtag, val);
 
