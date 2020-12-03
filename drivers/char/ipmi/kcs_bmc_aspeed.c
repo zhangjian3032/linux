@@ -24,7 +24,7 @@
 
 #define DEVICE_NAME     "ast-kcs-bmc"
 
-#define KCS_CHANNEL_MAX     4
+#define KCS_CHANNEL_MAX     10
 
 #define LPC_HICR0            0x000
 #define     LPC_HICR0_LPC3E             BIT(7)
@@ -110,6 +110,7 @@ static void aspeed_kcs_set_address(struct kcs_bmc *kcs_bmc, u16 addr)
 
 	switch (kcs_bmc->channel) {
 	case 1:
+	case 6:
 		regmap_update_bits(priv->map, LPC_HICRB,
 				LPC_HICRB_EN16LADR1, LPC_HICRB_EN16LADR1);
 		regmap_update_bits(priv->map, LPC_HICR4,
@@ -122,6 +123,7 @@ static void aspeed_kcs_set_address(struct kcs_bmc *kcs_bmc, u16 addr)
 		break;
 
 	case 2:
+	case 7:
 		regmap_update_bits(priv->map, LPC_HICRB,
 				LPC_HICRB_EN16LADR2, LPC_HICRB_EN16LADR2);
 		regmap_update_bits(priv->map, LPC_HICR4,
@@ -134,11 +136,13 @@ static void aspeed_kcs_set_address(struct kcs_bmc *kcs_bmc, u16 addr)
 		break;
 
 	case 3:
+	case 8:
 		regmap_write(priv->map, LPC_LADR3H, addr >> 8);
 		regmap_write(priv->map, LPC_LADR3L, addr & 0xFF);
 		break;
 
 	case 4:
+	case 9:
 		regmap_write(priv->map, LPC_LADR4, ((addr + 1) << 16) |
 			addr);
 		break;
@@ -154,6 +158,7 @@ static void aspeed_kcs_enable_channel(struct kcs_bmc *kcs_bmc, bool enable)
 
 	switch (kcs_bmc->channel) {
 	case 1:
+	case 6:
 		if (enable) {
 			regmap_update_bits(priv->map, LPC_HICR2,
 					LPC_HICR2_IBFIF1, LPC_HICR2_IBFIF1);
@@ -168,6 +173,7 @@ static void aspeed_kcs_enable_channel(struct kcs_bmc *kcs_bmc, bool enable)
 		break;
 
 	case 2:
+	case 7:
 		if (enable) {
 			regmap_update_bits(priv->map, LPC_HICR2,
 					LPC_HICR2_IBFIF2, LPC_HICR2_IBFIF2);
@@ -182,6 +188,7 @@ static void aspeed_kcs_enable_channel(struct kcs_bmc *kcs_bmc, bool enable)
 		break;
 
 	case 3:
+	case 8:
 		if (enable) {
 			regmap_update_bits(priv->map, LPC_HICR2,
 					LPC_HICR2_IBFIF3, LPC_HICR2_IBFIF3);
@@ -200,6 +207,7 @@ static void aspeed_kcs_enable_channel(struct kcs_bmc *kcs_bmc, bool enable)
 		break;
 
 	case 4:
+	case 9:
 		if (enable) {
 			regmap_update_bits(priv->map, LPC_HICRB,
 					LPC_HICRB_IBFIF4 | LPC_HICRB_LPC4E,
@@ -243,6 +251,11 @@ static int aspeed_kcs_config_irq(struct kcs_bmc *kcs_bmc,
 }
 
 static const struct kcs_ioreg ast_kcs_bmc_ioregs[KCS_CHANNEL_MAX] = {
+	{ .idr = LPC_IDR1, .odr = LPC_ODR1, .str = LPC_STR1 },
+	{ .idr = LPC_IDR2, .odr = LPC_ODR2, .str = LPC_STR2 },
+	{ .idr = LPC_IDR3, .odr = LPC_ODR3, .str = LPC_STR3 },
+	{ .idr = LPC_IDR4, .odr = LPC_ODR4, .str = LPC_STR4 },
+	{ /* legacy, not used */ },
 	{ .idr = LPC_IDR1, .odr = LPC_ODR1, .str = LPC_STR1 },
 	{ .idr = LPC_IDR2, .odr = LPC_ODR2, .str = LPC_STR2 },
 	{ .idr = LPC_IDR3, .odr = LPC_ODR3, .str = LPC_STR3 },
