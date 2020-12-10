@@ -449,7 +449,7 @@ config HW_RANDOM_ASPEED
 	  Generator hardware found on Aspeed ast2600 devices.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called atmel-rng.
+	  module will be called aspeed-rng.
 
 	  If unsure, say Y.
 
