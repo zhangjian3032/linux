@@ -926,11 +926,11 @@ static void __init aspeed_g6_cc(struct regmap *map)
 	if ((chip_id & CHIP_REVISION_ID) >> 16) {
 		//ast2600a1
 		if (val & BIT(16)) {
-			ast2600_a1_axi_ahb_div1_tbl[0] = ast2600_a1_axi_ahb_default_table[(val >> 8) & 0x3];
+			ast2600_a1_axi_ahb_div1_tbl[0] = ast2600_a1_axi_ahb_default_table[(val >> 8) & 0x7] * 2;
 			axi_div = 1;
 			ahb_div = ast2600_a1_axi_ahb_div1_tbl[divbits];
 		} else {
-			ast2600_a1_axi_ahb_div0_tbl[0] = ast2600_a1_axi_ahb_default_table[(val >> 8) & 0x3];
+			ast2600_a1_axi_ahb_div0_tbl[0] = ast2600_a1_axi_ahb_default_table[(val >> 8) & 0x7];
 			axi_div = 2;
 			ahb_div = ast2600_a1_axi_ahb_div0_tbl[divbits];
 		}
