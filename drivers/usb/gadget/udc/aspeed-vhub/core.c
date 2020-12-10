@@ -314,8 +314,7 @@ static int ast_vhub_remove(struct platform_device *pdev)
 	       VHUB_CTRL_PHY_RESET_DIS,
 	       vhub->regs + AST_VHUB_CTRL);
 
-	if (vhub->clk)
-		clk_disable_unprepare(vhub->clk);
+	clk_disable_unprepare(vhub->clk);
 
 	spin_unlock_irqrestore(&vhub->lock, flags);
 
