@@ -66,7 +66,7 @@
 			compatible = "shared-dma-pool";
 			no-map;
 		};
-
+	
 		/* 1GB memory */
 		vga_memory: region@bf000000 {
 			no-map;
@@ -82,9 +82,11 @@
 				<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
 				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
 	};
-	rng: hwrng@1e6e2530 {
-		compatible = "aspeed,ast2600-trng";
-		reg = <0x1e6e2530 0x8>;
+	rng: hwrng@1e6e2524 {
+		compatible = "timeriomem_rng";
+		reg = <0x1e6e2524 0x4>;
+		period = <1>;
+		quality = <100>;
 	};
 };
 
@@ -598,6 +600,26 @@
 
 &kcs4 {
 	kcs_addr = <0xca4>;
+	status = "okay";
+};
+
+&pcie_kcs1 {
+	kcs_addr = <0x3a0>;
+	status = "okay";
+};
+
+&pcie_kcs2 {
+	kcs_addr = <0x3a8>;
+	status = "okay";
+};
+
+&pcie_kcs3 {
+	kcs_addr = <0x3a2>;
+	status = "okay";
+};
+
+&pcie_kcs4 {
+	kcs_addr = <0x3a4>;
 	status = "okay";
 };
 

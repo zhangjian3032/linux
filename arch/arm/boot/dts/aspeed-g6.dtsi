@@ -450,11 +450,6 @@
 				};
 			};
 
-			rng: hwrng@1e6e2530 {
-				compatible = "aspeed,ast2600-trng";
-				reg = <0x1e6e2530 0x8>;
-			};
-
 			chasis: chasis@1e6ef010 {
 				compatible = "aspeed,ast2600-chasis";
 				reg = <0x1e6ef010 0x4>;
