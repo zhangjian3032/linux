@@ -39,9 +39,10 @@
 #define CMD_IOCTL_SET_TSE_COUNTER			_IOWR( RVAS_MAGIC, IOCTL_SET_TSE_COUNTER, RvasIoctl)
 #define CMD_IOCTL_GET_TSE_COUNTER			_IOWR( RVAS_MAGIC, IOCTL_GET_TSE_COUNTER, RvasIoctl)
 #define CMD_IOCTL_VIDEO_ENGINE_RESET		_IOWR( RVAS_MAGIC, IOCTL_VIDEO_ENGINE_RESET, RvasIoctl)
-#define CMD_IOCTL_GET_VIDEO_ENGINE_CONFIG	_IOWR( RVAS_MAGIC, IOCTL_GET_VIDEO_ENGINE_CONFIG, RvasIoctl)
-#define CMD_IOCTL_SET_VIDEO_ENGINE_CONFIG	_IOWR( RVAS_MAGIC, IOCTL_SET_VIDEO_ENGINE_CONFIG, RvasIoctl)
-#define CMD_IOCTL_GET_VIDEO_ENGINE_DATA		_IOWR( RVAS_MAGIC, IOCTL_GET_VIDEO_ENGINE_DATA, RvasIoctl)
+//jpeg
+#define CMD_IOCTL_SET_VIDEO_ENGINE_CONFIG		_IOW(RVAS_MAGIC, IOCTL_SET_VIDEO_ENGINE_CONFIG,  videoConfig*)
+#define CMD_IOCTL_GET_VIDEO_ENGINE_CONFIG		_IOW(RVAS_MAGIC, IOCTL_GET_VIDEO_ENGINE_CONFIG,  videoConfig*)
+#define CMD_IOCTL_GET_VIDEO_ENGINE_DATA	_IOWR(RVAS_MAGIC, IOCTL_GET_VIDEO_ENGINE_DATA, multiJpegConfig*)
 
 typedef enum {
 	IOCTL_TURN_LOCAL_MONITOR_ON = 20, //REMOTE VIDEO GENERAL IOCTL
@@ -65,8 +66,8 @@ typedef enum {
 	IOCTL_SET_TSE_COUNTER,
 	IOCTL_GET_TSE_COUNTER,
 	IOCTL_VIDEO_ENGINE_RESET,
-	IOCTL_GET_VIDEO_ENGINE_CONFIG,
 	IOCTL_SET_VIDEO_ENGINE_CONFIG,
+	IOCTL_GET_VIDEO_ENGINE_CONFIG,
 	IOCTL_GET_VIDEO_ENGINE_DATA,
 } HARD_WARE_ENGINE_IOCTL;
 
@@ -107,6 +108,12 @@ typedef enum tagDataProccessMode {
 	FontFetchMode = 5,
 	SplitByteMode = 6
 } DataProccessMode;
+
+typedef enum tagResetEngineMode {
+	ResetAll = 0,
+	ResetRvasEngine = 1,
+	ResetVeEngine = 2
+}ResetEngineMode;
 
 typedef struct tagVideoGeometry {
 	u16 wScreenWidth;
@@ -204,19 +211,6 @@ typedef struct tagRVASBuffer {
 	size_t cb;
 } RVASBuffer;
 
-typedef struct tagAstVideoConfig {
-	u8 engine;					//0: engine 0, engine 1
-	u8 compression_mode; //0:DCT, 1:DCT_VQ mix VQ-2 color, 2:DCT_VQ mix VQ-4 color		9:
-	u8 compression_format;	//0:ASPEED 1:JPEG
-	u8 capture_format;//0:CCIR601-2 YUV, 1:JPEG YUV, 2:RGB for ASPEED mode only, 3:Gray
-	u8 rc4_enable;				//0:disable 1:enable
-	u8 YUV420_mode;			//0:YUV444, 1:YUV420
-	u8 Visual_Lossless;
-	u8 Y_JPEGTableSelector;
-	u8 AdvanceTableSelector;
-	u8 AutoMode;
-	u8 EncodeKeys[256];
-} ast_video_config;
 
 typedef struct tagRvasIoctl {
 	RVASStatus rs;
@@ -242,7 +236,38 @@ typedef struct tagRvasIoctl {
 	FetchMap tfm;
 	u8 flag;
 	u8 lms;
-	u8 rsvd[2];
+	u8 resetMode;
+	u8 rsvd[1];
 } RvasIoctl;
+
+typedef struct tagAstVideoConfig {
+	u8 engine;					//0: engine 0 - normal engine, engine 1 - VM legacy engine
+	u8 compression_mode; //0:DCT, 1:DCT_VQ mix VQ-2 color, 2:DCT_VQ mix VQ-4 color		9:
+	u8 compression_format;	//0:ASPEED 1:JPEG
+	u8 capture_format;//0:CCIR601-2 YUV, 1:JPEG YUV, 2:RGB for ASPEED mode only, 3:Gray
+	u8 rc4_enable;				//0:disable 1:enable
+	u8 YUV420_mode;			//0:YUV444, 1:YUV420
+	u8 Visual_Lossless;
+	u8 Y_JPEGTableSelector;
+	u8 AdvanceTableSelector;
+	u8 AutoMode;
+} videoConfig;
+
+typedef struct tagMultiJpegFrame{
+	u32 dwSizeInBytes;			// Image size in bytes
+	u32 dwOffsetInBytes;			// Offset in bytes
+	u16	wXPixels;				// In: X coordinate
+	u16	wYPixels;				// In: Y coordinate
+	u16	wWidthPixels;			// In: Width for Fetch
+	u16	wHeightPixels;			// In: Height for Fetch
+}multiJpegFrame;
+
+#define MAX_MULTI_FRAME_CT (32)
+
+typedef struct tagMultiJpegConfig {
+	unsigned char multi_jpeg_frames;	// frame count
+	multiJpegFrame frame[MAX_MULTI_FRAME_CT];	// The Multi Frames
+	RVASMemoryHandle aStreamHandle;
+}multiJpegConfig;
 
 #endif // _VIDEO_IOCTL_H
