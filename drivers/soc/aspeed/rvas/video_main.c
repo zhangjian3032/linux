@@ -1145,8 +1145,6 @@ static void reset_video_engine(AstRVAS *pAstRVAS){
 				readl((volatile void*)(pAstRVAS->video_reg_base + AST_VIDEO_PASS_CTRL)));
 
 	video_engine_init();
-	//do a full screen capture to flush out the old data.
-	video_capture_trigger(pAstRVAS);
 }
 
 void ioctl_reset_video_engine(RvasIoctl *ri, AstRVAS *pAstRVAS)
