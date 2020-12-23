@@ -381,7 +381,7 @@ static int aspeed_pcc_enable(struct aspeed_pcc *pcc, struct device *dev)
 		}
 		else {
 			pcc->dma.size = PCC_DMA_MAX_BUFSZ;
-			pcc->dma.virt = dma_alloc_coherent(NULL,
+			pcc->dma.virt = dma_alloc_coherent(dev,
 					pcc->dma.size,
 					&pcc->dma.addr,
 					GFP_KERNEL);
@@ -602,6 +602,9 @@ static int aspeed_pcc_probe(struct platform_device *pdev)
 
 	pcc->dev = dev;
 	dev_set_drvdata(&pdev->dev, pcc);
+
+	dev_info(dev, "module loaded\n");
+
 	return 0;
 }
 
