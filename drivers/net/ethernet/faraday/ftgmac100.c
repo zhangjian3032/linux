@@ -565,11 +565,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	netdev->stats.rx_packets++;
 	netdev->stats.rx_bytes += size;
 
-	/* push packet to protocol stack */
-	if (skb->ip_summed == CHECKSUM_NONE)
-		netif_receive_skb(skb);
-	else
-		napi_gro_receive(&priv->napi, skb);
+	napi_gro_receive(&priv->napi, skb);
 
 	(*processed)++;
 	return true;
