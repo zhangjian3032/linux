@@ -91,7 +91,7 @@ struct aspeed_pci_bmc_dev {
 
 #define HOST_BMC_QUEUE_SIZE			(16 * 4)
 
-#define BMC_MSI_INT 0
+#define BMC_MSI_INT 1
 
 #define DRIVER_NAME "ASPEED BMC DEVICE"
 
