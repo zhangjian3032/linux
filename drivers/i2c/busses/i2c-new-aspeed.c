@@ -595,9 +595,9 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 				aspeed_i2c_write(i2c_bus, cmd, AST_I2CS_CMD_STS);
 				break;
 			case AST_I2CS_SLAVE_MATCH | AST_I2CS_RX_DONE | AST_I2CS_Wait_RX_DMA | AST_I2CS_STOP:
-				dev_dbg(i2c_bus->dev, "S : Sw|D|P wait rx dma workaround \n");
+//				dev_dbg(i2c_bus->dev, "S : Sw|D|P wait rx dma workaround \n");
 			case AST_I2CS_RX_DONE | AST_I2CS_Wait_RX_DMA | AST_I2CS_STOP:
-				dev_dbg(i2c_bus->dev, "S : D|P wait rx dma workaround \n");
+//				dev_dbg(i2c_bus->dev, "S : D|P wait rx dma workaround \n");
 			case AST_I2CS_RX_DONE | AST_I2CS_STOP:
 			case AST_I2CS_SLAVE_MATCH | AST_I2CS_RX_DONE | AST_I2CS_Wait_RX_DMA:
 			case AST_I2CS_SLAVE_MATCH | AST_I2CS_RX_DONE | AST_I2CS_STOP:
@@ -1067,7 +1067,7 @@ int aspeed_new_i2c_master_irq(struct aspeed_new_i2c_bus *i2c_bus)
 		aspeed_i2c_write(i2c_bus,  AST_I2CM_PKT_DONE, AST_I2CM_ISR);
 		switch (sts) {
 			case AST_I2CM_PKT_ERROR | AST_I2CM_TX_NAK:	//a0 fix for issue
-				dev_dbg(i2c_bus->dev, "a0 workaround for M TX NAK [%x]\n", aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
+//				dev_dbg(i2c_bus->dev, "a0 workaround for M TX NAK [%x]\n", aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
 			case AST_I2CM_PKT_ERROR | AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP:
 				dev_dbg(i2c_bus->dev, "M : TX NAK | NORMAL STOP \n");
 				i2c_bus->cmd_err = -ENXIO;
@@ -1090,7 +1090,7 @@ int aspeed_new_i2c_master_irq(struct aspeed_new_i2c_bus *i2c_bus)
 				complete(&i2c_bus->cmd_complete);
 				break;
 			case AST_I2CM_TX_ACK:
-				dev_dbg(i2c_bus->dev, "M : AST_I2CM_TX_ACK = %x\n", sts);
+//				dev_dbg(i2c_bus->dev, "M : AST_I2CM_TX_ACK = %x\n", sts);
 			case AST_I2CM_TX_ACK | AST_I2CM_NORMAL_STOP:
 				dev_dbg(i2c_bus->dev, "M : AST_I2CM_TX_ACK | AST_I2CM_NORMAL_STOP= %x\n", sts);
 
@@ -1168,7 +1168,7 @@ int aspeed_new_i2c_master_irq(struct aspeed_new_i2c_bus *i2c_bus)
 				}
 				break;
 			case AST_I2CM_RX_DONE:
-				dev_dbg(i2c_bus->dev, "M : AST_I2CM_RX_DONE = %x\n", sts);
+//				dev_dbg(i2c_bus->dev, "M : AST_I2CM_RX_DONE = %x\n", sts);
 			case AST_I2CM_RX_DONE | AST_I2CM_NORMAL_STOP:
 				dev_dbg(i2c_bus->dev, "M : AST_I2CM_RX_DONE | AST_I2CM_NORMAL_STOP = %x\n", sts);
 				//do next rx
