@@ -87,7 +87,7 @@
 	};
 
 	edac: sdram@1e6e0000 {
-		compatible = "aspeed,ast2600-sdram-edac";
+		compatible = "aspeed,ast2600-sdram-edac", "syscon";
 		reg = <0x1e6e0000 0x174>;
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 	};
@@ -384,9 +384,11 @@
 
 		vhub: usb-vhub@1e6a0000 {
 			compatible = "aspeed,ast2600-usb-vhub";
-			reg = <0x1e6a0000 0x300>;
+			reg = <0x1e6a0000 0x350>;
 			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2ad_default>;
 			status = "disabled";
 		};
 
@@ -395,6 +397,8 @@
 			reg = <0x1e6a2000 0x300>;
 			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT2CLK>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2bd_default>;
 			status = "disabled";
 		};
 
@@ -412,7 +416,6 @@
 				clocks = <&syscon ASPEED_CLK_AHB>;
 				resets = <&syscon ASPEED_RESET_PWM>;
 				status = "disabled";
-
 			};
 
 			syscon: syscon@1e6e2000 {
@@ -431,6 +434,11 @@
 
 				pinctrl: pinctrl {
 					compatible = "aspeed,ast2600-pinctrl";
+				};
+
+				smp-memram@180 {
+					compatible = "aspeed,ast2600-smpmem";
+					reg = <0x180 0x40>;
 				};
 
 				scu_ic0: interrupt-controller@0 {
@@ -452,11 +460,6 @@
 					interrupt-controller;
 				};
 
-			};
-
-			smp-memram@0 {
-				compatible = "aspeed,ast2600-smpmem", "syscon";
-				reg = <0x1e6e2180 0x40>;
 			};
 
 			reboot@0 {
@@ -535,7 +538,7 @@
 			};
 
 			pcie_ep:pcie_ep@1e6ed000 {
-				compatible = "aspeed,aspeed-pcie";
+				compatible = "aspeed,aspeed-pcie", "syscon";
 				reg = <0x1e6ed000 0x100>;
 
 				resets = <&syscon ASPEED_RESET_PCIE_DEV_O>;
@@ -579,21 +582,17 @@
 				};
 			};
 
-			xdma0: xdma@1e6e7000 {
+			xdma: xdma@1e6e7000 {
 				compatible = "aspeed,ast2600-xdma";
-				reg = <0x1e6e7000 0x80>;
-				interrupts-extended = <&gic GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
-				interrupt-names = "xdma", "pcie";
-				resets = <&syscon ASPEED_RESET_DEV_XDMA>;
-				status = "disabled";
-			};
-
-			xdma1: xdma@1e6f8000 {
-				compatible = "aspeed,ast2600-xdma";
-				reg = <0x1e6f8000 0x80>;
-				interrupts-extended = <&scu_ic0 ASPEED_SCU_PCIE_REST_LOW_TO_HIGH>;
-				interrupt-names = "pcie";
-				resets = <&syscon ASPEED_RESET_RC_XDMA>;
+				reg = <0x1e6e7000 0x100>;
+				clocks = <&syscon ASPEED_CLK_GATE_BCLK>;
+				resets = <&syscon ASPEED_RESET_DEV_XDMA>, <&syscon ASPEED_RESET_RC_XDMA>;
+				reset-names = "device", "root-complex";
+				interrupts-extended = <&gic GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+						      <&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_PERST_LO_TO_HI>;
+				aspeed,pcie-device = "bmc";
+				aspeed,scu = <&syscon>;
+				sdmc = <&edac>;
 				status = "disabled";
 			};
 
@@ -638,12 +637,12 @@
 				status = "disabled";
 			};
 
-                        display_port:  dp@1e6eb000 {
-                            compatible = "aspeed,ast2600-displayport";
-                            reg = <0x1e6eb000 0x200>;
-                            interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
-                            status = "disabled";
-                        };
+			display_port:  dp@1e6eb000 {
+				compatible = "aspeed,ast2600-displayport";
+				reg = <0x1e6eb000 0x200>;
+				interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
 
 			espi: espi@1e6ee000 {
 				compatible = "aspeed,ast2600-espi", "simple-mfd", "syscon";
@@ -1314,11 +1313,13 @@
 
 			rvas: rvas@1e7c8000 {
 				compatible = "aspeed,ast2600-rvas";
-				reg = <0x1e7c8000 0x800 0x1e6ec000 0x800 0x1e7c0000 0x2000>;
-				clocks = <&syscon ASPEED_CLK_GATE_RVASCLK>;
-				clock-names = "rvasclk-gate";
-				interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
-				resets = <&syscon ASPEED_RESET_RVAS>;
+				reg = <0x1e7c8000 0x800 0x1e6ec000 0x800 0x1e700000 0x1000>;
+				clocks = <&syscon ASPEED_CLK_GATE_RVASCLK>,
+					 <&syscon ASPEED_CLK_GATE_VCLK>,
+					 <&syscon ASPEED_CLK_GATE_ECLK>;
+				clock-names = "rvasclk-gate", "vclk", "eclk";
+				interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&syscon ASPEED_RESET_RVAS>, <&syscon ASPEED_RESET_VIDEO>;
 				status = "disabled";
 			};
 
@@ -1326,13 +1327,12 @@
 				compatible = "aspeed,ast2600-bmc-device";
 				reg = <0x1e7e0000 0xB000>;
 				interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
+				aspeed,scu = <&syscon>;
 				status = "disabled";
 			};
 
 		};
-
 	};
-
 };
 
 #include "aspeed-g6-pinctrl.dtsi"
