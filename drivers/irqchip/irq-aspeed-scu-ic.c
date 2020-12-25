@@ -1,141 +1,239 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * irq-aspeed-scu.c - SCU IRQCHIP driver for the Aspeed SoC
+ * Aspeed AST24XX, AST25XX, and AST26XX SCU Interrupt Controller
+ * Copyright 2019 IBM Corporation
  *
- * Copyright (C) ASPEED Technology Inc.
- * Ryan Chen <ryan_chen@aspeedtech.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
+ * Eddie James <eajames@linux.ibm.com>
  */
+
+#include <linux/bitops.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
-#include <linux/of_platform.h>
-#include <linux/platform_device.h>
-#include <linux/of_address.h>
+#include <linux/mfd/syscon.h>
 #include <linux/of_irq.h>
-#include <linux/io.h>
-#include <linux/module.h>
+#include <linux/regmap.h>
 
-#define ASPEED_SCU_IRQ_NUM 	7
+#define ASPEED_SCU_IC_REG		0x018
+#define ASPEED_SCU_IC_SHIFT		0
+#define ASPEED_SCU_IC_ENABLE		GENMASK(6, ASPEED_SCU_IC_SHIFT)
+#define ASPEED_SCU_IC_NUM_IRQS		7
+#define ASPEED_SCU_IC_STATUS_SHIFT	16
 
-struct aspeed_scu_irq {
-	void __iomem *regs;
-	int irq;
-	int parity_check;
+#define ASPEED_AST2600_SCU_IC0_REG	0x560
+#define ASPEED_AST2600_SCU_IC0_SHIFT	0
+#define ASPEED_AST2600_SCU_IC0_ENABLE	\
+	GENMASK(5, ASPEED_AST2600_SCU_IC0_SHIFT)
+#define ASPEED_AST2600_SCU_IC0_NUM_IRQS	6
+
+#define ASPEED_AST2600_SCU_IC1_REG	0x570
+#define ASPEED_AST2600_SCU_IC1_SHIFT	4
+#define ASPEED_AST2600_SCU_IC1_ENABLE	\
+	GENMASK(5, ASPEED_AST2600_SCU_IC1_SHIFT)
+#define ASPEED_AST2600_SCU_IC1_NUM_IRQS	2
+
+struct aspeed_scu_ic {
+	unsigned long irq_enable;
+	unsigned long irq_shift;
+	unsigned int num_irqs;
+	unsigned int reg;
+	struct regmap *scu;
 	struct irq_domain *irq_domain;
 };
 
-static void aspeed_scu_irq_handler(struct irq_desc *desc)
+static void aspeed_scu_ic_irq_handler(struct irq_desc *desc)
 {
-	struct aspeed_scu_irq *scu_irq = irq_desc_get_handler_data(desc);
+	unsigned int irq;
+	unsigned int sts;
+	unsigned long bit;
+	unsigned long enabled;
+	unsigned long max;
+	unsigned long status;
+	struct aspeed_scu_ic *scu_ic = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	unsigned long bit, status, irq_sts;
-	unsigned int bus_irq;
+	unsigned int mask = scu_ic->irq_enable << ASPEED_SCU_IC_STATUS_SHIFT;
 
 	chained_irq_enter(chip, desc);
-	status = readl(scu_irq->regs);
-	irq_sts = (status >> 16) & status;
 
-	/* crash kernel if parity check fail on L1/L2 D$ and SRAM */
-	if (scu_irq->parity_check)
-	    BUG_ON((status & 0x1e000000));
+	/*
+	 * The SCU IC has just one register to control its operation and read
+	 * status. The interrupt enable bits occupy the lower 16 bits of the
+	 * register, while the interrupt status bits occupy the upper 16 bits.
+	 * The status bit for a given interrupt is always 16 bits shifted from
+	 * the enable bit for the same interrupt.
+	 * Therefore, perform the IRQ operations in the enable bit space by
+	 * shifting the status down to get the mapping and then back up to
+	 * clear the bit.
+	 */
+	regmap_read(scu_ic->scu, scu_ic->reg, &sts);
+	enabled = sts & scu_ic->irq_enable;
+	status = (sts >> ASPEED_SCU_IC_STATUS_SHIFT) & enabled;
 
-	for_each_set_bit(bit, &irq_sts, ASPEED_SCU_IRQ_NUM) {
-		bus_irq = irq_find_mapping(scu_irq->irq_domain, bit);
-		generic_handle_irq(bus_irq);
-		writel((status & 0x7f) | BIT(bit + 16), scu_irq->regs);
+	bit = scu_ic->irq_shift;
+	max = scu_ic->num_irqs + bit;
+
+	for_each_set_bit_from(bit, &status, max) {
+		irq = irq_find_mapping(scu_ic->irq_domain,
+				       bit - scu_ic->irq_shift);
+		generic_handle_irq(irq);
+
+		regmap_update_bits(scu_ic->scu, scu_ic->reg, mask,
+				   BIT(bit + ASPEED_SCU_IC_STATUS_SHIFT));
 	}
+
 	chained_irq_exit(chip, desc);
 }
 
-static void aspeed_scu_mask_irq(struct irq_data *data)
+static void aspeed_scu_ic_irq_mask(struct irq_data *data)
 {
-	struct aspeed_scu_irq *scu_irq = irq_data_get_irq_chip_data(data);
-	unsigned int sbit = BIT(data->hwirq);
+	struct aspeed_scu_ic *scu_ic = irq_data_get_irq_chip_data(data);
+	unsigned int mask = BIT(data->hwirq + scu_ic->irq_shift) |
+		(scu_ic->irq_enable << ASPEED_SCU_IC_STATUS_SHIFT);
 
-	writel(readl(scu_irq->regs) & ~sbit, scu_irq->regs);
+	/*
+	 * Status bits are cleared by writing 1. In order to prevent the mask
+	 * operation from clearing the status bits, they should be under the
+	 * mask and written with 0.
+	 */
+	regmap_update_bits(scu_ic->scu, scu_ic->reg, mask, 0);
 }
 
-static void aspeed_scu_unmask_irq(struct irq_data *data)
+static void aspeed_scu_ic_irq_unmask(struct irq_data *data)
 {
-	struct aspeed_scu_irq *scu_irq = irq_data_get_irq_chip_data(data);
-	unsigned int sbit = BIT(data->hwirq);
-	
-	writel((readl(scu_irq->regs) | sbit) & 0x7f, scu_irq->regs);
+	struct aspeed_scu_ic *scu_ic = irq_data_get_irq_chip_data(data);
+	unsigned int bit = BIT(data->hwirq + scu_ic->irq_shift);
+	unsigned int mask = bit |
+		(scu_ic->irq_enable << ASPEED_SCU_IC_STATUS_SHIFT);
+
+	/*
+	 * Status bits are cleared by writing 1. In order to prevent the unmask
+	 * operation from clearing the status bits, they should be under the
+	 * mask and written with 0.
+	 */
+	regmap_update_bits(scu_ic->scu, scu_ic->reg, mask, bit);
 }
 
-struct irq_chip aspeed_scu_irq_chip = {
-	.name		= "scu-irq",
-	.irq_mask	= aspeed_scu_mask_irq,
-	.irq_unmask	= aspeed_scu_unmask_irq,
+static int aspeed_scu_ic_irq_set_affinity(struct irq_data *data,
+					  const struct cpumask *dest,
+					  bool force)
+{
+	return -EINVAL;
+}
+
+static struct irq_chip aspeed_scu_ic_chip = {
+	.name			= "aspeed-scu-ic",
+	.irq_mask		= aspeed_scu_ic_irq_mask,
+	.irq_unmask		= aspeed_scu_ic_irq_unmask,
+	.irq_set_affinity	= aspeed_scu_ic_irq_set_affinity,
 };
 
-static int aspeed_scu_map_irq_domain(struct irq_domain *domain,
-				  unsigned int irq, irq_hw_number_t hwirq)
+static int aspeed_scu_ic_map(struct irq_domain *domain, unsigned int irq,
+			     irq_hw_number_t hwirq)
 {
-	irq_set_chip_and_handler(irq, &aspeed_scu_irq_chip, handle_simple_irq);
+	irq_set_chip_and_handler(irq, &aspeed_scu_ic_chip, handle_level_irq);
 	irq_set_chip_data(irq, domain->host_data);
 
 	return 0;
 }
 
-static const struct irq_domain_ops aspeed_scu_irq_domain_ops = {
-	.map = aspeed_scu_map_irq_domain,
+static const struct irq_domain_ops aspeed_scu_ic_domain_ops = {
+	.map = aspeed_scu_ic_map,
 };
 
-static int __init aspeed_scu_intc_of_init(struct device_node *node,
-					     struct device_node *parent)
+static int aspeed_scu_ic_of_init_common(struct aspeed_scu_ic *scu_ic,
+					struct device_node *node)
 {
-	struct aspeed_scu_irq *scu_irq;
-	int ret = 0;
+	int irq;
+	int rc = 0;
 
-	scu_irq = kzalloc(sizeof(*scu_irq), GFP_KERNEL);
-	if (!scu_irq)
-		return -ENOMEM;
-
-	scu_irq->regs = of_iomap(node, 0);
-	if (!scu_irq->regs) {
-		ret = -ENOMEM;
-		goto err_free;
+	if (!node->parent) {
+		rc = -ENODEV;
+		goto err;
 	}
 
-	scu_irq->irq = irq_of_parse_and_map(node, 0);
-	if (scu_irq->irq < 0) {
-		ret = scu_irq->irq;
-		goto err_iounmap;
+	scu_ic->scu = syscon_node_to_regmap(node->parent);
+	if (IS_ERR(scu_ic->scu)) {
+		rc = PTR_ERR(scu_ic->scu);
+		goto err;
 	}
 
-	scu_irq->irq_domain = irq_domain_add_linear(
-					node, ASPEED_SCU_IRQ_NUM,
-					&aspeed_scu_irq_domain_ops, scu_irq);
-	if (!scu_irq->irq_domain) {
-		ret = -ENOMEM;
-		goto err_iounmap;
+	irq = irq_of_parse_and_map(node, 0);
+	if (irq < 0) {
+		rc = irq;
+		goto err;
 	}
 
-	irq_set_chained_handler_and_data(scu_irq->irq,
-					 aspeed_scu_irq_handler, scu_irq);
+	scu_ic->irq_domain = irq_domain_add_linear(node, scu_ic->num_irqs,
+						   &aspeed_scu_ic_domain_ops,
+						   scu_ic);
+	if (!scu_ic->irq_domain) {
+		rc = -ENOMEM;
+		goto err;
+	}
 
-	pr_info("scu-irq controller registered, irq %d\n", scu_irq->irq);
-	
-	scu_irq->parity_check = of_property_read_bool(node, "parity-check");
-	if (scu_irq->parity_check)
-		writel(readl(scu_irq->regs) | 0x1e00, scu_irq->regs);
+	irq_set_chained_handler_and_data(irq, aspeed_scu_ic_irq_handler,
+					 scu_ic);
 
 	return 0;
 
-err_iounmap:
-	iounmap(scu_irq->regs);
-err_free:
-	kfree(scu_irq);
-	return ret;
+err:
+	kfree(scu_ic);
+
+	return rc;
 }
 
-IRQCHIP_DECLARE(ast2400_scu_intc, "aspeed,ast2400-scu-ic", aspeed_scu_intc_of_init);
-IRQCHIP_DECLARE(ast2500_scu_intc, "aspeed,ast2500-scu-ic", aspeed_scu_intc_of_init);
-IRQCHIP_DECLARE(ast2600_scu_intc, "aspeed,ast2600-scu-ic", aspeed_scu_intc_of_init);
+static int __init aspeed_scu_ic_of_init(struct device_node *node,
+					struct device_node *parent)
+{
+	struct aspeed_scu_ic *scu_ic = kzalloc(sizeof(*scu_ic), GFP_KERNEL);
+
+	if (!scu_ic)
+		return -ENOMEM;
+
+	scu_ic->irq_enable = ASPEED_SCU_IC_ENABLE;
+	scu_ic->irq_shift = ASPEED_SCU_IC_SHIFT;
+	scu_ic->num_irqs = ASPEED_SCU_IC_NUM_IRQS;
+	scu_ic->reg = ASPEED_SCU_IC_REG;
+
+	return aspeed_scu_ic_of_init_common(scu_ic, node);
+}
+
+static int __init aspeed_ast2600_scu_ic0_of_init(struct device_node *node,
+						 struct device_node *parent)
+{
+	struct aspeed_scu_ic *scu_ic = kzalloc(sizeof(*scu_ic), GFP_KERNEL);
+
+	if (!scu_ic)
+		return -ENOMEM;
+
+	scu_ic->irq_enable = ASPEED_AST2600_SCU_IC0_ENABLE;
+	scu_ic->irq_shift = ASPEED_AST2600_SCU_IC0_SHIFT;
+	scu_ic->num_irqs = ASPEED_AST2600_SCU_IC0_NUM_IRQS;
+	scu_ic->reg = ASPEED_AST2600_SCU_IC0_REG;
+
+	return aspeed_scu_ic_of_init_common(scu_ic, node);
+}
+
+static int __init aspeed_ast2600_scu_ic1_of_init(struct device_node *node,
+						 struct device_node *parent)
+{
+	struct aspeed_scu_ic *scu_ic = kzalloc(sizeof(*scu_ic), GFP_KERNEL);
+
+	if (!scu_ic)
+		return -ENOMEM;
+
+	scu_ic->irq_enable = ASPEED_AST2600_SCU_IC1_ENABLE;
+	scu_ic->irq_shift = ASPEED_AST2600_SCU_IC1_SHIFT;
+	scu_ic->num_irqs = ASPEED_AST2600_SCU_IC1_NUM_IRQS;
+	scu_ic->reg = ASPEED_AST2600_SCU_IC1_REG;
+
+	return aspeed_scu_ic_of_init_common(scu_ic, node);
+}
+
+IRQCHIP_DECLARE(ast2400_scu_ic, "aspeed,ast2400-scu-ic", aspeed_scu_ic_of_init);
+IRQCHIP_DECLARE(ast2500_scu_ic, "aspeed,ast2500-scu-ic", aspeed_scu_ic_of_init);
+IRQCHIP_DECLARE(ast2600_scu_ic0, "aspeed,ast2600-scu-ic0",
+		aspeed_ast2600_scu_ic0_of_init);
+IRQCHIP_DECLARE(ast2600_scu_ic1, "aspeed,ast2600-scu-ic1",
+		aspeed_ast2600_scu_ic1_of_init);
