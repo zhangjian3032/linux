@@ -792,34 +792,38 @@
 
 };
 
-&espi {
-	status = "okay";
-
-	resets = <&syscon ASPEED_RESET_ESPI>;
-	delay-timing = <0x7>;
-};
-#if 0
-&espi_mmbi {
-	status = "okay";
-};
-#endif
-&peripheral {
-	status = "okay";
-	host-map-addr = <0x98000000>;
-	map-size = <0x10000>;
+&espi_ic {
+    status = "okay";
 };
 
-&virtial_wire {
-	status = "okay";
+&espi_ctrl {
+    status = "okay";
 };
 
-&oob {
-	status = "okay";
+&espi_peripheral {
+    status = "okay";
+    memcyc,map-src-addr = <0x98000000>;
+    memcyc,map-size = <0x10000>;
+    dma-mode;
 };
 
-&flash {
-	status = "okay";
+&espi_vw {
+    status = "okay";
 };
+
+&espi_oob {
+    status = "okay";
+    dma-mode;
+    dma-tx-desc-num = <2>;
+    dma-rx-desc-num = <8>;
+};
+
+&espi_flash {
+    status = "okay";
+    dma-mode;
+    safs-mode = <2>;
+};
+
 
 &hace {
 	status = "okay";

@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2017 Google Inc
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Provides a simple driver to control the ASPEED LPC snoop interface which
  * allows the BMC to listen on and save the data written by
@@ -32,26 +28,26 @@
 #define NUM_SNOOP_CHANNELS 2
 #define SNOOP_FIFO_SIZE 2048
 
-#define HICR5	0x0
+#define HICR5	0x80
 #define HICR5_EN_SNP0W		BIT(0)
 #define HICR5_ENINT_SNP0W	BIT(1)
 #define HICR5_EN_SNP1W		BIT(2)
 #define HICR5_ENINT_SNP1W	BIT(3)
 
-#define HICR6	0x4
+#define HICR6	0x84
 #define HICR6_STR_SNP0W		BIT(0)
 #define HICR6_STR_SNP1W		BIT(1)
-#define SNPWADR	0x10
+#define SNPWADR	0x90
 #define SNPWADR_CH0_MASK	GENMASK(15, 0)
 #define SNPWADR_CH0_SHIFT	0
 #define SNPWADR_CH1_MASK	GENMASK(31, 16)
 #define SNPWADR_CH1_SHIFT	16
-#define SNPWDR	0x14
+#define SNPWDR	0x94
 #define SNPWDR_CH0_MASK		GENMASK(7, 0)
 #define SNPWDR_CH0_SHIFT	0
 #define SNPWDR_CH1_MASK		GENMASK(15, 8)
 #define SNPWDR_CH1_SHIFT	8
-#define HICRB	0x80
+#define HICRB	0x100
 #define HICRB_ENSNP0D		BIT(14)
 #define HICRB_ENSNP1D		BIT(15)
 
@@ -102,12 +98,12 @@ static ssize_t snoop_file_read(struct file *file, char __user *buffer,
 }
 
 static __poll_t snoop_file_poll(struct file *file,
- 				    struct poll_table_struct *pt)
+				    struct poll_table_struct *pt)
 {
 	struct aspeed_lpc_snoop_channel *chan = snoop_file_to_chan(file);
 
 	poll_wait(file, &chan->wq, pt);
-	return !kfifo_is_empty(&chan->fifo) ? POLLIN : 0;
+	return !kfifo_is_empty(&chan->fifo) ? EPOLLIN : 0;
 }
 
 static const struct file_operations snoop_fops = {
@@ -324,17 +320,13 @@ static const struct aspeed_lpc_snoop_model_data ast2500_model_data = {
 	.has_hicrb_ensnp = 1,
 };
 
-static const struct aspeed_lpc_snoop_model_data ast2600_model_data = {
-	.has_hicrb_ensnp = 1,
-};
-
 static const struct of_device_id aspeed_lpc_snoop_match[] = {
 	{ .compatible = "aspeed,ast2400-lpc-snoop",
 	  .data = &ast2400_model_data },
 	{ .compatible = "aspeed,ast2500-lpc-snoop",
 	  .data = &ast2500_model_data },
 	{ .compatible = "aspeed,ast2600-lpc-snoop",
-	  .data = &ast2600_model_data },
+	  .data = &ast2500_model_data },
 	{ },
 };
 

@@ -496,33 +496,6 @@ config VEXPRESS_SYSCFG
 	  bus. System Configuration interface is one of the possible means
 	  of generating transactions on this bus.
 
-config ASPEED_ESPI
-        tristate "ASPEED eSPI"
-
-config ASPEED_ESPI_FLASH
-	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON && ASPEED_ESPI
-	tristate "Aspeed ast2500/2600 ESPI Flash channel driver"
-	help
-	  Control Aspeed ast2400/2500 ESPI FLASH channel driver
-
-config ASPEED_ESPI_OOB
-	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON && ASPEED_ESPI
-	tristate "Aspeed ast2500/2600 ESPI OOB channel driver"
-	help
-	  Control Aspeed ast2400/2500 ESPI OOB channel driver
-
-config ASPEED_ESPI_PERIPHERAL
-        depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON && ASPEED_ESPI
-        tristate "Aspeed ast2500/2600 ESPI PERIPHERAL channel driver"
-        help
-          Control Aspeed ast2400/2500 ESPI PERIPHERAL channel driver
-
-config ASPEED_ESPI_VW
-        depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON && ASPEED_ESPI
-        tristate "Aspeed ast2500/2600 ESPI Virtual Wire channel driver"
-        help
-          Control Aspeed ast2400/2500 ESPI Virtual Wire channel driver
-
 config ASPEED_ESPI_MMBI
         depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON && ASPEED_ESPI
         tristate "Aspeed ast2500/2600 ESPI MMBI driver"
@@ -536,38 +509,6 @@ config ASPEED_P2A_CTRL
 	  Control Aspeed ast2400/2500 HOST P2A VGA MMIO to BMC mappings through
 	  ioctl()s, the driver also provides an interface for userspace mappings to
 	  a pre-defined region.
-
-config ASPEED_LPC_CTRL
-	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
-	tristate "Aspeed ast2400/2500 HOST LPC to BMC bridge control"
-	---help---
-	  Control Aspeed ast2400/2500 HOST LPC to BMC mappings through
-	  ioctl()s, the driver also provides a read/write interface to a BMC ram
-	  region where the host LPC read/write region can be buffered.
-
-config ASPEED_LPC_SNOOP
-	tristate "Aspeed ast2500 HOST LPC snoop support"
-	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
-	help
-	  Provides a driver to control the LPC snoop interface which
-	  allows the BMC to listen on and save the data written by
-	  the host to an arbitrary LPC I/O port.
-
-config ASPEED_LPC_PCC
-	tristate "Aspeed HOST LPC Post Code Capture support"
-	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
-	help
-	  Provides a driver to control the LPC PCC interface,
-	  allowing the BMC to snoop the data written by the
-	  host to an arbitrary
-
-
-config ASPEED_LPC_MBOX
-	tristate "Aspeed LPC Mailbox Controller"
-	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
-	---help---
-	  Expose the ASPEED LPC MBOX registers found on Aspeed SOCs (AST2400
-	  and AST2500) to userspace.
 
 config PCI_ENDPOINT_TEST
 	depends on PCI
