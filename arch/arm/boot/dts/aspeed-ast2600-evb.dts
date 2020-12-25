@@ -4,39 +4,25 @@
 #include "aspeed-g6.dtsi"
 
 / {
-	model = "AST2600 A1 EVB";
+	model = "AST2600 EVB";
 	compatible = "aspeed,ast2600";
 
 	aliases {
-		serial0 = &uart1;
-		serial1 = &uart2;
-		serial2 = &uart3;
-		serial3 = &uart4;
 		serial4 = &uart5;
-		serial5 = &uart6;
-		serial6 = &uart7;
-		serial7 = &uart8;
-		serial8 = &uart9;
-		serial9 = &uart10;
-		serial10 = &uart11;
-		serial11 = &uart12;
-		serial12 = &uart13;
 		mmc0 = &emmc;
 		mmc1 = &sdhci0;
 		mmc2 = &sdhci1;
-		jtag0 = &jtag1;
 		mctp0 = &mctp0;
 		mctp1 = &mctp1;
 	};
 
 	chosen {
-		stdout-path = &uart5;
-		bootargs = "console=tty0 console=ttyS4,115200n8 root=/dev/ram rw init=/linuxrc";
+		bootargs = "console=ttyS4,115200n8";
 	};
 
 	memory@80000000 {
 		device_type = "memory";
-		reg = <0x80000000 0x40000000>;
+		reg = <0x80000000 0x80000000>;
 	};
 
 	reserved-memory {
@@ -77,6 +63,13 @@
 			alignment = <0x00100000>;
 			compatible = "shared-dma-pool";
 			no-map;
+		};
+
+		/* 1GB memory */
+		vga_memory: region@bf000000 {
+			no-map;
+			compatible = "shared-dma-pool";
+			reg = <0xbf000000 0x01000000>;  /* 16M */
 		};
 
 	};
