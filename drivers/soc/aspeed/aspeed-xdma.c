@@ -1,1021 +1,1221 @@
-/*
- * xdma driver for the Aspeed SoC
- *
- * Copyright (C) ASPEED Technology Inc.
- * Ryan Chen <ryan_chen@aspeedtech.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- */
-#include <linux/poll.h>
-#include <linux/sysfs.h>
-#include <linux/fs.h>
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright IBM Corp 2019
+
+#include <linux/aspeed-xdma.h>
+#include <linux/bitfield.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
+#include <linux/fs.h>
+#include <linux/genalloc.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/jiffies.h>
+#include <linux/mfd/syscon.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/sched.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/platform_device.h>
-#include <linux/dma-mapping.h>
-#include <linux/reset.h>
-#include <linux/of.h>
+#include <linux/mutex.h>
 #include <linux/of_device.h>
+#include <linux/of_reserved_mem.h>
+#include <linux/platform_device.h>
+#include <linux/poll.h>
+#include <linux/regmap.h>
+#include <linux/reset.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
+#include <linux/uaccess.h>
+#include <linux/wait.h>
+#include <linux/workqueue.h>
 
-/* register ************************************************************************************/
-struct aspeed_xdma_reg {
-	volatile uint32_t host_cmdq_laddr;
-	volatile uint32_t host_cmdq_endpt;
-	volatile uint32_t host_cmdq_writept;
-	volatile uint32_t host_cmdq_readpt;
+#define DEVICE_NAME				"aspeed-xdma"
 
-	volatile uint32_t bmc_cmdq_addr;
-	volatile uint32_t bmc_cmdq_endpt;
-	volatile uint32_t bmc_cmdq_writept;
-	volatile uint32_t bmc_cmdq_readpt;
+#define SCU_AST2600_MISC_CTRL			0x0c0
+#define  SCU_AST2600_MISC_CTRL_XDMA_BMC		 BIT(8)
 
-	volatile uint32_t ier_and_eng_ctrl;
-	volatile uint32_t isr_and_eng_sts0;
-	volatile uint32_t ds_curr_tx_frames_size;
-	volatile uint32_t reserve0;
+#define SCU_AST2500_PCIE_CONF			0x180
+#define SCU_AST2600_PCIE_CONF			0xc20
+#define  SCU_PCIE_CONF_VGA_EN			 BIT(0)
+#define  SCU_PCIE_CONF_VGA_EN_MMIO		 BIT(1)
+#define  SCU_PCIE_CONF_VGA_EN_LPC		 BIT(2)
+#define  SCU_PCIE_CONF_VGA_EN_MSI		 BIT(3)
+#define  SCU_PCIE_CONF_VGA_EN_MCTP		 BIT(4)
+#define  SCU_PCIE_CONF_VGA_EN_IRQ		 BIT(5)
+#define  SCU_PCIE_CONF_VGA_EN_DMA		 BIT(6)
+#define  SCU_PCIE_CONF_BMC_EN			 BIT(8)
+#define  SCU_PCIE_CONF_BMC_EN_MMIO		 BIT(9)
+#define  SCU_PCIE_CONF_BMC_EN_MSI		 BIT(11)
+#define  SCU_PCIE_CONF_BMC_EN_MCTP		 BIT(12)
+#define  SCU_PCIE_CONF_BMC_EN_IRQ		 BIT(13)
+#define  SCU_PCIE_CONF_BMC_EN_DMA		 BIT(14)
 
-	volatile uint32_t probe_of_ds_pcie;
-	volatile uint32_t probe_of_us_pcie;
-	volatile uint32_t processing_ds_cmd1;
-	volatile uint32_t processing_ds_cmd2;
+#define SCU_AST2500_BMC_CLASS_REV		0x19c
+#define SCU_AST2600_BMC_CLASS_REV		0xc68
+#define  SCU_BMC_CLASS_REV_XDMA			 0xff000001
 
-	volatile uint32_t processing_us_lcmd0;
-	volatile uint32_t processing_us_hcmd0;
-	volatile uint32_t processing_us_lcmd1;
-	volatile uint32_t processing_us_hcmd1;
+#define SDMC_REMAP                             0x008
+#define  SDMC_AST2500_REMAP_PCIE                BIT(16)
+#define  SDMC_AST2500_REMAP_XDMA                BIT(17)
+#define  SDMC_AST2600_REMAP_XDMA                BIT(18)
 
-	volatile uint32_t processing_us_lcmd2;
-	volatile uint32_t processing_us_hcmd2;
-	volatile uint32_t reserve1;
-	volatile uint32_t reserve2;
+#define XDMA_CMDQ_SIZE				PAGE_SIZE
+#define XDMA_NUM_CMDS				\
+	(XDMA_CMDQ_SIZE / sizeof(struct aspeed_xdma_cmd))
 
-	volatile uint32_t host_cmdq_haddr;
-	volatile uint32_t vga_cmdq_laddr;
-	volatile uint32_t vga_cmdq_endpt;
-	volatile uint32_t vga_cmdq_writept;
+/* Aspeed specification requires 100us after disabling the reset */
+#define XDMA_ENGINE_SETUP_TIME_MAX_US          1000
+#define XDMA_ENGINE_SETUP_TIME_MIN_US          100
 
-	volatile uint32_t vga_cmdq_readpt;
-	volatile uint32_t vga_cmdq_eng_sts;
-	volatile uint32_t vga_cmdq_haddr;
+#define XDMA_CMD_AST2500_PITCH_SHIFT		3
+#define XDMA_CMD_AST2500_PITCH_BMC		GENMASK_ULL(62, 51)
+#define XDMA_CMD_AST2500_PITCH_HOST		GENMASK_ULL(46, 35)
+#define XDMA_CMD_AST2500_PITCH_UPSTREAM		BIT_ULL(31)
+#define XDMA_CMD_AST2500_PITCH_ADDR		GENMASK_ULL(29, 4)
+#define XDMA_CMD_AST2500_PITCH_ID		BIT_ULL(0)
+#define XDMA_CMD_AST2500_CMD_IRQ_EN		BIT_ULL(31)
+#define XDMA_CMD_AST2500_CMD_LINE_NO		GENMASK_ULL(27, 16)
+#define XDMA_CMD_AST2500_CMD_IRQ_BMC		BIT_ULL(15)
+#define XDMA_CMD_AST2500_CMD_LINE_SIZE_SHIFT	4
+#define XDMA_CMD_AST2500_CMD_LINE_SIZE		\
+	GENMASK_ULL(14, XDMA_CMD_AST2500_CMD_LINE_SIZE_SHIFT)
+#define XDMA_CMD_AST2500_CMD_ID			BIT_ULL(1)
+
+#define XDMA_CMD_AST2600_PITCH_BMC		GENMASK_ULL(62, 48)
+#define XDMA_CMD_AST2600_PITCH_HOST		GENMASK_ULL(46, 32)
+#define XDMA_CMD_AST2600_PITCH_ADDR		GENMASK_ULL(30, 0)
+#define XDMA_CMD_AST2600_CMD_64_EN		BIT_ULL(40)
+#define XDMA_CMD_AST2600_CMD_IRQ_BMC		BIT_ULL(37)
+#define XDMA_CMD_AST2600_CMD_IRQ_HOST		BIT_ULL(36)
+#define XDMA_CMD_AST2600_CMD_UPSTREAM		BIT_ULL(32)
+#define XDMA_CMD_AST2600_CMD_LINE_NO		GENMASK_ULL(27, 16)
+#define XDMA_CMD_AST2600_CMD_LINE_SIZE		GENMASK_ULL(14, 0)
+#define XDMA_CMD_AST2600_CMD_MULTILINE_SIZE	GENMASK_ULL(14, 12)
+
+#define XDMA_AST2500_QUEUE_ENTRY_SIZE		4
+#define XDMA_AST2500_HOST_CMDQ_ADDR0		0x00
+#define XDMA_AST2500_HOST_CMDQ_ENDP		0x04
+#define XDMA_AST2500_HOST_CMDQ_WRITEP		0x08
+#define XDMA_AST2500_HOST_CMDQ_READP		0x0c
+#define XDMA_AST2500_BMC_CMDQ_ADDR		0x10
+#define XDMA_AST2500_BMC_CMDQ_ENDP		0x14
+#define XDMA_AST2500_BMC_CMDQ_WRITEP		0x18
+#define XDMA_AST2500_BMC_CMDQ_READP		0x1c
+#define  XDMA_BMC_CMDQ_READP_RESET		 0xee882266
+#define XDMA_AST2500_CTRL			0x20
+#define  XDMA_AST2500_CTRL_US_COMP		 BIT(4)
+#define  XDMA_AST2500_CTRL_DS_COMP		 BIT(5)
+#define  XDMA_AST2500_CTRL_DS_DIRTY		 BIT(6)
+#define  XDMA_AST2500_CTRL_DS_SIZE_256		 BIT(17)
+#define  XDMA_AST2500_CTRL_DS_TIMEOUT		 BIT(28)
+#define  XDMA_AST2500_CTRL_DS_CHECK_ID		 BIT(29)
+#define XDMA_AST2500_STATUS			0x24
+#define  XDMA_AST2500_STATUS_US_COMP		 BIT(4)
+#define  XDMA_AST2500_STATUS_DS_COMP		 BIT(5)
+#define  XDMA_AST2500_STATUS_DS_DIRTY		 BIT(6)
+#define XDMA_AST2500_INPRG_DS_CMD1		0x38
+#define XDMA_AST2500_INPRG_DS_CMD2		0x3c
+#define XDMA_AST2500_INPRG_US_CMD00		0x40
+#define XDMA_AST2500_INPRG_US_CMD01		0x44
+#define XDMA_AST2500_INPRG_US_CMD10		0x48
+#define XDMA_AST2500_INPRG_US_CMD11		0x4c
+#define XDMA_AST2500_INPRG_US_CMD20		0x50
+#define XDMA_AST2500_INPRG_US_CMD21		0x54
+#define XDMA_AST2500_HOST_CMDQ_ADDR1		0x60
+#define XDMA_AST2500_VGA_CMDQ_ADDR0		0x64
+#define XDMA_AST2500_VGA_CMDQ_ENDP		0x68
+#define XDMA_AST2500_VGA_CMDQ_WRITEP		0x6c
+#define XDMA_AST2500_VGA_CMDQ_READP		0x70
+#define XDMA_AST2500_VGA_CMD_STATUS		0x74
+#define XDMA_AST2500_VGA_CMDQ_ADDR1		0x78
+
+#define XDMA_AST2600_QUEUE_ENTRY_SIZE		2
+#define XDMA_AST2600_HOST_CMDQ_ADDR0		0x00
+#define XDMA_AST2600_HOST_CMDQ_ADDR1		0x04
+#define XDMA_AST2600_HOST_CMDQ_ENDP		0x08
+#define XDMA_AST2600_HOST_CMDQ_WRITEP		0x0c
+#define XDMA_AST2600_HOST_CMDQ_READP		0x10
+#define XDMA_AST2600_BMC_CMDQ_ADDR		0x14
+#define XDMA_AST2600_BMC_CMDQ_ENDP		0x18
+#define XDMA_AST2600_BMC_CMDQ_WRITEP		0x1c
+#define XDMA_AST2600_BMC_CMDQ_READP		0x20
+#define XDMA_AST2600_VGA_CMDQ_ADDR0		0x24
+#define XDMA_AST2600_VGA_CMDQ_ADDR1		0x28
+#define XDMA_AST2600_VGA_CMDQ_ENDP		0x2c
+#define XDMA_AST2600_VGA_CMDQ_WRITEP		0x30
+#define XDMA_AST2600_VGA_CMDQ_READP		0x34
+#define XDMA_AST2600_CTRL			0x38
+#define  XDMA_AST2600_CTRL_US_COMP		 BIT(16)
+#define  XDMA_AST2600_CTRL_DS_COMP		 BIT(17)
+#define  XDMA_AST2600_CTRL_DS_DIRTY		 BIT(18)
+#define  XDMA_AST2600_CTRL_DS_SIZE_256		 BIT(20)
+#define XDMA_AST2600_STATUS			0x3c
+#define  XDMA_AST2600_STATUS_US_COMP		 BIT(16)
+#define  XDMA_AST2600_STATUS_DS_COMP		 BIT(17)
+#define  XDMA_AST2600_STATUS_DS_DIRTY		 BIT(18)
+#define XDMA_AST2600_INPRG_DS_CMD00		0x40
+#define XDMA_AST2600_INPRG_DS_CMD01		0x44
+#define XDMA_AST2600_INPRG_DS_CMD10		0x48
+#define XDMA_AST2600_INPRG_DS_CMD11		0x4c
+#define XDMA_AST2600_INPRG_DS_CMD20		0x50
+#define XDMA_AST2600_INPRG_DS_CMD21		0x54
+#define XDMA_AST2600_INPRG_US_CMD00		0x60
+#define XDMA_AST2600_INPRG_US_CMD01		0x64
+#define XDMA_AST2600_INPRG_US_CMD10		0x68
+#define XDMA_AST2600_INPRG_US_CMD11		0x6c
+#define XDMA_AST2600_INPRG_US_CMD20		0x70
+#define XDMA_AST2600_INPRG_US_CMD21		0x74
+
+struct aspeed_xdma_cmd {
+	u64 host_addr;
+	u64 pitch;
+	u64 cmd;
+	u64 reserved;
 };
 
-struct aspeed_g6_xdma_reg {
-	volatile uint32_t host_cmdq_laddr;
-	volatile uint32_t host_cmdq_haddr;
-	volatile uint32_t host_cmdq_endpt;
-	volatile uint32_t host_cmdq_writept;
-
-	volatile uint32_t host_cmdq_readpt;
-	volatile uint32_t bmc_cmdq_addr;
-	volatile uint32_t bmc_cmdq_endpt;
-	volatile uint32_t bmc_cmdq_writept;
-
-	volatile uint32_t bmc_cmdq_readpt;
-	volatile uint32_t vga_cmdq_laddr;
-	volatile uint32_t vga_cmdq_haddr;
-	volatile uint32_t vga_cmdq_endpt;
-
-	volatile uint32_t vga_cmdq_writept;
-	volatile uint32_t vga_cmdq_readpt;
-	volatile uint32_t ier_and_eng_ctrl;
-	volatile uint32_t isr_and_eng_sts;
-
-	volatile uint32_t processing_ds_lcmd0;
-	volatile uint32_t processing_ds_hcmd0;
-	volatile uint32_t processing_ds_lcmd1;
-	volatile uint32_t processing_ds_hcmd1;
-
-	volatile uint32_t processing_ds_lcmd2;
-	volatile uint32_t processing_ds_hcmd2;
-	volatile uint32_t reserve0;
-	volatile uint32_t reserve1;
-
-	volatile uint32_t processing_us_lcmd0;
-	volatile uint32_t processing_us_hcmd0;
-	volatile uint32_t processing_us_lcmd1;
-	volatile uint32_t processing_us_hcmd1;
-
-	volatile uint32_t reserve2;
-	volatile uint32_t reserve3;
-	volatile uint32_t processing_us_lcmd2;
-	volatile uint32_t processing_us_hcmd2;
-
+struct aspeed_xdma_regs {
+	u8 bmc_cmdq_addr;
+	u8 bmc_cmdq_endp;
+	u8 bmc_cmdq_writep;
+	u8 bmc_cmdq_readp;
+	u8 control;
+	u8 status;
 };
 
-#define ASPEED_G6_XDMA_HOST_CMDQ_LADDR	0x00
-#define ASPEED_G6_XDMA_HOST_CMDQ_HADDR 	0x04
-#define ASPEED_G6_XDMA_HOST_CMDQ_ENDP 	0x08
-#define ASPEED_G6_XDMA_HOST_CMDQ_WRITEP 0x0C
-#define ASPEED_G6_XDMA_HOST_CMDQ_READP 	0x10
-#define ASPEED_G6_XDMA_BMC_CMDQ_BASE 	0x14
-#define ASPEED_G6_XDMA_BMC_CMDQ_ENDP 	0x18
-#define ASPEED_G6_XDMA_BMC_CMDQ_WRITEP 	0x1C
-#define ASPEED_G6_XDMA_BMC_CMDQ_READP 	0x20
-#define ASPEED_G6_XDMA_VGA_CMDQ_LADDR	0x24
-#define ASPEED_G6_XDMA_VGA_CMDQ_HADDR 	0x28
-#define ASPEED_G6_XDMA_VGA_CMDQ_ENDP 	0x2C
-#define ASPEED_G6_XDMA_VGA_CMDQ_WRITEP 	0x30
-#define ASPEED_G6_XDMA_VGA_CMDQ_READP 	0x34
-#define ASPEED_G6_XDMA_CTRL_IER 		0x38
-#define ASPEED_G6_XDMA_CTRL_ISR 		0x3C
-
-#define G6_XDMA_DS_DIRTY_FRAME			BIT(18)
-#define G6_XDMA_DS_COMPLETE				BIT(17)
-#define G6_XDMA_US_COMPLETE				BIT(16)
-
-#define ASPEED_G6_XDMA_DS_CMD0_LOW		0x40
-#define ASPEED_G6_XDMA_DS_CMD0_HIGH		0x44
-#define ASPEED_G6_XDMA_DS_CMD1_LOW		0x48
-#define ASPEED_G6_XDMA_DS_CMD1_HIGH		0x4C
-#define ASPEED_G6_XDMA_DS_CMD2_LOW		0x50
-#define ASPEED_G6_XDMA_DS_CMD2_HIGH		0x54
-#define ASPEED_G6_XDMA_US_CMD0_LOW		0x58
-#define ASPEED_G6_XDMA_US_CMD0_HIGH		0x5C
-#define ASPEED_G6_XDMA_US_CMD1_LOW		0x60
-#define ASPEED_G6_XDMA_US_CMD1_HIGH		0x64
-#define ASPEED_G6_XDMA_US_CMD2_LOW		0x68
-#define ASPEED_G6_XDMA_US_CMD2_HIGH		0x6C
-
-/* AST_XDMA_CTRL_IER - 0x38 : Interrupt Enable and Engine Control */
-#define XDMA_PCIE_64Bits_MODE_EN	BIT(31)
-#define XDMA_EDGE_INT				BIT(24)
-#define XDMA_DS_REQ_SIZE_MASK		(0x7 << 20)
-#define XDMA_DS_REQ_SIZE_256		(0x1 << 20)
-#define XDMA_DS_REQ_512				(0x2 << 20)
-#define XDMA_DS_REQ_1K				(0x3 << 20)
-#define XDMA_DS_REQ_2K				(0x4 << 20)
-#define XDMA_DS_REQ_4K				(0x5 << 20)
-
-#define XDMA_BMC_DS_DIRTY			BIT(18)
-#define XDMA_BMC_DS_DONE			BIT(17)
-#define XDMA_BMC_US_DONE			BIT(16)
-#define XDMA_VGA_DS_DONE			BIT(15)
-#define XDMA_VGA_US_DONE			BIT(14)
-#define XDMA_HOST_DS_DONE			BIT(13)
-#define XDMA_HOST_US_DONE			BIT(12)
-
-/* AST_XDMA_CTRL_ISR - 0x3C : Interrupt Flag and Engine Status */
-#define XDMA_ALL_IDEL				BIT(31)
-#define XDMA_HOST_CMDQ_IDLE			BIT(30)
-#define XDMA_BMC_CMDQ_IDLE			BIT(29)
-#define XDMA_DS_IDLE				BIT(28)
-#define XDMA_US_IDLE				BIT(27)
-#define XDMA_VGA_CMDQ_IDLE			BIT(26)
-#define XDMA_HOST_CMDQ_DIRTY		BIT(25)
-#define XDMA_VGA_CMDQ_DIRTY			BIT(24)
-
-#define XDMA_BMC_DS_DIRTY_STS		BIT(23)
-#define XDMA_VGA_DS_DIRTY_STS		BIT(22)
-#define XDMA_HOST_DS_DIRTY_STS		BIT(21)
-/*
-#define XDMA_BMC_DS_DIRTY			(0x1 << 18)
-#define XDMA_BMC_DS_DONE			(0x1 << 17)
-#define XDMA_BMC_US_DONE			(0x1 << 16)
-#define XDMA_VGA_DS_DONE			(0x1 << 15)
-#define XDMA_VGA_US_DONE			(0x1 << 14)
-#define XDMA_HOST_DS_DONE			(0x1 << 13)
-#define XDMA_HOST_US_DONE			(0x1 << 12)
-*/
-
-#define ASPEED_XDMA_HOST_CMDQ_LOW 		0x00
-#define ASPEED_XDMA_HOST_CMDQ_ENDP 		0x04
-#define ASPEED_XDMA_HOST_CMDQ_WRITEP 	0x08
-#define ASPEED_XDMA_HOST_CMDQ_READP 	0x0C
-#define ASPEED_XDMA_BMC_CMDQ_BASE 		0x10
-#define ASPEED_XDMA_BMC_CMDQ_ENDP 		0x14
-#define ASPEED_XDMA_BMC_CMDQ_WRITEP 	0x18
-#define ASPEED_XDMA_BMC_CMDQ_READP 		0x1C
-#define ASPEED_XDMA_CTRL_IER 			0x20
-#define ASPEED_XDMA_CTRL_ISR 			0x24
-#define ASPEED_XDMA_DS_TX_SIZE			0x28
-#define ASPEED_XDMA_DS_PCIE				0x30
-#define ASPEED_XDMA_US_PCIE				0x34
-#define ASPEED_XDMA_DS_CMD1				0x38
-#define ASPEED_XDMA_DS_CMD2				0x3C
-#define ASPEED_XDMA_US_CMD0_LOW			0x40
-#define ASPEED_XDMA_US_CMD0_HIGH		0x44
-#define ASPEED_XDMA_US_CMD1_LOW			0x48
-#define ASPEED_XDMA_US_CMD1_HIGH		0x4C
-#define ASPEED_XDMA_US_CMD2_LOW			0x50
-#define ASPEED_XDMA_US_CMD2_HIGH		0x54
-#define ASPEED_XDMA_HOST_CMDQ_HIGH 		0x60
-
-/* ASPEED_XDMA_CTRL_IER - 0x20 : Interrupt Enable and Engine Control */
-#define XDMA_PCIE_64Bits_MODE_EN	BIT(31)
-#define XDMA_CK_DS_CMD_ID_EN		BIT(29)
-#define XDMA_DS_DATA_TO_EN			BIT(28)
-#define XDMA_DS_PKS_256				(1 << 17)
-#define XDMA_DS_PKS_512				(2 << 17)
-#define XDMA_DS_PKS_1K				(3 << 17)
-#define XDMA_DS_PKS_2K				(4 << 17)
-#define XDMA_DS_PKS_4K				(5 << 17)
-
-#define XDMA_DS_DIRTY_FRAME			BIT(6)
-#define XDMA_DS_COMPLETE			BIT(5)
-#define XDMA_US_COMPLETE			BIT(4)
-/*************************************************************************************/
-#define ASPEED_XDMA_CMD_DESC_NUM		2
-/*************************************************************************************/
-//ast2600
-//CMD0 Format	(0x00) : Base address of PCIe data [63:3]
-//CMD1 Format	(0x08) : Pitch and Base Address
-
-//CMD2 Format Low	(0x10) : Fire Command
-#define G6_FRAM_LINE_NUM(x)			((x & 0xfff) << 16)
-#define G6_FRAM_LINE_BYTE(x)		(x & 0x7fff)
-
-//CMD2 Format HIGH	(0x14) : Fire Command
-#define G6_CMD_64BIT_ADDR			BIT(8)
-
-#define G6_CMD_BINT_EN				BIT(5)
-#define G6_CMD_HINT_EN				BIT(4)
-#define G6_CMD_US_DIR				BIT(0)
-/*************************************************************************************/
-
-//CMD0 Format	(0x00)
-#define PCIE_DATA_ADDR(x)			(x << 3)
-//CMD1 Format	(0x08)
-#define UP_STREAM_XFER				BIT(31)
-//ast -g 6
-//byte align
-#define G6_BMC_ADDR(x)				(x & 0x7fffffff)
-
-//ast -g 5
-//16byte align
-#define G5_BYTE_ALIGN				16
-#define G5_BMC_ADDR(x)				(x & 0x3ffffff0)
-//old ast soc
-//8byte align
-#define BYTE_ALIGN					8
-#define BMC_ADDR(x)					(x & 0x1ffffff8)
-
-#define CMD1_XFER_ID				(1)
-
-//CMD2 Format	(0x10)
-#define INTER_CMD_FINISH			(1 << 31)
-#define FRAM_LINE_NUM(x)			(x << 16)
-#define INTER_DIRECTION_BMC			(1 << 15)
-//g5
-#define G5_FRAM_LINE_BYTE(x)		((x & 0x7ff) << 4)
-//old soc
-#define FRAM_LINE_BYTE(x)			((x & 0xfff) << 3)
-
-#define CMD2_XFER_ID				(2)
-
-#define CMD_QUEUE_SETTING_PSWD		0xEE882266
-/*************************************************************************************/
-//use for ast2600 is 128bit length
-#define G6_UPDATE_WRITE_POINT			2
-#define G6_DEFAULT_END_POINT			4
-//use for ast2500
-#define G5_UPDATE_WRITE_POINT			4
-#define G5_DEFAULT_END_POINT			8
-struct aspeed_new_xdma_cmd_desc {
-	u32 cmd0_low;
-	u32 cmd0_high;
-	u32 cmd1_low;
-	u32 cmd1_high;
-	u32 cmd2_low;
-	u32 cmd2_high;
-	u32 resv_low;
-	u32 resv_high;
+struct aspeed_xdma_status_bits {
+	u32 us_comp;
+	u32 ds_comp;
+	u32 ds_dirty;
 };
 
-#define UPDATE_WRITE_POINT			3
-#define DEFAULT_END_POINT			5
+struct aspeed_xdma;
 
-//use for ast2400/ast2600
-struct aspeed_xdma_cmd_desc {
-	u32 cmd0_low;
-	u32 cmd0_high;
-	u32 cmd1_low;
-	u32 cmd1_high;
-	u32 cmd2_low;
-	u32 cmd2_high;
+struct aspeed_xdma_chip {
+	u32 control;
+	u32 scu_bmc_class;
+	u32 scu_misc_ctrl;
+	u32 scu_pcie_conf;
+	u32 sdmc_remap;
+	unsigned int queue_entry_size;
+	struct aspeed_xdma_regs regs;
+	struct aspeed_xdma_status_bits status_bits;
+	unsigned int (*set_cmd)(struct aspeed_xdma *ctx,
+				struct aspeed_xdma_cmd cmds[2],
+				struct aspeed_xdma_op *op, u32 bmc_addr);
 };
 
-/*************************************************************************************/
-#define XDMA_MAX_XFER_BUFF_SIZE 4096
+struct aspeed_xdma_client;
 
-struct aspeed_xdma_xfer {
-	unsigned char stream_dir;
-	unsigned char *xfer_buff;
-	unsigned int xfer_len;
-	unsigned int bmc_addr;
-	unsigned int host_addr_low;
-	unsigned int host_addr_high;
-};
+struct aspeed_xdma {
+	struct kobject kobj;
+	const struct aspeed_xdma_chip *chip;
 
-#define XDMAIOC_BASE		'D'
-
-#define ASPEED_XDMA_IOCXFER	_IOWR(XDMAIOC_BASE, 0x0, struct aspeed_xdma_xfer*)
-/*************************************************************************************/
-//#define ASPEED_XDMA_DEBUG
-
-#ifdef ASPEED_XDMA_DEBUG
-#define XDMA_DBUG(fmt, args...) printk(KERN_DEBUG "%s() " fmt,__FUNCTION__, ## args)
-#else
-#define XDMA_DBUG(fmt, args...)
-#endif
-
-#define XDMA_MSG(fmt, args...) printk(fmt, ## args)
-
-struct aspeed_xdma_info {
-	void __iomem *reg_base;
-	int irq;					//XDMA IRQ number
-	int pcie_irq;					//XDMA IRQ number
+	int irq;
+	int pcie_irq;
+	struct clk *clock;
+	struct device *dev;
+	void __iomem *base;
+	resource_size_t res_size;
+	resource_size_t res_start;
 	struct reset_control *reset;
-	u32 dram_base;
-	int xdma_version;
+	struct reset_control *reset_rc;
 
-	u8 desc_index;
-	struct aspeed_xdma_cmd_desc *xfer_cmd_desc;
-	struct aspeed_new_xdma_cmd_desc *new_xfer_cmd_desc;
-	dma_addr_t xfer_cmd_desc_dma;
+	/* Protects current_client */
+	spinlock_t client_lock;
+	struct aspeed_xdma_client *current_client;
 
-	u8 *xfer_data;
-	dma_addr_t xfer_data_dma;
-	struct completion		cmd_complete;
+	/* Protects engine configuration */
+	spinlock_t engine_lock;
+	struct aspeed_xdma_cmd *cmdq;
+	unsigned int cmd_idx;
+	bool in_reset;
+	bool upstream;
 
-	bool is_open;
-	struct miscdevice *misc_dev;
+	/* Queue waiters for idle engine */
+	wait_queue_head_t wait;
+
+	struct work_struct reset_work;
+
+	u32 mem_phys;
+	u32 mem_size;
+	void *mem_virt;
+	dma_addr_t mem_coherent;
+	dma_addr_t cmdq_phys;
+	struct gen_pool *pool;
+
+	struct miscdevice misc;
 };
 
-/******************************************************************************/
-static DEFINE_SPINLOCK(xdma_state_lock);
-/******************************************************************************/
+struct aspeed_xdma_client {
+	struct aspeed_xdma *ctx;
 
-static inline u32
-aspeed_xdma_read(struct aspeed_xdma_info *aspeed_xdma, u32 reg)
+	bool error;
+	bool in_progress;
+	void *virt;
+	dma_addr_t phys;
+	u32 size;
+};
+
+static u32 aspeed_xdma_readl(struct aspeed_xdma *ctx, u8 reg)
 {
-	u32 val;
+	u32 v = readl(ctx->base + reg);
 
-	val = readl(aspeed_xdma->reg_base + reg);
-	XDMA_DBUG("reg = 0x%08x, val = 0x%08x\n", reg, val);
-	return val;
+	dev_dbg(ctx->dev, "read %02x[%08x]\n", reg, v);
+	return v;
 }
 
-static inline void
-aspeed_xdma_write(struct aspeed_xdma_info *aspeed_xdma, u32 val, u32 reg)
+static void aspeed_xdma_writel(struct aspeed_xdma *ctx, u8 reg, u32 val)
 {
-	XDMA_DBUG("reg = 0x%08x, val = 0x%08x\n", reg, val);
-	writel(val, aspeed_xdma->reg_base + reg);
+	writel(val, ctx->base + reg);
+	dev_dbg(ctx->dev, "write %02x[%08x]\n", reg, val);
 }
 
-/*************************************************************************************/
-static void aspeed_xdma_xfer(struct aspeed_xdma_info *aspeed_xdma, struct aspeed_xdma_xfer *xdma_xfer)
+static void aspeed_xdma_init_eng(struct aspeed_xdma *ctx)
 {
-	u32 xfer_len = 0;
-	u32 bmc_addr = 0;
+	unsigned long flags;
 
-	XDMA_DBUG("\n");
-	init_completion(&aspeed_xdma->cmd_complete);
+	spin_lock_irqsave(&ctx->engine_lock, flags);
+	aspeed_xdma_writel(ctx, ctx->chip->regs.bmc_cmdq_endp,
+			   ctx->chip->queue_entry_size * XDMA_NUM_CMDS);
+	aspeed_xdma_writel(ctx, ctx->chip->regs.bmc_cmdq_readp,
+			   XDMA_BMC_CMDQ_READP_RESET);
+	aspeed_xdma_writel(ctx, ctx->chip->regs.bmc_cmdq_writep, 0);
+	aspeed_xdma_writel(ctx, ctx->chip->regs.control, ctx->chip->control);
+	aspeed_xdma_writel(ctx, ctx->chip->regs.bmc_cmdq_addr, ctx->cmdq_phys);
 
-	if (xdma_xfer->bmc_addr == 0)
-		bmc_addr = aspeed_xdma->xfer_data_dma;
-	else
-		bmc_addr = xdma_xfer->bmc_addr;
+	ctx->cmd_idx = 0;
+	spin_unlock_irqrestore(&ctx->engine_lock, flags);
+}
 
-	aspeed_xdma->desc_index %= 2;
+static unsigned int aspeed_xdma_ast2500_set_cmd(struct aspeed_xdma *ctx,
+						struct aspeed_xdma_cmd cmds[2],
+						struct aspeed_xdma_op *op,
+						u32 bmc_addr)
+{
+	unsigned int rc = 1;
+	unsigned int pitch = 1;
+	unsigned int line_no = 1;
+	unsigned int line_size = op->len >>
+		XDMA_CMD_AST2500_CMD_LINE_SIZE_SHIFT;
+	u64 cmd = XDMA_CMD_AST2500_CMD_IRQ_EN | XDMA_CMD_AST2500_CMD_IRQ_BMC |
+		XDMA_CMD_AST2500_CMD_ID;
+	u64 cmd_pitch = (op->direction ? XDMA_CMD_AST2500_PITCH_UPSTREAM : 0) |
+		XDMA_CMD_AST2500_PITCH_ID;
 
-	XDMA_DBUG("cmd index [%x] : bmc addr : %x , host addr : %x (L) %x (H), size : %d \n", aspeed_xdma->desc_index, bmc_addr, xdma_xfer->host_addr_low, xdma_xfer->host_addr_high, xdma_xfer->xfer_len);
+	dev_dbg(ctx->dev, "xdma %s ast2500: bmc[%08x] len[%08x] host[%08x]\n",
+		op->direction ? "upstream" : "downstream", bmc_addr, op->len,
+		(u32)op->host_addr);
 
-	if (xdma_xfer->xfer_len % BYTE_ALIGN)
-		xfer_len = (xdma_xfer->xfer_len / BYTE_ALIGN) + 1;
-	else
-		xfer_len = xdma_xfer->xfer_len / BYTE_ALIGN;
+	if (op->len > XDMA_CMD_AST2500_CMD_LINE_SIZE) {
+		unsigned int rem;
+		unsigned int total;
 
-	aspeed_xdma->xfer_cmd_desc[aspeed_xdma->desc_index].cmd0_high = xdma_xfer->host_addr_high;
-	aspeed_xdma->xfer_cmd_desc[aspeed_xdma->desc_index].cmd0_low = xdma_xfer->host_addr_low;
+		line_no = op->len / XDMA_CMD_AST2500_CMD_LINE_SIZE;
+		total = XDMA_CMD_AST2500_CMD_LINE_SIZE * line_no;
+		rem = (op->len - total) >>
+			XDMA_CMD_AST2500_CMD_LINE_SIZE_SHIFT;
+		line_size = XDMA_CMD_AST2500_CMD_LINE_SIZE;
+		pitch = line_size >> XDMA_CMD_AST2500_PITCH_SHIFT;
+		line_size >>= XDMA_CMD_AST2500_CMD_LINE_SIZE_SHIFT;
 
-	if (xdma_xfer->stream_dir) {
-		aspeed_xdma->xfer_cmd_desc[aspeed_xdma->desc_index].cmd1_low = UP_STREAM_XFER | BMC_ADDR(bmc_addr) | CMD1_XFER_ID;
-		XDMA_DBUG("US cmd desc %x \n", aspeed_xdma->xfer_cmd_desc[aspeed_xdma->desc_index].cmd1_low);
-		if (xdma_xfer->bmc_addr == 0) {
-			if (copy_from_user(aspeed_xdma->xfer_data, xdma_xfer->xfer_buff, xdma_xfer->xfer_len)) {
-				printk("copy from user error ~~\n");
-				return;
-			}
+		if (rem) {
+			u32 rbmc = bmc_addr + total;
+
+			cmds[1].host_addr = op->host_addr + (u64)total;
+			cmds[1].pitch = cmd_pitch |
+				((u64)rbmc & XDMA_CMD_AST2500_PITCH_ADDR) |
+				FIELD_PREP(XDMA_CMD_AST2500_PITCH_HOST, 1) |
+				FIELD_PREP(XDMA_CMD_AST2500_PITCH_BMC, 1);
+			cmds[1].cmd = cmd |
+				FIELD_PREP(XDMA_CMD_AST2500_CMD_LINE_NO, 1) |
+				FIELD_PREP(XDMA_CMD_AST2500_CMD_LINE_SIZE,
+					   rem);
+			cmds[1].reserved = 0ULL;
+
+			print_hex_dump_debug("xdma rem ", DUMP_PREFIX_OFFSET,
+					     16, 1, &cmds[1], sizeof(*cmds),
+					     true);
+
+			cmd &= ~(XDMA_CMD_AST2500_CMD_IRQ_EN |
+				 XDMA_CMD_AST2500_CMD_IRQ_BMC);
+
+			rc++;
 		}
+	}
 
+	cmds[0].host_addr = op->host_addr;
+	cmds[0].pitch = cmd_pitch |
+		((u64)bmc_addr & XDMA_CMD_AST2500_PITCH_ADDR) |
+		FIELD_PREP(XDMA_CMD_AST2500_PITCH_HOST, pitch) |
+		FIELD_PREP(XDMA_CMD_AST2500_PITCH_BMC, pitch);
+	cmds[0].cmd = cmd | FIELD_PREP(XDMA_CMD_AST2500_CMD_LINE_NO, line_no) |
+		FIELD_PREP(XDMA_CMD_AST2500_CMD_LINE_SIZE, line_size);
+	cmds[0].reserved = 0ULL;
+
+	print_hex_dump_debug("xdma cmd ", DUMP_PREFIX_OFFSET, 16, 1, cmds,
+			     sizeof(*cmds), true);
+
+	return rc;
+}
+
+static unsigned int aspeed_xdma_ast2600_set_cmd(struct aspeed_xdma *ctx,
+						struct aspeed_xdma_cmd cmds[2],
+						struct aspeed_xdma_op *op,
+						u32 bmc_addr)
+{
+	unsigned int rc = 1;
+	unsigned int pitch = 1;
+	unsigned int line_no = 1;
+	unsigned int line_size = op->len;
+	u64 cmd = XDMA_CMD_AST2600_CMD_IRQ_BMC |
+		(op->direction ? XDMA_CMD_AST2600_CMD_UPSTREAM : 0);
+
+	if (op->host_addr & 0xffffffff00000000ULL ||
+	    (op->host_addr + (u64)op->len) & 0xffffffff00000000ULL)
+		cmd |= XDMA_CMD_AST2600_CMD_64_EN;
+
+	dev_dbg(ctx->dev, "xdma %s ast2600: bmc[%08x] len[%08x] "
+		"host[%016llx]\n", op->direction ? "upstream" : "downstream",
+		bmc_addr, op->len, op->host_addr);
+
+	if (op->len > XDMA_CMD_AST2600_CMD_LINE_SIZE) {
+		unsigned int rem;
+		unsigned int total;
+
+		line_no = op->len / XDMA_CMD_AST2600_CMD_MULTILINE_SIZE;
+		total = XDMA_CMD_AST2600_CMD_MULTILINE_SIZE * line_no;
+		rem = op->len - total;
+		line_size = XDMA_CMD_AST2600_CMD_MULTILINE_SIZE;
+		pitch = line_size;
+
+		if (rem) {
+			u32 rbmc = bmc_addr + total;
+
+			cmds[1].host_addr = op->host_addr + (u64)total;
+			cmds[1].pitch =
+				((u64)rbmc & XDMA_CMD_AST2600_PITCH_ADDR) |
+				FIELD_PREP(XDMA_CMD_AST2600_PITCH_HOST, 1) |
+				FIELD_PREP(XDMA_CMD_AST2600_PITCH_BMC, 1);
+			cmds[1].cmd = cmd |
+				FIELD_PREP(XDMA_CMD_AST2600_CMD_LINE_NO, 1) |
+				FIELD_PREP(XDMA_CMD_AST2600_CMD_LINE_SIZE,
+					   rem);
+			cmds[1].reserved = 0ULL;
+
+			print_hex_dump_debug("xdma rem ", DUMP_PREFIX_OFFSET,
+					     16, 1, &cmds[1], sizeof(*cmds),
+					     true);
+
+			cmd &= ~XDMA_CMD_AST2600_CMD_IRQ_BMC;
+
+			rc++;
+		}
+	}
+
+	cmds[0].host_addr = op->host_addr;
+	cmds[0].pitch = ((u64)bmc_addr & XDMA_CMD_AST2600_PITCH_ADDR) |
+		FIELD_PREP(XDMA_CMD_AST2600_PITCH_HOST, pitch) |
+		FIELD_PREP(XDMA_CMD_AST2600_PITCH_BMC, pitch);
+	cmds[0].cmd = cmd | FIELD_PREP(XDMA_CMD_AST2600_CMD_LINE_NO, line_no) |
+		FIELD_PREP(XDMA_CMD_AST2600_CMD_LINE_SIZE, line_size);
+	cmds[0].reserved = 0ULL;
+
+	print_hex_dump_debug("xdma cmd ", DUMP_PREFIX_OFFSET, 16, 1, cmds,
+			     sizeof(*cmds), true);
+
+	return rc;
+}
+
+static int aspeed_xdma_start(struct aspeed_xdma *ctx, unsigned int num_cmds,
+			     struct aspeed_xdma_cmd cmds[2], bool upstream,
+			     struct aspeed_xdma_client *client)
+{
+	unsigned int i;
+	int rc = -EBUSY;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ctx->engine_lock, flags);
+	if (ctx->in_reset)
+		goto unlock;
+
+	spin_lock(&ctx->client_lock);
+	if (ctx->current_client) {
+		spin_unlock(&ctx->client_lock);
+		goto unlock;
+	}
+
+	client->error = false;
+	client->in_progress = true;
+	ctx->current_client = client;
+	spin_unlock(&ctx->client_lock);
+
+	ctx->upstream = upstream;
+	for (i = 0; i < num_cmds; ++i) {
+		/*
+		 * Use memcpy_toio here to get some barriers before starting
+		 * the operation. The command(s) need to be in physical memory
+		 * before the XDMA engine starts.
+		 */
+		memcpy_toio(&ctx->cmdq[ctx->cmd_idx], &cmds[i],
+			    sizeof(struct aspeed_xdma_cmd));
+		ctx->cmd_idx = (ctx->cmd_idx + 1) % XDMA_NUM_CMDS;
+	}
+
+	aspeed_xdma_writel(ctx, ctx->chip->regs.bmc_cmdq_writep,
+			   ctx->cmd_idx * ctx->chip->queue_entry_size);
+	rc = 0;
+
+unlock:
+	spin_unlock_irqrestore(&ctx->engine_lock, flags);
+	return rc;
+}
+
+static void aspeed_xdma_done(struct aspeed_xdma *ctx, bool error)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ctx->client_lock, flags);
+	if (ctx->current_client) {
+		ctx->current_client->error = error;
+		ctx->current_client->in_progress = false;
+		ctx->current_client = NULL;
+	}
+	spin_unlock_irqrestore(&ctx->client_lock, flags);
+
+	wake_up_interruptible_all(&ctx->wait);
+}
+
+static irqreturn_t aspeed_xdma_irq(int irq, void *arg)
+{
+	struct aspeed_xdma *ctx = arg;
+	u32 status;
+
+	spin_lock(&ctx->engine_lock);
+	status = aspeed_xdma_readl(ctx, ctx->chip->regs.status);
+
+	if (status & ctx->chip->status_bits.ds_dirty) {
+		aspeed_xdma_done(ctx, true);
 	} else {
-		aspeed_xdma->xfer_cmd_desc[aspeed_xdma->desc_index].cmd1_low = BMC_ADDR(bmc_addr) | CMD1_XFER_ID;
-		XDMA_DBUG("DS cmd desc %x \n", aspeed_xdma->xfer_cmd_desc[aspeed_xdma->desc_index].cmd1_low);
-		memset(aspeed_xdma->xfer_data, 0,  4096);
-	}
+		if (status & ctx->chip->status_bits.us_comp) {
+			if (ctx->upstream)
+				aspeed_xdma_done(ctx, false);
+		}
 
-	aspeed_xdma->xfer_cmd_desc[aspeed_xdma->desc_index].cmd2_low = INTER_CMD_FINISH | FRAM_LINE_NUM(1) | INTER_DIRECTION_BMC | FRAM_LINE_BYTE(xfer_len) | CMD2_XFER_ID;
-
-	//trigger tx
-	if (aspeed_xdma->desc_index == 0)
-		aspeed_xdma_write(aspeed_xdma, UPDATE_WRITE_POINT, ASPEED_XDMA_BMC_CMDQ_WRITEP);
-	else
-		aspeed_xdma_write(aspeed_xdma, 0, ASPEED_XDMA_BMC_CMDQ_WRITEP);
-
-	aspeed_xdma->desc_index++;
-
-	wait_for_completion(&aspeed_xdma->cmd_complete);
-
-	if (!xdma_xfer->stream_dir) {
-		if (xdma_xfer->bmc_addr == 0) {
-			if (copy_to_user(xdma_xfer->xfer_buff, aspeed_xdma->xfer_data, xdma_xfer->xfer_len)) {
-				printk("copy_to_user error ~~\n");
-				return;
-			}
+		if (status & ctx->chip->status_bits.ds_comp) {
+			if (!ctx->upstream)
+				aspeed_xdma_done(ctx, false);
 		}
 	}
 
-}
+	aspeed_xdma_writel(ctx, ctx->chip->regs.status, status);
+	spin_unlock(&ctx->engine_lock);
 
-static void aspeed_g5_xdma_xfer(struct aspeed_xdma_info *aspeed_xdma, struct aspeed_xdma_xfer *xdma_xfer)
-{
-	u32 xfer_len = 0;
-	u32 bmc_addr = 0;
-
-	XDMA_DBUG("\n");
-	init_completion(&aspeed_xdma->cmd_complete);
-
-	if (xdma_xfer->bmc_addr == 0)
-		bmc_addr = aspeed_xdma->xfer_data_dma;
-	else
-		bmc_addr = xdma_xfer->bmc_addr;
-
-	aspeed_xdma->desc_index %= 2;
-
-	XDMA_DBUG("cmd index [%x] : bmc addr : %x , host addr : %x (L) %x (H), size : %d \n",
-		  aspeed_xdma->desc_index, bmc_addr, xdma_xfer->host_addr_low, xdma_xfer->host_addr_high, xdma_xfer->xfer_len);
-
-	if (xdma_xfer->xfer_len % G5_BYTE_ALIGN)
-		xfer_len = (xdma_xfer->xfer_len / G5_BYTE_ALIGN) + 1;
-	else
-		xfer_len = xdma_xfer->xfer_len / G5_BYTE_ALIGN;
-
-	aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd0_high = xdma_xfer->host_addr_high;
-	aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd0_low = xdma_xfer->host_addr_low;
-
-	if (xdma_xfer->stream_dir) {
-		aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd1_low = UP_STREAM_XFER | G5_BMC_ADDR(bmc_addr) | CMD1_XFER_ID;
-		XDMA_DBUG("US cmd desc %x \n", aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd1_low);
-		if (xdma_xfer->bmc_addr == 0) {
-			if (copy_from_user(aspeed_xdma->xfer_data, xdma_xfer->xfer_buff, xdma_xfer->xfer_len)) {
-				printk("copy from user error ~~\n");
-				return;
-			}
-		}
-	} else {
-		aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd1_low = G5_BMC_ADDR(bmc_addr) | CMD1_XFER_ID;
-		XDMA_DBUG("DS cmd desc %x \n", aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd1_low);
-		memset(aspeed_xdma->xfer_data, 0,  4096);
-	}
-
-	aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd2_low =
-		INTER_CMD_FINISH | FRAM_LINE_NUM(1) | INTER_DIRECTION_BMC | G5_FRAM_LINE_BYTE(xfer_len) | CMD2_XFER_ID;
-
-	//trigger tx
-	if (aspeed_xdma->desc_index == 0)
-		aspeed_xdma_write(aspeed_xdma, G5_UPDATE_WRITE_POINT, ASPEED_XDMA_BMC_CMDQ_WRITEP);
-	else
-		aspeed_xdma_write(aspeed_xdma, 0, ASPEED_XDMA_BMC_CMDQ_WRITEP);
-
-	aspeed_xdma->desc_index++;
-
-	wait_for_completion(&aspeed_xdma->cmd_complete);
-
-	if (!xdma_xfer->stream_dir) {
-		if (xdma_xfer->bmc_addr == 0) {
-			if (copy_to_user(xdma_xfer->xfer_buff, aspeed_xdma->xfer_data, xdma_xfer->xfer_len)) {
-				printk("copy_to_user error ~~\n");
-				return;
-			}
-		}
-	}
-
-}
-
-static void aspeed_g6_xdma_xfer(struct aspeed_xdma_info *aspeed_xdma, struct aspeed_xdma_xfer *xdma_xfer)
-{
-	u32 xfer_len = 0;
-	u32 bmc_addr = 0;
-
-	XDMA_DBUG("\n");
-	init_completion(&aspeed_xdma->cmd_complete);
-
-	if (xdma_xfer->bmc_addr == 0)
-		bmc_addr = aspeed_xdma->xfer_data_dma;
-	else
-		bmc_addr = xdma_xfer->bmc_addr;
-
-	aspeed_xdma->desc_index %= 2;
-
-	XDMA_DBUG("cmd index [%x] : bmc addr : %x , host addr : %x (L) %x (H), size : %d \n", aspeed_xdma->desc_index, bmc_addr, xdma_xfer->host_addr_low, xdma_xfer->host_addr_high, xdma_xfer->xfer_len);
-
-	xfer_len = xdma_xfer->xfer_len;
-
-	aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd0_high = xdma_xfer->host_addr_high;
-	aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd0_low = xdma_xfer->host_addr_low;
-
-	if (xdma_xfer->host_addr_high != 0)
-		aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd2_high = G6_CMD_64BIT_ADDR;
-	else
-		aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd2_high = 0;
-
-	if (xdma_xfer->stream_dir) {
-		aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd1_low = G6_BMC_ADDR(bmc_addr);
-		aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd2_high |= G6_CMD_US_DIR | G6_CMD_BINT_EN;
-		XDMA_DBUG("US cmd desc %x \n", aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd1_low);
-		if (xdma_xfer->bmc_addr == 0) {
-			if (copy_from_user(aspeed_xdma->xfer_data, xdma_xfer->xfer_buff, xdma_xfer->xfer_len)) {
-				printk("copy from user error ~~\n");
-				return;
-			}
-		}
-
-	} else {
-		aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd1_low = G6_BMC_ADDR(bmc_addr);
-		aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd2_high |= G6_CMD_BINT_EN;
-		XDMA_DBUG("DS cmd desc %x \n", aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd1_low);
-		memset(aspeed_xdma->xfer_data, 0,  4096);
-	}
-
-	aspeed_xdma->new_xfer_cmd_desc[aspeed_xdma->desc_index].cmd2_low = G6_FRAM_LINE_NUM(1) | G6_FRAM_LINE_BYTE(xfer_len);
-
-	//trigger tx
-	if (aspeed_xdma->desc_index == 0)
-		aspeed_xdma_write(aspeed_xdma, G6_UPDATE_WRITE_POINT, ASPEED_G6_XDMA_BMC_CMDQ_WRITEP);
-	else
-		aspeed_xdma_write(aspeed_xdma, 0, ASPEED_G6_XDMA_BMC_CMDQ_WRITEP);
-
-	aspeed_xdma->desc_index++;
-
-	wait_for_completion(&aspeed_xdma->cmd_complete);
-
-	if (!xdma_xfer->stream_dir) {
-		if (xdma_xfer->bmc_addr == 0) {
-			if (copy_to_user(xdma_xfer->xfer_buff, aspeed_xdma->xfer_data, xdma_xfer->xfer_len)) {
-				printk("copy_to_user error ~~\n");
-				return;
-			}
-		}
-	}
-}
-
-static void aspeed_xdma_ctrl_init(struct aspeed_xdma_info *aspeed_xdma)
-{
-	memset(aspeed_xdma->xfer_cmd_desc, 0,  sizeof(struct aspeed_xdma_cmd_desc) * ASPEED_XDMA_CMD_DESC_NUM);
-
-	aspeed_xdma->xfer_cmd_desc[0].cmd1_high = 0x00080008;
-	aspeed_xdma->xfer_cmd_desc[1].cmd1_high = 0x00080008;
-	aspeed_xdma->desc_index = 0;
-
-	aspeed_xdma_write(aspeed_xdma, aspeed_xdma->xfer_cmd_desc_dma, ASPEED_XDMA_BMC_CMDQ_BASE);
-	aspeed_xdma_write(aspeed_xdma, DEFAULT_END_POINT, ASPEED_XDMA_BMC_CMDQ_ENDP);
-	aspeed_xdma_write(aspeed_xdma, 0, ASPEED_XDMA_BMC_CMDQ_WRITEP);
-
-	//register
-	aspeed_xdma_write(aspeed_xdma, XDMA_CK_DS_CMD_ID_EN | XDMA_DS_DATA_TO_EN | XDMA_DS_PKS_256 |
-			  XDMA_DS_DIRTY_FRAME | XDMA_DS_COMPLETE | XDMA_US_COMPLETE, ASPEED_XDMA_CTRL_IER);
-}
-
-static void aspeed_g5_xdma_ctrl_init(struct aspeed_xdma_info *aspeed_xdma)
-{
-	memset(aspeed_xdma->new_xfer_cmd_desc, 0,  sizeof(struct aspeed_new_xdma_cmd_desc) * ASPEED_XDMA_CMD_DESC_NUM);
-
-	aspeed_xdma->new_xfer_cmd_desc[0].cmd1_high = 0x00080008;
-	aspeed_xdma->new_xfer_cmd_desc[1].cmd1_high = 0x00080008;
-	aspeed_xdma->desc_index = 0;
-
-	aspeed_xdma_write(aspeed_xdma, aspeed_xdma->xfer_cmd_desc_dma, ASPEED_XDMA_BMC_CMDQ_BASE);
-	aspeed_xdma_write(aspeed_xdma, G5_DEFAULT_END_POINT, ASPEED_XDMA_BMC_CMDQ_ENDP);
-	aspeed_xdma_write(aspeed_xdma, CMD_QUEUE_SETTING_PSWD, ASPEED_XDMA_BMC_CMDQ_READP);
-	aspeed_xdma_write(aspeed_xdma, 0, ASPEED_XDMA_BMC_CMDQ_WRITEP);
-
-	//register
-	aspeed_xdma_write(aspeed_xdma, XDMA_CK_DS_CMD_ID_EN | XDMA_DS_DATA_TO_EN | XDMA_DS_PKS_256 |
-			  XDMA_DS_DIRTY_FRAME | XDMA_DS_COMPLETE | XDMA_US_COMPLETE, ASPEED_XDMA_CTRL_IER);
-}
-
-static void aspeed_g6_xdma_ctrl_init(struct aspeed_xdma_info *aspeed_xdma)
-{
-	memset(aspeed_xdma->new_xfer_cmd_desc, 0,  sizeof(struct aspeed_xdma_cmd_desc) * ASPEED_XDMA_CMD_DESC_NUM);
-
-	aspeed_xdma->new_xfer_cmd_desc[0].cmd1_high = 0x00010001;
-	aspeed_xdma->new_xfer_cmd_desc[1].cmd1_high = 0x00010001;
-	aspeed_xdma->desc_index = 0;
-
-	aspeed_xdma_write(aspeed_xdma, aspeed_xdma->xfer_cmd_desc_dma, ASPEED_G6_XDMA_BMC_CMDQ_BASE);
-	aspeed_xdma_write(aspeed_xdma, G6_DEFAULT_END_POINT, ASPEED_G6_XDMA_BMC_CMDQ_ENDP);
-	aspeed_xdma_write(aspeed_xdma, 0, ASPEED_G6_XDMA_BMC_CMDQ_WRITEP);
-
-	aspeed_xdma_write(aspeed_xdma, G6_XDMA_DS_DIRTY_FRAME | G6_XDMA_DS_COMPLETE | G6_XDMA_US_COMPLETE, ASPEED_G6_XDMA_CTRL_IER);
-
-}
-
-static irqreturn_t aspeed_pcie_raise_isr(int this_irq, void *dev_id)
-{
-	struct aspeed_xdma_info *aspeed_xdma = dev_id;
-
-	XDMA_DBUG("\n");
-	switch (aspeed_xdma->xdma_version) {
-	case 0:
-		aspeed_xdma_ctrl_init(aspeed_xdma);
-		break;
-	case 5:
-		aspeed_g5_xdma_ctrl_init(aspeed_xdma);
-		break;
-	case 6:
-		aspeed_g6_xdma_ctrl_init(aspeed_xdma);
-		break;
-	}
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t aspeed_xdma_isr(int this_irq, void *dev_id)
+static void aspeed_xdma_reset(struct aspeed_xdma *ctx)
 {
-	struct aspeed_xdma_info *aspeed_xdma = dev_id;
-	u32 sts;
+	unsigned long flags;
 
-	if (aspeed_xdma->xdma_version == 6) {
-		sts = aspeed_xdma_read(aspeed_xdma, ASPEED_G6_XDMA_CTRL_ISR);
+	reset_control_assert(ctx->reset);
+	usleep_range(XDMA_ENGINE_SETUP_TIME_MIN_US,
+		     XDMA_ENGINE_SETUP_TIME_MAX_US);
+	reset_control_deassert(ctx->reset);
+	usleep_range(XDMA_ENGINE_SETUP_TIME_MIN_US,
+		     XDMA_ENGINE_SETUP_TIME_MAX_US);
 
-		XDMA_DBUG("%x \n", sts);
+	aspeed_xdma_init_eng(ctx);
 
-		if (sts & G6_XDMA_DS_DIRTY_FRAME) {
-			XDMA_DBUG("G6_XDMA_BMC_DS_DIRTY_STS \n");
-		}
+	aspeed_xdma_done(ctx, true);
 
-		if (sts & G6_XDMA_DS_COMPLETE) {
-			XDMA_DBUG("G6_XDMA_DS_COMPLETE \n");
-		}
+	spin_lock_irqsave(&ctx->engine_lock, flags);
+	ctx->in_reset = false;
+	spin_unlock_irqrestore(&ctx->engine_lock, flags);
 
-		if (sts & G6_XDMA_US_COMPLETE) {
-			XDMA_DBUG("G6_XDMA_US_COMPLETE \n");
-		}
-
-		if (sts) {
-			aspeed_xdma_write(aspeed_xdma, sts, ASPEED_G6_XDMA_CTRL_ISR);
-			complete(&aspeed_xdma->cmd_complete);
-			return IRQ_HANDLED;
-		} else {
-			printk("TODO Check xdma's interrupt %x\n", sts);
-			return IRQ_NONE;
-		}
-
-	} else {
-		sts = aspeed_xdma_read(aspeed_xdma, ASPEED_XDMA_CTRL_ISR);
-
-		XDMA_DBUG("%x xxxx\n", sts);
-
-		if (sts & XDMA_DS_DIRTY_FRAME) {
-			XDMA_DBUG("XDMA_DS_DIRTY_FRAME \n");
-		}
-
-		if (sts & XDMA_DS_COMPLETE) {
-			XDMA_DBUG("XDMA_DS_COMPLETE \n");
-		}
-
-		if (sts & XDMA_US_COMPLETE) {
-			XDMA_DBUG("XDMA_US_COMPLETE \n");
-		}
-
-		if (sts) {
-			aspeed_xdma_write(aspeed_xdma, sts, ASPEED_XDMA_CTRL_ISR);
-			complete(&aspeed_xdma->cmd_complete);
-			return IRQ_HANDLED;
-		} else {
-			printk("TODO Check xdma's interrupt %x\n", sts);
-			return IRQ_NONE;
-		}
-	}
+	wake_up_interruptible(&ctx->wait);
 }
 
-static long xdma_ioctl(struct file *file, unsigned int cmd,
-		       unsigned long arg)
+static void aspeed_xdma_reset_work(struct work_struct *work)
 {
-	int ret = 0;
-	struct miscdevice *c = file->private_data;
-	struct aspeed_xdma_info *aspeed_xdma = dev_get_drvdata(c->this_device);
-	struct aspeed_xdma_xfer xdma_xfer;
-	void __user *argp = (void __user *)arg;
+	struct aspeed_xdma *ctx = container_of(work, struct aspeed_xdma,
+					       reset_work);
+
+	aspeed_xdma_reset(ctx);
+}
+
+static irqreturn_t aspeed_xdma_pcie_irq(int irq, void *arg)
+{
+	struct aspeed_xdma *ctx = arg;
+
+	dev_dbg(ctx->dev, "PCI-E reset requested.\n");
+
+	spin_lock(&ctx->engine_lock);
+	if (ctx->in_reset) {
+		spin_unlock(&ctx->engine_lock);
+		return IRQ_HANDLED;
+	}
+
+	ctx->in_reset = true;
+	spin_unlock(&ctx->engine_lock);
+
+	schedule_work(&ctx->reset_work);
+	return IRQ_HANDLED;
+}
+
+static ssize_t aspeed_xdma_write(struct file *file, const char __user *buf,
+				 size_t len, loff_t *offset)
+{
+	int rc;
+	unsigned int num_cmds;
+	struct aspeed_xdma_op op;
+	struct aspeed_xdma_cmd cmds[2];
+	struct aspeed_xdma_client *client = file->private_data;
+	struct aspeed_xdma *ctx = client->ctx;
+
+	if (len != sizeof(op))
+		return -EINVAL;
+
+	rc = copy_from_user(&op, buf, len);
+	if (rc)
+		return rc;
+
+	if (!op.len || op.len > client->size ||
+	    op.direction > ASPEED_XDMA_DIRECTION_UPSTREAM)
+		return -EINVAL;
+
+	num_cmds = ctx->chip->set_cmd(ctx, cmds, &op, client->phys);
+	do {
+		rc = aspeed_xdma_start(ctx, num_cmds, cmds, !!op.direction,
+				       client);
+		if (!rc)
+			break;
+
+		if ((file->f_flags & O_NONBLOCK) || rc != -EBUSY)
+			return rc;
+
+		rc = wait_event_interruptible(ctx->wait,
+					      !(ctx->current_client ||
+						ctx->in_reset));
+	} while (!rc);
+
+	if (rc)
+		return -EINTR;
+
+	if (!(file->f_flags & O_NONBLOCK)) {
+		rc = wait_event_interruptible(ctx->wait, !client->in_progress);
+		if (rc)
+			return -EINTR;
+
+		if (client->error)
+			return -EIO;
+	}
+
+	return len;
+}
+
+static __poll_t aspeed_xdma_poll(struct file *file,
+				 struct poll_table_struct *wait)
+{
+	__poll_t mask = 0;
+	__poll_t req = poll_requested_events(wait);
+	struct aspeed_xdma_client *client = file->private_data;
+	struct aspeed_xdma *ctx = client->ctx;
+
+	if (req & (EPOLLIN | EPOLLRDNORM)) {
+		if (READ_ONCE(client->in_progress))
+			poll_wait(file, &ctx->wait, wait);
+
+		if (!READ_ONCE(client->in_progress)) {
+			if (READ_ONCE(client->error))
+				mask |= EPOLLERR;
+			else
+				mask |= EPOLLIN | EPOLLRDNORM;
+		}
+	}
+
+	if (req & (EPOLLOUT | EPOLLWRNORM)) {
+		if (READ_ONCE(ctx->current_client))
+			poll_wait(file, &ctx->wait, wait);
+
+		if (!READ_ONCE(ctx->current_client))
+			mask |= EPOLLOUT | EPOLLWRNORM;
+	}
+
+	return mask;
+}
+
+static long aspeed_xdma_ioctl(struct file *file, unsigned int cmd,
+			      unsigned long param)
+{
+	unsigned long flags;
+	struct aspeed_xdma_client *client = file->private_data;
+	struct aspeed_xdma *ctx = client->ctx;
 
 	switch (cmd) {
-	case ASPEED_XDMA_IOCXFER:
-		XDMA_DBUG("ASPEED_XDMA_IOCXFER \n");
-
-		if (copy_from_user(&xdma_xfer, argp, sizeof(struct aspeed_xdma_xfer)))
-			return -EFAULT;
-		switch (aspeed_xdma->xdma_version) {
-		case 5:
-			aspeed_g5_xdma_xfer(aspeed_xdma, &xdma_xfer);
-			break;
-		case 6:
-			aspeed_g6_xdma_xfer(aspeed_xdma, &xdma_xfer);
-			break;
-		default:
-			aspeed_xdma_xfer(aspeed_xdma, &xdma_xfer);
-			break;
+	case ASPEED_XDMA_IOCTL_RESET:
+		spin_lock_irqsave(&ctx->engine_lock, flags);
+		if (ctx->in_reset) {
+			spin_unlock_irqrestore(&ctx->engine_lock, flags);
+			return 0;
 		}
+
+		ctx->in_reset = true;
+		spin_unlock_irqrestore(&ctx->engine_lock, flags);
+
+		if (READ_ONCE(ctx->current_client))
+			dev_warn(ctx->dev,
+				 "User reset with transfer in progress.\n");
+
+		aspeed_xdma_reset(ctx);
 		break;
 	default:
-		XDMA_DBUG("ERROR \n");
-		return -ENOTTY;
+		return -EINVAL;
 	}
-
-	return ret;
-}
-
-static int xdma_open(struct inode *inode, struct file *file)
-{
-	struct miscdevice *c = file->private_data;
-	struct aspeed_xdma_info *aspeed_xdma = dev_get_drvdata(c->this_device);
-
-	XDMA_DBUG("\n");
-	spin_lock(&xdma_state_lock);
-
-	if (aspeed_xdma->is_open) {
-		spin_unlock(&xdma_state_lock);
-		return -EBUSY;
-	}
-
-	aspeed_xdma->is_open = true;
-
-	spin_unlock(&xdma_state_lock);
 
 	return 0;
 }
 
-static int xdma_release(struct inode *inode, struct file *file)
+static void aspeed_xdma_vma_close(struct vm_area_struct *vma)
 {
-	struct miscdevice *c = file->private_data;
-	struct aspeed_xdma_info *aspeed_xdma = dev_get_drvdata(c->this_device);
+	int rc;
+	struct aspeed_xdma_client *client = vma->vm_private_data;
 
-	XDMA_DBUG("\n");
-	spin_lock(&xdma_state_lock);
+	rc = wait_event_interruptible(client->ctx->wait, !client->in_progress);
+	if (rc)
+		return;
 
-	aspeed_xdma->is_open = false;
+	gen_pool_free(client->ctx->pool, (unsigned long)client->virt,
+		      client->size);
 
-	spin_unlock(&xdma_state_lock);
+	client->virt = NULL;
+	client->phys = 0;
+	client->size = 0;
+}
 
+static const struct vm_operations_struct aspeed_xdma_vm_ops = {
+	.close =	aspeed_xdma_vma_close,
+};
+
+static int aspeed_xdma_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	int rc;
+	struct aspeed_xdma_client *client = file->private_data;
+	struct aspeed_xdma *ctx = client->ctx;
+
+	/* restrict file to one mapping */
+	if (client->size)
+		return -EBUSY;
+
+	client->size = vma->vm_end - vma->vm_start;
+	client->virt = gen_pool_dma_alloc(ctx->pool, client->size,
+					  &client->phys);
+	if (!client->virt) {
+		client->phys = 0;
+		client->size = 0;
+		return -ENOMEM;
+	}
+
+	vma->vm_pgoff = (client->phys - ctx->mem_phys) >> PAGE_SHIFT;
+	vma->vm_ops = &aspeed_xdma_vm_ops;
+	vma->vm_private_data = client;
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	rc = io_remap_pfn_range(vma, vma->vm_start, client->phys >> PAGE_SHIFT,
+				client->size, vma->vm_page_prot);
+	if (rc) {
+		dev_warn(ctx->dev, "mmap err: v[%08lx] to p[%08x], s[%08x]\n",
+			 vma->vm_start, (u32)client->phys, client->size);
+
+		gen_pool_free(ctx->pool, (unsigned long)client->virt,
+			      client->size);
+
+		client->virt = NULL;
+		client->phys = 0;
+		client->size = 0;
+		return rc;
+	}
+
+	dev_dbg(ctx->dev, "mmap: v[%08lx] to p[%08x], s[%08x]\n",
+		vma->vm_start, (u32)client->phys, client->size);
+
+	return 0;
+}
+
+static int aspeed_xdma_open(struct inode *inode, struct file *file)
+{
+	struct miscdevice *misc = file->private_data;
+	struct aspeed_xdma *ctx = container_of(misc, struct aspeed_xdma, misc);
+	struct aspeed_xdma_client *client = kzalloc(sizeof(*client),
+						    GFP_KERNEL);
+
+	if (!client)
+		return -ENOMEM;
+
+	kobject_get(&ctx->kobj);
+	client->ctx = ctx;
+	file->private_data = client;
+	return 0;
+}
+
+static int aspeed_xdma_release(struct inode *inode, struct file *file)
+{
+	bool reset = false;
+	unsigned long flags;
+	struct aspeed_xdma_client *client = file->private_data;
+	struct aspeed_xdma *ctx = client->ctx;
+
+	spin_lock_irqsave(&ctx->client_lock, flags);
+	if (client == ctx->current_client) {
+		spin_lock(&ctx->engine_lock);
+		if (ctx->in_reset) {
+			ctx->current_client = NULL;
+		} else {
+			ctx->in_reset = true;
+			reset = true;
+		}
+		spin_unlock(&ctx->engine_lock);
+	}
+	spin_unlock_irqrestore(&ctx->client_lock, flags);
+
+	if (reset)
+		aspeed_xdma_reset(ctx);
+
+	if (client->virt)
+		gen_pool_free(ctx->pool, (unsigned long)client->virt,
+			      client->size);
+
+	kfree(client);
+	kobject_put(&ctx->kobj);
 	return 0;
 }
 
 static const struct file_operations aspeed_xdma_fops = {
-	.owner		= THIS_MODULE,
-	.unlocked_ioctl	= xdma_ioctl,
-	.open		= xdma_open,
-	.release	= xdma_release,
+	.owner			= THIS_MODULE,
+	.write			= aspeed_xdma_write,
+	.poll			= aspeed_xdma_poll,
+	.unlocked_ioctl		= aspeed_xdma_ioctl,
+	.mmap			= aspeed_xdma_mmap,
+	.open			= aspeed_xdma_open,
+	.release		= aspeed_xdma_release,
 };
 
-static const struct of_device_id aspeed_xdma_of_matches[] = {
-	{ .compatible = "aspeed,ast2400-xdma", .data = (void *) 0, },
-	{ .compatible = "aspeed,ast2500-xdma", .data = (void *) 5, },
-	{ .compatible = "aspeed,ast2600-xdma", .data = (void *) 6, },
-	{},
-};
-
-static int reserved_idx = -1;
-
-MODULE_DEVICE_TABLE(of, aspeed_xdma_of_matches);
-static int aspeed_xdma_probe(struct platform_device *pdev)
+static int aspeed_xdma_init_scu(struct aspeed_xdma *ctx, struct device *dev)
 {
-	struct resource *res;
-	struct aspeed_xdma_info *aspeed_xdma;
-	const struct of_device_id *xdma_dev_id;
-	struct miscdevice *misc_dev;
-	int max_reserved_idx;
-	int idx;
-	int ret = 0;
+	struct regmap *scu = syscon_regmap_lookup_by_phandle(dev->of_node,
+							     "aspeed,scu");
 
-	XDMA_DBUG("\n");
+	if (!IS_ERR(scu)) {
+		u32 selection;
+		bool pcie_device_bmc = true;
+		const u32 bmc = SCU_PCIE_CONF_BMC_EN |
+			SCU_PCIE_CONF_BMC_EN_MSI | SCU_PCIE_CONF_BMC_EN_IRQ |
+			SCU_PCIE_CONF_BMC_EN_DMA;
+		const u32 vga = SCU_PCIE_CONF_VGA_EN |
+			SCU_PCIE_CONF_VGA_EN_MSI | SCU_PCIE_CONF_VGA_EN_IRQ |
+			SCU_PCIE_CONF_VGA_EN_DMA;
+		const char *pcie = NULL;
 
-	if (!(aspeed_xdma = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_xdma_info), GFP_KERNEL))) {
+		if (!of_property_read_string(dev->of_node,
+					     "aspeed,pcie-device", &pcie)) {
+			if (!strcmp(pcie, "vga")) {
+				pcie_device_bmc = false;
+			} else if (strcmp(pcie, "bmc")) {
+				dev_err(dev,
+					"Invalid pcie-device property %s.\n",
+					pcie);
+				return -EINVAL;
+			}
+		}
+
+		if (pcie_device_bmc) {
+			selection = bmc;
+			regmap_write(scu, ctx->chip->scu_bmc_class,
+				     SCU_BMC_CLASS_REV_XDMA);
+		} else {
+			selection = vga;
+		}
+
+		regmap_update_bits(scu, ctx->chip->scu_pcie_conf, bmc | vga,
+				   selection);
+
+		if (ctx->chip->scu_misc_ctrl)
+			regmap_update_bits(scu, ctx->chip->scu_misc_ctrl,
+					   SCU_AST2600_MISC_CTRL_XDMA_BMC,
+					   SCU_AST2600_MISC_CTRL_XDMA_BMC);
+	} else {
+		dev_warn(dev, "Unable to configure PCIe: %ld; continuing.\n",
+			 PTR_ERR(scu));
+	}
+
+	return 0;
+}
+
+static void aspeed_xdma_kobject_release(struct kobject *kobj)
+{
+	struct aspeed_xdma *ctx = container_of(kobj, struct aspeed_xdma, kobj);
+
+	if (ctx->pcie_irq >= 0)
+		free_irq(ctx->pcie_irq, ctx);
+
+	gen_pool_free(ctx->pool, (unsigned long)ctx->cmdq, XDMA_CMDQ_SIZE);
+
+	gen_pool_destroy(ctx->pool);
+
+	dma_free_coherent(ctx->dev, ctx->mem_size, ctx->mem_virt,
+			  ctx->mem_coherent);
+
+	if (ctx->reset_rc)
+		reset_control_put(ctx->reset_rc);
+	reset_control_put(ctx->reset);
+
+	clk_put(ctx->clock);
+
+	free_irq(ctx->irq, ctx);
+
+	iounmap(ctx->base);
+	release_mem_region(ctx->res_start, ctx->res_size);
+
+	kfree(ctx);
+}
+
+static struct kobj_type aspeed_xdma_kobject_type = {
+	.release = aspeed_xdma_kobject_release,
+};
+
+static int aspeed_xdma_iomap(struct aspeed_xdma *ctx,
+			     struct platform_device *pdev)
+{
+	resource_size_t size;
+	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	if (!res)
+		return -ENOMEM;
+
+	size = resource_size(res);
+	if (!request_mem_region(res->start, size, dev_name(ctx->dev)))
+		return -ENOMEM;
+
+	ctx->base = ioremap(res->start, size);
+	if (!ctx->base) {
+		release_mem_region(res->start, size);
 		return -ENOMEM;
 	}
 
-	xdma_dev_id = of_match_device(aspeed_xdma_of_matches, &pdev->dev);
-	if (!xdma_dev_id)
-		return -EINVAL;
-
-	aspeed_xdma->xdma_version = (unsigned long)xdma_dev_id->data;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (NULL == res) {
-		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM\n");
-		ret = -ENOENT;
-		goto out;
-	}
-
-	aspeed_xdma->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (!aspeed_xdma->reg_base) {
-		ret = -EIO;
-		goto out_region;
-	}
-
-	aspeed_xdma->irq = platform_get_irq_byname(pdev, "xdma");
-	if (aspeed_xdma->irq < 0) {
-		dev_err(&pdev->dev, "no irq specified\n");
-		if (aspeed_xdma->xdma_version != 6){
-			ret = -ENOENT;
-			goto out_region;
-		}
-	} else {
-		ret = devm_request_irq(&pdev->dev, aspeed_xdma->irq, aspeed_xdma_isr,
-				       0, dev_name(&pdev->dev), aspeed_xdma);
-		if (ret) {
-			printk("XDMA Unable to get IRQ");
-			goto out_region;
-		}
-	}
-
-	aspeed_xdma->pcie_irq = platform_get_irq_byname(pdev, "pcie");
-	if (aspeed_xdma->pcie_irq < 0) {
-		dev_err(&pdev->dev, "no pcie reset irq specified\n");
-		ret = -ENOENT;
-		goto out_region;
-	} else {
-		ret = devm_request_irq(&pdev->dev, aspeed_xdma->pcie_irq, aspeed_pcie_raise_isr,
-				IRQF_SHARED, dev_name(&pdev->dev), aspeed_xdma);
-		if (ret) {
-			printk("XDMA Unable to get pcie raise IRQ");
-			goto out_region;
-		}
-	}
-
-	aspeed_xdma->reset = devm_reset_control_get(&pdev->dev, NULL);
-	if (IS_ERR(aspeed_xdma->reset)) {
-		dev_err(&pdev->dev, "can't get xmda reset\n");
-		return PTR_ERR(aspeed_xdma->reset);
-	}
-
-	//scu init
-	reset_control_deassert(aspeed_xdma->reset);
-
-	// ret = misc_register(&aspeed_xdma_misc);
-	misc_dev = (struct miscdevice *)devm_kzalloc(&pdev->dev, sizeof(struct miscdevice), GFP_KERNEL);
-	if (!misc_dev) {
-		pr_err("failed to allocate misc device\n");
-		goto out_irq;
-	}
-
-	if (reserved_idx == -1) {
-		max_reserved_idx = of_alias_get_highest_id("xdma");
-		if (max_reserved_idx >= 0)
-			reserved_idx = max_reserved_idx;
-	}
-
-	idx = of_alias_get_id(pdev->dev.of_node, "xdma");;
-	if (idx < 0) {
-		idx = ++reserved_idx;
-	}
-
-	misc_dev->minor = MISC_DYNAMIC_MINOR;
-	misc_dev->name = kasprintf(GFP_KERNEL, "aspeed-xdma%d", idx);
-	misc_dev->fops = &aspeed_xdma_fops;
-
-	ret = misc_register(misc_dev);
-
-	if (ret) {
-		printk(KERN_ERR "XDMA : failed to request interrupt\n");
-		goto out_irq;
-	}
-
-	platform_set_drvdata(pdev, aspeed_xdma);
-	dev_set_drvdata(misc_dev->this_device, aspeed_xdma);
-
-	aspeed_xdma->misc_dev = misc_dev;
-
-	//xfer buff
-	aspeed_xdma->xfer_data = dma_alloc_coherent(NULL,
-				 4096,
-				 &aspeed_xdma->xfer_data_dma, GFP_KERNEL);
-
-	XDMA_DBUG("xfer buff %x , dma %x \n", (u32)aspeed_xdma->xfer_data, (u32)aspeed_xdma->xfer_data_dma);
-
-	//tx cmd
-	switch (aspeed_xdma->xdma_version) {
-	case 0:
-		aspeed_xdma->xfer_cmd_desc = dma_alloc_coherent(NULL,
-					     sizeof(struct aspeed_xdma_cmd_desc) * ASPEED_XDMA_CMD_DESC_NUM,
-					     &aspeed_xdma->xfer_cmd_desc_dma, GFP_KERNEL);
-
-		if (((u32)aspeed_xdma->xfer_cmd_desc & 0xff) != 0x00)
-			printk("ERROR dma addr !!!!\n");
-
-		XDMA_DBUG("xfer cmd desc %x , cmd desc dma %x \n", (u32)aspeed_xdma->xfer_cmd_desc, (u32)aspeed_xdma->xfer_cmd_desc_dma);
-		aspeed_xdma_ctrl_init(aspeed_xdma);
-		break;
-	case 5:
-		aspeed_xdma->new_xfer_cmd_desc = dma_alloc_coherent(NULL,
-						 sizeof(struct aspeed_new_xdma_cmd_desc) * ASPEED_XDMA_CMD_DESC_NUM,
-						 &aspeed_xdma->xfer_cmd_desc_dma, GFP_KERNEL);
-
-		if (((u32)aspeed_xdma->new_xfer_cmd_desc & 0xff) != 0x00)
-			printk("ERROR dma addr !!!!\n");
-
-		XDMA_DBUG("xfer cmd desc %x , cmd desc dma %x \n", (u32)aspeed_xdma->new_xfer_cmd_desc, (u32)aspeed_xdma->xfer_cmd_desc_dma);
-		aspeed_g5_xdma_ctrl_init(aspeed_xdma);
-		break;
-	case 6:
-		aspeed_xdma->new_xfer_cmd_desc = dma_alloc_coherent(NULL,
-						 sizeof(struct aspeed_xdma_cmd_desc) * ASPEED_XDMA_CMD_DESC_NUM,
-						 &aspeed_xdma->xfer_cmd_desc_dma, GFP_KERNEL);
-
-		XDMA_DBUG("xfer cmd desc %x , cmd desc dma %x \n", (u32)aspeed_xdma->new_xfer_cmd_desc, (u32)aspeed_xdma->xfer_cmd_desc_dma);
-		aspeed_g6_xdma_ctrl_init(aspeed_xdma);
-		break;
-	}
-
-	printk(KERN_INFO "aspeed_xdma: driver successfully loaded.\n");
+	ctx->res_start = res->start;
+	ctx->res_size = size;
 
 	return 0;
+}
 
+static int aspeed_xdma_probe(struct platform_device *pdev)
+{
+	int rc;
+	struct regmap *sdmc;
+	struct aspeed_xdma *ctx;
+	struct reserved_mem *mem;
+	struct device *dev = &pdev->dev;
+	struct device_node *memory_region;
+	const void *md = of_device_get_match_data(dev);
 
-out_irq:
-	free_irq(aspeed_xdma->irq, NULL);
-	free_irq(aspeed_xdma->pcie_irq, NULL);
-out_region:
-	release_mem_region(res->start, res->end - res->start + 1);
-out:
-	printk(KERN_WARNING "applesmc: driver init failed (ret=%d)!\n", ret);
-	return ret;
+	if (!md)
+		return -ENODEV;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->chip = md;
+	ctx->dev = dev;
+	platform_set_drvdata(pdev, ctx);
+	spin_lock_init(&ctx->client_lock);
+	spin_lock_init(&ctx->engine_lock);
+	INIT_WORK(&ctx->reset_work, aspeed_xdma_reset_work);
+	init_waitqueue_head(&ctx->wait);
+
+	rc = aspeed_xdma_iomap(ctx, pdev);
+	if (rc) {
+		dev_err(dev, "Failed to map registers.\n");
+		goto err_nomap;
+	}
+
+	ctx->irq = platform_get_irq(pdev, 0);
+	if (ctx->irq < 0) {
+		dev_err(dev, "Failed to find IRQ.\n");
+		rc = ctx->irq;
+		goto err_noirq;
+	}
+
+	rc = request_irq(ctx->irq, aspeed_xdma_irq, 0, DEVICE_NAME, ctx);
+	if (rc < 0) {
+		dev_err(dev, "Failed to request IRQ %d.\n", ctx->irq);
+		goto err_noirq;
+	}
+
+	ctx->clock = clk_get(dev, NULL);
+	if (IS_ERR(ctx->clock)) {
+		dev_err(dev, "Failed to request clock.\n");
+		rc = PTR_ERR(ctx->clock);
+		goto err_noclk;
+	}
+
+	ctx->reset = reset_control_get_exclusive(dev, NULL);
+	if (IS_ERR(ctx->reset)) {
+		dev_err(dev, "Failed to request reset control.\n");
+		rc = PTR_ERR(ctx->reset);
+		goto err_noreset;
+	}
+
+	ctx->reset_rc = reset_control_get_exclusive(dev, "root-complex");
+	if (IS_ERR(ctx->reset_rc)) {
+		dev_dbg(dev, "Failed to request reset RC control.\n");
+		ctx->reset_rc = NULL;
+	}
+
+	memory_region = of_parse_phandle(dev->of_node, "memory-region", 0);
+	if (!memory_region) {
+		dev_err(dev, "Failed to find memory-region.\n");
+		rc = -ENOMEM;
+		goto err_nomem;
+	}
+
+	mem = of_reserved_mem_lookup(memory_region);
+	of_node_put(memory_region);
+	if (!mem) {
+		dev_err(dev, "Failed to find reserved memory.\n");
+		rc = -ENOMEM;
+		goto err_nomem;
+	}
+
+	ctx->mem_phys = mem->base;
+	ctx->mem_size = mem->size;
+
+	rc = of_reserved_mem_device_init(dev);
+	if (rc) {
+		dev_err(dev, "Failed to init reserved memory.\n");
+		goto err_nomem;
+	}
+
+	rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	if (rc) {
+		dev_err(dev, "Failed to mask DMA.\n");
+		goto err_nomem;
+	}
+
+	ctx->mem_virt = dma_alloc_coherent(dev, ctx->mem_size,
+					   &ctx->mem_coherent, 0);
+	if (!ctx->mem_virt) {
+		dev_err(dev, "Failed to allocate reserved memory.\n");
+		rc = -ENOMEM;
+		goto err_nomem;
+	}
+
+	ctx->pool = gen_pool_create(ilog2(PAGE_SIZE), -1);
+	if (!ctx->pool) {
+		dev_err(dev, "Failed to setup genalloc pool.\n");
+		rc = -ENOMEM;
+		goto err_nopool;
+	}
+
+	rc = gen_pool_add_virt(ctx->pool, (unsigned long)ctx->mem_virt,
+			       ctx->mem_phys, ctx->mem_size, -1);
+	if (rc) {
+		dev_err(ctx->dev, "Failed to add memory to genalloc pool.\n");
+		goto err_pool_scu_clk;
+	}
+
+	sdmc = syscon_regmap_lookup_by_phandle(dev->of_node, "sdmc");
+	if (!IS_ERR(sdmc))
+		regmap_update_bits(sdmc, SDMC_REMAP, ctx->chip->sdmc_remap,
+				   ctx->chip->sdmc_remap);
+	else
+		dev_err(dev, "Unable to configure memory controller.\n");
+
+	rc = aspeed_xdma_init_scu(ctx, dev);
+	if (rc)
+		goto err_pool_scu_clk;
+
+	rc = clk_prepare_enable(ctx->clock);
+	if (rc) {
+		dev_err(dev, "Failed to enable the clock.\n");
+		goto err_pool_scu_clk;
+	}
+
+	if (ctx->reset_rc) {
+		rc = reset_control_deassert(ctx->reset_rc);
+		if (rc) {
+			dev_err(dev, "Failed to clear the RC reset.\n");
+			goto err_reset_rc;
+		}
+		usleep_range(XDMA_ENGINE_SETUP_TIME_MIN_US,
+			     XDMA_ENGINE_SETUP_TIME_MAX_US);
+	}
+
+	rc = reset_control_deassert(ctx->reset);
+	if (rc) {
+		dev_err(dev, "Failed to clear the reset.\n");
+		goto err_reset;
+	}
+	usleep_range(XDMA_ENGINE_SETUP_TIME_MIN_US,
+		     XDMA_ENGINE_SETUP_TIME_MAX_US);
+
+	ctx->cmdq = gen_pool_dma_alloc(ctx->pool, XDMA_CMDQ_SIZE,
+				       &ctx->cmdq_phys);
+	if (!ctx->cmdq) {
+		dev_err(ctx->dev, "Failed to genalloc cmdq.\n");
+		rc = -ENOMEM;
+		goto err_pool;
+	}
+
+	aspeed_xdma_init_eng(ctx);
+
+	ctx->misc.minor = MISC_DYNAMIC_MINOR;
+	ctx->misc.fops = &aspeed_xdma_fops;
+	ctx->misc.name = "aspeed-xdma";
+	ctx->misc.parent = dev;
+	rc = misc_register(&ctx->misc);
+	if (rc) {
+		dev_err(dev, "Failed to register xdma miscdevice.\n");
+		goto err_misc;
+	}
+
+	/*
+	 * This interrupt could fire immediately so only request it once the
+	 * engine and driver are initialized.
+	 */
+	ctx->pcie_irq = platform_get_irq(pdev, 1);
+	if (ctx->pcie_irq < 0) {
+		dev_warn(dev, "Failed to find PCI-E IRQ.\n");
+	} else {
+		rc = request_irq(ctx->pcie_irq, aspeed_xdma_pcie_irq,
+				 IRQF_SHARED, DEVICE_NAME, ctx);
+		if (rc < 0) {
+			dev_warn(dev, "Failed to request PCI-E IRQ %d.\n", rc);
+			ctx->pcie_irq = -1;
+		}
+	}
+
+	kobject_init(&ctx->kobj, &aspeed_xdma_kobject_type);
+	return 0;
+
+err_misc:
+	gen_pool_free(ctx->pool, (unsigned long)ctx->cmdq, XDMA_CMDQ_SIZE);
+err_pool:
+	reset_control_assert(ctx->reset);
+err_reset:
+	if (ctx->reset_rc)
+		reset_control_assert(ctx->reset_rc);
+err_reset_rc:
+	clk_disable_unprepare(ctx->clock);
+err_pool_scu_clk:
+	gen_pool_destroy(ctx->pool);
+err_nopool:
+	dma_free_coherent(ctx->dev, ctx->mem_size, ctx->mem_virt,
+			  ctx->mem_coherent);
+err_nomem:
+	if (ctx->reset_rc)
+		reset_control_put(ctx->reset_rc);
+	reset_control_put(ctx->reset);
+err_noreset:
+	clk_put(ctx->clock);
+err_noclk:
+	free_irq(ctx->irq, ctx);
+err_noirq:
+	iounmap(ctx->base);
+	release_mem_region(ctx->res_start, ctx->res_size);
+err_nomap:
+	kfree(ctx);
+	return rc;
 }
 
 static int aspeed_xdma_remove(struct platform_device *pdev)
 {
-	struct resource *res;
-	struct aspeed_xdma_info *aspeed_xdma = platform_get_drvdata(pdev);
+	struct aspeed_xdma *ctx = platform_get_drvdata(pdev);
 
-	XDMA_DBUG("\n");
+	reset_control_assert(ctx->reset);
+	if (ctx->reset_rc)
+		reset_control_assert(ctx->reset_rc);
+	clk_disable_unprepare(ctx->clock);
 
-	misc_deregister(aspeed_xdma->misc_dev);
+	aspeed_xdma_done(ctx, true);
 
-	kfree_const(aspeed_xdma->misc_dev->name);
-
-	kfree(aspeed_xdma->misc_dev);
-
-	free_irq(aspeed_xdma->irq, aspeed_xdma);
-	free_irq(aspeed_xdma->pcie_irq, aspeed_xdma);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	iounmap(aspeed_xdma->reg_base);
-
-	platform_set_drvdata(pdev, NULL);
-
-	release_mem_region(res->start, res->end - res->start + 1);
+	misc_deregister(&ctx->misc);
+	kobject_put(&ctx->kobj);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int
-aspeed_xdma_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	return 0;
-}
+static const struct aspeed_xdma_chip aspeed_ast2500_xdma_chip = {
+	.control = XDMA_AST2500_CTRL_US_COMP | XDMA_AST2500_CTRL_DS_COMP |
+		XDMA_AST2500_CTRL_DS_DIRTY | XDMA_AST2500_CTRL_DS_SIZE_256 |
+		XDMA_AST2500_CTRL_DS_TIMEOUT | XDMA_AST2500_CTRL_DS_CHECK_ID,
+	.scu_bmc_class = SCU_AST2500_BMC_CLASS_REV,
+	.scu_misc_ctrl = 0,
+	.scu_pcie_conf = SCU_AST2500_PCIE_CONF,
+	.sdmc_remap = SDMC_AST2500_REMAP_PCIE | SDMC_AST2500_REMAP_XDMA,
+	.queue_entry_size = XDMA_AST2500_QUEUE_ENTRY_SIZE,
+	.regs = {
+		.bmc_cmdq_addr = XDMA_AST2500_BMC_CMDQ_ADDR,
+		.bmc_cmdq_endp = XDMA_AST2500_BMC_CMDQ_ENDP,
+		.bmc_cmdq_writep = XDMA_AST2500_BMC_CMDQ_WRITEP,
+		.bmc_cmdq_readp = XDMA_AST2500_BMC_CMDQ_READP,
+		.control = XDMA_AST2500_CTRL,
+		.status = XDMA_AST2500_STATUS,
+	},
+	.status_bits = {
+		.us_comp = XDMA_AST2500_STATUS_US_COMP,
+		.ds_comp = XDMA_AST2500_STATUS_DS_COMP,
+		.ds_dirty = XDMA_AST2500_STATUS_DS_DIRTY,
+	},
+	.set_cmd = aspeed_xdma_ast2500_set_cmd,
+};
 
-static int
-aspeed_xdma_resume(struct platform_device *pdev)
-{
-	return 0;
-}
+static const struct aspeed_xdma_chip aspeed_ast2600_xdma_chip = {
+	.control = XDMA_AST2600_CTRL_US_COMP | XDMA_AST2600_CTRL_DS_COMP |
+		XDMA_AST2600_CTRL_DS_DIRTY | XDMA_AST2600_CTRL_DS_SIZE_256,
+	.scu_bmc_class = SCU_AST2600_BMC_CLASS_REV,
+	.scu_misc_ctrl = SCU_AST2600_MISC_CTRL,
+	.scu_pcie_conf = SCU_AST2600_PCIE_CONF,
+	.sdmc_remap = SDMC_AST2600_REMAP_XDMA,
+	.queue_entry_size = XDMA_AST2600_QUEUE_ENTRY_SIZE,
+	.regs = {
+		.bmc_cmdq_addr = XDMA_AST2600_BMC_CMDQ_ADDR,
+		.bmc_cmdq_endp = XDMA_AST2600_BMC_CMDQ_ENDP,
+		.bmc_cmdq_writep = XDMA_AST2600_BMC_CMDQ_WRITEP,
+		.bmc_cmdq_readp = XDMA_AST2600_BMC_CMDQ_READP,
+		.control = XDMA_AST2600_CTRL,
+		.status = XDMA_AST2600_STATUS,
+	},
+	.status_bits = {
+		.us_comp = XDMA_AST2600_STATUS_US_COMP,
+		.ds_comp = XDMA_AST2600_STATUS_DS_COMP,
+		.ds_dirty = XDMA_AST2600_STATUS_DS_DIRTY,
+	},
+	.set_cmd = aspeed_xdma_ast2600_set_cmd,
+};
 
-#else
-#define aspeed_xdma_suspend        NULL
-#define aspeed_xdma_resume         NULL
-#endif
+static const struct of_device_id aspeed_xdma_match[] = {
+	{
+		.compatible = "aspeed,ast2500-xdma",
+		.data = &aspeed_ast2500_xdma_chip,
+	},
+	{
+		.compatible = "aspeed,ast2600-xdma",
+		.data = &aspeed_ast2600_xdma_chip,
+	},
+	{ },
+};
 
 static struct platform_driver aspeed_xdma_driver = {
-	.probe			= aspeed_xdma_probe,
-	.remove 		= aspeed_xdma_remove,
-#ifdef CONFIG_PM
-	.suspend		= aspeed_xdma_suspend,
-	.resume 		= aspeed_xdma_resume,
-#endif
+	.probe = aspeed_xdma_probe,
+	.remove = aspeed_xdma_remove,
 	.driver = {
-		.name		= "aspeed-xdma",
-		.of_match_table = aspeed_xdma_of_matches,
+		.name = DEVICE_NAME,
+		.of_match_table = aspeed_xdma_match,
 	},
 };
 
 module_platform_driver(aspeed_xdma_driver);
 
-MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
-MODULE_DESCRIPTION("ASPEED X-DMA Driver");
-MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Eddie James");
+MODULE_DESCRIPTION("Aspeed XDMA Engine Driver");
+MODULE_LICENSE("GPL v2");
