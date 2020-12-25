@@ -114,7 +114,6 @@ struct ftgmac100 {
 	/* Misc */
 	volatile bool need_mac_restart;
 	bool is_aspeed;
-	u32 tm_reg_mask;
 };
 
 static int ftgmac100_reset_mac(struct ftgmac100 *priv, u32 maccr)
@@ -309,10 +308,6 @@ static void ftgmac100_init_hw(struct ftgmac100 *priv)
 	reg |= (tfifo_sz << 27);
 	reg |= (rfifo_sz << 24);
 	iowrite32(reg, priv->base + FTGMAC100_OFFSET_TPAFCR);
-
-	iowrite32(priv->tm_reg_mask |
-		      ioread32(priv->base + FTGMAC100_OFFSET_TM),
-		  priv->base + FTGMAC100_OFFSET_TM);
 }
 
 static void ftgmac100_start_hw(struct ftgmac100 *priv)
@@ -570,11 +565,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	netdev->stats.rx_packets++;
 	netdev->stats.rx_bytes += size;
 
-	/* push packet to protocol stack */
-	if (skb->ip_summed == CHECKSUM_NONE)
-		netif_receive_skb(skb);
-	else
-		napi_gro_receive(&priv->napi, skb);
+	napi_gro_receive(&priv->napi, skb);
 
 	(*processed)++;
 	return true;
@@ -825,8 +816,8 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 	 * before setting the OWN bit on the first descriptor.
 	 */
 	dma_wmb();
-	WRITE_ONCE(first->txdes0, cpu_to_le32(f_ctl_stat));
-	READ_ONCE(first->txdes0);
+	first->txdes0 = cpu_to_le32(f_ctl_stat);
+
 	/* Update next TX pointer */
 	priv->tx_pointer = pointer;
 
@@ -846,12 +837,14 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 	 * the NAPI scheduler. And hence we don't have chance to free the TX 
 	 * data.  The workaround is to enable FTGMAC100_INT_XPKT_ETH, then the 
 	 * NAPI scheduler can be woke up in the ISR.
- 	*/
-	if ((skb->protocol == cpu_to_be16(ETH_P_IP)) &&
+	*/
+	if ((cpu_to_be16(ETH_P_IP) == skb->protocol) &&
 	    (IPPROTO_UDP == ip_hdr(skb)->protocol)) {
-		iowrite32(FTGMAC100_INT_XPKT_ETH |
-				  ioread32(priv->base + FTGMAC100_OFFSET_IER),
-			  priv->base + FTGMAC100_OFFSET_IER);
+		/* IER == FTGMAC100_INT_ALL implies NAPI is not running */
+		if (FTGMAC100_INT_ALL ==
+		    ioread32(priv->base + FTGMAC100_OFFSET_IER))
+			iowrite32(FTGMAC100_INT_ALL | FTGMAC100_INT_XPKT_ETH,
+				  priv->base + FTGMAC100_OFFSET_IER);
 	}
 
 	/* Poke transmitter to read the updated TX descriptors */
@@ -2087,12 +2080,14 @@ static int ftgmac100_probe(struct platform_device *pdev)
 		priv->rxdes0_edorr_mask = BIT(30);
 		priv->txdes0_edotr_mask = BIT(30);
 		priv->is_aspeed = true;
-		if (of_device_is_compatible(np, "aspeed,ast2600-mac"))
-			priv->tm_reg_mask = FTGMAC100_TM_RQ_TX_VALID_DIS | FTGMAC100_TM_RQ_RR_IDLE_PREV;
+		/* Disable ast2600 problematic HW arbitration */
+		if (of_device_is_compatible(np, "aspeed,ast2600-mac")) {
+			iowrite32(FTGMAC100_TM_DEFAULT,
+				  priv->base + FTGMAC100_OFFSET_TM);
+		}
 	} else {
 		priv->rxdes0_edorr_mask = BIT(15);
 		priv->txdes0_edotr_mask = BIT(15);
-		priv->tm_reg_mask = 0;
 	}
 
 	if (np && of_get_property(np, "use-ncsi", NULL)) {
