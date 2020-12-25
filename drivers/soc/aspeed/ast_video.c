@@ -184,15 +184,6 @@
 #define VIDEO_CAPTURE_TRIGGER			(1 << 1)
 #define VIDEO_DETECT_TRIGGER			(1 << 0)
 
-
-#define VIDEO_HALT_ENG_RB				(1 << 21)
-#define VIDEO_HALT_ENG_RB				(1 << 21)
-#define VIDEO_HALT_ENG_RB				(1 << 21)
-#define VIDEO_HALT_ENG_RB				(1 << 21)
-#define VIDEO_HALT_ENG_RB				(1 << 21)
-#define VIDEO_HALT_ENG_RB				(1 << 21)
-
-
 /*	AST_VIDEO_PASS_CTRL			0x008		Video Pass1 Control register	*/
 #define G6_VIDEO_MULTI_JPEG_FLAG_MODE	(1 << 31)
 #define G6_VIDEO_MULTI_JPEG_MODE		(1 << 30)
@@ -2992,6 +2983,7 @@ static u8 ast_get_trigger_mode(struct ast_video_data *ast_video, u8 eng_idx)
 		} else {
 			printk("ERROR Mode \n");
 		}
+		break;
 	case 1:
 		mode = ast_video_read(ast_video, AST_VM_SEQ_CTRL) & (VIDEO_CAPTURE_MULTI_FRAME | VIDEO_AUTO_COMPRESS);
 		if (mode == 0) {
@@ -3172,18 +3164,18 @@ static u8 ast_get_compress_encrypt_en(struct ast_video_data *ast_video, u8 eng_i
 static void ast_set_compress_encrypt_en(struct ast_video_data *ast_video, u8 eng_idx, u8 enable)
 {
 	switch (eng_idx) {
-	case 0:	//video 1
-		if (enable) {
-			ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_COMPRESS_CTRL) | VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);
-		} else {
-			ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_COMPRESS_CTRL) & ~VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);
-		}
-	case 1:	//video M
-		if (enable) {
-			ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_COMPRESS_CTRL) | VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);
-		} else {
-			ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_COMPRESS_CTRL) & ~VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);
-		}
+		case 0:	//video 1
+			if (enable)
+				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_COMPRESS_CTRL) | VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);
+			else
+				ast_video_write(ast_video, ast_video_read(ast_video, AST_VIDEO_COMPRESS_CTRL) & ~VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);
+			break;
+		case 1:	//video M
+			if (enable)
+				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_COMPRESS_CTRL) | VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);
+			else
+				ast_video_write(ast_video, ast_video_read(ast_video, AST_VM_COMPRESS_CTRL) & ~VIDEO_ENCRYP_ENABLE, AST_VIDEO_COMPRESS_CTRL);
+			break;
 	}
 }
 
