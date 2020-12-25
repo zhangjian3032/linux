@@ -4,7 +4,6 @@
  *
  * Author: Vitor Soares <vitor.soares@synopsys.com>
  */
-
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
@@ -81,8 +80,10 @@
 #define IBI_QUEUE_DATA_STATUS_MASK	GENMASK(31, 28)
 #define IBI_QUEUE_DATA_PAYLOAD_MASK	GENMASK(15, 8)
 #define QUEUE_THLD_CTRL			0x1c
-#define QUEUE_THLD_CTRL_IBI_BUF_MASK	GENMASK(31, 24)
-#define QUEUE_THLD_CTRL_IBI_BUF(x)	(((x) - 1) << 24)
+#define QUEUE_THLD_CTRL_IBI_STA_MASK	GENMASK(31, 24)
+#define QUEUE_THLD_CTRL_IBI_STA(x)	(((x) - 1) << 24)
+#define QUEUE_THLD_CTRL_IBI_DAT_MASK	GENMASK(23, 16)
+#define QUEUE_THLD_CTRL_IBI_DAT(x)	((x) << 16)
 #define QUEUE_THLD_CTRL_RESP_BUF_MASK	GENMASK(15, 8)
 #define QUEUE_THLD_CTRL_RESP_BUF(x)	(((x) - 1) << 8)
 
@@ -198,7 +199,14 @@
 #define SLAVE_CONFIG			0xec
 
 #define DEV_ADDR_TABLE_LEGACY_I2C_DEV	BIT(31)
+#ifdef IBI_WIP
+#define DEV_ADDR_TABLE_IBI_WITH_DATA	BIT(12)
+#define DEV_ADDR_TABLE_IBI_PEC_EN	BIT(11)
+#define DEV_ADDR_TABLE_DYNAMIC_ADDR(x)                                         \
+	((((x) << 16) & GENMASK(23, 16)) | DEV_ADDR_TABLE_IBI_WITH_DATA)
+#else
 #define DEV_ADDR_TABLE_DYNAMIC_ADDR(x)	(((x) << 16) & GENMASK(23, 16))
+#endif
 #define DEV_ADDR_TABLE_STATIC_ADDR(x)	((x) & GENMASK(6, 0))
 #define DEV_ADDR_TABLE_LOC(start, idx)	((start) + ((idx) << 2))
 
@@ -259,7 +267,6 @@ struct dw_i3c_master {
 	char version[5];
 	char type[5];
 	u8 addrs[MAX_DEVS];
-	int ibi_valid;
 };
 
 struct dw_i3c_i2c_dev_data {
@@ -470,9 +477,6 @@ static void dw_i3c_master_dequeue_xfer(struct dw_i3c_master *master,
 	spin_unlock_irqrestore(&master->xferqueue.lock, flags);
 }
 
-#define IBI_VALID_START(_ibi_)	((_ibi_ & BIT(31)) && ((_ibi_ & 0x0000ff00) != 0x0000ff00))
-#define IBI_VALID_END(_ibi_)	(_ibi_ & BIT(30))
-
 static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 {
 	struct dw_i3c_xfer *xfer = master->xferqueue.cur;
@@ -481,7 +485,7 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 
 #ifdef IBI_WIP
 	int j = 0;
-	u32 nibi, ibi_data[17];
+	u32 nibi;
 
 	/* consume the IBI data */
 	nibi = readl(master->regs + QUEUE_STATUS_LEVEL);
@@ -491,22 +495,9 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 		u32 ibi;
 		for (i = 0; i < nibi; i++) {
 			ibi = readl(master->regs + IBI_QUEUE_DATA);
-			if (master->ibi_valid == 0) {
-				if (IBI_VALID_START(ibi)) {
-					ibi_data[j++] = ibi;
-					master->ibi_valid = 1;
-				}
-			} else {
-				ibi_data[j++] = ibi;
-				if (IBI_VALID_END(ibi))
-					master->ibi_valid = 0;
-			}
+			for (j = 0; j < (ibi & 0xff); j += 4)
+				dev_dbg(master->dev, "ibi: %08x\n", readl(master->regs + IBI_QUEUE_DATA));
 		}
-
-		/* debug: dump IBI queue */
-		for (i = 0; i < j; i++)
-			dev_dbg(master->dev, "%08x", ibi_data[i]);
-
 		writel(RESET_CTRL_IBI_QUEUE, master->regs + RESET_CTRL);
 	}
 #endif
@@ -746,8 +737,10 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 
 #ifdef IBI_WIP
 	thld_ctrl = readl(master->regs + QUEUE_THLD_CTRL);
-	thld_ctrl &= ~QUEUE_THLD_CTRL_IBI_BUF_MASK;
-	thld_ctrl |= QUEUE_THLD_CTRL_IBI_BUF(1);
+	thld_ctrl &=
+		~(QUEUE_THLD_CTRL_IBI_STA_MASK | QUEUE_THLD_CTRL_IBI_DAT_MASK);
+	thld_ctrl |= QUEUE_THLD_CTRL_IBI_STA(1);
+	thld_ctrl |= QUEUE_THLD_CTRL_IBI_DAT(1);
 	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
 
 	writel(0, master->regs + IBI_SIR_REQ_REJECT);
@@ -1386,7 +1379,6 @@ static int dw_i3c_probe(struct platform_device *pdev)
 	writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(ret),
 	       master->regs + DEV_ADDR_TABLE_LOC(master->datstartaddr, master->maxdevs - 1));
 #endif
-	master->ibi_valid = 0;
 	master->dev = &pdev->dev;
 	ret = i3c_master_register(&master->base, &pdev->dev,
 				  &dw_mipi_i3c_ops, false);
