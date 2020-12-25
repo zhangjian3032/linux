@@ -21,7 +21,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/kernel.h>       /* printk()             */
+#include <linux/kernel.h>
 #include <linux/errno.h>
 
 #include <linux/of_address.h>
@@ -41,7 +41,7 @@
 struct aspeed_bmc_device {
 	unsigned char *host2bmc_base_virt;
 	struct miscdevice	miscdev;
-	void __iomem	*reg_base;	
+	void __iomem	*reg_base;
 	void __iomem	*bmc_mem_virt;
 	dma_addr_t bmc_mem_phy;
 	struct bin_attribute	bin0;
@@ -58,7 +58,7 @@ struct aspeed_bmc_device {
 };
 
 #define BMC_MEM_BAR_SIZE		0x100000
-#define BMC_QUEUE_SIZE 			(16 * 4)
+#define BMC_QUEUE_SIZE			(16 * 4)
 
 /* ================================================================================== */
 #define ASPEED_BMC_MEM_BAR			0xF10
@@ -92,7 +92,6 @@ struct aspeed_bmc_device {
 #define ASPEED_BMC_HOST2BMC_STS		0xA044
 #define	 HOST2BMC_INT_STS_DOORBELL		BIT(31)
 #define	 HOST2BMC_ENABLE_INTB			BIT(30)
-/* */
 #define	 HOST2BMC_Q1_FULL				BIT(27)
 #define	 HOST2BMC_Q1_EMPTY				BIT(26)
 #define	 HOST2BMC_Q2_FULL				BIT(25)
@@ -101,6 +100,17 @@ struct aspeed_bmc_device {
 #define	 HOST2BMC_Q1_EMPTY_UNMASK		BIT(22)
 #define	 HOST2BMC_Q2_FULL_UNMASK		BIT(21)
 #define	 HOST2BMC_Q2_EMPTY_UNMASK		BIT(20)
+
+#define ASPEED_SCU_PCIE_CONF_CTRL	0xC20
+#define  SCU_PCIE_CONF_BMC_DEV_EN			 BIT(8)
+#define  SCU_PCIE_CONF_BMC_DEV_EN_MMIO		 BIT(9)
+#define  SCU_PCIE_CONF_BMC_DEV_EN_MSI		 BIT(11)
+#define  SCU_PCIE_CONF_BMC_DEV_EN_IRQ		 BIT(13)
+#define  SCU_PCIE_CONF_BMC_DEV_EN_DMA		 BIT(14)
+#define  SCU_PCIE_CONF_BMC_DEV_EN_E2L		 BIT(15)
+#define  SCU_PCIE_CONF_BMC_DEV_EN_LPC_DECODE BIT(21)
+
+#define ASPEED_SCU_BMC_DEV_CLASS	0xC68
 
 static struct aspeed_bmc_device *file_aspeed_bmc_device(struct file *file)
 {
@@ -145,7 +155,7 @@ static ssize_t aspeed_host2bmc_queue1_rx(struct file *filp, struct kobject *kobj
 		data[0] = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q1);
 //		printk("Got HOST2BMC_Q1 [%x] \n", data[0]);
 		return 4;
-	} 
+	}
 }
 
 static ssize_t aspeed_host2bmc_queue2_rx(struct file *filp, struct kobject *kobj,
@@ -159,9 +169,9 @@ static ssize_t aspeed_host2bmc_queue2_rx(struct file *filp, struct kobject *kobj
 		data[0] = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q2);
 //		printk("Got HOST2BMC_Q2 [%x] \n", data[0]);
 		return 4;
-	} else 
+	} else
 		return 0;
-	
+
 	return count;
 }
 
@@ -169,18 +179,18 @@ static ssize_t aspeed_bmc2host_queue1_tx(struct file *filp, struct kobject *kobj
 		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
 	u32 tx_buff;
-	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));	
+	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
 
 	if(count != 4)
 		return -1;
-	
+
 	if(readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS) & BMC2HOST_Q1_FULL)
 		return -1;
 	else {
 		memcpy(&tx_buff, buf, 4);
 //		printk("tx_buff %x \n", tx_buff);
 		writel(tx_buff, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_Q1);
-		//trigger to host 
+		//trigger to host
 #ifdef SCU_TRIGGER_MSI
 		//A0 : BIT(12) A1 : BIT(15)
 		regmap_update_bits(bmc_device->scu, 0x560, BIT(15), BIT(15));
@@ -196,11 +206,11 @@ static ssize_t aspeed_bmc2host_queue2_tx(struct file *filp, struct kobject *kobj
 		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
 	u32 tx_buff = 0;
-	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));	
+	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
 
 	if(count != 4)
 		return -1;
-	
+
 	if(readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS) & BMC2HOST_Q2_FULL)
 		return -1;
 	else {
@@ -229,10 +239,10 @@ static irqreturn_t aspeed_bmc_dev_isr(int irq, void *dev_id)
 		writel(HOST2BMC_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS);
 	}
 	if(host2bmc_q_sts & HOST2BMC_Q1_FULL) {
-	}	
+	}
 
 	if(host2bmc_q_sts & HOST2BMC_Q2_FULL) {
-	}	
+	}
 
 	return IRQ_HANDLED;
 }
@@ -242,7 +252,13 @@ static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 //	printk("aspeed_bmc_device_init \n");
 
 	//enable bmc device mmio
-	regmap_update_bits(bmc_device->scu, 0xc20, BIT(13) | GENMASK(9, 8), BIT(13) | GENMASK(9, 8));
+	u32 pcie_config_ctl = SCU_PCIE_CONF_BMC_DEV_EN_IRQ | SCU_PCIE_CONF_BMC_DEV_EN_MMIO | SCU_PCIE_CONF_BMC_DEV_EN;
+
+	regmap_update_bits(bmc_device->scu, ASPEED_SCU_PCIE_CONF_CTRL, pcie_config_ctl,
+			pcie_config_ctl);
+
+	/* update class code to others as it is a MFD device */
+	regmap_write(bmc_device->scu, ASPEED_SCU_BMC_DEV_CLASS, 0xff000000);
 
 #ifdef SCU_TRIGGER_MSI
 	//SCUC24[17]: Enable PCI device 1 INTx/MSI from SCU560[15]. Will be added in next version
@@ -252,7 +268,7 @@ static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 	regmap_update_bits(bmc_device->scu, 0xc24, BIT(18) | BIT(14), BIT(18) | BIT(14));
 #endif
 
-	writel(~(BMC_MEM_BAR_SIZE - 1) | HOST2BMC_MEM_BAR_ENABLE, bmc_device->reg_base + ASPEED_BMC_MEM_BAR);	
+	writel(~(BMC_MEM_BAR_SIZE - 1) | HOST2BMC_MEM_BAR_ENABLE, bmc_device->reg_base + ASPEED_BMC_MEM_BAR);
 	writel(bmc_device->bmc_mem_phy, bmc_device->reg_base + ASPEED_BMC_MEM_BAR_REMAP);
 
 	//Setting BMC to Host Q register
@@ -280,15 +296,18 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 	if (IS_ERR(bmc_device->reg_base))
 		goto out_region;
 
-	bmc_device->scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
+	bmc_device->scu = syscon_regmap_lookup_by_phandle(dev->of_node, "aspeed,scu");
 	if (IS_ERR(bmc_device->scu)) {
 		dev_err(&pdev->dev, "failed to find SCU regmap\n");
 		goto out_region;
 	}
 
+	if (of_property_read_bool(dev->of_node, "pcie2lpc"))
+		bmc_device->pcie2lpc = 1;
+
 	bmc_device->bmc_mem_virt = dma_alloc_coherent(&pdev->dev, BMC_MEM_BAR_SIZE, &bmc_device->bmc_mem_phy, GFP_KERNEL);
 	memset(bmc_device->bmc_mem_virt, 0, BMC_MEM_BAR_SIZE);
-	
+
 //	printk("virt=%p phy %x\n", bmc_device->bmc_mem_virt, bmc_device->bmc_mem_phy);
 
 	sysfs_bin_attr_init(&bmc_device->bin0);
@@ -369,7 +388,7 @@ out_unmap:
 
 out_dma:
 	dma_free_coherent(&pdev->dev, BMC_MEM_BAR_SIZE, bmc_device->bmc_mem_virt, bmc_device->bmc_mem_phy);
-	
+
 out_region:
 	devm_kfree(&pdev->dev, bmc_device);
 
