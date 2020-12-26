@@ -110,7 +110,7 @@
 			    <0x40462000 0x1000>,
 			    <0x40464000 0x2000>,
 			    <0x40466000 0x2000>;
-			};
+		};
 
 		cvic: copro-interrupt-controller@1e6c0000 {
 			compatible = "aspeed,ast2600-cvic", "aspeed-cvic";
