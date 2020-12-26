@@ -450,6 +450,20 @@
 				};
 			};
 
+			rng: hwrng@1e6e2524 {
+				compatible = "timeriomem_rng";
+				reg = <0x1e6e2524 0x4>;
+				period = <1>;
+				quality = <100>;
+				status = "disabled";
+			};
+
+			trng: hwrng@1e6e2530 {
+				compatible = "aspeed,ast2600-trng";
+				reg = <0x1e6e2530 0x8>;
+				status = "disabled";
+			};
+
 			chasis: chasis@1e6ef010 {
 				compatible = "aspeed,ast2600-chasis";
 				reg = <0x1e6ef010 0x4>;

@@ -75,6 +75,7 @@
 		};
 
 	};
+
 	iio-hwmon {
 		compatible = "iio-hwmon";
 		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
@@ -82,12 +83,11 @@
 				<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
 				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
 	};
-	rng: hwrng@1e6e2524 {
-		compatible = "timeriomem_rng";
-		reg = <0x1e6e2524 0x4>;
-		period = <1>;
-		quality = <100>;
-	};
+
+};
+
+&rng {
+	status = "okay";
 };
 
 &adc0 {
