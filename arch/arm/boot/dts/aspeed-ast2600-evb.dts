@@ -81,6 +81,11 @@
 				<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
 				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
 	};
+
+};
+
+&trng {
+	status = "okay";
 };
 
 &ssp {
