@@ -82,8 +82,8 @@ struct aspeed_spi_info {
 	uint32_t (*segment_reg)(struct aspeed_spi_controller *ast_ctrl,
 				uint32_t start, uint32_t end);
 	void (*safs_support)(struct aspeed_spi_controller *ast_ctrl,
-		enum spi_mem_data_dir dir, uint8_t cmd,
-		uint8_t bus_width, uint8_t dummy);
+		enum spi_mem_data_dir dir, uint8_t cmd, uint8_t addr_len,
+		uint8_t bus_width);
 };
 
 struct aspeed_spi_chip {
@@ -524,30 +524,30 @@ static const struct aspeed_spi_info ast2600_fmc_info = {
 
 void aspeed_2600_spi_fill_safs_cmd(struct aspeed_spi_controller *ast_ctrl,
 		enum spi_mem_data_dir dir, uint8_t cmd,
-		uint8_t bus_width, uint8_t dummy)
+		uint8_t addr_len, uint8_t bus_width)
 {
 	uint32_t tmp_val;
 
 	if (dir == SPI_MEM_DATA_IN) {
 		tmp_val = readl(ast_ctrl->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL4);
-		if (bus_width == 4)
+		if (addr_len == 4)
 			tmp_val = (tmp_val & 0xffff00ff) | (cmd << 8);
 		else
 			tmp_val = (tmp_val & 0xffffff00) | cmd;
 
-		tmp_val = (tmp_val & 0x00ffffff) | aspeed_spi_get_io_mode(bus_width);
+		tmp_val = (tmp_val & 0x0fffffff) | aspeed_spi_get_io_mode(bus_width);
 
 		writel(tmp_val, ast_ctrl->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL4);
 
 	} else if (dir == SPI_MEM_DATA_OUT) {
 		tmp_val = readl(ast_ctrl->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL4);
-		tmp_val = (tmp_val & 0xff00ffff) |
-				(aspeed_spi_get_io_mode(bus_width) >> 8);
+		tmp_val = (tmp_val & 0xf0ffffff) |
+				(aspeed_spi_get_io_mode(bus_width) >> 4);
 
 		writel(tmp_val, ast_ctrl->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL4);
 
 		tmp_val = readl(ast_ctrl->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL2);
-		if (bus_width == 4)
+		if (addr_len == 4)
 			tmp_val = (tmp_val & 0xffff00ff) | (cmd << 8);
 		else
 			tmp_val = (tmp_val & 0xffffff00) | cmd;
@@ -812,7 +812,7 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 	if (info->safs_support) {
 		info->safs_support(ast_ctrl, desc->info.op_tmpl.data.dir,
-			op_tmpl.cmd.opcode, op_tmpl.data.buswidth, op_tmpl.dummy.nbytes);
+			op_tmpl.cmd.opcode, op_tmpl.addr.nbytes, op_tmpl.data.buswidth);
 	}
 
 	return ret;
