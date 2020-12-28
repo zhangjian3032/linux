@@ -331,7 +331,6 @@
 	pinctrl-0 = <&pinctrl_rgmii1_default>;
 };
 
-
 &mac1 {
 	status = "okay";
 
@@ -744,7 +743,6 @@
 	memory-region = <&rvas_memory>;
 };
 #endif
-
 
 &i3c0 {
 	status = "okay";
