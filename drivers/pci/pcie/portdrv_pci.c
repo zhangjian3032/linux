@@ -98,7 +98,12 @@ static int pcie_portdrv_probe(struct pci_dev *dev,
 	if (!pci_is_pcie(dev) ||
 	    ((pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT) &&
 	     (pci_pcie_type(dev) != PCI_EXP_TYPE_UPSTREAM) &&
-	     (pci_pcie_type(dev) != PCI_EXP_TYPE_DOWNSTREAM)))
+#ifdef ASPEED_HOST_BMC_DEV
+	     (pci_pcie_type(dev) != PCI_EXP_TYPE_DOWNSTREAM) &&
+	     (pci_pcie_type(dev) != PCI_EXP_TYPE_PCI_BRIDGE)))
+#else
+		 (pci_pcie_type(dev) != PCI_EXP_TYPE_DOWNSTREAM)))
+#endif
 		return -ENODEV;
 
 	status = pcie_port_device_register(dev);
