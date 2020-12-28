@@ -208,6 +208,7 @@
 			number_of_chip_select = /bits/ 16 <2>;
 #endif
 			clocks = <&syscon ASPEED_CLK_AHB>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;
@@ -240,6 +241,7 @@
 			number_of_chip_select = /bits/ 16 <3>;
 #endif
 			clocks = <&syscon ASPEED_CLK_AHB>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;
