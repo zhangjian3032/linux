@@ -33,6 +33,11 @@ enum aspeed_smc_flash_type {
 	smc_type_spi  = 2,
 };
 
+enum aspeed_smc_data_dir {
+	SMC_DATA_IN  = 0,
+	SMC_DATA_OUT,
+};
+
 struct aspeed_smc_chip;
 struct aspeed_smc_controller;
 
@@ -56,6 +61,9 @@ struct aspeed_smc_info {
 	u32 (*segment_end)(struct aspeed_smc_controller *controller, u32 reg);
 	u32 (*segment_reg)(struct aspeed_smc_controller *controller,
 			   u32 start, u32 end);
+	void (*safs_support)(struct aspeed_smc_controller *controller,
+		enum aspeed_smc_data_dir dir, uint8_t cmd, uint8_t addr_len,
+		uint8_t bus_width);
 };
 
 static void aspeed_smc_chip_set_4b(struct aspeed_smc_chip *chip);
@@ -158,6 +166,10 @@ static u32 aspeed_smc_segment_reg_ast2600(
 static int aspeed_smc_calibrate_reads_ast2600(struct aspeed_smc_chip *chip,
 	      u32 hdiv, const u8 *golden_buf, u8 *test_buf);
 
+void aspeed_2600_spi_fill_safs_cmd(struct aspeed_smc_controller *controller,
+		enum aspeed_smc_data_dir dir, uint8_t cmd,
+		uint8_t addr_len, uint8_t bus_width);
+
 static const struct aspeed_smc_info fmc_2600_info = {
 	.maxsize = 256 * 1024 * 1024,
 	.nce = 3,
@@ -192,6 +204,7 @@ static const struct aspeed_smc_info spi_2600_info = {
 	.segment_start = aspeed_smc_segment_start_ast2600,
 	.segment_end = aspeed_smc_segment_end_ast2600,
 	.segment_reg = aspeed_smc_segment_reg_ast2600,
+	.safs_support = aspeed_2600_spi_fill_safs_cmd,
 };
 
 static const struct aspeed_smc_info spi2_2600_info = {
@@ -328,6 +341,9 @@ struct aspeed_smc_controller {
 	((controller)->regs + SEGMENT_ADDR_REG0 + (cs) * 4)
 
 #define CALIBRATE_BUF_SIZE 0x4000
+
+#define OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL4	0x6c
+#define OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL2	0x74
 
 #define OFFSET_INTR_CTRL_STATUS	0x08
 #define OFFSET_DMA_CTRL			0x80
@@ -608,6 +624,20 @@ static int aspeed_smc_get_io_mode(struct aspeed_smc_chip *chip)
 	}
 }
 
+uint32_t aspeed_spi_get_io_mode(uint32_t bus_width)
+{
+	switch (bus_width) {
+	case 1:
+		return 0;
+	case 2:
+		return CONTROL_IO_DUAL_DATA;
+	case 4:
+		return CONTROL_IO_QUAD_DATA;
+	default:
+		return 0;
+	}
+}
+
 static void aspeed_smc_set_io_mode(struct aspeed_smc_chip *chip, u32 io_mode)
 {
 	u32 ctl;
@@ -714,6 +744,9 @@ static irqreturn_t aspeed_spi_dma_isr(int irq, void *dev_id)
 		(struct aspeed_smc_controller *)dev_id;
 	uint32_t reg_val;
 
+	if (!(readl(controller->regs + OFFSET_INTR_CTRL_STATUS) & 0x800))
+		return IRQ_NONE;
+
 	reg_val = readl(controller->regs + OFFSET_INTR_CTRL_STATUS);
 	reg_val &= ~SPI_DMA_IRQ_EN;
 	writel(reg_val, controller->regs + OFFSET_INTR_CTRL_STATUS);
@@ -748,6 +781,40 @@ static ssize_t aspeed_smc_read(struct spi_nor *nor, loff_t from, size_t len,
 
 out:
 	return len;
+}
+
+void aspeed_2600_spi_fill_safs_cmd(struct aspeed_smc_controller *controller,
+		enum aspeed_smc_data_dir dir, uint8_t cmd,
+		uint8_t addr_len, uint8_t bus_width)
+{
+	uint32_t tmp_val;
+
+	if (dir == SMC_DATA_IN) {
+		tmp_val = readl(controller->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL4);
+		if (addr_len == 4)
+			tmp_val = (tmp_val & 0xffff00ff) | (cmd << 8);
+		else
+			tmp_val = (tmp_val & 0xffffff00) | cmd;
+
+		tmp_val = (tmp_val & 0x0fffffff) | aspeed_spi_get_io_mode(bus_width);
+
+		writel(tmp_val, controller->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL4);
+
+	} else if (dir == SMC_DATA_OUT) {
+		tmp_val = readl(controller->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL4);
+		tmp_val = (tmp_val & 0xf0ffffff) |
+				(aspeed_spi_get_io_mode(bus_width) >> 4);
+
+		writel(tmp_val, controller->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL4);
+
+		tmp_val = readl(controller->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL2);
+		if (addr_len == 4)
+			tmp_val = (tmp_val & 0xffff00ff) | (cmd << 8);
+		else
+			tmp_val = (tmp_val & 0xffffff00) | cmd;
+
+		writel(tmp_val, controller->regs + OFFSET_HOST_DIRECT_ACCESS_CMD_CTRL2);
+	}
 }
 
 static int aspeed_smc_unregister(struct aspeed_smc_controller *controller)
@@ -1499,6 +1566,13 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 			break;
 
 		controller->chips[cs] = chip;
+
+		if (info->safs_support) {
+			info->safs_support(controller, SMC_DATA_IN,
+				nor->read_opcode, nor->addr_width, width);
+			info->safs_support(controller, SMC_DATA_OUT,
+				nor->program_opcode, nor->addr_width, 1);
+		}
 	}
 
 	if (ret)
@@ -1561,7 +1635,7 @@ static int aspeed_smc_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(dev, controller->irq, aspeed_spi_dma_isr,
-					0, dev_name(dev), controller);
+					IRQF_SHARED, dev_name(dev), controller);
 	if (ret < 0) {
 		dev_err(dev, "fail to request irq (%d)\n", ret);
 		return ret;
