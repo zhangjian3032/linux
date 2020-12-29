@@ -266,7 +266,7 @@ static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 #ifdef SCU_TRIGGER_MSI
 	//SCUC24[17]: Enable PCI device 1 INTx/MSI from SCU560[15]. Will be added in next version
 	regmap_update_bits(bmc_device->scu, 0xc20, BIT(11) | BIT(14), BIT(11) | BIT(14));
-	regmap_update_bits(bmc_device->scu, 0xc24, BIT(17) | BIT(14), BIT(17) | BIT(14));
+	regmap_update_bits(bmc_device->scu, 0xc24, BIT(17) | BIT(14) | BIT(11), BIT(17) | BIT(14) | BIT(11));
 #else
 	//SCUC24[18]: Enable PCI device 1 INTx/MSI from Host-to-BMC controller. Will be added in next version
 	regmap_update_bits(bmc_device->scu, 0xc24, BIT(18) | BIT(14), BIT(18) | BIT(14));
