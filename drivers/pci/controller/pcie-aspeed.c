@@ -421,6 +421,28 @@ error:
 	return err;
 }
 
+int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+{
+    struct msi_desc *entry;
+    int ret;
+
+    /*
+     * MSI-X is not supported.
+     */
+    if (type == PCI_CAP_ID_MSIX)
+            return -EINVAL;
+
+    for_each_pci_msi_entry(entry, dev) {
+            ret = arch_setup_msi_irq(dev, entry);
+            if (ret < 0)
+                    return ret;
+            if (ret > 0)
+                    return -ENOSPC;
+    }
+
+    return 0;
+}
+
 static const struct of_device_id aspeed_pcie_of_match[] = {
 	{ .compatible = "aspeed,ast2600-pcie", },
 	{},
