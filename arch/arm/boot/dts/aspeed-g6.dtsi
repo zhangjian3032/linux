@@ -675,8 +675,8 @@
 					compatible = "aspeed,ast2600-espi-ctrl";
 					interrupts-extended = <&espi_ic ASPEED_ESPI_IC_CTRL_EVENT>,
 							      <&espi_ic ASPEED_ESPI_IC_CTRL_RESET>;
-					resets = <&syscon ASPEED_CLK_GATE_ESPICLK>;
-					clocks = <&syscon ASPEED_RESET_ESPI>;
+					clcoks = <&syscon ASPEED_CLK_GATE_ESPICLK>;
+					resets = <&syscon ASPEED_RESET_ESPI>;
 					status = "disabled";
 				};
 
