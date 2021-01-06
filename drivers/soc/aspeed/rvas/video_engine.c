@@ -68,21 +68,23 @@ void ioctl_get_video_engine_config(VideoConfig  *pVideoConfig, AstRVAS *pAstRVAS
 	u32 VR004_SeqCtrl = video_read(pAstRVAS, AST_VIDEO_SEQ_CTRL);
 	u32 VR060_ComCtrl = video_read(pAstRVAS, AST_VIDEO_COMPRESS_CTRL);
 
+	printk("VR004_SeqCtrl: %#x", VR004_SeqCtrl);
+	printk("VR060_ComCtrl: %#x", VR060_ComCtrl);
 	// status
 	pVideoConfig->rs = SuccessStatus;
 
-	pVideoConfig-> engine = 0; 		// engine = 1 is Video Management
+	pVideoConfig->engine = 0; 		// engine = 1 is Video Management
 	pVideoConfig->capture_format = 0;
 	pVideoConfig->compression_mode = 0;
 
-	pVideoConfig->compression_format = 	VR004_SeqCtrl & G5_VIDEO_COMPRESS_JPEG_MODE;
-	pVideoConfig->YUV420_mode =  VR004_SeqCtrl & VIDEO_COMPRESS_FORMAT(YUV420);
-	pVideoConfig->AutoMode = VR004_SeqCtrl & VIDEO_AUTO_COMPRESS;
+	pVideoConfig->compression_format = (VR004_SeqCtrl>>13) & 0x1;
+	pVideoConfig->YUV420_mode =  (VR004_SeqCtrl >>10) & 0x3;
+	pVideoConfig->AutoMode = (VR004_SeqCtrl>>5) & 0x1;
 
-	pVideoConfig->rc4_enable = VR060_ComCtrl & VIDEO_ENCRYP_ENABLE;
-	pVideoConfig->Visual_Lossless = VR060_ComCtrl & VIDEO_HQ_ENABLE;
-	pVideoConfig->Y_JPEGTableSelector = VR060_ComCtrl & VIDEO_DCT_CQT_SELECTION;
-	pVideoConfig->AdvanceTableSelector = VR060_ComCtrl & VIDEO_DCT_HQ_CQT_SELECTION;
+	pVideoConfig->rc4_enable = (VR060_ComCtrl>>5) & 0x1;
+	pVideoConfig->Visual_Lossless = (VR060_ComCtrl>>16) & 0x1;
+	pVideoConfig->Y_JPEGTableSelector = VIDEO_GET_DCT_LUM(VR060_ComCtrl);
+	pVideoConfig->AdvanceTableSelector = (VR060_ComCtrl>>27) & 0xf;
 
 }
 
@@ -188,7 +190,7 @@ void ioctl_get_video_engine_data(MultiJpegConfig *pArrayMJConfig, AstRVAS *pAstR
 
 	if( video_capture_trigger(pAstRVAS) == 0 ) {
 		 pArrayMJConfig->rs = CaptureTimedOut;
-		 printk("Capture Timeout\n");
+		 VIDEO_ENG_DBG("Capture Timeout\n");
 		 return;
 	}
 	//dump_buffer(dwPhyStreamAddress,100);
@@ -254,7 +256,7 @@ void ioctl_get_video_engine_data(MultiJpegConfig *pArrayMJConfig, AstRVAS *pAstR
 	if (timeout == 0) {
 		printk("multi compression timeout sts %x \n", video_read(pAstRVAS, AST_VIDEO_INT_STS));
 		pArrayMJConfig->multi_jpeg_frames = 0;
-		pArrayMJConfig->rs = CompressionTimeOut;
+		pArrayMJConfig->rs = CompressionTimedOut;
 	} else {
 		VIDEO_ENG_DBG("400 %x , 404 %x \n", video_read(pAstRVAS, AST_VIDEO_MULTI_JPEG_SRAM), video_read(pAstRVAS, AST_VIDEO_MULTI_JPEG_SRAM + 4));
 		VIDEO_ENG_DBG("408 %x , 40c %x \n", video_read(pAstRVAS, AST_VIDEO_MULTI_JPEG_SRAM + 8), video_read(pAstRVAS, AST_VIDEO_MULTI_JPEG_SRAM + 0xC));

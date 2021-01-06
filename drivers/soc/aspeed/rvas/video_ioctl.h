@@ -88,7 +88,7 @@ typedef enum tagRVASStatus {
 	TimedOut = 6,
 	InvalidContextHandle = 7,
 	CaptureTimedOut = 8,
-	CompressionTimeOut = 9
+	CompressionTimedOut = 9
 } RVASStatus;
 
 typedef enum tagSelectedByteMode {
@@ -252,9 +252,9 @@ typedef struct tagRvasIoctl {
 
 typedef struct tagAstVideoConfig {
 	u8 engine;					//0: engine 0 - normal engine, engine 1 - VM legacy engine
-	u8 compression_mode; //0:DCT, 1:DCT_VQ mix VQ-2 color, 2:DCT_VQ mix VQ-4 color		9:
+	u8 compression_mode; 	//0:DCT, 1:DCT_VQ mix VQ-2 color, 2:DCT_VQ mix VQ-4 color		9:
 	u8 compression_format;	//0:ASPEED 1:JPEG
-	u8 capture_format;//0:CCIR601-2 YUV, 1:JPEG YUV, 2:RGB for ASPEED mode only, 3:Gray
+	u8 capture_format;		//0:CCIR601-2 YUV, 1:JPEG YUV, 2:RGB for ASPEED mode only, 3:Gray
 	u8 rc4_enable;				//0:disable 1:enable
 	u8 YUV420_mode;			//0:YUV444, 1:YUV420
 	u8 Visual_Lossless;
