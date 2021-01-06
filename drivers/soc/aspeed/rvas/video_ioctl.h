@@ -40,9 +40,9 @@
 #define CMD_IOCTL_GET_TSE_COUNTER			_IOWR( RVAS_MAGIC, IOCTL_GET_TSE_COUNTER, RvasIoctl)
 #define CMD_IOCTL_VIDEO_ENGINE_RESET		_IOWR( RVAS_MAGIC, IOCTL_VIDEO_ENGINE_RESET, RvasIoctl)
 //jpeg
-#define CMD_IOCTL_SET_VIDEO_ENGINE_CONFIG		_IOW(RVAS_MAGIC, IOCTL_SET_VIDEO_ENGINE_CONFIG,  videoConfig*)
-#define CMD_IOCTL_GET_VIDEO_ENGINE_CONFIG		_IOW(RVAS_MAGIC, IOCTL_GET_VIDEO_ENGINE_CONFIG,  videoConfig*)
-#define CMD_IOCTL_GET_VIDEO_ENGINE_DATA	_IOWR(RVAS_MAGIC, IOCTL_GET_VIDEO_ENGINE_DATA, multiJpegConfig*)
+#define CMD_IOCTL_SET_VIDEO_ENGINE_CONFIG		_IOW(RVAS_MAGIC, IOCTL_SET_VIDEO_ENGINE_CONFIG,  VideoConfig*)
+#define CMD_IOCTL_GET_VIDEO_ENGINE_CONFIG		_IOW(RVAS_MAGIC, IOCTL_GET_VIDEO_ENGINE_CONFIG,  VideoConfig*)
+#define CMD_IOCTL_GET_VIDEO_ENGINE_DATA	_IOWR(RVAS_MAGIC, IOCTL_GET_VIDEO_ENGINE_DATA, MultiJpegConfig*)
 
 typedef enum {
 	IOCTL_TURN_LOCAL_MONITOR_ON = 20, //REMOTE VIDEO GENERAL IOCTL
@@ -86,7 +86,9 @@ typedef enum tagRVASStatus {
 	CannotMapMemory = 4,
 	CannotUnMapMemory = 5,
 	TimedOut = 6,
-	InvalidContextHandle = 7
+	InvalidContextHandle = 7,
+	CaptureTimedOut = 8,
+	CompressionTimeOut = 9
 } RVASStatus;
 
 typedef enum tagSelectedByteMode {
@@ -240,6 +242,14 @@ typedef struct tagRvasIoctl {
 	u8 rsvd[1];
 } RvasIoctl;
 
+
+//
+// Video Engine
+//
+
+#define MAX_MULTI_FRAME_CT (32)
+
+
 typedef struct tagAstVideoConfig {
 	u8 engine;					//0: engine 0 - normal engine, engine 1 - VM legacy engine
 	u8 compression_mode; //0:DCT, 1:DCT_VQ mix VQ-2 color, 2:DCT_VQ mix VQ-4 color		9:
@@ -251,23 +261,24 @@ typedef struct tagAstVideoConfig {
 	u8 Y_JPEGTableSelector;
 	u8 AdvanceTableSelector;
 	u8 AutoMode;
-} videoConfig;
+	u8 rsvd[2];
+	RVASStatus rs;
+} VideoConfig;
 
 typedef struct tagMultiJpegFrame{
 	u32 dwSizeInBytes;			// Image size in bytes
 	u32 dwOffsetInBytes;			// Offset in bytes
-	u16	wXPixels;				// In: X coordinate
-	u16	wYPixels;				// In: Y coordinate
-	u16	wWidthPixels;			// In: Width for Fetch
-	u16	wHeightPixels;			// In: Height for Fetch
-}multiJpegFrame;
-
-#define MAX_MULTI_FRAME_CT (32)
+	u16 wXPixels;					// In: X coordinate
+	u16 wYPixels;					// In: Y coordinate
+	u16 wWidthPixels;				// In: Width for Fetch
+	u16 wHeightPixels;			// In: Height for Fetch
+} MultiJpegFrame;
 
 typedef struct tagMultiJpegConfig {
 	unsigned char multi_jpeg_frames;	// frame count
-	multiJpegFrame frame[MAX_MULTI_FRAME_CT];	// The Multi Frames
+	MultiJpegFrame frame[MAX_MULTI_FRAME_CT];	// The Multi Frames
 	RVASMemoryHandle aStreamHandle;
-}multiJpegConfig;
+	RVASStatus rs;
+} MultiJpegConfig;
 
 #endif // _VIDEO_IOCTL_H

@@ -275,9 +275,9 @@ typedef struct {
 
 
 // ioctl functions
-void ioctl_get_video_engine_config(videoConfig  *pVideoConfig, AstRVAS *pAstRVAS);
-void ioctl_set_video_engine_config(videoConfig  *pVideoConfig, AstRVAS *pAstRVAS);
-void ioctl_get_video_engine_data(multiJpegConfig *pArrayMJConfig, AstRVAS *pAstRVAS,  u32 dwPhyStreamAddress);
+void ioctl_get_video_engine_config(VideoConfig  *pVideoConfig, AstRVAS *pAstRVAS);
+void ioctl_set_video_engine_config(VideoConfig  *pVideoConfig, AstRVAS *pAstRVAS);
+void ioctl_get_video_engine_data(MultiJpegConfig *pArrayMJConfig, AstRVAS *pAstRVAS,  u32 dwPhyStreamAddress);
 
 //local functions
 irqreturn_t ast_video_isr(int this_irq, void *dev_id);
@@ -288,7 +288,7 @@ void video_set_Window(AstRVAS *pAstRVAS);
 int free_video_engine_memory(AstRVAS *pAstRVAS);
 void video_ctrl_init(AstRVAS *pAstRVAS);
 void video_engine_rc4Reset(AstRVAS *pAstRVAS);
-void SetDirectMode (AstRVAS *pAstRVAS);
-void video_capture_trigger(AstRVAS *pAstRVAS);
+void set_direct_mode (AstRVAS *pAstRVAS);
+
 
 #endif // __VIDEO_ENGINE_H__

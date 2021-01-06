@@ -56,16 +56,20 @@ static u32 get_vga_mem_base(void);
 static int reserve_video_engine_memory(AstRVAS *pAstRVAS);
 static void init_jpeg_table(void);
 static void video_set_scaling(AstRVAS *pAstRVAS);
-static void DumpBuffer(u32 dwPhyStreamAddress, u32 size);
+static int video_capture_trigger(AstRVAS *pAstRVAS);
+static void dump_buffer(u32 dwPhyStreamAddress, u32 size);
 
 
 
 //
 // function definitions
 //
-void ioctl_get_video_engine_config(videoConfig  *pVideoConfig, AstRVAS *pAstRVAS){
+void ioctl_get_video_engine_config(VideoConfig  *pVideoConfig, AstRVAS *pAstRVAS){
 	u32 VR004_SeqCtrl = video_read(pAstRVAS, AST_VIDEO_SEQ_CTRL);
 	u32 VR060_ComCtrl = video_read(pAstRVAS, AST_VIDEO_COMPRESS_CTRL);
+
+	// status
+	pVideoConfig->rs = SuccessStatus;
 
 	pVideoConfig-> engine = 0; 		// engine = 1 is Video Management
 	pVideoConfig->capture_format = 0;
@@ -83,13 +87,17 @@ void ioctl_get_video_engine_config(videoConfig  *pVideoConfig, AstRVAS *pAstRVAS
 }
 
 
-void ioctl_set_video_engine_config(videoConfig  *pVideoConfig, AstRVAS *pAstRVAS) {
+void ioctl_set_video_engine_config(VideoConfig  *pVideoConfig, AstRVAS *pAstRVAS) {
 
 	int i, base = 0;
 	u32 ctrl = 0;	//for VR004, VR204
 	u32 compress_ctrl = 0x00080000;
 	u32 *tlb_table = vem.jpegTable.pVirt;
-	u32 streamBufferIndex = 0;
+
+
+	// status
+	pVideoConfig->rs = SuccessStatus;
+
 	VIDEO_ENG_DBG("\n");
 
 	ctrl = video_read(pAstRVAS, AST_VIDEO_SEQ_CTRL);
@@ -155,7 +163,7 @@ void ioctl_set_video_engine_config(videoConfig  *pVideoConfig, AstRVAS *pAstRVAS
 }
 
 //
-void ioctl_get_video_engine_data(multiJpegConfig *pArrayMJConfig, AstRVAS *pAstRVAS, u32 dwPhyStreamAddress){
+void ioctl_get_video_engine_data(MultiJpegConfig *pArrayMJConfig, AstRVAS *pAstRVAS, u32 dwPhyStreamAddress){
 	u32 yuv_shift;
 	u32 yuv_msk;
 	u32 scan_lines;
@@ -169,19 +177,26 @@ void ioctl_get_video_engine_data(multiJpegConfig *pArrayMJConfig, AstRVAS *pAstR
 	u32 VR044;
    u32 nextFrameOffset = 0;
 
+   //status
+   pArrayMJConfig->rs = SuccessStatus;
+
 	VIDEO_ENG_DBG("\n");
 	VIDEO_ENG_DBG("before Stream buffer:\n");
-	//DumpBuffer(dwPhyStreamAddress,100);
+	//dump_buffer(dwPhyStreamAddress,100);
 
 	video_write(pAstRVAS, dwPhyStreamAddress, AST_VIDEO_STREAM_BUFF);
 
-	video_capture_trigger(pAstRVAS);
-	//DumpBuffer(dwPhyStreamAddress,100);
+	if( video_capture_trigger(pAstRVAS) == 0 ) {
+		 pArrayMJConfig->rs = CaptureTimedOut;
+		 printk("Capture Timeout\n");
+		 return;
+	}
+	//dump_buffer(dwPhyStreamAddress,100);
 
 	init_completion(&pAstRVAS->video_compression_complete);
 	VIDEO_ENG_DBG("capture complete buffer:\n");
 
-	//DumpBuffer(vem.captureBuf0.phy,100);
+	//dump_buffer(vem.captureBuf0.phy,100);
 	VR044 = video_read(pAstRVAS, AST_VIDEO_SOURCE_BUFF0);
 
 	scan_lines = video_read(pAstRVAS, AST_VIDEO_SOURCE_SCAN_LINE);
@@ -239,6 +254,7 @@ void ioctl_get_video_engine_data(multiJpegConfig *pArrayMJConfig, AstRVAS *pAstR
 	if (timeout == 0) {
 		printk("multi compression timeout sts %x \n", video_read(pAstRVAS, AST_VIDEO_INT_STS));
 		pArrayMJConfig->multi_jpeg_frames = 0;
+		pArrayMJConfig->rs = CompressionTimeOut;
 	} else {
 		VIDEO_ENG_DBG("400 %x , 404 %x \n", video_read(pAstRVAS, AST_VIDEO_MULTI_JPEG_SRAM), video_read(pAstRVAS, AST_VIDEO_MULTI_JPEG_SRAM + 4));
 		VIDEO_ENG_DBG("408 %x , 40c %x \n", video_read(pAstRVAS, AST_VIDEO_MULTI_JPEG_SRAM + 8), video_read(pAstRVAS, AST_VIDEO_MULTI_JPEG_SRAM + 0xC));
@@ -265,15 +281,15 @@ void ioctl_get_video_engine_data(multiJpegConfig *pArrayMJConfig, AstRVAS *pAstR
 	video_write(pAstRVAS, video_read(pAstRVAS, AST_VIDEO_PASS_CTRL) &
 			~(G6_VIDEO_FRAME_CT_MASK | G6_VIDEO_MULTI_JPEG_MODE), AST_VIDEO_PASS_CTRL);
 
-	VIDEO_ENG_DBG("after Stream buffer:\n");
-	//DumpBuffer(dwPhyStreamAddress,100);
+	//VIDEO_ENG_DBG("after Stream buffer:\n");
+	//dump_buffer(dwPhyStreamAddress,100);
 }
 
 
  irqreturn_t ast_video_isr(int this_irq, void *dev_id)
 {
 	u32 status;
-	u32 swap0, swap1;
+	//u32 swap0, swap1;
 	AstRVAS *pAstRVAS = dev_id;
 
 	status = video_read(pAstRVAS, AST_VIDEO_INT_STS);
@@ -284,6 +300,7 @@ void ioctl_get_video_engine_data(multiJpegConfig *pArrayMJConfig, AstRVAS *pAstR
 	if (status & VIDEO_COMPRESS_COMPLETE) {
 		video_write(pAstRVAS, VIDEO_COMPRESS_COMPLETE, AST_VIDEO_INT_STS);
 		VIDEO_ENG_DBG("compress complete swap\n");
+		// no need to swap for better performance
 		/*
 		swap0 = video_read(pAstRVAS, AST_VIDEO_SOURCE_BUFF0);
 		swap1 = video_read(pAstRVAS, AST_VIDEO_SOURCE_BUFF1);
@@ -347,6 +364,8 @@ int free_video_engine_memory(AstRVAS *pAstRVAS)
 				vem.captureBuf0.phy);
 	}
 	VIDEO_ENG_DBG("After dma_free_coherent\n");
+
+	return 0;
 }
 
 // this function needs to be called when graphic mode change
@@ -378,10 +397,10 @@ void video_set_Window(AstRVAS *pAstRVAS)
 	VIDEO_ENG_DBG("reg offset[%#x]: %#x\n", AST_VIDEO_SOURCE_SCAN_LINE, video_read(pAstRVAS, AST_VIDEO_SOURCE_SCAN_LINE) );
 }
 
-void SetDirectMode (AstRVAS *pAstRVAS)
+void set_direct_mode (AstRVAS *pAstRVAS)
 {
 	int Direct_Mode = 0;
-	u32 RefreshRateIndex, ColorDepthIndex;
+	u32 ColorDepthIndex;
 	u32 VGA_Scratch_Register_350, VGA_Scratch_Register_354, VGA_Scratch_Register_34C, Color_Depth;
 
 	VIDEO_ENG_DBG("\n");
@@ -432,8 +451,8 @@ void SetDirectMode (AstRVAS *pAstRVAS)
 	}
 }
 
-
-void video_capture_trigger(AstRVAS *pAstRVAS)
+// return timeout 0 - timeout; non 0 is successful
+static int video_capture_trigger(AstRVAS *pAstRVAS)
 {
 	int timeout = 0;
 
@@ -452,7 +471,9 @@ void video_capture_trigger(AstRVAS *pAstRVAS)
 		printk("Capture timeout sts %x \n", video_read(pAstRVAS, AST_VIDEO_INT_STS));
 	}
 
-	//DumpBuffer(vem.captureBuf0.phy, 1024);
+
+	//dump_buffer(vem.captureBuf0.phy, 1024);
+	return timeout;
 }
 
 //
@@ -467,7 +488,7 @@ static u32 get_vga_mem_base(void)
 	return (mem_size - vga_mem_size);
 }
 
-static void DumpBuffer(u32 dwPhyStreamAddress, u32 size)
+static void dump_buffer(u32 dwPhyStreamAddress, u32 size)
 {
 	u32 iC;
 	u32 val = 0;
@@ -516,7 +537,7 @@ void video_ctrl_init(AstRVAS *pAstRVAS)
 	// =============================  JPEG init ===========================================
 	init_jpeg_table();
 	VIDEO_ENG_DBG("JpegTable in Memory:%#x\n", vem.jpegTable.pVirt);
-	//DumpBuffer(vem.jpegTable.phy, 80);
+	dump_buffer(vem.jpegTable.phy, 80);
 
 	// ===================================================================================
 	//Specification define bit 12:13 must always 0;
@@ -543,7 +564,6 @@ void video_ctrl_init(AstRVAS *pAstRVAS)
 
 static int reserve_video_engine_memory(AstRVAS *pAstRVAS)
 {
-	int result = 0;
 	u32 size;
 	u32 phys_add = 0;
 	u32 virt_add = 0;

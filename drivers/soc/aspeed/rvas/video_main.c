@@ -81,8 +81,8 @@ static long video_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int iResult = 0;
 	RvasIoctl ri;
-   videoConfig video_config;
-   multiJpegConfig multi_jpeg;
+   VideoConfig video_config;
+   MultiJpegConfig multi_jpeg;
    u8 bVideoCmd = 0;
 
    VIDEO_DBG("Start\n");
@@ -208,6 +208,9 @@ static long video_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case CMD_IOCTL_GET_VIDEO_ENGINE_CONFIG:
 		VIDEO_DBG(" Command CMD_IOCTL_GET_VIDEO_ENGINE_CONFIG\n");
+		ioctl_get_video_engine_config(&video_config, pAstRVAS);
+
+		iResult = raw_copy_to_user((void *) arg, &video_config, sizeof(video_config));
 		break;
 	case CMD_IOCTL_SET_VIDEO_ENGINE_CONFIG:
 		VIDEO_DBG(" Command CMD_IOCTL_SET_VIDEO_ENGINE_CONFIG\n");
@@ -1154,16 +1157,16 @@ void ioctl_reset_video_engine(RvasIoctl *ri, AstRVAS *pAstRVAS)
 	switch (resetMode)
 	{
 		case  ResetAll:
-			VIDEO_DBG("reset all engine\n");
+			VIDEO_ENG_DBG("reset all engine\n");
 			reset_rvas_engine(pAstRVAS);
 			reset_video_engine(pAstRVAS);
 			break;
 		case ResetRvasEngine:
-			VIDEO_DBG("reset rvas engine\n");
+			VIDEO_ENG_DBG("reset rvas engine\n");
 			reset_rvas_engine(pAstRVAS);
 			break;
 		case ResetVeEngine:
-			VIDEO_DBG("reset video engine\n");
+			VIDEO_ENG_DBG("reset video engine\n");
 			reset_video_engine(pAstRVAS);
 			break;
 		default:
@@ -1626,7 +1629,7 @@ static void video_engine_init(void){
 	disable_video_interrupt(pAstRVAS);
 	video_ctrl_init(pAstRVAS);
 	video_engine_rc4Reset(pAstRVAS);
-	SetDirectMode(pAstRVAS);
+	set_direct_mode(pAstRVAS);
 	video_set_Window(pAstRVAS);
 	enable_video_interrupt(pAstRVAS);
 }
