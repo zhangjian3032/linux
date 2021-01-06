@@ -599,7 +599,7 @@ static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 		aspeed_mctp->rx_cmd_num = aspeed_mctp->rx_fifo_num * 4 + 4;
 
 		for (i = 0; i < aspeed_mctp->rx_cmd_num; i++) {
-			rx_cmd_header = (u32 *)aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * i);
+			rx_cmd_header = (u32 *)(aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * i));
 			*rx_cmd_header = 0;
 			rx_cmd_desc[i] = (u32)aspeed_mctp->rx_pool_dma + (aspeed_mctp->rx_fifo_size * i);
 			MCTP_DBUG("Rx [%d]: desc: %x , \n", i, rx_cmd_desc[i]);
