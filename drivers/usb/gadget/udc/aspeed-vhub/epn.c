@@ -434,7 +434,10 @@ static void ast_vhub_stop_active_req(struct ast_vhub_ep *ep,
 	u32 state, reg, loops;
 
 	/* Stop DMA activity */
-	writel(0, ep->epn.regs + AST_VHUB_EP_DMA_CTLSTAT);
+	if (ep->epn.desc_mode)
+		writel(VHUB_EP_DMA_CTRL_RESET, ep->epn.regs + AST_VHUB_EP_DMA_CTLSTAT);
+	else
+		writel(0, ep->epn.regs + AST_VHUB_EP_DMA_CTLSTAT);
 
 	/* Wait for it to complete */
 	for (loops = 0; loops < 1000; loops++) {
@@ -446,7 +449,7 @@ static void ast_vhub_stop_active_req(struct ast_vhub_ep *ep,
 		udelay(1);
 	}
 	if (loops >= 1000)
-		dev_warn(&ep->vhub->pdev->dev, "Timeout waiting for DMA\n");
+		dev_warn(&ep->vhub->pdev->dev, "Timeout waiting for DMA state [%x]\n", state);
 
 	/* If we don't have to restart the endpoint, that's it */
 	if (!restart_ep)
