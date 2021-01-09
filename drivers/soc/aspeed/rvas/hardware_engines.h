@@ -62,9 +62,10 @@
 //SCU0D0
 #define PWR_OFF_VDAC 		(1<<3)
 
-#define SCU_UNLOCK_PWD				(0x1688A8A8)
-#define SCU_RVAS_ENGINE_BIT			BIT(9)
-#define SCU_RVAS_STOP_CLOCK_BIT			BIT(25)
+#define SCU_UNLOCK_PWD									(0x1688A8A8)
+#define SCU_RVAS_ENGINE_BIT							BIT(9)
+#define SCU_RVAS_STOP_CLOCK_BIT						BIT(25)
+
 
 //DP
 #define DPTX_Configuration_Register			(0x100)
@@ -376,11 +377,13 @@ typedef struct tagAstRVAS {
 	void *pdev;
 	int irq_fge;	//FrameGrabber IRQ number
 	int irq_vga; // VGA IRQ number
+	int irq_video;
 	u32 fg_reg_base;
 	u32 grce_reg_base;
-	//u32 lmem_base;
+	u32 video_reg_base;
 	struct regmap *scu;
-   struct reset_control *reset;
+   struct reset_control *rvas_reset;
+   struct reset_control *video_engine_reset;
 	VGAMemInfo FBInfo;
 	u64 accrued_sm[SNOOP_MAP_QWORD_COUNT];
 	SnoopAggregate accrued_sa;
@@ -390,6 +393,7 @@ typedef struct tagAstRVAS {
 	EngineInfo tfe_engine;
 	EngineInfo bse_engine;
 	EngineInfo ldma_engine;
+	EngineInfo video_engine;
 	struct semaphore mem_sem;
 	struct semaphore context_sem;
 	Video_OsSleepStruct video_wait;
@@ -400,6 +404,10 @@ typedef struct tagAstRVAS {
 	u32 dwMemoryTableSize;
 	u32 dwScreenOffset;
 	MemoryMapTable *ppmmtMemoryTable[MAX_NUM_MEM_TBL];
+	struct completion  video_compression_complete;
+	struct completion  video_capture_complete;
+	struct clk 			*vclk;
+	struct clk 			*eclk;
 } AstRVAS;
 
 //
@@ -413,9 +421,7 @@ void ioctl_read_snoop_aggregate(RvasIoctl *ri, AstRVAS *ast_rvas);
 void ioctl_set_tse_tsicr(RvasIoctl *ri, AstRVAS *ast_rvas);
 void ioctl_get_tse_tsicr(RvasIoctl *ri, AstRVAS *ast_rvas);
 void ioctl_reset_video_engine(RvasIoctl *ri, AstRVAS *ast_rvas);
-void ioctl_get_video_engine_config(RvasIoctl *ri, AstRVAS *ast_rvas);
-void ioctl_set_video_engine_config(RvasIoctl *ri, AstRVAS *ast_rvas);
-void ioctl_get_video_engine_data(RvasIoctl *ri, AstRVAS *ast_rvas);
+
 
 void ioctl_fetch_video_tiles(RvasIoctl *ri, AstRVAS *ast_rvas);
 void ioctl_fetch_video_slices(RvasIoctl *ri, AstRVAS *ast_rvas);
