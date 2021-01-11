@@ -30,9 +30,9 @@
 //PWM Duty Cycle Register
 #define ASPEED_PWM_DUTY_CYCLE_CH(ch)	((ch * 0x10) + 0x04)
 //TACH Control Register
-#define ASPEED_TECHO_CTRL_CH(ch)		((ch * 0x10) + 0x08)
+#define ASPEED_TACHO_CTRL_CH(ch)		((ch * 0x10) + 0x08)
 //TACH Status Register
-#define ASPEED_TECHO_STS_CH(x)			((x * 0x10) + 0x0C)
+#define ASPEED_TACHO_STS_CH(x)			((x * 0x10) + 0x0C)
 /**********************************************************
  * PWM register Bit field 
  *********************************************************/
@@ -62,18 +62,18 @@
 /* [31:24] */
 #define  DEFAULT_PWM_PERIOD 0xff
 
-/*PWM_TECHO_CTRL */
-#define  TECHO_IER						BIT(31)	//enable tacho interrupt
-#define  TECHO_INVERS_LIMIT				BIT(30) //inverse tacho limit comparison
-#define  TECHO_LOOPBACK					BIT(29) //tacho loopback
-#define  TECHO_ENABLE					BIT(28)	//{enable tacho}
-#define  TECHO_DEBOUNCE_MASK			(0x3 << 26) //{tacho de-bounce}
-#define  TECHO_DEBOUNCE_BIT				(26) //{tacho de-bounce}
+/*PWM_TACHO_CTRL */
+#define  TACHO_IER						BIT(31)	//enable tacho interrupt
+#define  TACHO_INVERS_LIMIT				BIT(30) //inverse tacho limit comparison
+#define  TACHO_LOOPBACK					BIT(29) //tacho loopback
+#define  TACHO_ENABLE					BIT(28)	//{enable tacho}
+#define  TACHO_DEBOUNCE_MASK			(0x3 << 26) //{tacho de-bounce}
+#define  TACHO_DEBOUNCE_BIT				(26) //{tacho de-bounce}
 #define  TECHIO_EDGE_MASK				(0x3 << 24) //tacho edge}
 #define  TECHIO_EDGE_BIT				(24) //tacho edge}
-#define  TECHO_CLK_DIV_T_MASK			(0xf << 20) 
-#define  TECHO_CLK_DIV_BIT				(20)
-#define  TECHO_THRESHOLD_MASK			(0xfffff)	//tacho threshold bit
+#define  TACHO_CLK_DIV_T_MASK			(0xf << 20) 
+#define  TACHO_CLK_DIV_BIT				(20)
+#define  TACHO_THRESHOLD_MASK			(0xfffff)	//tacho threshold bit
 /* [27:26] */
 #define DEBOUNCE_3_CLK 0x00 /* 10b */
 #define DEBOUNCE_2_CLK 0x01 /* 10b */
@@ -85,10 +85,10 @@
 #define BOTH_EDGES 0x02 /* 10b */
 /* [23:20] */
 /* Cover rpm range 5~5859375 */
-#define  DEFAULT_TECHO_DIV 5
+#define  DEFAULT_TACHO_DIV 5
 
-/*PWM_TECHO_STS */
-#define  TECHO_ISR			BIT(31)	//interrupt status and clear
+/*PWM_TACHO_STS */
+#define  TACHO_ISR			BIT(31)	//interrupt status and clear
 #define  PWM_OUT			BIT(25)	//{pwm_out}
 #define  PWM_OEN			BIT(24)	//{pwm_oeN}
 #define  TACHO_DEB_INPUT	BIT(23)	//tacho deB input
@@ -487,20 +487,20 @@ static void aspeed_set_fan_tach_ch_enable(struct aspeed_pwm_tachometer_data *pri
 		/* divide = 2^(tacho_div*2) */
 		priv->tacho_channel[fan_tach_ch].divide = 1 << (tacho_div << 1);
 
-		reg_value = TECHO_ENABLE | 
+		reg_value = TACHO_ENABLE | 
 				(priv->tacho_channel[fan_tach_ch].tacho_edge << TECHIO_EDGE_BIT) |
-				(tacho_div << TECHO_CLK_DIV_BIT) |
-				(priv->tacho_channel[fan_tach_ch].tacho_debounce << TECHO_DEBOUNCE_BIT);
+				(tacho_div << TACHO_CLK_DIV_BIT) |
+				(priv->tacho_channel[fan_tach_ch].tacho_debounce << TACHO_DEBOUNCE_BIT);
 
 		if(priv->tacho_channel[fan_tach_ch].limited_inverse)
-			reg_value |= TECHO_INVERS_LIMIT;
+			reg_value |= TACHO_INVERS_LIMIT;
 
 		if(priv->tacho_channel[fan_tach_ch].threshold)
-			reg_value |= (TECHO_IER | priv->tacho_channel[fan_tach_ch].threshold); 
+			reg_value |= (TACHO_IER | priv->tacho_channel[fan_tach_ch].threshold); 
 
-		regmap_write(priv->regmap, ASPEED_TECHO_CTRL_CH(fan_tach_ch), reg_value);
+		regmap_write(priv->regmap, ASPEED_TACHO_CTRL_CH(fan_tach_ch), reg_value);
 	} else
-		regmap_update_bits(priv->regmap, ASPEED_TECHO_CTRL_CH(fan_tach_ch),  TECHO_ENABLE, 0);
+		regmap_update_bits(priv->regmap, ASPEED_TACHO_CTRL_CH(fan_tach_ch),  TACHO_ENABLE, 0);
 }
 
 /*
@@ -512,19 +512,23 @@ static void aspeed_set_pwm_channel_fan_ctrl(struct aspeed_pwm_tachometer_data *p
 {
 	u32 duty_value,	ctrl_value;
 	u32 div_h, div_l, cal_freq;
+	u8 div_found;
 
 	if (fan_ctrl == 0) {
 		aspeed_set_pwm_channel_enable(priv->regmap, index, false);
 	} else {
 		cal_freq = priv->clk_freq / (DEFAULT_PWM_PERIOD + 1);
-		//calculate for target frequence 
-		for(div_l = 0; div_l < 0x100; div_l++) {
-			for(div_h = 0; div_h < 0x10; div_h++) {
+		//calculate for target frequence
+		div_found = 0;
+		for (div_h = 0; div_h < 0x10; div_h++) {
+			for (div_l = 0; div_l < 0x100; div_l++) {
 //				printk("div h %x, l : %x , freq %ld \n", div_h, div_l, (cal_freq / (BIT(div_h) * (div_l + 1))));
-				if((cal_freq / (BIT(div_h) * (div_l + 1))) < priv->pwm_channel[index].target_freq)
+				if((cal_freq / (BIT(div_h) * (div_l + 1))) < priv->pwm_channel[index].target_freq) {
+					div_found = 1;
 					break;
+				}
 			}
-			if((cal_freq / (BIT(div_h) * (div_l + 1))) < priv->pwm_channel[index].target_freq)
+			if(div_found)
 				break;
 		}
 
@@ -557,7 +561,7 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_pwm_tachometer_data *priv,
 	int i, retries = 3;
 
 	for(i = 0; i < retries; i++) {
-		regmap_read(priv->regmap, ASPEED_TECHO_STS_CH(fan_tach_ch), &val);
+		regmap_read(priv->regmap, ASPEED_TACHO_STS_CH(fan_tach_ch), &val);
 		if (TACHO_FULL_MEASUREMENT & val)
 			break;
 	}
@@ -915,10 +919,12 @@ static int aspeed_pwm_create_fan(struct device *dev,
 
 	ret = of_property_count_u8_elems(child, "cooling-levels");
 	if (ret > 0) {
-		ret = aspeed_create_pwm_cooling(dev, child, priv, pwm_channel,
-						ret);
-		if (ret)
-			return ret;
+		if (IS_ENABLED(CONFIG_THERMAL)) {
+			ret = aspeed_create_pwm_cooling(dev, child, priv, pwm_channel,
+							ret);
+			if (ret)
+				return ret;
+		}
 	}
 
 	count = of_property_count_u8_elems(child, "aspeed,fan-tach-ch");
@@ -940,7 +946,7 @@ static int aspeed_pwm_create_fan(struct device *dev,
 
 	ret = of_property_read_u32(child, "aspeed,tacho-div", &tacho_div);
 	if (ret)
-		tacho_div = DEFAULT_TECHO_DIV;
+		tacho_div = DEFAULT_TACHO_DIV;
 	
 	aspeed_create_fan_tach_channel(priv, fan_tach_ch, count, fan_pulse_pr, tacho_div);
 
@@ -957,7 +963,6 @@ static int aspeed_pwm_tachometer_probe(struct platform_device *pdev)
 	struct device *hwmon;
 	struct clk *clk;
 	int ret;
-
 	np = dev->of_node;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1003,6 +1008,7 @@ static int aspeed_pwm_tachometer_probe(struct platform_device *pdev)
 	priv->groups[0] = &pwm_dev_group;
 	priv->groups[1] = &fan_dev_group;
 	priv->groups[2] = NULL;
+	dev_info(dev, "pwm tach probe done\n");
 	hwmon = devm_hwmon_device_register_with_groups(dev,
 						       "aspeed_pwm_tachometer",
 						       priv, priv->groups);
