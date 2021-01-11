@@ -365,6 +365,11 @@ static int aspeed_udma_probe(struct platform_device *pdev)
 	int i, rc;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+
+	if (!of_device_is_compatible(np, "aspeed,ast2500-udma") &&
+		!of_device_is_compatible(np, "aspeed,ast2600-udma"))
+		return -ENODEV;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (IS_ERR_OR_NULL(res)) {
