@@ -1354,15 +1354,14 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&syscon ASPEED_CLK_GATE_REF1CLK>, <&syscon ASPEED_CLK_AHB>;
+		clocks = <&syscon ASPEED_CLK_GATE_REF0CLK>,
+			<&syscon ASPEED_CLK_AHB>;
+		clock-names = "ref-clk", "hclk";
+		clock-sel-hclk;
 		resets = <&syscon ASPEED_RESET_PECI>;
-		clock-frequency = <25000000>; //target peci clk 
-		clk-div = <1>;
-		msg-timing = <3>;
-		addr-timing = <3>;
+		clock-frequency = <1000000>;
 		rd-sampling-point = <8>;
 		cmd-timeout-ms = <1000>;
-		64byte-mode;
 		status = "disabled";
 	};
 };
