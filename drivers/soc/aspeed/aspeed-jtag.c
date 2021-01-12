@@ -584,7 +584,7 @@ static void aspeed_sw_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 {
 	unsigned int index = 0;
 	u32 shift_bits = 0;
-	u32 tdo = 0;
+	u32 tdo = 0, tdi = 0;
 	u32 remain_xfer = sdr->length;
 
 	if (aspeed_jtag->sts) {
@@ -605,19 +605,20 @@ static void aspeed_sw_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 			if ((shift_bits % 32) == 0)
 				JTAG_DBUG("W dr->dr_data[%d]: %x\n", index, aspeed_jtag->tdo[index]);
 
-			tdo = (aspeed_jtag->tdo[index] >> (shift_bits % 32)) & (0x1);
-			JTAG_DBUG("%d ", tdo);
+			tdi = (aspeed_jtag->tdo[index] >> (shift_bits % 32)) & (0x1);
 			if (remain_xfer == 1) {
-				TCK_Cycle(aspeed_jtag, 1, tdo); // go to DRExit1
+				tdo = TCK_Cycle(aspeed_jtag, 1, tdi); // go to DRExit1
 			} else {
-				TCK_Cycle(aspeed_jtag, 0, tdo); // go to DRShit
+				tdo = TCK_Cycle(aspeed_jtag, 0, tdi); // go to DRShit
 			}
+			JTAG_DBUG("%d ", tdo);
+			aspeed_jtag->tdo[index] |= (tdo << (shift_bits % 32));
 		} else {
 			//read
 			if (remain_xfer == 1) {
-				tdo = TCK_Cycle(aspeed_jtag, 1, tdo);	// go to DRExit1
+				tdo = TCK_Cycle(aspeed_jtag, 1, tdi);	// go to DRExit1
 			} else {
-				tdo = TCK_Cycle(aspeed_jtag, 0, tdo);	// go to DRShit
+				tdo = TCK_Cycle(aspeed_jtag, 0, tdi);	// go to DRShit
 			}
 			JTAG_DBUG("%d ", tdo);
 			aspeed_jtag->tdo[index] |= (tdo << (shift_bits % 32));
