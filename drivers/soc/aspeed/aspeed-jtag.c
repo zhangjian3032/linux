@@ -743,17 +743,6 @@ static void aspeed_hw_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 		index += tmp_idx;
 		JTAG_DBUG("remain_xfer %d\n", remain_xfer);
 	}
-
-#if 0
-	mdelay(2);
-	aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO, ASPEED_JTAG_SW);
-#else
-	if (!sdr->enddr) {
-		mdelay(2);
-		aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO, ASPEED_JTAG_SW);
-	}
-#endif
-
 }
 
 static int aspeed_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct sdr_xfer *sdr)
