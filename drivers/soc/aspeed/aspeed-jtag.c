@@ -412,7 +412,7 @@ static void aspeed_sw_jtag_sir_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 {
 	unsigned int index = 0;
 	u32 shift_bits = 0;
-	u32 tdi = 0;
+	u32 tdi = 0, tdo = 0;
 	u32 remain_xfer = sir->length;
 
 	if (aspeed_jtag->sts) {
@@ -430,11 +430,11 @@ static void aspeed_sw_jtag_sir_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 	while (remain_xfer) {
 		tdi = (aspeed_jtag->tdi[index]) >> (shift_bits % 32) & (0x1);
 		if (remain_xfer == 1) {
-			aspeed_jtag->tdo[index] |= TCK_Cycle(aspeed_jtag, 1, tdi);
+			tdo = TCK_Cycle(aspeed_jtag, 1, tdi); // go to Exit1-IR
 		} else {
-			aspeed_jtag->tdo[index] |= TCK_Cycle(aspeed_jtag, 0, tdi);
-			aspeed_jtag->tdo[index] <<= 1;
+			tdo = TCK_Cycle(aspeed_jtag, 0, tdi); // go to IRShift
 		}
+		aspeed_jtag->tdo[index] |= (tdo << (shift_bits % 32));
 		shift_bits++;
 		remain_xfer--;
 		if ((shift_bits % 32) == 0) {
