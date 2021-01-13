@@ -690,8 +690,9 @@ static void aspeed_gpio_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(ic, desc);
 }
 
-static void aspeed_init_irq_valid_mask(struct aspeed_gpio *gpio)
+static void aspeed_init_irq_valid_mask(struct gpio_chip *chip)
 {
+	struct aspeed_gpio *gpio = gpiochip_get_data(chip);
 	const struct aspeed_bank_props *props = gpio->config->props;
 
 	while (!is_bank_props_sentinel(props)) {
@@ -1244,7 +1245,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 
 	/* Now the valid mask is allocated */
 	if (gpio->irq)
-		aspeed_init_irq_valid_mask(gpio);
+		aspeed_init_irq_valid_mask(&gpio->chip);
 
 	return 0;
 }
