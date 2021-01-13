@@ -1,4 +1,4 @@
-obj-y          += spi-aspeed.o# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for kernel SPI drivers.
 #
