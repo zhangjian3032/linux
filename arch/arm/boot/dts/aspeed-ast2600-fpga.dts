@@ -28,20 +28,6 @@
 		bootargs = "console=ttyS4,115200n8 root=/dev/ram rw init=/linuxrc";
 	};
 
-	cpus {
-		CPU0: cpu@0 {
-			clock-frequency = <0x2FAF080>;
-		};
-
-		CPU1: cpu@1 {
-			clock-frequency = <0x2FAF080>;
-		};
-	};
-
-	timer {
-		clock-frequency = <0x17d7840>;
-	};
-
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>;
@@ -133,7 +119,7 @@
 		};
 	};
 };
-
+#if 0
 &i3c0 {
 	status = "okay";
 	jdec-spd;
@@ -149,3 +135,4 @@
 		assigned-address = <0x50>;
 	};
 };
+#endif
