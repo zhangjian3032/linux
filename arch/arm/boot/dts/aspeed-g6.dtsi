@@ -212,6 +212,7 @@
 			#size-cells = <0>;
 			clocks = <&syscon ASPEED_CLK_AHB>;
 			num-cs = <2>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;
@@ -246,6 +247,7 @@
 			#size-cells = <0>;
 			clocks = <&syscon ASPEED_CLK_AHB>;
 			num-cs = <3>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;

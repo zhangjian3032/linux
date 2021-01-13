@@ -10,8 +10,10 @@
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -49,12 +51,16 @@
 #define CTRL_STOP_ACTIVE	BIT(2)
 
 #define CALIBRATION_LEN		0x400
+#define SPI_DMA_IRQ_EN		BIT(3)
 #define SPI_DAM_REQUEST		BIT(31)
 #define SPI_DAM_GRANT		BIT(30)
 #define SPI_DMA_CALIB_MODE	BIT(3)
 #define SPI_DMA_CALC_CKSUM	BIT(2)
 #define SPI_DMA_ENABLE		BIT(0)
 #define SPI_DMA_STATUS		BIT(11)
+#define DMA_GET_REQ_MAGIC	0xaeed0000
+#define DMA_DISCARD_REQ_MAGIC	0xdeea0000
+#define WRITTEN_DMA_BUF_LEN	0x400
 
 enum aspeed_spi_ctl_reg_value {
 	ASPEED_SPI_BASE,
@@ -99,10 +105,14 @@ struct aspeed_spi_controller {
 	const struct aspeed_spi_info *info; /* controller info */
 	void __iomem *regs; /* controller registers */
 	void __iomem *ahb_base;
-	uint32_t ahb_base_phy; /* physical addr of AHB window  */
+	uint8_t *write_buf;
+	dma_addr_t dma_addr_phy;
+	uint32_t ahb_base_phy; /* physical addr of AHB window */
 	uint32_t ahb_window_sz; /* AHB window size */
 	uint32_t num_cs;
 	uint64_t ahb_clk;
+	int irq; /* for dma write */
+	struct completion dma_done;
 	struct aspeed_spi_chip *chips; /* pointers to attached chips */
 };
 
@@ -190,7 +200,7 @@ aspeed_2600_spi_dma_checksum(struct aspeed_spi_controller *ast_ctrl,
 	uint32_t ctrl_val;
 	uint32_t checksum;
 
-	writel(0xaeed0000, ast_ctrl->regs + OFFSET_DMA_CTRL);
+	writel(DMA_GET_REQ_MAGIC, ast_ctrl->regs + OFFSET_DMA_CTRL);
 	if (readl(ast_ctrl->regs + OFFSET_DMA_CTRL) & SPI_DAM_REQUEST) {
 		while (!(readl(ast_ctrl->regs + OFFSET_DMA_CTRL) &
 			 SPI_DAM_GRANT))
@@ -210,8 +220,8 @@ aspeed_2600_spi_dma_checksum(struct aspeed_spi_controller *ast_ctrl,
 
 	checksum = readl(ast_ctrl->regs + OFFSET_DMA_CHECKSUM_RESULT);
 
-	writel(0xdeea0000, ast_ctrl->regs + OFFSET_DMA_CTRL);
 	writel(0x0, ast_ctrl->regs + OFFSET_DMA_CTRL);
+	writel(DMA_DISCARD_REQ_MAGIC, ast_ctrl->regs + OFFSET_DMA_CTRL);
 
 	return checksum;
 }
@@ -711,8 +721,10 @@ static ssize_t aspeed_spi_dirmap_read(struct spi_mem_dirmap_desc *desc,
 static ssize_t aspeed_spi_dirmap_write(struct spi_mem_dirmap_desc *desc,
 				   uint64_t offs, size_t len, const void *buf)
 {
+	int ret;
 	struct aspeed_spi_controller *ast_ctrl =
 		spi_controller_get_devdata(desc->mem->spi->master);
+	struct device *dev = ast_ctrl->dev;
 	struct aspeed_spi_chip *chip =
 		&ast_ctrl->chips[desc->mem->spi->chip_select];
 	uint32_t reg_val;
@@ -720,23 +732,84 @@ static ssize_t aspeed_spi_dirmap_write(struct spi_mem_dirmap_desc *desc,
 	struct spi_mem_op op_tmpl = desc->info.op_tmpl;
 
 	if (chip->ahb_window_sz < offs + len) {
-		dev_info(ast_ctrl->dev,
-			 "write range exceeds flash remapping size\n");
+		dev_info(dev, "write range exceeds flash remapping size\n");
 		return 0;
 	}
 
-	dev_dbg(ast_ctrl->dev, "write op:0x%x, addr:0x%llx, len:0x%x\n",
+	if (len < 1)
+		return 0;
+
+	if (len > WRITTEN_DMA_BUF_LEN) {
+		dev_info(dev,
+			 "written length exceeds expected value (0x%x)\n", len);
+		return 0;
+	}
+
+	dev_dbg(dev, "write op:0x%x, addr:0x%llx, len:0x%x\n",
 		op_tmpl.cmd.opcode, offs, len);
+
+	writel(DMA_GET_REQ_MAGIC, ast_ctrl->regs + OFFSET_DMA_CTRL);
+	if (readl(ast_ctrl->regs + OFFSET_DMA_CTRL) & SPI_DAM_REQUEST) {
+		while (!(readl(ast_ctrl->regs + OFFSET_DMA_CTRL) &
+			 SPI_DAM_GRANT))
+			;
+	}
 
 	reg_val = ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_WRITE];
 	writel(reg_val, ast_ctrl->regs + OFFSET_CE0_CTRL_REG + target_cs * 4);
 
-	memcpy_toio(chip->ahb_base + offs, buf, len);
+	/* don't use dma_map_single here, since we cannot make sure the buf's
+	 * start address is 4-byte-aligned.
+	 */
+	memcpy(ast_ctrl->write_buf, buf, len);
+
+	writel(0x0, ast_ctrl->regs + OFFSET_DMA_CTRL);
+	writel(ast_ctrl->dma_addr_phy, ast_ctrl->regs + OFFSET_DMA_RAM_ADDR_REG);
+	writel(chip->ahb_base_phy + offs, ast_ctrl->regs + OFFSET_DMA_FLASH_ADDR_REG);
+	writel(len - 1, ast_ctrl->regs + OFFSET_DMA_LEN_REG);
+
+	/* enable DMA irq */
+	reg_val = readl(ast_ctrl->regs + OFFSET_INTR_CTRL_STATUS);
+	reg_val |= SPI_DMA_IRQ_EN;
+	writel(reg_val, ast_ctrl->regs + OFFSET_INTR_CTRL_STATUS);
+
+	reinit_completion(&ast_ctrl->dma_done);
+
+	/* enable write DMA */
+	writel(0x3, ast_ctrl->regs + OFFSET_DMA_CTRL);
+	ret = wait_for_completion_timeout(&ast_ctrl->dma_done, msecs_to_jiffies(2000));
+	if (ret == 0) {
+		writel(0x0, ast_ctrl->regs + OFFSET_DMA_CTRL);
+		writel(DMA_DISCARD_REQ_MAGIC, ast_ctrl->regs + OFFSET_DMA_CTRL);
+		dev_err(dev, "write data timeout %d\n", ret);
+		return 0;
+	}
 
 	reg_val = ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_READ];
 	writel(reg_val, ast_ctrl->regs + OFFSET_CE0_CTRL_REG + target_cs * 4);
 
 	return len;
+}
+
+static irqreturn_t aspeed_spi_dma_isr(int irq, void *dev_id)
+{
+	struct aspeed_spi_controller *ast_ctrl =
+		(struct aspeed_spi_controller *)dev_id;
+	uint32_t reg_val;
+
+	if (!(readl(ast_ctrl->regs + OFFSET_INTR_CTRL_STATUS) & 0x800))
+		return IRQ_NONE;
+
+	reg_val = readl(ast_ctrl->regs + OFFSET_INTR_CTRL_STATUS);
+	reg_val &= ~SPI_DMA_IRQ_EN;
+	writel(reg_val, ast_ctrl->regs + OFFSET_INTR_CTRL_STATUS);
+
+	writel(0x0, ast_ctrl->regs + OFFSET_DMA_CTRL);
+	writel(DMA_DISCARD_REQ_MAGIC, ast_ctrl->regs + OFFSET_DMA_CTRL);
+
+	complete(&ast_ctrl->dma_done);
+
+	return IRQ_HANDLED;
 }
 
 static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
@@ -797,9 +870,9 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 			 ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_READ]);
 
 	} else if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_OUT) {
-		reg_val = readl(ast_ctrl->regs + OFFSET_CE0_CTRL_REG +
+		reg_val = (readl(ast_ctrl->regs + OFFSET_CE0_CTRL_REG +
 				target_cs * 4) &
-			  (~info->cmd_io_ctrl_mask);
+			  (~info->cmd_io_ctrl_mask) & (~0x0f000f00)) | 0x03000000;
 		reg_val |= aspeed_spi_get_io_mode(op_tmpl.data.buswidth) |
 			   op_tmpl.cmd.opcode << 16 | CTRL_IO_MODE_CMD_WRITE;
 		ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_WRITE] = reg_val;
@@ -970,6 +1043,29 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 			ASPEED_SPI_MAX_CS);
 		goto end;
 	}
+
+	ast_ctrl->write_buf = (uint8_t *)dma_alloc_coherent(dev,
+		WRITTEN_DMA_BUF_LEN, &ast_ctrl->dma_addr_phy, GFP_DMA | GFP_KERNEL);
+	if (!ast_ctrl->write_buf) {
+		dev_err(dev, "fail to alloc write_buf.\n");
+		ret = -ENOMEM;
+		goto end;
+	}
+
+	ast_ctrl->irq = platform_get_irq(pdev, 0);
+	if (ast_ctrl->irq < 0) {
+		dev_err(dev, "fail to get irq (%d)\n", ast_ctrl->irq);
+		return ast_ctrl->irq;
+	}
+
+	ret = devm_request_irq(dev, ast_ctrl->irq, aspeed_spi_dma_isr,
+					IRQF_SHARED, dev_name(dev), ast_ctrl);
+	if (ret < 0) {
+		dev_err(dev, "fail to request irq (%d)\n", ret);
+		return ret;
+	}
+
+	init_completion(&ast_ctrl->dma_done);
 
 	ast_ctrl->chips =
 		devm_kzalloc(dev,
