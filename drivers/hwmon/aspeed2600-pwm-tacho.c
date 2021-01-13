@@ -511,30 +511,43 @@ static void aspeed_set_pwm_channel_fan_ctrl(struct aspeed_pwm_tachometer_data *p
 					 u8 index, u8 fan_ctrl)
 {
 	u32 duty_value,	ctrl_value;
-	u32 div_h, div_l, cal_freq;
+	u32 target_div, cal_freq;
+	u32 tmp_div_h, tmp_div_l, diff, min_diff = INT_MAX;
+	u32 div_h = BIT(5) - 1, div_l = BIT(8) - 1;
 	u8 div_found;
 
 	if (fan_ctrl == 0) {
 		aspeed_set_pwm_channel_enable(priv->regmap, index, false);
 	} else {
 		cal_freq = priv->clk_freq / (DEFAULT_PWM_PERIOD + 1);
-		//calculate for target frequence
+		target_div = DIV_ROUND_UP(cal_freq, priv->pwm_channel[index].target_freq);
 		div_found = 0;
-		for (div_h = 0; div_h < 0x10; div_h++) {
-			for (div_l = 0; div_l < 0x100; div_l++) {
-//				printk("div h %x, l : %x , freq %ld \n", div_h, div_l, (cal_freq / (BIT(div_h) * (div_l + 1))));
-				if((cal_freq / (BIT(div_h) * (div_l + 1))) < priv->pwm_channel[index].target_freq) {
-					div_found = 1;
+		/* calculate for target frequence */
+		for (tmp_div_h = 0; tmp_div_h < 0x10; tmp_div_h++) {
+			tmp_div_l = target_div / BIT(tmp_div_h) - 1;
+
+			if (tmp_div_l < 0 || tmp_div_l > 255)
+				continue;
+
+			diff = priv->pwm_channel[index].target_freq - cal_freq / (BIT(tmp_div_h) * (tmp_div_l + 1));
+			if (abs(diff) < abs(min_diff)) {
+				min_diff = diff;
+				div_l = tmp_div_l;
+				div_h = tmp_div_h;
+				div_found = 1;
+				if (diff == 0)
 					break;
-				}
 			}
-			if(div_found)
-				break;
+		}
+		if (div_found == 0) {
+			printk(KERN_WARNING "target freq: %d too slow set minimal frequency\n", priv->pwm_channel[index].target_freq);
 		}
 
 		priv->pwm_channel[index].pwm_freq = cal_freq / (BIT(div_h) * (div_l + 1));
-//		printk("div h %x, l : %x pwm out clk %d \n", div_h, div_l, priv->pwm_channel[index].pwm_freq);
-//		printk("hclk %ld, target pwm freq %d, real pwm freq %d\n", priv->clk_freq, priv->pwm_channel[index].target_freq, priv->pwm_channel[index].pwm_freq);
+		printk(KERN_DEBUG "div h %x, l : %x pwm out clk %d\n", div_h, div_l,
+		       priv->pwm_channel[index].pwm_freq);
+		printk(KERN_DEBUG "hclk %ld, target pwm freq %d, real pwm freq %d\n", priv->clk_freq,
+				priv->pwm_channel[index].target_freq, priv->pwm_channel[index].pwm_freq);
 
 		ctrl_value = (div_h << 8) | div_l;
 
