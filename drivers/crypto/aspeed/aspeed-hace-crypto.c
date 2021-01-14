@@ -774,18 +774,21 @@ static int aspeed_aead_transfer(struct aspeed_hace_dev *hace_dev)
 	u32 offset, authsize, tag[4];
 
 	CIPHER_DBG("\n");
-	if (!enc) {
-		authsize = crypto_aead_authsize(cipher);
-		offset = req->assoclen + req->cryptlen - authsize;
-		scatterwalk_map_and_copy(tag, req->src, offset, authsize, 0);
-		err = crypto_memneq(crypto_engine->dst_sg_addr + ASPEED_CRYPTO_GCM_TAG_OFFSET,
-				    tag, authsize) ? -EBADMSG : 0;
-	}
 	if (req->src == req->dst) {
 		dma_unmap_sg(hace_dev->dev, req->src, ctx->src_nents, DMA_BIDIRECTIONAL);
 	} else {
 		dma_unmap_sg(hace_dev->dev, req->src, ctx->src_nents, DMA_TO_DEVICE);
 		dma_unmap_sg(hace_dev->dev, req->dst, ctx->dst_nents, DMA_FROM_DEVICE);
+	}
+	authsize = crypto_aead_authsize(cipher);
+	if (!enc) {
+		offset = req->assoclen + req->cryptlen - authsize;
+		scatterwalk_map_and_copy(tag, req->src, offset, authsize, 0);
+		err = crypto_memneq(crypto_engine->dst_sg_addr + ASPEED_CRYPTO_GCM_TAG_OFFSET,
+				    tag, authsize) ? -EBADMSG : 0;
+	} else {
+		offset = req->assoclen + req->cryptlen;
+		scatterwalk_map_and_copy(crypto_engine->dst_sg_addr + ASPEED_CRYPTO_GCM_TAG_OFFSET, req->dst, offset, authsize, 1);
 	}
 
 	return aspeed_aead_complete(hace_dev, err);
@@ -809,10 +812,8 @@ static int  aspeed_aead_start(struct aspeed_hace_dev *hace_dev)
 
 	authsize = crypto_aead_authsize(cipher);
 	ctx->enc_cmd |= HACE_CMD_DES_SG_CTRL | HACE_CMD_SRC_SG_CTRL |
-			HACE_CMD_AES_KEY_HW_EXP | HACE_CMD_MBUS_REQ_SYNC_EN;
-
-	if (!enc)
-		ctx->enc_cmd |= HACE_CMD_GCM_TAG_ADDR_SEL;
+			HACE_CMD_AES_KEY_HW_EXP | HACE_CMD_MBUS_REQ_SYNC_EN |
+			HACE_CMD_GCM_TAG_ADDR_SEL;
 
 	if (req->dst == req->src) {
 		ctx->src_sg_len = dma_map_sg(hace_dev->dev, req->src, ctx->src_nents, DMA_BIDIRECTIONAL);
@@ -859,12 +860,14 @@ static int  aspeed_aead_start(struct aspeed_hace_dev *hace_dev)
 			total -= src_list[i].len;
 		}
 	}
+	src_list[ctx->src_sg_len].phy_addr = 0;
+	src_list[ctx->src_sg_len].len = 0;
 	if (total != 0)
 		return -EINVAL;
 
 	offset = req->assoclen;
 	if (enc)
-		total = req->cryptlen + authsize;
+		total = req->cryptlen;
 	else
 		total = req->cryptlen - authsize;
 	j = 0;
@@ -944,8 +947,8 @@ static int  aspeed_aead_start(struct aspeed_hace_dev *hace_dev)
 		aspeed_hace_write(hace_dev, req->cryptlen, ASPEED_HACE_DATA_LEN);
 	} else {
 		aspeed_hace_write(hace_dev, req->cryptlen - authsize, ASPEED_HACE_DATA_LEN);
-		aspeed_hace_write(hace_dev, tag_dma_addr, ASPEED_HACE_GCM_TAG_BASE_ADDR);
 	}
+	aspeed_hace_write(hace_dev, tag_dma_addr, ASPEED_HACE_GCM_TAG_BASE_ADDR);
 	aspeed_hace_write(hace_dev, req->assoclen, ASPEED_HACE_GCM_ADD_LEN);
 	aspeed_hace_write(hace_dev, ctx->enc_cmd, ASPEED_HACE_CMD);
 
