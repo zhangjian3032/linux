@@ -1,0 +1,12 @@
+Aspeed TRNG (True Random Number Generator) block
+
+Required properties:
+- compatible : Should be "aspeed,ast2600-trng"
+- reg : Offset and length of the register set of this block
+
+Example:
+
+trng@1e6e2530 {
+	compatible = "aspeed,ast2600-trng";
+	reg = <0x1e6e2530 0x8>;
+};
