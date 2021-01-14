@@ -26,7 +26,7 @@
 #endif
 
 int aspeed_hace_crypto_handle_queue(struct aspeed_hace_dev *hace_dev,
-		struct crypto_async_request *new_areq)
+				    struct crypto_async_request *new_areq)
 {
 	struct aspeed_engine_crypto *crypto_engine = &hace_dev->crypto_engine;
 	struct crypto_async_request *areq, *backlog;
@@ -432,8 +432,14 @@ static int aspeed_des_crypt(struct skcipher_request *req, u32 cmd)
 {
 	struct aspeed_cipher_ctx *ctx = crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
 	struct aspeed_hace_dev *hace_dev = ctx->hace_dev;
+	u32 crypto_alg = cmd & (7 << 4);
 
 	CIPHER_DBG("\n");
+
+	if (crypto_alg == HACE_CMD_CBC || crypto_alg == HACE_CMD_ECB) {
+		if (!IS_ALIGNED(req->cryptlen, DES_BLOCK_SIZE))
+			return -EINVAL;
+	}
 
 	if (req->iv && (cmd & HACE_CMD_IV_REQUIRE))
 		memcpy(ctx->cipher_key + 8, req->iv, 8);
@@ -599,6 +605,12 @@ static int aspeed_aes_crypt(struct skcipher_request *req, u32 cmd)
 {
 	struct aspeed_cipher_ctx *ctx = crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
 	struct aspeed_hace_dev *hace_dev = ctx->hace_dev;
+	u32 crypto_alg = cmd & (7 << 4);
+
+	if (crypto_alg == HACE_CMD_CBC || crypto_alg == HACE_CMD_ECB) {
+		if (!IS_ALIGNED(req->cryptlen, AES_BLOCK_SIZE))
+			return -EINVAL;
+	}
 
 	if (req->iv && (cmd & HACE_CMD_IV_REQUIRE))
 		memcpy(ctx->cipher_key, req->iv, 16);
@@ -616,6 +628,8 @@ static int aspeed_aes_crypt(struct skcipher_request *req, u32 cmd)
 	case AES_KEYSIZE_256:
 		cmd |= HACE_CMD_AES256;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	ctx->enc_cmd = cmd;
@@ -762,18 +776,21 @@ static int aspeed_aead_transfer(struct aspeed_hace_dev *hace_dev)
 	u32 offset, authsize, tag[4];
 
 	CIPHER_DBG("\n");
-	if (!enc) {
-		authsize = crypto_aead_authsize(cipher);
-		offset = req->assoclen + req->cryptlen - authsize;
-		scatterwalk_map_and_copy(tag, req->src, offset, authsize, 0);
-		err = crypto_memneq(crypto_engine->dst_sg_addr + ASPEED_CRYPTO_GCM_TAG_OFFSET,
-				    tag, authsize) ? -EBADMSG : 0;
-	}
 	if (req->src == req->dst) {
 		dma_unmap_sg(hace_dev->dev, req->src, ctx->src_nents, DMA_BIDIRECTIONAL);
 	} else {
 		dma_unmap_sg(hace_dev->dev, req->src, ctx->src_nents, DMA_TO_DEVICE);
 		dma_unmap_sg(hace_dev->dev, req->dst, ctx->dst_nents, DMA_FROM_DEVICE);
+	}
+	authsize = crypto_aead_authsize(cipher);
+	if (!enc) {
+		offset = req->assoclen + req->cryptlen - authsize;
+		scatterwalk_map_and_copy(tag, req->src, offset, authsize, 0);
+		err = crypto_memneq(crypto_engine->dst_sg_addr + ASPEED_CRYPTO_GCM_TAG_OFFSET,
+				    tag, authsize) ? -EBADMSG : 0;
+	} else {
+		offset = req->assoclen + req->cryptlen;
+		scatterwalk_map_and_copy(crypto_engine->dst_sg_addr + ASPEED_CRYPTO_GCM_TAG_OFFSET, req->dst, offset, authsize, 1);
 	}
 
 	return aspeed_aead_complete(hace_dev, err);
@@ -797,10 +814,8 @@ static int  aspeed_aead_start(struct aspeed_hace_dev *hace_dev)
 
 	authsize = crypto_aead_authsize(cipher);
 	ctx->enc_cmd |= HACE_CMD_DES_SG_CTRL | HACE_CMD_SRC_SG_CTRL |
-			HACE_CMD_AES_KEY_HW_EXP | HACE_CMD_MBUS_REQ_SYNC_EN;
-
-	if (!enc)
-		ctx->enc_cmd |= HACE_CMD_GCM_TAG_ADDR_SEL;
+			HACE_CMD_AES_KEY_HW_EXP | HACE_CMD_MBUS_REQ_SYNC_EN |
+			HACE_CMD_GCM_TAG_ADDR_SEL;
 
 	if (req->dst == req->src) {
 		ctx->src_sg_len = dma_map_sg(hace_dev->dev, req->src, ctx->src_nents, DMA_BIDIRECTIONAL);
@@ -847,12 +862,14 @@ static int  aspeed_aead_start(struct aspeed_hace_dev *hace_dev)
 			total -= src_list[i].len;
 		}
 	}
+	src_list[ctx->src_sg_len].phy_addr = 0;
+	src_list[ctx->src_sg_len].len = 0;
 	if (total != 0)
 		return -EINVAL;
 
 	offset = req->assoclen;
 	if (enc)
-		total = req->cryptlen + authsize;
+		total = req->cryptlen;
 	else
 		total = req->cryptlen - authsize;
 	j = 0;
@@ -932,8 +949,8 @@ static int  aspeed_aead_start(struct aspeed_hace_dev *hace_dev)
 		aspeed_hace_write(hace_dev, req->cryptlen, ASPEED_HACE_DATA_LEN);
 	} else {
 		aspeed_hace_write(hace_dev, req->cryptlen - authsize, ASPEED_HACE_DATA_LEN);
-		aspeed_hace_write(hace_dev, tag_dma_addr, ASPEED_HACE_GCM_TAG_BASE_ADDR);
 	}
+	aspeed_hace_write(hace_dev, tag_dma_addr, ASPEED_HACE_GCM_TAG_BASE_ADDR);
 	aspeed_hace_write(hace_dev, req->assoclen, ASPEED_HACE_GCM_ADD_LEN);
 	aspeed_hace_write(hace_dev, ctx->enc_cmd, ASPEED_HACE_CMD);
 
@@ -1193,7 +1210,7 @@ struct aspeed_hace_alg aspeed_crypto_algs[] = {
 				.cra_driver_name	= "aspeed-cfb-aes",
 				.cra_priority		= 300,
 				.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC,
-				.cra_blocksize		= AES_BLOCK_SIZE,
+				.cra_blocksize		= 1,
 				.cra_ctxsize		= sizeof(struct aspeed_cipher_ctx),
 				.cra_alignmask		= 0x0f,
 				.cra_module		= THIS_MODULE,
@@ -1215,7 +1232,7 @@ struct aspeed_hace_alg aspeed_crypto_algs[] = {
 				.cra_driver_name	= "aspeed-ofb-aes",
 				.cra_priority		= 300,
 				.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC,
-				.cra_blocksize		= AES_BLOCK_SIZE,
+				.cra_blocksize		= 1,
 				.cra_ctxsize		= sizeof(struct aspeed_cipher_ctx),
 				.cra_alignmask		= 0x0f,
 				.cra_module		= THIS_MODULE,
@@ -1311,7 +1328,6 @@ struct aspeed_hace_alg aspeed_crypto_algs[] = {
 	},
 	{
 		.alg.skcipher = {
-			.ivsize		= DES_BLOCK_SIZE,
 			.min_keysize	= DES3_EDE_KEY_SIZE,
 			.max_keysize	= DES3_EDE_KEY_SIZE,
 			.setkey		= aspeed_des_setkey,
@@ -1333,7 +1349,6 @@ struct aspeed_hace_alg aspeed_crypto_algs[] = {
 	},
 	{
 		.alg.skcipher = {
-			.ivsize		= DES_BLOCK_SIZE,
 			.min_keysize	= DES3_EDE_KEY_SIZE,
 			.max_keysize	= DES3_EDE_KEY_SIZE,
 			.setkey		= aspeed_des_setkey,
@@ -1460,7 +1475,7 @@ struct aspeed_hace_alg aspeed_crypto_algs_g6[] = {
 				.cra_driver_name	= "aspeed-ctr-aes",
 				.cra_priority		= 300,
 				.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC,
-				.cra_blocksize		= AES_BLOCK_SIZE,
+				.cra_blocksize		= 1,
 				.cra_ctxsize		= sizeof(struct aspeed_cipher_ctx),
 				.cra_alignmask		= 0x0f,
 				.cra_module		= THIS_MODULE,
@@ -1482,7 +1497,7 @@ struct aspeed_hace_alg aspeed_crypto_algs_g6[] = {
 				.cra_driver_name	= "aspeed-ctr-des",
 				.cra_priority		= 300,
 				.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC,
-				.cra_blocksize		= DES_BLOCK_SIZE,
+				.cra_blocksize		= 1,
 				.cra_ctxsize		= sizeof(struct aspeed_cipher_ctx),
 				.cra_alignmask		= 0x0f,
 				.cra_module		= THIS_MODULE,
@@ -1504,7 +1519,7 @@ struct aspeed_hace_alg aspeed_crypto_algs_g6[] = {
 				.cra_driver_name	= "aspeed-ctr-tdes",
 				.cra_priority		= 300,
 				.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC,
-				.cra_blocksize		= DES_BLOCK_SIZE,
+				.cra_blocksize		= 1,
 				.cra_ctxsize		= sizeof(struct aspeed_cipher_ctx),
 				.cra_alignmask		= 0x0f,
 				.cra_module		= THIS_MODULE,
