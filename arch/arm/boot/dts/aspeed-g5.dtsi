@@ -577,11 +577,11 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		interrupts = <15>;
-		clocks = <&syscon ASPEED_CLK_GATE_REFCLK>;
+		clocks = <&syscon ASPEED_CLK_GATE_REFCLK>,
+			<&syscon ASPEED_CLK_AHB>;
+		clock-names = "ref-clk", "hclk";
 		resets = <&syscon ASPEED_RESET_PECI>;
-		clock-frequency = <24000000>;
-		msg-timing = <1>;
-		addr-timing = <1>;
+		clock-frequency = <1000000>;
 		rd-sampling-point = <8>;
 		cmd-timeout-ms = <1000>;
 		status = "disabled";
