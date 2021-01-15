@@ -119,16 +119,6 @@
 	};
 };
 
-&mac0 {
-	status = "okay";
-
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy0>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_maclink1_default>;
-};
-
 &mdio1 {
 	status = "okay";
 
@@ -136,16 +126,6 @@
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
 	};
-};
-
-&mac1 {
-	status = "okay";
-
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy1>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_maclink2_default>;
 };
 
 &mdio2 {
@@ -157,16 +137,6 @@
 	};
 };
 
-&mac2 {
-	status = "okay";
-
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy2>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_maclink3_default>;
-};
-
 &mdio3 {
 	status = "okay";
 
@@ -176,6 +146,38 @@
 	};
 };
 
+&mac0 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy0>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii1_default>;
+};
+
+&mac1 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii2_default>;
+};
+
+
+&mac2 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy2>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii3_default>;
+};
+
+
 &mac3 {
 	status = "okay";
 
@@ -183,7 +185,7 @@
 	phy-handle = <&ethphy3>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_maclink4_default>;
+	pinctrl-0 = <&pinctrl_rgmii4_default>;
 };
 
 &uart1 {

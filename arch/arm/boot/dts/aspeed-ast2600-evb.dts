@@ -326,7 +326,7 @@
 	phy-handle = <&ethphy0>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_maclink1_default>;
+	pinctrl-0 = <&pinctrl_rgmii1_default>;
 };
 
 &mac1 {
@@ -336,7 +336,7 @@
 	phy-handle = <&ethphy1>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_maclink2_default>;
+	pinctrl-0 = <&pinctrl_rgmii2_default>;
 };
 
 
@@ -347,7 +347,7 @@
 	phy-handle = <&ethphy2>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_maclink3_default>;
+	pinctrl-0 = <&pinctrl_rgmii3_default>;
 };
 
 
@@ -358,7 +358,7 @@
 	phy-handle = <&ethphy3>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_maclink4_default>;
+	pinctrl-0 = <&pinctrl_rgmii4_default>;
 };
 
 &rtc {
