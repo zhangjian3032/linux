@@ -1744,8 +1744,6 @@
 		i2c-scl-hz = <400000>;
 		i3c-scl-hz = <12500000>;
 		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_i3c3_default>;
 
 		status = "disabled";
 	};
