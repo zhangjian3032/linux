@@ -790,6 +790,9 @@
 
 &i3c2 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i3c3_default>;
+
 	jdec-spd;
 	/* IDT IMX3102 multiplexer w/ thermal sensor */
 	imx3102_1: i3cmux@0f,3C000000000 {
