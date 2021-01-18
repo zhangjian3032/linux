@@ -116,6 +116,20 @@
 /* Used for Spansion flashes only. */
 #define SPINOR_OP_BRWR		0x17	/* Bank register write */
 #define SPINOR_OP_CLSR		0x30	/* Clear status register 1 */
+#define SPINOR_OP_RDAR		0x65	/* Read Any Register */
+#define SPINOR_OP_WRAR		0x71	/* Write Any Register */
+
+#define SPINOR_REG_ADDR_CFR1V	0x00800002	/* Config Reg 1 volatile */
+#define SPINOR_REG_ADDR_CFR3V	0x00800004	/* Config Reg 3 volatile */
+
+#define CFR3_VREG_LTCY_01	BIT(6)	/* 1 dummy for v-reg read at 133MHz */
+#define CFR3_BLANK_CHECK_EN	BIT(5)	/* Skip erase on erased sectors */
+#define CFR3_512B_PAGE_SIZE	BIT(4)	/* 512 byte page size */
+#define CFR3_UNIFORM_SECTORS	BIT(3)	/* Uniform sector is selected */
+
+#define CFR1_SPLIT_4K_SECTORS	BIT(6)	/* 4KB sectors at top and bottom */
+#define CFR1_TOP_4K_SECTORS	BIT(2)	/* 4KB sectors at top */
+#define CFR1_QUAD_EN		BIT(1)	/* Quad Enable */
 
 /* Used for Micron flashes only. */
 #define SPINOR_OP_RD_EVCR      0x65    /* Read EVCR register */

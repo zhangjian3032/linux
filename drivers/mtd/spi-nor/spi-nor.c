@@ -2104,6 +2104,11 @@ static int spi_nor_spansion_clear_sr_bp(struct spi_nor *nor)
 		.addr_width = 3,					\
 		.flags = SPI_NOR_NO_FR | SPI_S3AN,
 
+static void s25hx_t_default_init(struct spi_nor *nor);
+static struct spi_nor_fixups s25hx_t_fixups = {
+	.default_init = s25hx_t_default_init,
+};
+
 static int
 is25lp256_post_bfpt_fixups(struct spi_nor *nor,
 			   const struct sfdp_parameter_header *bfpt_header,
@@ -2424,6 +2429,43 @@ static const struct flash_info spi_nor_ids[] = {
 	{ "s25fl064l",  INFO(0x016017,      0,  64 * 1024, 128, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
 	{ "s25fl128l",  INFO(0x016018,      0,  64 * 1024, 256, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
 	{ "s25fl256l",  INFO(0x016019,      0,  64 * 1024, 512, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
+	/**
+	 * S25HL/HS-T (Semper Flash with Quad SPI) Family
+	 *
+	 *	 For the faster clock speed than 133MHz (max 166MHz), the Flash
+	 *	 requires 2 dummy cycles before data output in RDID(9fh) and
+	 *	 RDSR(05h) operations. As complex fixups are needed to handle that,
+	 *	 this driver supports up to 133MHz clock speed at this point.
+	 *
+	 *	 The Read SFDP operation is supported up to 50MHz. Since most of the
+	 *	 modern QSPI controllers are assumed to run at faster clock speed
+	 *	 than 50MHz, SFDP parsing is skiped then equivalent setup and some
+	 *	 optimization are done by spi_nor_fixups hooks.
+	 */
+	{ "s25hl256t",	INFO(0x342a19, 0, 256 * 1024, 128,
+				 SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR |
+				 SPI_NOR_SKIP_SFDP)
+	  .fixups = &s25hx_t_fixups },
+	{ "s25hl512t",	INFO(0x342a1a, 0, 256 * 1024, 256,
+				 SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR |
+				 SPI_NOR_SKIP_SFDP)
+	  .fixups = &s25hx_t_fixups },
+	{ "s25hl01gt",	INFO(0x342a1b, 0, 256 * 1024, 512,
+				 SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR |
+				 SPI_NOR_SKIP_SFDP)
+	  .fixups = &s25hx_t_fixups },
+	{ "s25hs256t",	INFO(0x342b19, 0, 256 * 1024, 128,
+				 SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR |
+				 SPI_NOR_SKIP_SFDP)
+	  .fixups = &s25hx_t_fixups },
+	{ "s25hs512t",	INFO(0x342b1a, 0, 256 * 1024, 256,
+				 SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR |
+				 SPI_NOR_SKIP_SFDP)
+	  .fixups = &s25hx_t_fixups },
+	{ "s25hs01gt",	INFO(0x342b1b, 0, 256 * 1024, 512,
+				 SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR |
+				 SPI_NOR_SKIP_SFDP)
+	  .fixups = &s25hx_t_fixups },
 
 	/* SST -- large erase sizes are "overlays", "sectors" are 4K */
 	{ "sst25vf040b", INFO(0xbf258d, 0, 64 * 1024,  8, SECT_4K | SST_WRITE) },
@@ -3571,6 +3613,385 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	}
 
 	return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt, params);
+}
+
+/**
+ * spansion_read_any_reg() - Read Any Register.
+ * @nor:	pointer to a 'struct spi_nor'
+ * @reg_addr:	register address
+ * @reg_dummy:	number of dummy cycles for register read
+ * @reg_val:	pointer to a buffer where the register value is copied into
+ *
+ * 1 dummy clock cycle is required to read volatile register when CFR3[7:6]=01,
+ * while the spimem takes number of dummy 'bytes'. Since the Flash repeats
+ * outputting the same register contents as long as clock keeps toggling, we can
+ * restore the original register content by reading two bytes
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int spansion_read_any_reg(struct spi_nor *nor, u32 reg_addr,
+				 u8 reg_dummy, u8 *reg_val)
+{
+	u8 read_opcode, read_dummy, dummy_rem;
+	enum spi_nor_protocol read_proto;
+	size_t len;
+	ssize_t ret;
+
+	read_opcode = nor->read_opcode;
+	read_dummy = nor->read_dummy;
+	read_proto = nor->read_proto;
+
+	nor->read_opcode = SPINOR_OP_RDAR;
+	nor->read_dummy = reg_dummy & ~7;
+	nor->read_proto = SNOR_PROTO_1_1_1;
+
+	dummy_rem = reg_dummy - nor->read_dummy;
+	len = dummy_rem ? 2 : 1;
+
+	ret = spi_nor_read_data(nor, reg_addr, len, nor->bouncebuf);
+
+	nor->read_opcode = read_opcode;
+	nor->read_dummy = read_dummy;
+	nor->read_proto = read_proto;
+
+	if (ret == len) {
+		if (dummy_rem)
+			*reg_val = (nor->bouncebuf[0] << dummy_rem) |
+			   (nor->bouncebuf[1] >> (8 - dummy_rem));
+		else
+			*reg_val = nor->bouncebuf[0];
+
+		return 0;
+	}
+
+	return ret < 0 ? ret : -EIO;
+}
+
+/**
+ * spansion_write_any_reg() - Write Any Register.
+ * @nor:	pointer to a 'struct spi_nor'
+ * @reg_addr:	register address
+ * @reg_val:	register value to be written
+ *
+ * Function is for writing volatile registers that will be effective immediately
+ * after the operation (status polling is not needed).
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int spansion_write_any_reg(struct spi_nor *nor, u32 reg_addr, u8 reg_val)
+{
+	u8 program_opcode;
+	enum spi_nor_protocol write_proto;
+	ssize_t ret;
+
+	ret = write_enable(nor);
+	if (ret)
+		return ret;
+
+	program_opcode = nor->program_opcode;
+	write_proto = nor->write_proto;
+
+	nor->program_opcode = SPINOR_OP_WRAR;
+	nor->write_proto = SNOR_PROTO_1_1_1;
+
+	nor->bouncebuf[0] = reg_val;
+	ret = spi_nor_write_data(nor, reg_addr, 1, nor->bouncebuf);
+
+	nor->program_opcode = program_opcode;
+	nor->write_proto = write_proto;
+
+	return ret == 1 ? 0 : (ret < 0 ? ret : -EIO);
+}
+
+/**
+ * spansion_init_sp4k_erase_map() - init erase map for split 4KB sectors
+ * @nor:		pointer to a 'struct spi_nor'
+ * @sector_size:	size of the regular sector (typ. 256KB)
+ * @num_4k_sectors: number of 4KB sectors to split between top and bottom
+ *						(num_4k_sectors/2 at each top and bottom)
+ *
+ * Return: 0 on success, -ENOMEM if devm_kcalloc() fails.
+ */
+static int spansion_init_sp4k_erase_map(struct spi_nor *nor, u32 sector_size,
+					u8 num_4k_sectors)
+{
+	struct spi_nor_erase_map *map = &nor->params.erase_map;
+	struct spi_nor_erase_region *region;
+	u32 sz_4k_region, rem_size;
+	u64 offset;
+
+	region = devm_kcalloc(nor->dev, 5, sizeof(*region), GFP_KERNEL);
+	if (!region)
+		return -ENOMEM;
+
+	map->regions = region;
+	map->uniform_erase_type = 0;
+	sz_4k_region = (num_4k_sectors * SZ_4K) >> 1;
+	rem_size = sector_size - sz_4k_region;
+
+	spi_nor_set_erase_type(&map->erase_type[0], SZ_4K, SPINOR_OP_BE_4K);
+	spi_nor_set_erase_type(&map->erase_type[1], rem_size, SPINOR_OP_SE);
+	spi_nor_set_erase_type(&map->erase_type[2], sector_size, SPINOR_OP_SE);
+
+	region[0].offset = BIT(0);
+	region[0].size = sz_4k_region;
+	offset = region[0].size;
+
+	region[1].offset = offset | BIT(1);
+	region[1].size = rem_size;
+	offset += region[1].size;
+
+	region[2].offset = offset | BIT(2);
+	region[2].size = nor->params.size - (sector_size << 1);
+	offset += region[2].size;
+
+	region[3].offset = offset | BIT(1);
+	region[3].size = rem_size;
+	offset += region[3].size;
+
+	region[4].offset = offset | BIT(0) | SNOR_LAST_REGION;
+	region[4].size = sz_4k_region;
+
+	return 0;
+}
+
+/**
+ * spansion_init_tb4k_erase_map() - init erase map for top/bottom 4KB sectors
+ * @nor:		pointer to a 'struct spi_nor'
+ * @sector_size:	size of the regular sector (typ. 256KB)
+ * @num_4k_sectors: number of 4KB sectors at top or bottom
+ * @top:		true  = 4KB sectors at top
+ *						false = 4KB sectors at bottom
+ *
+ * Return: 0 on success, -ENOMEM if devm_kcalloc() fails.
+ */
+static int spansion_init_tb4k_erase_map(struct spi_nor *nor, u32 sector_size,
+					u8 num_4k_sectors, bool top)
+{
+	struct spi_nor_erase_map *map = &nor->params.erase_map;
+	struct spi_nor_erase_region *region;
+	u32 sz_4k_region, rem_size;
+
+	region = devm_kcalloc(nor->dev, 3, sizeof(*region), GFP_KERNEL);
+	if (!region)
+		return -ENOMEM;
+
+	map->regions = region;
+	map->uniform_erase_type = 0;
+	sz_4k_region = num_4k_sectors * SZ_4K;
+	rem_size = sector_size - sz_4k_region;
+
+	spi_nor_set_erase_type(&map->erase_type[0], SZ_4K, SPINOR_OP_BE_4K);
+	spi_nor_set_erase_type(&map->erase_type[1], rem_size, SPINOR_OP_SE);
+	spi_nor_set_erase_type(&map->erase_type[2], sector_size, SPINOR_OP_SE);
+
+	if (top) {
+		region[0].offset = BIT(2);
+		region[0].size = nor->params.size - sector_size;
+
+		region[1].offset = region[0].size | BIT(1);
+		region[1].size = rem_size;
+
+		region[2].offset = (region[0].size + region[1].size) | BIT(0);
+		region[2].size = sz_4k_region;
+	} else {
+		region[0].offset = BIT(0);
+		region[0].size = sz_4k_region;
+
+		region[1].offset = sz_4k_region | BIT(1);
+		region[1].size = rem_size;
+
+		region[2].offset = nor->info->sector_size | BIT(2);
+		region[2].size = nor->params.size - sector_size;
+	}
+	region[2].offset |= SNOR_LAST_REGION;
+
+	return 0;
+}
+
+/**
+ * spansion_quad_enable_volatile() - enable Quad I/O mode in volatile register.
+ * @nor:		pointer to a 'struct spi_nor'
+ * @reg_addr_base:	base address of register (can be >0 in multi-die parts)
+ * @reg_dummy:		number of dummy cycles for register read
+ *
+ * It is recommended to update volatile registers in the field application due
+ * to a risk of the non-volatile registers corruption by power interrupt. This
+ * function sets Quad Enable bit in CFR1 volatile. If users set the Quad Enable
+ * bit in the CFR1 non-volatile in advance (typically by a Flash programmer
+ * before mounting Flash on PCB), the Quad Enable bit in the CFR1 volatile is
+ * also set during Flash power-up.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int spansion_quad_enable_volatile(struct spi_nor *nor, u32 reg_addr_base,
+					 u8 reg_dummy)
+{
+	u32 reg_addr = reg_addr_base + SPINOR_REG_ADDR_CFR1V;
+	u8 cfr1v, cfr1v_written;
+	int ret;
+
+	/* Check current Quad Enable bit value. */
+	ret = spansion_read_any_reg(nor, reg_addr, reg_dummy, &cfr1v);
+	if (ret)
+		return ret;
+	if (cfr1v & CFR1_QUAD_EN)
+		return 0;
+
+	/* Update the Quad Enable bit. */
+	cfr1v |= CFR1_QUAD_EN;
+
+	ret = spansion_write_any_reg(nor, reg_addr, cfr1v);
+	if (ret)
+		return ret;
+
+	cfr1v_written = cfr1v;
+
+	/* Read back and check it. */
+	ret = spansion_read_any_reg(nor, reg_addr, reg_dummy, &cfr1v);
+	if (ret)
+		return ret;
+
+	if (cfr1v != cfr1v_written) {
+		dev_dbg(nor->dev, "CFR1: Read back test failed\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/**
+ * s25hx_t_set_read_settings() - read settings for s25hx-t family
+ * @params: pointer to the 'struct spi_nor_flash_parameter'
+ *
+ * Function assumes the opcodes will be converted to 4B opcodes
+ */
+static void s25hx_t_set_read_settings(struct spi_nor_flash_parameter *params)
+{
+	struct spi_nor_read_command *read;
+
+	/* Fast Read 4B requires mode cycles */
+	read = &params->reads[SNOR_CMD_READ_FAST];
+	read->num_mode_clocks = 8;
+
+	/* Dual Output Read is not supported */
+	params->hwcaps.mask &= ~SNOR_HWCAPS_READ_1_1_2;
+
+	/* Add Dual I/O Read */
+	params->hwcaps.mask |= SNOR_HWCAPS_READ_1_2_2;
+	read = &params->reads[SNOR_CMD_READ_1_2_2];
+	read->num_mode_clocks = 4;
+	read->num_wait_states = 8;
+	read->opcode = SPINOR_OP_READ_1_2_2;
+	read->proto = SNOR_PROTO_1_2_2;
+
+	/* Add Quad I/O Read */
+	params->hwcaps.mask |= SNOR_HWCAPS_READ_1_4_4;
+	read = &params->reads[SNOR_CMD_READ_1_4_4];
+	read->num_mode_clocks = 2;
+	read->num_wait_states = 8;
+	read->opcode = SPINOR_OP_READ_1_4_4;
+	read->proto = SNOR_PROTO_1_4_4;
+}
+
+static int spi_nor_default_setup(struct spi_nor *nor,
+				 const struct spi_nor_hwcaps *hwcaps);
+
+/**
+ * s25hx_t_setup() - configure s25hx_t device.
+ * @nor:	pointer to a 'struct spi_nor'
+ * @hwcaps: pointer to a 'struct spi_nor_hwcaps'
+ *
+ * Read, Program, and Erase settings in place of SFDP
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int s25hx_t_setup(struct spi_nor *nor,
+			 const struct spi_nor_hwcaps *hwcaps)
+{
+	int err;
+	u8 cfr3_written, reg;
+
+	s25hx_t_set_read_settings(&nor->params);
+
+	/* Address mode affects Read/Write Any Register operations */
+	nor->addr_width = 4;
+	err = macronix_set_4byte(nor, true);
+	if (err)
+		return err;
+
+	/**
+	 * Optimal CFR3V settings
+	 *	 CFR3[7:6] = 01: RDAR for v-regs works ~133MHz with 1 dummy cycle
+	 *	 CFR3[5] = 1: Erase operation is skipped on already erased sectors
+	 *	 CFR3[4] = 1: 512 byte page size (better throughput than 256 byte)
+	 *	 CFR3[3] = x: Read-Only for volatile register
+	 *	 CFR3[2] = 0: CLSR(30h) is enabled (default)
+	 *	 CFR3[1] = 0: Reserved
+	 *	 CFR3[0] = 0: Legacy SW reset is disabled (default)
+	 *
+	 * At this point, we don't know the volatile register latency setting in
+	 * CFR3[7:6]. Therefore, just write the optimal settings to CFR3 instead
+	 * of Read-Modify-Write.
+	 */
+	cfr3_written = CFR3_VREG_LTCY_01 | CFR3_BLANK_CHECK_EN |
+			   CFR3_512B_PAGE_SIZE;
+
+	err = spansion_write_any_reg(nor, SPINOR_REG_ADDR_CFR3V, cfr3_written);
+	if (err)
+		return err;
+
+	/* Read back CFR3V with 1 dummy cycle */
+	err = spansion_read_any_reg(nor, SPINOR_REG_ADDR_CFR3V, 1, &reg);
+	if (err)
+		return err;
+	if ((reg & ~CFR3_UNIFORM_SECTORS) != cfr3_written)
+		return -EIO;
+
+	/* Update page size */
+	nor->page_size = 512;
+	nor->mtd.writebufsize = nor->page_size;
+
+	/**
+	 * The s25hx_t family has transparent ECC. To preserve ECC enabled,
+	 * multi-pass programming within the same 16-byte ECC data unit needs
+	 * to be avoided. Setting writesize to the multiples of 16 and removing
+	 * the MTD_BIT_WRITEABLE flags in mtd_info let JFFS2 enable write-
+	 * buffering that prevents multi-pass programming
+	 * (CONFIG_JFFS2_FS_WRITEBUFFER needs to be enabled). To achieve the
+	 * best write throughput, assign 512-byte page size to writesize.
+	 */
+	nor->mtd.writesize = nor->page_size;
+	nor->mtd.flags = MTD_CAP_NORFLASH & ~MTD_BIT_WRITEABLE;
+
+	/* Uniform Sectors: use erase map set in spi_nor_info_init_params() */
+	if (reg & CFR3_UNIFORM_SECTORS)
+		return spi_nor_default_setup(nor, hwcaps);
+
+	/* Hybrid Sectors: check CFR1 bits */
+	err = spansion_read_any_reg(nor, SPINOR_REG_ADDR_CFR1V, 1, &reg);
+	if (err)
+		return err;
+
+	if (reg & CFR1_SPLIT_4K_SECTORS)
+		err = spansion_init_sp4k_erase_map(nor, SZ_256K, 32);
+	else if (reg & CFR1_TOP_4K_SECTORS)
+		err = spansion_init_tb4k_erase_map(nor, SZ_256K, 32, true);
+	else
+		err = spansion_init_tb4k_erase_map(nor, SZ_256K, 32, false);
+
+	return err ? err : spi_nor_default_setup(nor, hwcaps);
+}
+
+static int s25hx_t_quad_enable(struct spi_nor *nor)
+{
+	return spansion_quad_enable_volatile(nor, 0, 1);
+}
+
+static void s25hx_t_default_init(struct spi_nor *nor)
+{
+	nor->params.setup = s25hx_t_setup;
+	nor->params.quad_enable = s25hx_t_quad_enable;
 }
 
 #define SMPT_CMD_ADDRESS_LEN_MASK		GENMASK(23, 22)

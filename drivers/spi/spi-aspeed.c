@@ -523,7 +523,7 @@ static const struct aspeed_spi_info ast2600_fmc_info = {
 	.max_data_bus_width = 4,
 	.cmd_io_ctrl_mask = 0xf0ff40c3,
 	/* for ast2600, the minimum decode size for each CE is 2MB */
-	.min_decode_sz = 0x200000,
+	.min_decode_sz = 0x1000000,
 	.set_4byte = aspeed_spi_chip_set_4byte,
 	.calibrate = aspeed_2600_spi_timing_calibration,
 	.adjust_decode_sz = aspeed_2600_adjust_decode_sz,
@@ -570,7 +570,7 @@ static const struct aspeed_spi_info ast2600_spi_info = {
 	.max_data_bus_width = 4,
 	.cmd_io_ctrl_mask = 0xf0ff40c3,
 	/* for ast2600, the minimum decode size for each CE is 2MB */
-	.min_decode_sz = 0x200000,
+	.min_decode_sz = 0x1000000,
 	.set_4byte = aspeed_spi_chip_set_4byte,
 	.calibrate = aspeed_2600_spi_timing_calibration,
 	.adjust_decode_sz = aspeed_2600_adjust_decode_sz,
