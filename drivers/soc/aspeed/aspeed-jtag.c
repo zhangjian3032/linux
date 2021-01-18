@@ -301,6 +301,8 @@ static int aspeed_jtag_run_to_idle(struct aspeed_jtag_info *aspeed_jtag)
 	if (tap_status & JTAG_STS_ENG_IDLE)
 		return 0;
 	else if (tap_status & JTAG_STS_DATA_PAUSE) {
+		aspeed_jtag_write(aspeed_jtag, JTAG_DATA_COMPLETE_EN,
+					  ASPEED_JTAG_ISR);
 		if (aspeed_jtag->config->jtag_version == 6) {
 			aspeed_jtag_write(aspeed_jtag,
 					JTAG_ENG_EN | JTAG_ENG_OUT_EN |
@@ -317,6 +319,8 @@ static int aspeed_jtag_run_to_idle(struct aspeed_jtag_info *aspeed_jtag)
 		aspeed_jtag_wait_data_complete(aspeed_jtag);
 		return 0;
 	} else if (tap_status & JTAG_STS_INST_PAUSE) {
+		aspeed_jtag_write(aspeed_jtag, JTAG_INST_COMPLETE_EN,
+					  ASPEED_JTAG_ISR);
 		if (aspeed_jtag->config->jtag_version == 6) {
 			aspeed_jtag_write(aspeed_jtag,
 					JTAG_ENG_EN | JTAG_ENG_OUT_EN |
@@ -479,6 +483,8 @@ static void aspeed_hw_jtag_sir_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 			for (i = 0; i < tmp_idx; i++)
 				aspeed_jtag_write(aspeed_jtag, aspeed_jtag->tdi[index + i], ASPEED_JTAG_INST);
 
+			aspeed_jtag_write(aspeed_jtag, JTAG_INST_PAUSE_EN,
+					  ASPEED_JTAG_ISR);
 			if (aspeed_jtag->config->jtag_version == 6) {
 				aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN |
 						  JTAG_G6_SET_XFER_LEN(shift_bits),
@@ -504,6 +510,8 @@ static void aspeed_hw_jtag_sir_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 
 			if (aspeed_jtag->config->jtag_version == 6) {
 				if (sir->endir) {
+					aspeed_jtag_write(aspeed_jtag, JTAG_INST_PAUSE_EN,
+					  ASPEED_JTAG_ISR);
 					aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN |
 							  JTAG_G6_SET_XFER_LEN(shift_bits),
 							  ASPEED_JTAG_CTRL);
@@ -512,6 +520,8 @@ static void aspeed_hw_jtag_sir_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 							  JTAG_G6_INST_EN, ASPEED_JTAG_CTRL);
 					aspeed_jtag_wait_instruction_pause_complete(aspeed_jtag);
 				} else {
+					aspeed_jtag_write(aspeed_jtag, JTAG_INST_COMPLETE_EN,
+					  ASPEED_JTAG_ISR);
 					aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN |
 							  JTAG_G6_LAST_XFER | JTAG_G6_SET_XFER_LEN(shift_bits),
 							  ASPEED_JTAG_CTRL);
@@ -522,6 +532,8 @@ static void aspeed_hw_jtag_sir_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 				}
 			} else {
 				if (sir->endir) {
+					aspeed_jtag_write(aspeed_jtag, JTAG_INST_PAUSE_EN,
+					  ASPEED_JTAG_ISR);
 					aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN |
 							  JTAG_SET_INST_LEN(shift_bits),
 							  ASPEED_JTAG_CTRL);
@@ -530,6 +542,8 @@ static void aspeed_hw_jtag_sir_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 							  JTAG_INST_EN, ASPEED_JTAG_CTRL);
 					aspeed_jtag_wait_instruction_pause_complete(aspeed_jtag);
 				} else {
+					aspeed_jtag_write(aspeed_jtag, JTAG_INST_COMPLETE_EN,
+					  ASPEED_JTAG_ISR);
 					aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN |
 							  JTAG_LAST_INST | JTAG_SET_INST_LEN(shift_bits),
 							  ASPEED_JTAG_CTRL);
@@ -676,6 +690,8 @@ static void aspeed_hw_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 			}
 			// read bytes were not equals to column length ==> Pause-DR
 			JTAG_DBUG("shit bits %d \n", shift_bits);
+			aspeed_jtag_write(aspeed_jtag, JTAG_DATA_PAUSE_EN,
+					  ASPEED_JTAG_ISR);
 			if (aspeed_jtag->config->jtag_version == 6) {
 				aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN |
 						  JTAG_G6_SET_XFER_LEN(shift_bits), ASPEED_JTAG_CTRL);
@@ -703,6 +719,8 @@ static void aspeed_hw_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 			if (aspeed_jtag->config->jtag_version == 6) {
 				if (sdr->enddr) {
 					JTAG_DBUG("DR Keep Pause \n");
+					aspeed_jtag_write(aspeed_jtag, JTAG_DATA_PAUSE_EN,
+					  ASPEED_JTAG_ISR);
 					aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN |
 							  JTAG_G6_SET_XFER_LEN(shift_bits), ASPEED_JTAG_CTRL);
 					aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN |
@@ -710,6 +728,8 @@ static void aspeed_hw_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 					aspeed_jtag_wait_data_pause_complete(aspeed_jtag);
 				} else {
 					JTAG_DBUG("DR go IDLE \n");
+					aspeed_jtag_write(aspeed_jtag, JTAG_DATA_COMPLETE_EN,
+					  ASPEED_JTAG_ISR);
 					aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN | JTAG_G6_LAST_XFER |
 							  JTAG_G6_SET_XFER_LEN(shift_bits), ASPEED_JTAG_CTRL);
 					aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN | JTAG_G6_LAST_XFER |
@@ -719,6 +739,8 @@ static void aspeed_hw_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 			} else {
 				if (sdr->enddr) {
 					JTAG_DBUG("DR Keep Pause \n");
+					aspeed_jtag_write(aspeed_jtag, JTAG_DATA_PAUSE_EN,
+					  ASPEED_JTAG_ISR);
 					aspeed_jtag_write(aspeed_jtag,
 							  JTAG_ENG_EN | JTAG_ENG_OUT_EN |
 							  JTAG_DATA_LEN(shift_bits), ASPEED_JTAG_CTRL);
@@ -728,6 +750,8 @@ static void aspeed_hw_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 					aspeed_jtag_wait_data_pause_complete(aspeed_jtag);
 				} else {
 					JTAG_DBUG("DR go IDLE \n");
+					aspeed_jtag_write(aspeed_jtag, JTAG_DATA_COMPLETE_EN,
+					  ASPEED_JTAG_ISR);
 					aspeed_jtag_write(aspeed_jtag,
 							  JTAG_ENG_EN | JTAG_ENG_OUT_EN | JTAG_LAST_DATA |
 							  JTAG_DATA_LEN(shift_bits), ASPEED_JTAG_CTRL);
@@ -788,6 +812,7 @@ static irqreturn_t aspeed_jtag_isr(int this_irq, void *dev_id)
 
 	status = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_ISR);
 	JTAG_DBUG("sts %x \n", status);
+	status = status & (status << 16);
 
 	if (status & JTAG_INST_PAUSE) {
 		aspeed_jtag_write(aspeed_jtag, JTAG_INST_PAUSE | (status & 0xf), ASPEED_JTAG_ISR);
@@ -1185,12 +1210,10 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 		goto out_region;
 	}
 
-	// enable interrupt
+	// clear interrupt
 	aspeed_jtag_write(aspeed_jtag,
 			  JTAG_INST_PAUSE | JTAG_INST_COMPLETE |
-			  JTAG_DATA_PAUSE | JTAG_DATA_COMPLETE |
-			  JTAG_INST_PAUSE_EN | JTAG_INST_COMPLETE_EN |
-			  JTAG_DATA_PAUSE_EN | JTAG_DATA_COMPLETE_EN,
+			  JTAG_DATA_PAUSE | JTAG_DATA_COMPLETE,
 			  ASPEED_JTAG_ISR);
 
 	aspeed_jtag->flag = 0;
