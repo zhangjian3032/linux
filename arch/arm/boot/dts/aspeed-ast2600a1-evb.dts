@@ -18,13 +18,12 @@
 	};
 
 	chosen {
-		stdout-path = &uart5;
-		bootargs = "console=tty0 console=ttyS4,115200n8 root=/dev/ram rw init=/linuxrc";
+		bootargs = "console=ttyS4,115200n8";
 	};
 
 	memory@80000000 {
 		device_type = "memory";
-		reg = <0x80000000 0x40000000>;
+		reg = <0x80000000 0x80000000>;
 	};
 
 	reserved-memory {
@@ -66,6 +65,13 @@
 			compatible = "shared-dma-pool";
 			no-map;
 		};
+	
+		/* 1GB memory */
+		vga_memory: region@bf000000 {
+			no-map;
+			compatible = "shared-dma-pool";
+			reg = <0xbf000000 0x01000000>;  /* 16M */
+		};
 
 	};
 
@@ -76,26 +82,11 @@
 				<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
 				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
 	};
+
 };
 
-&ssp {
-	memory-region = <&ssp_memory>;
-};
-
-&bmc_dev {
+&rng {
 	status = "okay";
-
-	memory-region = <&bmc_dev_memory>;
-};
-
-&ssp_tcm {
-	#address-cells = <1>;
-	#size-cells = <1>;
-	ranges = <0 0x1a000000 0x2000>;
-	ssp-itcm@0 {
-		reg = <0x0 0x2000>;
-		protect-exec;
-	};
 };
 
 &mdio0 {
@@ -808,3 +799,14 @@
 &uhci {
 	status = "okay";
 };
+
+&ssp {
+	memory-region = <&ssp_memory>;
+};
+
+&bmc_dev {
+	status = "okay";
+
+	memory-region = <&bmc_dev_memory>;
+};
+
