@@ -3031,22 +3031,13 @@ static int spi_nor_read_sfdp(struct spi_nor *nor, u32 addr,
 static int spi_nor_spimem_check_op(struct spi_nor *nor,
 				   struct spi_mem_op *op)
 {
-	/*
-	 * First test with 4 address bytes. The opcode itself might
-	 * be a 3B addressing opcode but we don't care, because
-	 * SPI controller implementation should not check the opcode,
-	 * but just the sequence.
-	 */
-	op->addr.nbytes = 4;
-	if (!spi_mem_supports_op(nor->spimem, op)) {
-		if (nor->mtd.size > SZ_16M)
-			return -ENOTSUPP;
-
-		/* If flash size <= 16MB, 3 address bytes are sufficient */
+	if (nor->mtd.size > SZ_16M)
+		op->addr.nbytes = 4;
+	else
 		op->addr.nbytes = 3;
-		if (!spi_mem_supports_op(nor->spimem, op))
+
+	if (!spi_mem_supports_op(nor->spimem, op))
 			return -ENOTSUPP;
-	}
 
 	return 0;
 }
