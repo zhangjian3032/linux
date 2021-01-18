@@ -476,6 +476,7 @@
 		spi-bus-width = <4>;
 	};
 };
+
 #endif
 
 &spi1 {
