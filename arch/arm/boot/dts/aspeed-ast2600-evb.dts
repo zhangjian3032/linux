@@ -339,7 +339,6 @@
 	pinctrl-0 = <&pinctrl_rgmii2_default>;
 };
 
-
 &mac2 {
 	status = "okay";
 
@@ -349,7 +348,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rgmii3_default>;
 };
-
 
 &mac3 {
 	status = "okay";
@@ -364,7 +362,6 @@
 &rtc {
 	status = "okay";
 };
-
 
 #if 1
 &fmc {
@@ -416,7 +413,9 @@
 		spi-bus-width = <4>;
 	};
 };
+
 #else
+
 &fmc {
 	status = "okay";
 	flash@0 {
@@ -475,11 +474,13 @@
 };
 
 #endif
+
 &spi1 {
 	status = "okay";
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default &pinctrl_qspi1_default>;
+	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default
+				&pinctrl_qspi1_default>;
 
 	flash@0 {
 		status = "okay";
@@ -502,8 +503,8 @@
 	status = "okay";
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default &pinctrl_spi2cs2_default
-				&pinctrl_qspi2_default>;
+	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default
+				&pinctrl_spi2cs2_default &pinctrl_qspi2_default>;
 
 	flash@0 {
 		status = "okay";
