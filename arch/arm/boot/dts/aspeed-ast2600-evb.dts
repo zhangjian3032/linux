@@ -813,7 +813,6 @@
 
 &bmc_dev {
 	status = "okay";
-	pcie2lpc;
 	memory-region = <&bmc_dev_memory>;
 };
 
