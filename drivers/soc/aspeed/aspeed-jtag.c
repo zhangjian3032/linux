@@ -301,19 +301,35 @@ static int aspeed_jtag_run_to_idle(struct aspeed_jtag_info *aspeed_jtag)
 	if (tap_status & JTAG_STS_ENG_IDLE)
 		return 0;
 	else if (tap_status & JTAG_STS_DATA_PAUSE) {
-		aspeed_jtag_write(aspeed_jtag,
-				  JTAG_ENG_EN | JTAG_ENG_OUT_EN |
-					  JTAG_G6_TERMINATE_XFER |
-					  JTAG_G6_LAST_XFER | JTAG_DATA_EN,
-				  ASPEED_JTAG_CTRL);
+		if (aspeed_jtag->config->jtag_version == 6) {
+			aspeed_jtag_write(aspeed_jtag,
+					JTAG_ENG_EN | JTAG_ENG_OUT_EN |
+						JTAG_G6_TERMINATE_XFER |
+						JTAG_DATA_EN,
+					ASPEED_JTAG_CTRL);
+		} else {
+			aspeed_jtag_write(aspeed_jtag,
+					  JTAG_ENG_EN | JTAG_ENG_OUT_EN |
+						  JTAG_TERMINATE_DATA |
+						  JTAG_DATA_EN,
+					  ASPEED_JTAG_CTRL);
+		}
 		aspeed_jtag_wait_data_complete(aspeed_jtag);
 		return 0;
 	} else if (tap_status & JTAG_STS_INST_PAUSE) {
-		aspeed_jtag_write(aspeed_jtag,
-				JTAG_ENG_EN | JTAG_ENG_OUT_EN |
-					JTAG_G6_TERMINATE_XFER |
-					JTAG_G6_LAST_XFER | JTAG_G6_INST_EN,
-				ASPEED_JTAG_CTRL);
+		if (aspeed_jtag->config->jtag_version == 6) {
+			aspeed_jtag_write(aspeed_jtag,
+					JTAG_ENG_EN | JTAG_ENG_OUT_EN |
+						JTAG_G6_TERMINATE_XFER |
+						JTAG_G6_INST_EN,
+					ASPEED_JTAG_CTRL);
+		} else {
+			aspeed_jtag_write(aspeed_jtag,
+					JTAG_ENG_EN | JTAG_ENG_OUT_EN |
+						JTAG_TERMINATE_INST |
+						JTAG_INST_EN,
+					ASPEED_JTAG_CTRL);
+		}
 		aspeed_jtag_wait_instruction_complete(aspeed_jtag);
 		return 0;
 	}
