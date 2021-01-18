@@ -188,6 +188,11 @@ void ioctl_get_video_engine_data(MultiJpegConfig *pArrayMJConfig, AstRVAS *pAstR
 
 	video_write(pAstRVAS, dwPhyStreamAddress, AST_VIDEO_STREAM_BUFF);
 
+	if( host_suspended(pAstRVAS) ) {
+		pArrayMJConfig->rs = HostSuspended;
+		VIDEO_ENG_DBG("HostSuspended Timeout\n");
+		return;
+	}
 	if( video_capture_trigger(pAstRVAS) == 0 ) {
 		 pArrayMJConfig->rs = CaptureTimedOut;
 		 VIDEO_ENG_DBG("Capture Timeout\n");

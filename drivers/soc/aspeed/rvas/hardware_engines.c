@@ -2225,3 +2225,21 @@ void setup_lmem(AstRVAS *pAstRVAS)
 	writel(0x00F3CF3C, (void*)(pAstRVAS->fg_reg_base + LMEM10_P1));
 	writel(0x00067201, (void*)(pAstRVAS->fg_reg_base + LMEM10_P2));
 }
+
+bool host_suspended(AstRVAS *pAstRVAS)
+{
+	u32 GRCE18= readl((void*)(pAstRVAS->grce_reg_base + GRCE_ATTR_VGAIR0_OFFSET));
+
+	// VGAER is GRCE19
+	// VGAER bit[0]:0 - vga disabled (host suspended)
+	// 	 	 		 1 - vga enabled
+	VIDEO_DBG("GRCE18:%#x\n", GRCE18);
+	if(GRCE18 & 0x100) {
+		return false;
+	}
+	else {
+		return true;
+	}
+
+}
+

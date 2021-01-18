@@ -131,6 +131,7 @@
 //Shadow
 #define GRCE_SIZE				(0x800)
 #define GRCE_ATTR_OFFSET			(0x0)
+#define GRCE_ATTR_VGAIR0_OFFSET	(0x18)
 #define GRCE_SEQ_OFFSET				(0x20)
 #define GRCE_GCTL_OFFSET			(0x30)
 #define GRCE_GRCCTL0_OFFSET			(0x58)
@@ -498,4 +499,5 @@ void disable_grce_tse_interrupt(AstRVAS *ast_rvas);
 void disable_interrupts(AstRVAS*ast_rvas);
 void enable_interrupts(AstRVAS*ast_rvas);
 
+bool host_suspended(AstRVAS *pAstRVAS);
 #endif // __HARDWAREENGINES_H__

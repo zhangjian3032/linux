@@ -88,7 +88,8 @@ typedef enum tagRVASStatus {
 	TimedOut = 6,
 	InvalidContextHandle = 7,
 	CaptureTimedOut = 8,
-	CompressionTimedOut = 9
+	CompressionTimedOut = 9,
+	HostSuspended
 } RVASStatus;
 
 typedef enum tagSelectedByteMode {
@@ -249,7 +250,6 @@ typedef struct tagRvasIoctl {
 
 #define MAX_MULTI_FRAME_CT (32)
 
-
 typedef struct tagAstVideoConfig {
 	u8 engine;					//0: engine 0 - normal engine, engine 1 - VM legacy engine
 	u8 compression_mode; 	//0:DCT, 1:DCT_VQ mix VQ-2 color, 2:DCT_VQ mix VQ-4 color		9:
@@ -275,7 +275,7 @@ typedef struct tagMultiJpegFrame{
 } MultiJpegFrame;
 
 typedef struct tagMultiJpegConfig {
-	unsigned char multi_jpeg_frames;	// frame count
+	unsigned char multi_jpeg_frames;				// frame count
 	MultiJpegFrame frame[MAX_MULTI_FRAME_CT];	// The Multi Frames
 	RVASMemoryHandle aStreamHandle;
 	RVASStatus rs;
