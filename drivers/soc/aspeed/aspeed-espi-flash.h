@@ -1,24 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) ASPEED Technology Inc.
+ * Author: Chia-Wei Wang <chiawei_wang@aspeedtech.com>
+ *
+ * This header includes the data strcuture and the handler
+ * for eSPI flash channel. It is part of Aspeed eSPI slave
+ * driver implementation
  */
-#include <linux/io.h>
-#include <linux/regmap.h>
-#include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/mfd/syscon.h>
-#include <linux/platform_device.h>
-#include <linux/dma-mapping.h>
-#include <linux/miscdevice.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
-#include <linux/uaccess.h>
-#include <linux/module.h>
+#ifndef _ASPEED_ESPI_FLASH_H_
+#define _ASPEED_ESPI_FLASH_H_
 
-#include <soc/aspeed/espi.h>
-#include <uapi/linux/aspeed-espi.h>
-
-#define DEVICE_NAME	"aspeed-espi-flash"
+#define FLASH_MDEV_NAME	"aspeed-espi-flash"
 
 enum aspeed_espi_flash_safs_mode {
 	SAFS_MODE_MIX,
@@ -35,11 +27,6 @@ struct aspeed_espi_flash_dma {
 };
 
 struct aspeed_espi_flash {
-	struct regmap *map;
-
-	int irq;
-	int irq_reset;
-
 	uint32_t safs_mode;
 
 	uint32_t dma_mode;
@@ -54,8 +41,7 @@ struct aspeed_espi_flash {
 	spinlock_t lock;
 
 	struct miscdevice mdev;
-
-	uint32_t version;
+	struct aspeed_espi_ctrl *ctrl;
 };
 
 static long aspeed_espi_flash_get_rx(struct file *fp,
@@ -69,6 +55,7 @@ static long aspeed_espi_flash_get_rx(struct file *fp,
 	uint8_t *pkt;
 	uint32_t pkt_len;
 	struct espi_comm_hdr *hdr;
+	struct aspeed_espi_ctrl *espi_ctrl = espi_flash->ctrl;
 
 	if (fp->f_flags & O_NONBLOCK) {
 		if (mutex_trylock(&espi_flash->get_rx_mtx))
@@ -93,7 +80,7 @@ static long aspeed_espi_flash_get_rx(struct file *fp,
 	}
 
 	/* common header (i.e. cycle type, tag, and length) is taken by HW */
-	regmap_read(espi_flash->map, ESPI_FLASH_RX_CTRL, &reg);
+	regmap_read(espi_ctrl->map, ESPI_FLASH_RX_CTRL, &reg);
 	cyc = (reg & ESPI_FLASH_RX_CTRL_CYC_MASK) >> ESPI_FLASH_RX_CTRL_CYC_SHIFT;
 	tag = (reg & ESPI_FLASH_RX_CTRL_TAG_MASK) >> ESPI_FLASH_RX_CTRL_TAG_SHIFT;
 	len = (reg & ESPI_FLASH_RX_CTRL_LEN_MASK) >> ESPI_FLASH_RX_CTRL_LEN_SHIFT;
@@ -149,7 +136,7 @@ static long aspeed_espi_flash_get_rx(struct file *fp,
 	}
 	else {
 		for (i = sizeof(*hdr); i < pkt_len; ++i) {
-			regmap_read(espi_flash->map,
+			regmap_read(espi_ctrl->map,
 				    ESPI_FLASH_RX_PORT, &reg);
 			pkt[i] = reg & 0xff;
 		}
@@ -162,7 +149,7 @@ static long aspeed_espi_flash_get_rx(struct file *fp,
 
 	spin_lock_irqsave(&espi_flash->lock, flags);
 
-	regmap_write_bits(espi_flash->map, ESPI_FLASH_RX_CTRL,
+	regmap_write_bits(espi_ctrl->map, ESPI_FLASH_RX_CTRL,
 			  ESPI_FLASH_RX_CTRL_PEND_SERV,
 			  ESPI_FLASH_RX_CTRL_PEND_SERV);
 
@@ -188,11 +175,12 @@ static long aspeed_espi_flash_put_tx(struct file *fp,
 	uint32_t cyc, tag, len;
 	uint8_t *pkt;
 	struct espi_comm_hdr *hdr;
+	struct aspeed_espi_ctrl *espi_ctrl = espi_flash->ctrl;
 
 	if (!mutex_trylock(&espi_flash->put_tx_mtx))
 		return -EAGAIN;
 
-	regmap_read(espi_flash->map, ESPI_FLASH_TX_CTRL, &reg);
+	regmap_read(espi_ctrl->map, ESPI_FLASH_TX_CTRL, &reg);
 	if (reg & ESPI_FLASH_TX_CTRL_TRIGGER) {
 		rc = -EBUSY;
 		goto unlock_mtx_n_out;
@@ -222,7 +210,7 @@ static long aspeed_espi_flash_put_tx(struct file *fp,
 	}
 	else {
 		for (i = sizeof(*hdr); i < ioc->pkt_len; ++i)
-			regmap_write(espi_flash->map,
+			regmap_write(espi_ctrl->map,
 				     ESPI_FLASH_TX_PORT, pkt[i]);
 	}
 
@@ -235,7 +223,7 @@ static long aspeed_espi_flash_put_tx(struct file *fp,
 		| ((len << ESPI_FLASH_TX_CTRL_LEN_SHIFT) & ESPI_FLASH_TX_CTRL_LEN_MASK)
 		| ESPI_FLASH_TX_CTRL_TRIGGER;
 
-	regmap_write(espi_flash->map, ESPI_FLASH_TX_CTRL, reg);
+	regmap_write(espi_ctrl->map, ESPI_FLASH_TX_CTRL, reg);
 
 free_n_out:
 	vfree(pkt);
@@ -276,16 +264,9 @@ static const struct file_operations aspeed_espi_flash_fops = {
 	.unlocked_ioctl = aspeed_espi_flash_ioctl,
 };
 
-static irqreturn_t aspeed_espi_flash_isr(int irq, void *arg)
+static void aspeed_espi_flash_event(uint32_t sts, struct aspeed_espi_flash *espi_flash)
 {
-	uint32_t sts;
 	unsigned long flags;
-	struct aspeed_espi_flash *espi_flash = arg;
-
-	regmap_read(espi_flash->map, ESPI_INT_STS, &sts);
-
-	if (!(sts & ESPI_INT_STS_FLASH_BITS))
-		return IRQ_NONE;
 
 	if (sts & ESPI_INT_STS_FLASH_RX_CMPLT) {
 		spin_lock_irqsave(&espi_flash->lock, flags);
@@ -293,128 +274,45 @@ static irqreturn_t aspeed_espi_flash_isr(int irq, void *arg)
 		spin_unlock_irqrestore(&espi_flash->lock, flags);
 		wake_up_interruptible(&espi_flash->wq);
 	}
-
-	regmap_write(espi_flash->map, ESPI_INT_STS, sts & ESPI_INT_STS_FLASH_BITS);
-
-	return IRQ_HANDLED;
 }
 
-static irqreturn_t aspeed_espi_flash_reset_isr(int irq, void *arg)
+static void aspeed_espi_flash_enable(struct aspeed_espi_flash *espi_flash)
 {
-	struct aspeed_espi_flash *espi_flash = arg;
 	struct aspeed_espi_flash_dma *dma = &espi_flash->dma;
+	struct aspeed_espi_ctrl *espi_ctrl = espi_flash->ctrl;
 
-	if (espi_flash->dma_mode) {
-		regmap_write(espi_flash->map, ESPI_FLASH_TX_DMA, dma->tx_addr);
-		regmap_write(espi_flash->map, ESPI_FLASH_RX_DMA, dma->rx_addr);
-		regmap_update_bits(espi_flash->map, ESPI_CTRL,
-				   ESPI_CTRL_FLASH_TX_DMA_EN | ESPI_CTRL_FLASH_RX_DMA_EN,
-				   ESPI_CTRL_FLASH_TX_DMA_EN | ESPI_CTRL_FLASH_RX_DMA_EN);
-	}
-
-	return IRQ_HANDLED;
-}
-
-static int aspeed_espi_flash_dma_init(struct platform_device *pdev,
-				      struct aspeed_espi_flash *espi_flash)
-{
-	struct device *dev = &pdev->dev;
-	struct aspeed_espi_flash_dma *dma = &espi_flash->dma;
-
-	dma->tx_virt = dma_alloc_coherent(dev, PAGE_SIZE,
-					  &dma->tx_addr, GFP_KERNEL);
-	if (!dma->tx_virt) {
-		dev_err(dev, "cannot allocate DMA TX buffer\n");
-		return -ENOMEM;
-	}
-
-	dma->rx_virt = dma_alloc_coherent(dev, PAGE_SIZE,
-					  &dma->rx_addr, GFP_KERNEL);
-	if (!dma->rx_virt) {
-		dev_err(dev, "cannot allocate DMA RX buffer\n");
-		return -ENOMEM;
-	}
-
-	regmap_write(espi_flash->map, ESPI_FLASH_TX_DMA, dma->tx_addr);
-	regmap_write(espi_flash->map, ESPI_FLASH_RX_DMA, dma->rx_addr);
-	regmap_update_bits(espi_flash->map, ESPI_CTRL,
-			   ESPI_CTRL_FLASH_TX_DMA_EN | ESPI_CTRL_FLASH_RX_DMA_EN,
-			   ESPI_CTRL_FLASH_TX_DMA_EN | ESPI_CTRL_FLASH_RX_DMA_EN);
-
-	return 0;
-}
-
-static int aspeed_espi_flash_init(struct platform_device *pdev,
-				  struct aspeed_espi_flash *espi_flash)
-{
-	int rc = 0;
-	struct device *dev = &pdev->dev;
-
-	regmap_update_bits(espi_flash->map, ESPI_CTRL,
+	regmap_update_bits(espi_ctrl->map, ESPI_CTRL,
 			   ESPI_CTRL_FLASH_SW_MODE_MASK,
 			   (espi_flash->safs_mode << ESPI_CTRL_FLASH_SW_MODE_SHIFT));
 
 	if (espi_flash->dma_mode) {
-		rc = aspeed_espi_flash_dma_init(pdev, espi_flash);
-		if (rc)
-			return rc;
+		regmap_write(espi_ctrl->map, ESPI_FLASH_TX_DMA, dma->tx_addr);
+		regmap_write(espi_ctrl->map, ESPI_FLASH_RX_DMA, dma->rx_addr);
+		regmap_update_bits(espi_ctrl->map, ESPI_CTRL,
+				   ESPI_CTRL_FLASH_TX_DMA_EN | ESPI_CTRL_FLASH_RX_DMA_EN,
+				   ESPI_CTRL_FLASH_TX_DMA_EN | ESPI_CTRL_FLASH_RX_DMA_EN);
 	}
 
-	rc = devm_request_irq(dev, espi_flash->irq, aspeed_espi_flash_isr,
-			      0, DEVICE_NAME, espi_flash);
-	if (rc) {
-		dev_err(dev, "cannot request eSPI flash channel irq\n");
-		return rc;
-	}
+	regmap_update_bits(espi_ctrl->map, ESPI_INT_EN,
+			   ESPI_INT_EN_FLASH_BITS,
+			   ESPI_INT_EN_FLASH_BITS);
 
-	rc = devm_request_irq(dev, espi_flash->irq_reset, aspeed_espi_flash_reset_isr,
-			      IRQF_SHARED, DEVICE_NAME, espi_flash);
-	if (rc) {
-		dev_err(dev, "cannot request eSPI channel reset irq\n");
-		return rc;
-	}
-
-	return rc;
+	regmap_update_bits(espi_ctrl->map, ESPI_CTRL,
+			   ESPI_CTRL_FLASH_SW_RDY,
+			   ESPI_CTRL_FLASH_SW_RDY);
 }
 
-static int aspeed_espi_flash_probe(struct platform_device *pdev)
+static void *aspeed_espi_flash_alloc(struct device *dev, struct aspeed_espi_ctrl *espi_ctrl)
 {
 	int rc = 0;
-	struct device *dev = &pdev->dev;
 	struct aspeed_espi_flash *espi_flash;
+	struct aspeed_espi_flash_dma *dma;
 
 	espi_flash = devm_kzalloc(dev, sizeof(*espi_flash), GFP_KERNEL);
 	if (!espi_flash)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
-	espi_flash->map = syscon_node_to_regmap(dev->parent->of_node);
-	if (IS_ERR(espi_flash->map)) {
-		dev_err(dev, "cannot get regmap\n");
-		return PTR_ERR(espi_flash->map);
-	}
-
-	espi_flash->irq = platform_get_irq(pdev, 0);
-	if (espi_flash->irq < 0)
-		return espi_flash->irq;
-
-	espi_flash->irq_reset = platform_get_irq(pdev, 1);
-	if (espi_flash->irq_reset < 0)
-		return espi_flash->irq_reset;
-
-	espi_flash->version = (uint32_t)of_device_get_match_data(dev);
-
-	if (of_property_read_bool(dev->of_node, "dma-mode"))
-		espi_flash->dma_mode = 1;
-
-	of_property_read_u32(dev->of_node, "safs-mode", &espi_flash->safs_mode);
-	if (espi_flash->safs_mode >= SAFS_MODES) {
-		dev_err(dev, "invalid SAFS mode\n");
-		return -EINVAL;
-	}
-
-	rc = aspeed_espi_flash_init(pdev, espi_flash);
-	if (rc)
-		return rc;
+	espi_flash->ctrl = espi_ctrl;
 
 	init_waitqueue_head(&espi_flash->wq);
 
@@ -423,64 +321,59 @@ static int aspeed_espi_flash_probe(struct platform_device *pdev)
 	mutex_init(&espi_flash->put_tx_mtx);
 	mutex_init(&espi_flash->get_rx_mtx);
 
+	if (of_property_read_bool(dev->of_node, "flash,dma-mode"))
+		espi_flash->dma_mode = 1;
+
+	of_property_read_u32(dev->of_node, "flash,safs-mode", &espi_flash->safs_mode);
+	if (espi_flash->safs_mode >= SAFS_MODES) {
+		dev_err(dev, "invalid SAFS mode\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (espi_flash->dma_mode) {
+		dma = &espi_flash->dma;
+
+		dma->tx_virt = dma_alloc_coherent(dev, PAGE_SIZE,
+						  &dma->tx_addr, GFP_KERNEL);
+		if (!dma->tx_virt) {
+			dev_err(dev, "cannot allocate DMA TX buffer\n");
+			return ERR_PTR(-ENOMEM);
+		}
+
+		dma->rx_virt = dma_alloc_coherent(dev, PAGE_SIZE,
+						  &dma->rx_addr, GFP_KERNEL);
+		if (!dma->rx_virt) {
+			dev_err(dev, "cannot allocate DMA RX buffer\n");
+			return ERR_PTR(-ENOMEM);
+		}
+	}
+
 	espi_flash->mdev.parent = dev;
 	espi_flash->mdev.minor = MISC_DYNAMIC_MINOR;
-	espi_flash->mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s", DEVICE_NAME);
+	espi_flash->mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s", FLASH_MDEV_NAME);
 	espi_flash->mdev.fops = &aspeed_espi_flash_fops;
 	rc = misc_register(&espi_flash->mdev);
 	if (rc) {
 		dev_err(dev, "cannot register device\n");
-		return rc;
+		return ERR_PTR(rc);
 	}
 
-	dev_set_drvdata(dev, espi_flash);
+	aspeed_espi_flash_enable(espi_flash);
 
-	dev_info(dev, "module loaded\n");
-
-	return 0;
+	return espi_flash;
 }
 
-static int aspeed_espi_flash_remove(struct platform_device *pdev)
+static void aspeed_espi_flash_free(struct device *dev, struct aspeed_espi_flash *espi_flash)
 {
-	struct device *dev = &pdev->dev;
-	struct aspeed_espi_flash *espi_flash = dev_get_drvdata(dev);
-	struct aspeed_espi_flash_dma *dma;
+	struct aspeed_espi_flash_dma *dma = &espi_flash->dma;
 
-	if (!espi_flash->dma_mode)
-		return 0;
-
-	dma = &espi_flash->dma;
-
-	if (dma->tx_virt)
+	if (espi_flash->dma_mode) {
 		dma_free_coherent(dev, PAGE_SIZE, dma->tx_virt, dma->tx_addr);
-
-	if (dma->rx_virt)
 		dma_free_coherent(dev, PAGE_SIZE, dma->rx_virt, dma->rx_addr);
+	}
 
 	mutex_destroy(&espi_flash->put_tx_mtx);
 	mutex_destroy(&espi_flash->get_rx_mtx);
-
-	return 0;
 }
 
-static const struct of_device_id aspeed_espi_flash_match[] = {
-	{ .compatible = "aspeed,ast2500-espi-flash", .data = (void *)ESPI_AST2500, },
-	{ .compatible = "aspeed,ast2600-espi-flash", .data = (void *)ESPI_AST2600, },
-	{ }
-};
-
-static struct platform_driver aspeed_espi_flash_driver = {
-	.driver = {
-		.name           = DEVICE_NAME,
-		.of_match_table = aspeed_espi_flash_match,
-	},
-	.probe  = aspeed_espi_flash_probe,
-	.remove = aspeed_espi_flash_remove,
-};
-
-module_platform_driver(aspeed_espi_flash_driver);
-
-MODULE_AUTHOR("Chia-Wei Wang <chiawei_wang@aspeedtech.com>");
-MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
-MODULE_DESCRIPTION("Control of Aspeed eSPI flash channel");
-MODULE_LICENSE("GPL v2");
+#endif
