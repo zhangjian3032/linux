@@ -166,3 +166,53 @@
      status = "okay";
      memory-region = <&gfx_memory>;
 };
+
+&pwm_tacho {
+        status = "okay";
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_pwm1_default
+                         &pinctrl_pwm2_default &pinctrl_pwm3_default
+                         &pinctrl_pwm4_default &pinctrl_pwm5_default
+                         &pinctrl_pwm6_default &pinctrl_pwm7_default>;
+
+        fan@0 {
+                reg = <0x00>;
+                aspeed,fan-tach-ch = /bits/ 8 <0x00>;
+        };
+
+        fan@1 {
+                reg = <0x01>;
+                aspeed,fan-tach-ch = /bits/ 8 <0x01>;
+        };
+
+        fan@2 {
+                reg = <0x02>;
+                aspeed,fan-tach-ch = /bits/ 8 <0x02>;
+        };
+
+        fan@3 {
+                reg = <0x03>;
+                aspeed,fan-tach-ch = /bits/ 8 <0x03>;
+        };
+
+		fan@4 {
+                reg = <0x04>;
+                aspeed,fan-tach-ch = /bits/ 8 <0x04>;
+        };
+
+		fan@5 {
+                reg = <0x05>;
+                aspeed,fan-tach-ch = /bits/ 8 <0x05>;
+        };
+
+		fan@6 {
+                reg = <0x06>;
+                aspeed,fan-tach-ch = /bits/ 8 <0x06>;
+        };
+
+		fan@7 {
+                reg = <0x07>;
+                aspeed,fan-tach-ch = /bits/ 8 <0x07>;
+        };
+
+};
