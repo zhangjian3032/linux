@@ -3,7 +3,6 @@
 #include <dt-bindings/clock/ast2600-clock.h>
 #include <dt-bindings/gpio/aspeed-gpio.h>
 #include <dt-bindings/interrupt-controller/aspeed-scu-ic.h>
-#include <dt-bindings/interrupt-controller/aspeed-espi-ic.h>
 
 / {
 	model = "Aspeed BMC";
@@ -662,57 +661,20 @@
 				#size-cells = <1>;
 				ranges = <0x0 0x1e6ee000 0x1000>;
 
-				espi_ic: espi-ic {
-					#interrupt-cells = <1>;
-					compatible = "aspeed,ast2600-espi-ic";
+				espi_ctrl: espi-ctrl@0 {
+					compatible = "aspeed,ast2600-espi-ctrl";
+					reg = <0x0 0x800>;
 					interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
 							      <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
-					interrupt-controller;
-					status = "disabled";
-				};
-
-				espi_ctrl: espi-ctrl {
-					compatible = "aspeed,ast2600-espi-ctrl";
-					interrupts-extended = <&espi_ic ASPEED_ESPI_IC_CTRL_EVENT>,
-							      <&espi_ic ASPEED_ESPI_IC_CTRL_RESET>;
 					clocks = <&syscon ASPEED_CLK_GATE_ESPICLK>;
 					resets = <&syscon ASPEED_RESET_ESPI>;
 					status = "disabled";
 				};
 
-				espi_peripheral: espi-peripheral-channel {
-					compatible = "aspeed,ast2600-espi-peripheral";
-					interrupts-extended = <&espi_ic ASPEED_ESPI_IC_PERIF_EVENT>,
-							      <&espi_ic ASPEED_ESPI_IC_CHAN_RESET>;
-					status = "disabled";
-				};
-
-				espi_vw: espi-vw-channel {
-					compatible = "aspeed,ast2600-espi-vw";
-					interrupts-extended = <&espi_ic ASPEED_ESPI_IC_VW_EVENT>,
-							      <&espi_ic ASPEED_ESPI_IC_CHAN_RESET>;
-					status = "disabled";
-				};
-
-				espi_oob: espi-oob-channel {
-					compatible = "aspeed,ast2600-espi-oob";
-					interrupts-extended = <&espi_ic ASPEED_ESPI_IC_OOB_EVENT>,
-							      <&espi_ic ASPEED_ESPI_IC_CHAN_RESET>;
-					status = "disabled";
-				};
-
-				espi_flash: espi-flash-channel {
-					compatible = "aspeed,ast2600-espi-flash";
-					interrupts-extended = <&espi_ic ASPEED_ESPI_IC_FLASH_EVENT>,
-							      <&espi_ic ASPEED_ESPI_IC_CHAN_RESET>;
-					status = "disabled";
-				};
-
-				mmbi: mmbi@800 {
+				espi_mmbi: espi-mmbi@800 {
 					compatible = "aspeed,ast2600-espi-mmbi";
 					reg = <0x800 0x50>;
 					interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
-					aspeed,espi-peripheral = <&espi_peripheral>;
 					status = "disabled";
 				};
 			};

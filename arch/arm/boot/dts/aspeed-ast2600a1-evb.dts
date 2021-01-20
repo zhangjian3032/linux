@@ -676,39 +676,19 @@
 	status = "okay";
 };
 
-
-
-
-&espi_ic {
-	status = "okay";
-};
-
 &espi_ctrl {
 	status = "okay";
-};
 
-&espi_peripheral {
-	status = "okay";
-	memcyc,map-src-addr = <0x98000000>;
-	memcyc,map-size = <0x10000>;
-	dma-mode;
-};
+	perif,memcyc-src-addr = <0x98000000>;
+	perif,memcyc-size = <0x10000>;
+	perif,dma-mode;
 
-&espi_vw {
-	status = "okay";
-};
+	oob,dma-mode;
+	oob,dma-tx-desc-num = <0x2>;
+	oob,dma-rx-desc-num = <0x8>;
 
-&espi_oob {
-	status = "okay";
-	dma-mode;
-	dma-tx-desc-num = <2>;
-	dma-rx-desc-num = <8>;
-};
-
-&espi_flash {
-	status = "okay";
-	dma-mode;
-	safs-mode = <2>;
+	flash,dma-mode;
+	flash,safs-mode = <0x2>;
 };
 
 #if 0
