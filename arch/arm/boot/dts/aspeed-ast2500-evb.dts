@@ -117,6 +117,10 @@
 	pinctrl-0 = <&pinctrl_sd2_default>;
 };
 
+&jtag {
+	status = "okay";
+};
+
 
 /*
  * Enable port A as device (via the virtual hub) and port B as
