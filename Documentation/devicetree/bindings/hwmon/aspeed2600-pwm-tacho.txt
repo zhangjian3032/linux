@@ -42,6 +42,8 @@ Required properties for each child node:
 - cooling-levels: PWM duty cycle values in a range from 0 to 255
                   which correspond to thermal cooling states.
 
+- aspeed,target_pwm: define the pwm frequency
+- aspeed,default-duty-point: define the defult duty point of pwm (0~255)
 - aspeed,fan-tach-ch : should specify the Fan tach input channel.
                 integer value in the range 0 through 15, with 0 indicating
 		Fan tach channel 0 and 15 indicating Fan tach channel 15.
@@ -49,8 +51,12 @@ Required properties for each child node:
 - aspeed,pulse-pr : define the tachometer pulses per fan revolution as
             an integer (default is 2 interrupts per revolution).
             The value must be greater than zero.
+- aspeed,min-rpm : define the minimal revolutions per minute of the measure fan 
+					used to caculate the sample period of tach
 - aspeed,tacho-div : define the tachometer clock divider as an integer (default is 5).
             formula of tacho clock = HCLK / (2^tacho-div)^2
+- aspeed,wdt-reload-enable: Enable the function of wdt reset reload duty point.
+- aspeed,wdt-reload-duty-point: define the duty point after wdt reset. (0~255)
 Examples:
 
 pwm_tacho: pwm-tacho-controller@1e610000 {
@@ -81,9 +87,13 @@ pwm_tacho: pwm-tacho-controller@1e610000 {
 	fan@0 {
 		reg = <0x00>;
 		aspeed,target_pwm = <25000>;
+		aspeed,default-duty-point = <128>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
+		aspeed,tacho-div = <5>;
 		aspeed,pulse-pr = <2>;
-        aspeed,tacho-div = <5>;
+		aspeed,min-rpm = <1000>;
+		aspeed,wdt-reload-enable;
+		aspeed,wdt-reload-duty-point = <1>;
 	};
 };
