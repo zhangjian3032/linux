@@ -104,15 +104,11 @@
 #define MAX_CDEV_NAME_LEN 16
 
 struct aspeed_pwm_channel_params {
-	int target_freq;
-	int pwm_freq;
-	int load_wdt_rising_falling_pt;
-	int load_wdt_selection;		//0: rising , 1: falling
-	int load_wdt_enable;
-	int	duty_sync_enable;
-	int invert_pin;
-	u8	rising;
-	u8	falling;
+	u32 target_freq;
+	u32 pwm_freq;
+	u32 wdt_reload_duty_pt;
+	u32	duty_pt;
+	bool wdt_reload_enable;
 };
 
 
@@ -259,10 +255,10 @@ static void aspeed_set_pwm_channel_fan_ctrl(struct aspeed_pwm_tachometer_data *p
 		duty_value = (DEFAULT_PWM_PERIOD << PWM_PERIOD_BIT) | 
 					(0 << PWM_RISING_POINT_BIT) | (fan_ctrl << PWM_FALLING_POINT_BIT);
 
-		if (priv->pwm_channel[index].load_wdt_enable) {
+		if (priv->pwm_channel[index].wdt_reload_enable) {
 			ctrl_value |= PWM_DUTY_LOAD_AS_WDT_EN;
-			ctrl_value |= priv->pwm_channel[index].load_wdt_selection << PWM_LOAD_SEL_AS_WDT_BIT;
-			duty_value |= (priv->pwm_channel[index].load_wdt_rising_falling_pt << PWM_RISING_FALLING_AS_WDT_BIT);
+			ctrl_value |= LOAD_SEL_FALLING << PWM_LOAD_SEL_AS_WDT_BIT;
+			duty_value |= (priv->pwm_channel[index].wdt_reload_duty_pt << PWM_RISING_FALLING_AS_WDT_BIT);
 		}
 
 		regmap_write(priv->regmap, ASPEED_PWM_DUTY_CYCLE_CH(index), duty_value);
@@ -315,7 +311,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	int ret;
 	struct aspeed_pwm_tachometer_data *priv = dev_get_drvdata(dev);
 	long fan_ctrl;
-	u8 org_falling = priv->pwm_channel[index].falling;
+	u8 org_falling = priv->pwm_channel[index].duty_pt;
 
 	ret = kstrtol(buf, 10, &fan_ctrl);
 	if (ret != 0)
@@ -324,10 +320,10 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	if (fan_ctrl < 0 || fan_ctrl > DEFAULT_PWM_PERIOD)
 		return -EINVAL;
 
-	if (priv->pwm_channel[index].falling == fan_ctrl)
+	if (priv->pwm_channel[index].duty_pt == fan_ctrl)
 		return count;
 
-	priv->pwm_channel[index].falling = fan_ctrl;
+	priv->pwm_channel[index].duty_pt = fan_ctrl;
 
 	if(fan_ctrl == 0)
 		aspeed_set_pwm_channel_enable(priv->regmap, index, false);
@@ -351,7 +347,7 @@ static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
 	int index = sensor_attr->index;
 	struct aspeed_pwm_tachometer_data *priv = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", priv->pwm_channel[index].falling);
+	return sprintf(buf, "%u\n", priv->pwm_channel[index].duty_pt);
 }
 
 static ssize_t show_rpm(struct device *dev, struct device_attribute *attr,
@@ -511,7 +507,7 @@ static void aspeed_create_pwm_channel(struct aspeed_pwm_tachometer_data *priv,
 	priv->pwm_present[pwm_channel] = true;
 
 	//use default 
-	aspeed_set_pwm_channel_fan_ctrl(priv, pwm_channel, priv->pwm_channel[pwm_channel].falling);
+	aspeed_set_pwm_channel_fan_ctrl(priv, pwm_channel, priv->pwm_channel[pwm_channel].duty_pt);
 }
 
 static void aspeed_create_fan_tach_channel(struct aspeed_pwm_tachometer_data *priv,
@@ -559,7 +555,7 @@ aspeed_pwm_cz_set_cur_state(struct thermal_cooling_device *tcdev,
 		return -EINVAL;
 
 	cdev->cur_state = state;
-	cdev->priv->pwm_channel[cdev->pwm_channel].falling =
+	cdev->priv->pwm_channel[cdev->pwm_channel].duty_pt =
 					cdev->cooling_levels[cdev->cur_state];
 	aspeed_set_pwm_channel_fan_ctrl(cdev->priv, cdev->pwm_channel,
 				     cdev->cooling_levels[cdev->cur_state]);
@@ -629,9 +625,23 @@ static int aspeed_pwm_create_fan(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = of_property_read_u32(child, "aspeed,target_pwm", &target_pwm_freq);
+	ret = of_property_read_u32(child, "aspeed,target_pwm",
+				   &priv->pwm_channel[pwm_channel].target_freq);
 	if (ret)
-		target_pwm_freq = DEFAULT_TARGET_PWM_FREQ;
+		priv->pwm_channel[pwm_channel].target_freq = DEFAULT_TARGET_PWM_FREQ;
+
+	ret = of_property_read_u32(child, "aspeed,default-duty-point",
+				   &priv->pwm_channel[pwm_channel].duty_pt);
+	if (ret)
+		priv->pwm_channel[pwm_channel].duty_pt = DEFAULT_DUTY_PT;
+
+	ret = of_property_read_u32(child, "aspeed,wdt-reload-duty-point",
+				   &priv->pwm_channel[pwm_channel].wdt_reload_duty_pt);
+	if (ret)
+		priv->pwm_channel[pwm_channel].wdt_reload_duty_pt = DEFAULT_WDT_RELOAD_DUTY_PT;
+
+	priv->pwm_channel[pwm_channel].wdt_reload_enable =
+		of_property_read_bool(child, "aspeed,wdt-reload-enable");
 
 	aspeed_create_pwm_channel(priv, (u8)pwm_channel);
 
