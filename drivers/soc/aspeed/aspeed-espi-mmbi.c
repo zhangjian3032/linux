@@ -430,11 +430,12 @@ static int aspeed_espi_mmbi_probe(struct platform_device *pdev)
 	}
 
 	aspeed_espi_mmbi->espi_ctrl = dev_get_drvdata(&espi_ctrl_pdev->dev);
-	if (aspeed_espi_mmbi->espi_ctrl->perif->mcyc_virt) {
+	if (aspeed_espi_mmbi->espi_ctrl && aspeed_espi_mmbi->espi_ctrl->perif && aspeed_espi_mmbi->espi_ctrl->perif->mcyc_virt) {
 		aspeed_espi_mmbi->mmbi_blk_virt = aspeed_espi_mmbi->espi_ctrl->perif->mcyc_virt;
 		aspeed_espi_mmbi->mmbi_blk_phys = aspeed_espi_mmbi->espi_ctrl->perif->mcyc_taddr;
 	} else {
 		//dma_alloc_coherent 64KB MMBI block and program mmbi control register
+		aspeed_espi_mmbi->espi_ctrl = NULL;
 		aspeed_espi_mmbi->mmbi_blk_virt = dma_alloc_coherent(&pdev->dev, MMBI_TOTAL_SIZE, &aspeed_espi_mmbi->mmbi_blk_phys, GFP_KERNEL);
 		ESPI_MMBI_DBUG("aspeed_espi_mmbi->mmbi_blk_virt =0x%x\n", (u32)aspeed_espi_mmbi->mmbi_blk_virt );
 		ESPI_MMBI_DBUG("aspeed_espi_mmbi->mmbi_blk_phys =0x%x\n", (u32)aspeed_espi_mmbi->mmbi_blk_phys );
@@ -505,7 +506,8 @@ static int aspeed_espi_mmbi_remove(struct platform_device *pdev)
 		return -ENODEV;
 
 	misc_deregister(&aspeed_espi_mmbi_misc);
-	dma_free_coherent(&pdev->dev, MMBI_TOTAL_SIZE,aspeed_espi_mmbi->mmbi_blk_virt,aspeed_espi_mmbi->mmbi_blk_phys);
+	if (!aspeed_espi_mmbi->espi_ctrl)
+		dma_free_coherent(&pdev->dev, MMBI_TOTAL_SIZE,aspeed_espi_mmbi->mmbi_blk_virt,aspeed_espi_mmbi->mmbi_blk_phys);
 	return 0;
 }
 
