@@ -183,8 +183,27 @@ static void aspeed_set_pwm_channel_enable(struct regmap *regmap, u8 pwm_channel,
 	regmap_update_bits(regmap, ASPEED_PWM_CTRL_CH(pwm_channel), (PWM_CLK_ENABLE | PWM_PIN_EN), enable ? (PWM_CLK_ENABLE | PWM_PIN_EN) : 0);
 }
 
-static void aspeed_set_fan_tach_ch_enable(struct aspeed_pwm_tachometer_data *priv, u8 fan_tach_ch,
-					  bool enable, u32 tacho_div)
+static u32
+aspeed_get_fan_tach_sample_period(struct aspeed_pwm_tachometer_data *priv, u8 fan_tach_ch)
+{
+	u32 tach_period_us;
+	u8 pulse_pr = priv->tacho_channel[fan_tach_ch].pulse_pr;
+	u32 min_rpm = priv->tacho_channel[fan_tach_ch].min_rpm;
+	/* 
+	 * min(Tach input clock) = (PulsePR * minRPM) / 60
+	 * max(Tach input period) = 60 / (PulsePR * minRPM)
+	 * Tach sample period > 2 * max(Tach input period) = (2*60) / (PulsePR * minRPM)
+	 */
+	tach_period_us = (1000000 * 2 * 60) / (pulse_pr * min_rpm);
+	/* Add the margin (about 1.2) of tach sample period to avoid sample miss */
+	tach_period_us = (tach_period_us * 1200) >> 10;
+	printk("tach%d sample period = %dus", fan_tach_ch, tach_period_us);
+	return tach_period_us;
+}
+
+static void
+aspeed_set_fan_tach_ch_enable(struct aspeed_pwm_tachometer_data *priv,
+			      u8 fan_tach_ch, bool enable, u32 tacho_div)
 {
 	u32 reg_value = 0;
 
@@ -204,6 +223,9 @@ static void aspeed_set_fan_tach_ch_enable(struct aspeed_pwm_tachometer_data *pri
 			reg_value |= (TACHO_IER | priv->tacho_channel[fan_tach_ch].threshold); 
 
 		regmap_write(priv->regmap, ASPEED_TACHO_CTRL_CH(fan_tach_ch), reg_value);
+
+		priv->tacho_channel[fan_tach_ch].sample_period =
+			aspeed_get_fan_tach_sample_period(priv, fan_tach_ch);
 	} else
 		regmap_update_bits(priv->regmap, ASPEED_TACHO_CTRL_CH(fan_tach_ch),  TACHO_ENABLE, 0);
 }
@@ -275,33 +297,35 @@ static void aspeed_set_pwm_channel_fan_ctrl(struct aspeed_pwm_tachometer_data *p
 static int aspeed_get_fan_tach_ch_rpm(struct aspeed_pwm_tachometer_data *priv,
 				      u8 fan_tach_ch)
 {
-	u32 raw_data, tach_div, clk_source, val;
-	int i, retries = 3;
+	u32 raw_data, tach_div, clk_source, usec, val;
+	int ret;
 
-	for(i = 0; i < retries; i++) {
-		regmap_read(priv->regmap, ASPEED_TACHO_STS_CH(fan_tach_ch), &val);
-		if (TACHO_FULL_MEASUREMENT & val)
-			break;
-	}
+	usec = priv->tacho_channel[fan_tach_ch].sample_period;
+	ret = regmap_read_poll_timeout(
+		priv->regmap, ASPEED_TACHO_STS_CH(fan_tach_ch), val,
+		(val & TACHO_FULL_MEASUREMENT) && (val & TACHO_VALUE_UPDATE), 0,
+		usec);
 
+	/* return -ETIMEDOUT if we didn't get an answer. */
+	if (ret)
+		return ret;
+	
 	raw_data = val & TACHO_VALUE_MASK;
-	if(raw_data == 0xfffff)
-		return 0;
-
-	raw_data += 1;
-
 	/*
 	 * We need the mode to determine if the raw_data is double (from
 	 * counting both edges).
 	 */
+	if (priv->tacho_channel[fan_tach_ch].tacho_edge == BOTH_EDGES)
+		raw_data <<= 1;
+	
 	tach_div = raw_data * (priv->tacho_channel[fan_tach_ch].divide) * (priv->tacho_channel[fan_tach_ch].pulse_pr);
 
 //	printk("clk %ld, raw_data %d , tach_div %d  \n", priv->clk_freq, raw_data, tach_div);
 	
 	clk_source = priv->clk_freq;
 
-	if (raw_data == 0)
-		return 0;
+	if (tach_div == 0)
+		return -EDOM;
 
 	return ((clk_source / tach_div) * 60);
 
