@@ -197,7 +197,7 @@ aspeed_get_fan_tach_sample_period(struct aspeed_pwm_tachometer_data *priv, u8 fa
 	tach_period_us = (1000000 * 2 * 60) / (pulse_pr * min_rpm);
 	/* Add the margin (about 1.2) of tach sample period to avoid sample miss */
 	tach_period_us = (tach_period_us * 1200) >> 10;
-	printk("tach%d sample period = %dus", fan_tach_ch, tach_period_us);
+	printk(KERN_DEBUG "tach%d sample period = %dus", fan_tach_ch, tach_period_us);
 	return tach_period_us;
 }
 
