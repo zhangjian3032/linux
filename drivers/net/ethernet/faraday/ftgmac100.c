@@ -713,6 +713,7 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 	struct ftgmac100_txdes *txdes, *first;
 	unsigned int pointer, nfrags, len, i, j;
 	u32 f_ctl_stat, ctl_stat, csum_vlan;
+	u32 wake_napi_bh = 0;
 	dma_addr_t map;
 
 	/* The HW doesn't pad small frames */
@@ -831,19 +832,25 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 		smp_mb();
 		if (ftgmac100_tx_buf_avail(priv) >= TX_THRESHOLD)
 			netif_wake_queue(netdev);
+		else
+			wake_napi_bh = 1;
 	}
 
 	/* When sending UDP packets, we may never receive a packet to activate 
-	 * the NAPI scheduler. And hence we don't have chance to free the TX 
-	 * data.  The workaround is to enable FTGMAC100_INT_XPKT_ETH, then the 
-	 * NAPI scheduler can be woke up in the ISR.
+	 * the NAPI BH. And hence we don't have chance to free the TX data.
+	 * The workaround is to enable FTGMAC100_INT_XPKT_ETH, then the NAPI BH 
+	 * can be woke up in the ISR.
 	*/
 	if ((cpu_to_be16(ETH_P_IP) == skb->protocol) &&
 	    (IPPROTO_UDP == ip_hdr(skb)->protocol)) {
+		wake_napi_bh = 1;
+	}
+
+	if (wake_napi_bh) {
+		u32 ier = ioread32(priv->base + FTGMAC100_OFFSET_IER);
 		/* IER == FTGMAC100_INT_ALL implies NAPI is not running */
-		if (FTGMAC100_INT_ALL ==
-		    ioread32(priv->base + FTGMAC100_OFFSET_IER))
-			iowrite32(FTGMAC100_INT_ALL | FTGMAC100_INT_XPKT_ETH,
+		if (FTGMAC100_INT_ALL == ier)
+			iowrite32(ier | FTGMAC100_INT_XPKT_ETH,
 				  priv->base + FTGMAC100_OFFSET_IER);
 	}
 
