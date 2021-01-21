@@ -19,23 +19,7 @@
 
 #include "aspeed-espi-ctrl.h"
 
-struct aspeed_espi_ctrl {
-	struct device *dev;
 
-	struct regmap *map;
-	struct clk *clk;
-	struct reset_control *rst;
-
-	int irq;
-	int irq_rst;
-
-	struct aspeed_espi_perif *perif;
-	struct aspeed_espi_vw *vw;
-	struct aspeed_espi_oob *oob;
-	struct aspeed_espi_flash *flash;
-
-	uint32_t version;
-};
 
 /* include alloc/free/event/ioctl handlers of eSPI channels */
 #include "aspeed-espi-perif.h"
