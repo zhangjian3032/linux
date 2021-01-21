@@ -100,6 +100,9 @@
  * Software setting
  *********************************************************/
 #define DEFAULT_TARGET_PWM_FREQ		25000
+#define DEFAULT_DUTY_PT 10
+#define DEFAULT_WDT_RELOAD_DUTY_PT 16
+#define DEFAULT_FAN_MIN_RPM 1000
 #define DEFAULT_FAN_PULSE_PR 2
 #define MAX_CDEV_NAME_LEN 16
 
@@ -111,14 +114,15 @@ struct aspeed_pwm_channel_params {
 	bool wdt_reload_enable;
 };
 
-
 struct aspeed_tacho_channel_params {
 	int limited_inverse;
 	u16 threshold;
 	u8	tacho_edge;
 	u8	tacho_debounce;
 	u8  pulse_pr;
-	u32	divide;
+	u32 min_rpm;
+	u32 divide;
+	u32 sample_period; /* unit is us */
 };
 
 struct aspeed_pwm_tachometer_data {
@@ -510,8 +514,10 @@ static void aspeed_create_pwm_channel(struct aspeed_pwm_tachometer_data *priv,
 	aspeed_set_pwm_channel_fan_ctrl(priv, pwm_channel, priv->pwm_channel[pwm_channel].duty_pt);
 }
 
-static void aspeed_create_fan_tach_channel(struct aspeed_pwm_tachometer_data *priv,
-					   u8 *fan_tach_ch, int count, u32 fan_pulse_pr, u32 tacho_div)
+static void
+aspeed_create_fan_tach_channel(struct aspeed_pwm_tachometer_data *priv,
+			       u8 *fan_tach_ch, int count, u32 fan_pulse_pr,
+			       u32 fan_min_rpm, u32 tacho_div)
 {
 	u8 val, index;
 
@@ -519,6 +525,11 @@ static void aspeed_create_fan_tach_channel(struct aspeed_pwm_tachometer_data *pr
 		index = fan_tach_ch[val];
 		priv->fan_tach_present[index] = true;
 		priv->tacho_channel[index].pulse_pr = fan_pulse_pr;
+		priv->tacho_channel[index].min_rpm = fan_min_rpm;
+		priv->tacho_channel[index].limited_inverse = 0;
+		priv->tacho_channel[index].threshold = 0;
+		priv->tacho_channel[index].tacho_edge = F2F_EDGES;
+		priv->tacho_channel[index].tacho_debounce = DEBOUNCE_3_CLK;
 		aspeed_set_fan_tach_ch_enable(priv, index, true, tacho_div);
 	}
 }
@@ -615,10 +626,9 @@ static int aspeed_pwm_create_fan(struct device *dev,
 			     struct aspeed_pwm_tachometer_data *priv)
 {
 	u8 *fan_tach_ch;
-	u32 fan_pulse_pr;
+	u32 fan_pulse_pr, fan_min_rpm;
 	u32 tacho_div;
 	u32 pwm_channel;
-	u32 target_pwm_freq = 0;
 	int ret, count;
 
 	ret = of_property_read_u32(child, "reg", &pwm_channel);
@@ -672,11 +682,16 @@ static int aspeed_pwm_create_fan(struct device *dev,
 	if (ret)
 		fan_pulse_pr = DEFAULT_FAN_PULSE_PR;
 
+	ret = of_property_read_u32(child, "aspeed,min-rpm", &fan_min_rpm);
+	if (ret)
+		fan_min_rpm = DEFAULT_FAN_MIN_RPM;
+
 	ret = of_property_read_u32(child, "aspeed,tacho-div", &tacho_div);
 	if (ret)
 		tacho_div = DEFAULT_TACHO_DIV;
-	
-	aspeed_create_fan_tach_channel(priv, fan_tach_ch, count, fan_pulse_pr, tacho_div);
+
+	aspeed_create_fan_tach_channel(priv, fan_tach_ch, count, fan_pulse_pr,
+				       fan_min_rpm, tacho_div);
 
 	return 0;
 }
