@@ -236,14 +236,6 @@ static unsigned int aspeed_jtag_get_freq(struct aspeed_jtag_info *aspeed_jtag)
 
 }
 /******************************************************************************/
-static void dummy(struct aspeed_jtag_info *aspeed_jtag, unsigned int cnt)
-{
-	int i = 0;
-
-	for (i = 0; i < cnt; i++)
-		aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW);
-}
-
 static u8 TCK_Cycle(struct aspeed_jtag_info *aspeed_jtag, u8 TMS, u8 TDI)
 {
 	u8 tdo;
