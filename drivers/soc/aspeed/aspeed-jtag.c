@@ -248,17 +248,23 @@ static u8 TCK_Cycle(struct aspeed_jtag_info *aspeed_jtag, u8 TMS, u8 TDI)
 {
 	u8 tdo;
 
+	/* IEEE 1149.1
+	 * TMS & TDI shall be sampled by the test logic on the rising edge
+	 * test logic shall change TDO on the falling edge
+	 */
 	// TCK = 0
 	aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | (TMS * JTAG_SW_MODE_TMS) | (TDI * JTAG_SW_MODE_TDIO), ASPEED_JTAG_SW);
 
-	dummy(aspeed_jtag, 10);
+	/* tdo will have a little latency after tck falling. 
+		In our experiment with lattice cpld it about 10~20ns, 
+		so we add 1us delay to covery the issue. */
+	udelay(1);
 
 	if (aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW) & JTAG_SW_MODE_TDIO)
 		tdo = 1;
 	else
 		tdo = 0;
 
-	dummy(aspeed_jtag, 10);
 	// TCK = 1
 	aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TCK | (TMS * JTAG_SW_MODE_TMS) | (TDI * JTAG_SW_MODE_TDIO), ASPEED_JTAG_SW);
 
