@@ -19,6 +19,7 @@ obj-$(CONFIG_ASPEED_VIDEO)	+= ast_video.o
 			     aspeed-espi-flash.o #\
 			     aspeed-espi-mmbi.o
 obj-$(CONFIG_ASPEED_ESPI)	+= aspeed-espi-ctrl.o
+obj-$(CONFIG_ASPEED_ESPI_MMBI)	+= aspeed-espi-mmbi.o
 obj-$(CONFIG_ASPEED_JTAG)	+= aspeed-jtag.o
 obj-$(CONFIG_ASPEED_SSP)        += aspeed-ssp.o
 obj-$(CONFIG_ASPEED_UART_ROUTING)	+= aspeed-uart-routing.o
