@@ -89,6 +89,12 @@ config ASPEED_ESPI
 	  namely peripheral, virtual wire, out-of-band, and flash are
 	  supported.
 
+config ASPEED_ESPI_MMBI
+	tristate "Aspeed eSPI MMBI Driver"
+	depends on ASPEED_ESPI
+	help
+	  Control Aspeed eSPI MMBI driver
+
 config ASPEED_XDMA
 	tristate "ASPEED XDMA Driver"
 	default n

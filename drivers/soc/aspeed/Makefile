@@ -14,6 +14,7 @@ obj-$(CONFIG_ASPEED_MCTP)	+= aspeed-mctp.o
 obj-$(CONFIG_ASPEED_UDMA)	+= aspeed-udma.o
 obj-$(CONFIG_ASPEED_VIDEO)	+= ast_video.o
 obj-$(CONFIG_ASPEED_ESPI)	+= aspeed-espi-ctrl.o
+obj-$(CONFIG_ASPEED_ESPI_MMBI)	+= aspeed-espi-mmbi.o
 obj-$(CONFIG_ASPEED_SSP)        += aspeed-ssp.o
 obj-$(CONFIG_ASPEED_BMC_DEV)	+= aspeed-bmc-dev.o
 obj-$(CONFIG_ASPEED_HOST_BMC)	+= aspeed-host-bmc-dev.o
