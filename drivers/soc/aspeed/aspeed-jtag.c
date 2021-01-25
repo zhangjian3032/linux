@@ -185,6 +185,7 @@ struct aspeed_jtag_info {
 	struct reset_control		*reset;
 	struct clk			*clk;
 	u32				clkin;	// ast2600 use hclk, old use pclk
+	u32				sw_delay; /* unit is ns */
 	u32				flag;
 	wait_queue_head_t		jtag_wq;
 	bool				is_open;
@@ -219,11 +220,31 @@ aspeed_jtag_write(struct aspeed_jtag_info *aspeed_jtag, u32 val, u32 reg)
 /******************************************************************************/
 static void aspeed_jtag_set_freq(struct aspeed_jtag_info *aspeed_jtag, unsigned int freq)
 {
-	int div;
+	int div, diff;
 
-	for (div = 0; div < JTAG_TCK_DIVISOR_MASK; div++) {
-		if ((aspeed_jtag->clkin / (div + 1)) <= freq)
-			break;
+	/* SW mode frequency setting */
+	aspeed_jtag->sw_delay = DIV_ROUND_UP(1000000000, freq);
+	JTAG_DBUG("sw mode delay = %d \n", aspeed_jtag->sw_delay);
+	/* HW mode frequency setting */
+	div = DIV_ROUND_UP(aspeed_jtag->clkin, freq);
+	diff = abs(aspeed_jtag->clkin - div * freq);
+	if (diff > abs(aspeed_jtag->clkin - (div - 1) * freq))
+		div = div - 1;
+	/* JTAG clock frequency formaula = Clock in / (TCK divisor + 1) */
+	if (div >= 1)
+		div = div - 1;
+	JTAG_DBUG("%d target freq = %d div = %d", aspeed_jtag->clkin, freq, div);
+	/* 
+	 * HW constraint:
+	 * AST2600 minimal TCK divisor = 7 
+	 * AST2500 minimal TCK divisor = 1
+	 */
+	if (aspeed_jtag->config->jtag_version == 6) {
+		if (div < 7)
+			div = 7;
+	} else if (aspeed_jtag->config->jtag_version == 0) {
+		if (div < 1)
+			div = 1;
 	}
 	JTAG_DBUG("set div = %x \n", div);
 
@@ -232,8 +253,22 @@ static void aspeed_jtag_set_freq(struct aspeed_jtag_info *aspeed_jtag, unsigned 
 
 static unsigned int aspeed_jtag_get_freq(struct aspeed_jtag_info *aspeed_jtag)
 {
-	return aspeed_jtag->clkin / (JTAG_GET_TCK_DIVISOR(aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_TCK)) + 1);
-
+	unsigned int freq;
+	if (aspeed_jtag->config->jtag_version == 6) {
+		/* TCK period = Period of PCLK * (JTAG14[10:0] + 1) */
+		freq = aspeed_jtag->clkin /
+		       (JTAG_GET_TCK_DIVISOR(aspeed_jtag_read(
+				aspeed_jtag, ASPEED_JTAG_TCK)) + 1);
+	} else if (aspeed_jtag->config->jtag_version == 0) {
+		/* TCK period = Period of PCLK * (JTAG14[10:0] + 1) * 2 */
+		freq = (aspeed_jtag->clkin /
+			(JTAG_GET_TCK_DIVISOR(aspeed_jtag_read(
+				 aspeed_jtag, ASPEED_JTAG_TCK)) +1)) >> 1;
+	} else {
+		/* unknown jtag version */
+		freq = 0;
+	}
+	return freq;
 }
 /******************************************************************************/
 static u8 TCK_Cycle(struct aspeed_jtag_info *aspeed_jtag, u8 TMS, u8 TDI)
@@ -247,18 +282,18 @@ static u8 TCK_Cycle(struct aspeed_jtag_info *aspeed_jtag, u8 TMS, u8 TDI)
 	// TCK = 0
 	aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | (TMS * JTAG_SW_MODE_TMS) | (TDI * JTAG_SW_MODE_TDIO), ASPEED_JTAG_SW);
 
-	/* tdo will have a little latency after tck falling. 
-		In our experiment with lattice cpld it about 10~20ns, 
-		so we add 1us delay to covery the issue. */
-	udelay(1);
+	/* Target device have their operating frequency*/
+	ndelay(aspeed_jtag->sw_delay);
 
+	// TCK = 1
+	aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TCK | (TMS * JTAG_SW_MODE_TMS) | (TDI * JTAG_SW_MODE_TDIO), ASPEED_JTAG_SW);
+
+	ndelay(aspeed_jtag->sw_delay);
+	/* Sampled TDI(slave, master's TDO) on the rising edge */
 	if (aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW) & JTAG_SW_MODE_TDIO)
 		tdo = 1;
 	else
 		tdo = 0;
-
-	// TCK = 1
-	aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TCK | (TMS * JTAG_SW_MODE_TMS) | (TDI * JTAG_SW_MODE_TDIO), ASPEED_JTAG_SW);
 
 	return tdo;
 }
