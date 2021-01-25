@@ -225,6 +225,18 @@ static void aspeed_jtag_set_freq(struct aspeed_jtag_info *aspeed_jtag, unsigned 
 		if ((aspeed_jtag->clkin / (div + 1)) <= freq)
 			break;
 	}
+	/* 
+	 * HW constraint:
+	 * AST2600 minimal divide = 7 
+	 * AST2500 minimal divide = 1
+	 */
+	if (aspeed_jtag->config->jtag_version == 6) {
+		if (div < 7)
+			div = 7;
+	} else if (aspeed_jtag->config->jtag_version == 0) {
+		if (div < 1)
+			div = 1;
+	}
 	JTAG_DBUG("set div = %x \n", div);
 
 	aspeed_jtag_write(aspeed_jtag, ((aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_TCK) & ~JTAG_TCK_DIVISOR_MASK) | div),  ASPEED_JTAG_TCK);
