@@ -185,6 +185,7 @@ struct aspeed_jtag_info {
 	struct reset_control		*reset;
 	struct clk			*clk;
 	u32				clkin;	// ast2600 use hclk, old use pclk
+	u32				sw_delay; /* unit is ns */
 	u32				flag;
 	wait_queue_head_t		jtag_wq;
 	bool				is_open;
@@ -225,6 +226,8 @@ static void aspeed_jtag_set_freq(struct aspeed_jtag_info *aspeed_jtag, unsigned 
 		if ((aspeed_jtag->clkin / (div + 1)) <= freq)
 			break;
 	}
+	aspeed_jtag->sw_delay = DIV_ROUND_UP(1000000000 , freq);
+	JTAG_DBUG("sw mode delay = %d \n", aspeed_jtag->sw_delay);
 	/* 
 	 * HW constraint:
 	 * AST2600 minimal divide = 7 
@@ -270,18 +273,18 @@ static u8 TCK_Cycle(struct aspeed_jtag_info *aspeed_jtag, u8 TMS, u8 TDI)
 	// TCK = 0
 	aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | (TMS * JTAG_SW_MODE_TMS) | (TDI * JTAG_SW_MODE_TDIO), ASPEED_JTAG_SW);
 
-	/* tdo will have a little latency after tck falling. 
-		In our experiment with lattice cpld it about 10~20ns, 
-		so we add 1us delay to covery the issue. */
-	udelay(1);
+	/* Target device have their operating frequency*/
+	ndelay(aspeed_jtag->sw_delay);
 
+	// TCK = 1
+	aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TCK | (TMS * JTAG_SW_MODE_TMS) | (TDI * JTAG_SW_MODE_TDIO), ASPEED_JTAG_SW);
+
+	ndelay(aspeed_jtag->sw_delay);
+	/* Sampled TDI(slave, master's TDO) on the rising edge */
 	if (aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW) & JTAG_SW_MODE_TDIO)
 		tdo = 1;
 	else
 		tdo = 0;
-
-	// TCK = 1
-	aspeed_jtag_write(aspeed_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TCK | (TMS * JTAG_SW_MODE_TMS) | (TDI * JTAG_SW_MODE_TDIO), ASPEED_JTAG_SW);
 
 	return tdo;
 }
