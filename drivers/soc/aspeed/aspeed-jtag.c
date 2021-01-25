@@ -258,6 +258,9 @@ static unsigned int aspeed_jtag_get_freq(struct aspeed_jtag_info *aspeed_jtag)
 		freq = (aspeed_jtag->clkin /
 			(JTAG_GET_TCK_DIVISOR(aspeed_jtag_read(
 				 aspeed_jtag, ASPEED_JTAG_TCK)) +1)) >> 1;
+	} else {
+		/* unknown jtag version */
+		freq = 0;
 	}
 	return freq;
 }
