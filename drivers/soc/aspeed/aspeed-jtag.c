@@ -244,8 +244,19 @@ static void aspeed_jtag_set_freq(struct aspeed_jtag_info *aspeed_jtag, unsigned 
 
 static unsigned int aspeed_jtag_get_freq(struct aspeed_jtag_info *aspeed_jtag)
 {
-	return aspeed_jtag->clkin / (JTAG_GET_TCK_DIVISOR(aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_TCK)) + 1);
-
+	unsigned int freq;
+	if (aspeed_jtag->config->jtag_version == 6) {
+		/* TCK period = Period of PCLK * (JTAG14[10:0] + 1) */
+		freq = aspeed_jtag->clkin /
+		       (JTAG_GET_TCK_DIVISOR(aspeed_jtag_read(
+				aspeed_jtag, ASPEED_JTAG_TCK)) + 1);
+	} else if (aspeed_jtag->config->jtag_version == 0) {
+		/* TCK period = Period of PCLK * (JTAG14[10:0] + 1) * 2 */
+		freq = (aspeed_jtag->clkin /
+			(JTAG_GET_TCK_DIVISOR(aspeed_jtag_read(
+				 aspeed_jtag, ASPEED_JTAG_TCK)) +1)) >> 1;
+	}
+	return freq;
 }
 /******************************************************************************/
 static u8 TCK_Cycle(struct aspeed_jtag_info *aspeed_jtag, u8 TMS, u8 TDI)
