@@ -69,9 +69,9 @@ struct aspeed_h2x_info *aspeed_h2x;
 extern u8 aspeed_pcie_inb(u32 addr)
 {
 	int timeout = 0;
-	printk("aspeed_pcie_inb addr %x \n", addr);
 	void __iomem *pcie_rc_base = aspeed_h2x->reg_base + 0xc0;
-
+	
+	printk("aspeed_pcie_inb addr %x \n", addr);
 	writel(BIT(4) | readl(pcie_rc_base), pcie_rc_base);
 
 	writel(0x02000001, aspeed_h2x->reg_base + 0x10);

@@ -126,7 +126,7 @@
 	phy-handle = <&ethphy0>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_mac1link_default>;
+	pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_maclink1_default>;
 };
 
 &mdio1 {
@@ -145,7 +145,7 @@
 	phy-handle = <&ethphy1>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mac2link_default>;
+	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_maclink2_default>;
 };
 
 &mdio2 {
@@ -164,7 +164,7 @@
 	phy-handle = <&ethphy2>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_mac3link_default>;
+	pinctrl-0 = <&pinctrl_rgmii3_default &pinctrl_maclink3_default>;
 };
 
 &mdio3 {
@@ -183,7 +183,7 @@
 	phy-handle = <&ethphy3>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_mac4link_default>;
+	pinctrl-0 = <&pinctrl_rgmii4_default &pinctrl_maclink4_default>;
 };
 
 &uart1 {
@@ -315,7 +315,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@1 {
@@ -323,7 +323,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x01>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@2 {
@@ -331,7 +331,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x02>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@3 {
@@ -339,7 +339,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x03>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@4 {
@@ -347,7 +347,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x04>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@5 {
@@ -355,7 +355,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x05>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@6 {
@@ -363,7 +363,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x06>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@7 {
@@ -371,7 +371,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x07>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@8 {
@@ -379,7 +379,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x08>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@9 {
@@ -387,7 +387,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x09>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@10 {
@@ -395,7 +395,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0a>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@11 {
@@ -403,7 +403,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0b>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@12 {
@@ -411,7 +411,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0c>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@13 {
@@ -419,7 +419,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0d>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@14 {
@@ -427,7 +427,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0e>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 
 	fan@15 {
@@ -435,7 +435,7 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0f>;
-		aspeed,min_rpm = <2000>;
+		aspeed,pulse-pr = <2>;
 	};
 };
 
@@ -789,33 +789,19 @@
 
 };
 
-&espi {
+&espi_ctrl {
 	status = "okay";
 
-	resets = <&syscon ASPEED_RESET_ESPI>;
-	delay-timing = <0x7>;
-};
-#if 0
-&espi_mmbi {
-	status = "okay";
-};
-#endif
-&peripheral {
-	status = "okay";
-	host-map-addr = <0x98000000>;
-	map-size = <0x10000>;
-};
+	perif,memcyc-src-addr = <0x98000000>;
+	perif,memcyc-size = <0x10000>;
+	perif,dma-mode;
 
-&virtial_wire {
-	status = "okay";
-};
+	oob,dma-mode;
+	oob,dma-tx-desc-num = <0x2>;
+	oob,dma-rx-desc-num = <0x8>;
 
-&oob {
-	status = "okay";
-};
-
-&flash {
-	status = "okay";
+	flash,dma-mode;
+	flash,safs-mode = <0x2>;
 };
 
 &hace {

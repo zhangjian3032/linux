@@ -19,61 +19,62 @@
 
 #define DEVICE_NAME "aspeed-lpc-pcc"
 
-#define LHCR5	0x34
-#define LHCR6	0x38
-#define LHCRA	0x48
-#define 	LHCRA_PAT_A_LEN_MASK	GENMASK(18, 17)
-#define 	LHCRA_PAT_A_LEN_SHIFT	17
-#define 	LHCRA_PAT_A_WRITE	BIT(16)
-#define 	LHCRA_PAT_A_ADDR_MASK	GENMASK(15, 0)
-#define 	LHCRA_PAT_A_ADDR_SHIFT	0
-#define LHCRB	0x4C
-#define 	LHCRB_PAT_B_LEN_MASK	GENMASK(18, 17)
-#define 	LHCRB_PAT_B_LEN_SHIFT	17
-#define 	LHCRB_PAT_B_WRITE	BIT(16)
-#define 	LHCRB_PAT_B_ADDR_MASK	GENMASK(15, 0)
-#define 	LHCRB_PAT_B_ADDR_SHIFT	0
-#define PCCR6	0x44
-#define PCCR4	0x50
-#define PCCR5	0x54
-#define PCCR0	0xB0
-#define 	PCCR0_EN_DMA_INT	BIT(31)
-#define 	PCCR0_EN_PAT_B_INT	BIT(23)
-#define 	PCCR0_EN_PAT_B		BIT(22)
-#define 	PCCR0_EN_PAT_A_INT	BIT(21)
-#define 	PCCR0_EN_PAT_A		BIT(20)
-#define 	PCCR0_EN_DMA_MODE	BIT(14)
-#define 	PCCR0_ADDR_SEL_MASK	GENMASK(13, 12)
-#define 	PCCR0_ADDR_SEL_SHIFT	12
-#define 	PCCR0_RX_TRIG_LVL_MASK	GENMASK(10, 8)
-#define 	PCCR0_RX_TRIG_LVL_SHIFT	8
-#define 	PCCR0_CLR_RX_FIFO	BIT(7)
-#define 	PCCR0_MODE_SEL_MASK	GENMASK(5, 4)
-#define 	PCCR0_MODE_SEL_SHIFT	4
-#define 	PCCR0_EN_RX_OVR_INT	BIT(3)
-#define 	PCCR0_EN_RX_TMOUT_INT	BIT(2)
-#define 	PCCR0_EN_RX_AVAIL_INT	BIT(1)
-#define 	PCCR0_EN		BIT(0)
-#define PCCR1	0xB4
-#define 	PCCR1_BASE_ADDR_MASK		GENMASK(15, 0)
-#define 	PCCR1_BASE_ADDR_SHIFT		0
-#define 	PCCR1_DONT_CARE_BITS_MASK	GENMASK(21, 16)
-#define 	PCCR1_DONT_CARE_BITS_SHIFT	16
-#define PCCR2	0xB8
-#define 	PCCR2_PAT_B_RST		BIT(17)
-#define 	PCCR2_PAT_B_INT		BIT(16)
-#define 	PCCR2_PAT_A_RST		BIT(9)
-#define 	PCCR2_PAT_A_INT		BIT(8)
-#define 	PCCR2_DMA_DONE		BIT(4)
-#define 	PCCR2_RX_OVR_INT	BIT(3)
-#define 	PCCR2_RX_TMOUT_INT	BIT(2)
-#define 	PCCR2_RX_AVAIL_INT	BIT(1)
-#define PCCR3	0xBC
-#define 	PCCR3_DATA_RDY		BIT(23)
-#define 	PCCR3_FIFO_DATA_MASK	GENMASK(7, 0)
+#define LHCR5	0x0b4
+#define LHCR6	0x0b8
+#define PCCR6	0x0c4
+#define LHCRA	0x0c8
+#define   LHCRA_PAT_A_LEN_MASK		GENMASK(18, 17)
+#define   LHCRA_PAT_A_LEN_SHIFT		17
+#define   LHCRA_PAT_A_WRITE		BIT(16)
+#define   LHCRA_PAT_A_ADDR_MASK		GENMASK(15, 0)
+#define   LHCRA_PAT_A_ADDR_SHIFT	0
+#define LHCRB	0x0cc
+#define   LHCRB_PAT_B_LEN_MASK		GENMASK(18, 17)
+#define   LHCRB_PAT_B_LEN_SHIFT		17
+#define   LHCRB_PAT_B_WRITE		BIT(16)
+#define   LHCRB_PAT_B_ADDR_MASK		GENMASK(15, 0)
+#define   LHCRB_PAT_B_ADDR_SHIFT	0
+#define PCCR4	0x0d0
+#define PCCR5	0x0d4
+#define PCCR0	0x130
+#define   PCCR0_EN_DMA_INT		BIT(31)
+#define   PCCR0_EN_PAT_B_INT		BIT(23)
+#define   PCCR0_EN_PAT_B		BIT(22)
+#define   PCCR0_EN_PAT_A_INT		BIT(21)
+#define   PCCR0_EN_PAT_A		BIT(20)
+#define   PCCR0_EN_DMA_MODE		BIT(14)
+#define   PCCR0_ADDR_SEL_MASK		GENMASK(13, 12)
+#define   PCCR0_ADDR_SEL_SHIFT		12
+#define   PCCR0_RX_TRIG_LVL_MASK	GENMASK(10, 8)
+#define   PCCR0_RX_TRIG_LVL_SHIFT	8
+#define   PCCR0_CLR_RX_FIFO		BIT(7)
+#define   PCCR0_MODE_SEL_MASK		GENMASK(5, 4)
+#define   PCCR0_MODE_SEL_SHIFT		4
+#define   PCCR0_EN_RX_OVR_INT		BIT(3)
+#define   PCCR0_EN_RX_TMOUT_INT		BIT(2)
+#define   PCCR0_EN_RX_AVAIL_INT		BIT(1)
+#define   PCCR0_EN			BIT(0)
+#define PCCR1	0x134
+#define   PCCR1_BASE_ADDR_MASK		GENMASK(15, 0)
+#define   PCCR1_BASE_ADDR_SHIFT		0
+#define   PCCR1_DONT_CARE_BITS_MASK	GENMASK(21, 16)
+#define   PCCR1_DONT_CARE_BITS_SHIFT	16
+#define PCCR2	0x138
+#define   PCCR2_PAT_B_RST		BIT(17)
+#define   PCCR2_PAT_B_INT		BIT(16)
+#define   PCCR2_PAT_A_RST		BIT(9)
+#define   PCCR2_PAT_A_INT		BIT(8)
+#define   PCCR2_DMA_DONE		BIT(4)
+#define   PCCR2_DATA_RDY		PCCR2_DMA_DONE
+#define   PCCR2_RX_OVR_INT		BIT(3)
+#define   PCCR2_RX_TMOUT_INT		BIT(2)
+#define   PCCR2_RX_AVAIL_INT		BIT(1)
+#define PCCR3	0x13c
+#define   PCCR3_DATA_RDY		BIT(23)
+#define   PCCR3_FIFO_DATA_MASK		GENMASK(7, 0)
 
 #define PCC_DMA_MAX_BUFSZ	(PAGE_SIZE)
-#define PCC_MAX_PATNM	2
+#define PCC_MAX_PATNM		2
 
 enum pcc_fifo_threshold {
 	PCC_FIFO_THR_1_BYTE,
@@ -205,7 +206,6 @@ static void aspeed_pcc_dma_tasklet(unsigned long arg)
 	u32 reg;
 	u32 pre_dma_idx;
 	u32 cur_dma_idx;
-	
 	u8 has_data = 0;
 
 	struct aspeed_pcc *pcc = (struct aspeed_pcc*)arg;
@@ -278,7 +278,10 @@ static irqreturn_t aspeed_pcc_isr(int irq, void *arg)
 				if (kfifo_is_full(&pcc->fifo))
 					kfifo_skip(&pcc->fifo);
 				kfifo_put(&pcc->fifo, val & PCCR3_FIFO_DATA_MASK);
-			} while (val & PCCR3_DATA_RDY); 
+
+				if (regmap_read(pcc->regmap, PCCR2, &val))
+					break;
+			} while (val & PCCR2_DATA_RDY);
 
 			wake_up_interruptible(&pcc->wq);
 		}
@@ -378,7 +381,7 @@ static int aspeed_pcc_enable(struct aspeed_pcc *pcc, struct device *dev)
 		}
 		else {
 			pcc->dma.size = PCC_DMA_MAX_BUFSZ;
-			pcc->dma.virt = dma_alloc_coherent(NULL,
+			pcc->dma.virt = dma_alloc_coherent(dev,
 					pcc->dma.size,
 					&pcc->dma.addr,
 					GFP_KERNEL);
@@ -522,8 +525,8 @@ static int aspeed_pcc_probe(struct platform_device *pdev)
 	/* optional, by default: 0 -> no don't care bits */
 	of_property_read_u32(dev->of_node, "port-addr-xbits", &pcc->port_xbits);
 
-	/* 
-	 * optional, by default: 0 -> no high address bits 
+	/*
+	 * optional, by default: 0 -> no high address bits
 	 *
 	 * Note that when record mode is set to 1-Byte, this
 	 * property is ignored and the corresponding HW bits
@@ -599,6 +602,9 @@ static int aspeed_pcc_probe(struct platform_device *pdev)
 
 	pcc->dev = dev;
 	dev_set_drvdata(&pdev->dev, pcc);
+
+	dev_info(dev, "module loaded\n");
+
 	return 0;
 }
 
@@ -617,7 +623,7 @@ static const struct of_device_id aspeed_pcc_table[] = {
 
 static struct platform_driver aspeed_pcc_driver = {
 	.driver = {
-		.name = "aseepd-pcc",
+		.name = "aspeed-pcc",
 		.of_match_table = aspeed_pcc_table,
 	},
 	.probe = aspeed_pcc_probe,

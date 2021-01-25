@@ -22,10 +22,25 @@
 #define RVAS_VIDEO_DEBUG
 #endif
 
+#if 0
+#define VIDEO_ENGINE_DEBUG
+#endif
+
+#if 0
+#define HARDWARE_ENGINE_DEBUG
+#endif
+
+
 #ifdef RVAS_VIDEO_DEBUG
 #define VIDEO_DBG(fmt, args...) do { printk(KERN_INFO "%s() " fmt,__FUNCTION__, ## args); } while (0)
 #else
 #define VIDEO_DBG(fmt, args...) do ; while (0)
+#endif // RVAS_VIDEO_DEBUG
+
+#ifdef VIDEO_ENGINE_DEBUG
+#define VIDEO_ENG_DBG(fmt, args...) do { printk(KERN_INFO "%s() " fmt,__FUNCTION__, ## args); } while (0)
+#else
+#define VIDEO_ENG_DBG(fmt, args...) do ; while (0)
 #endif // RVAS_VIDEO_DEBUG
 
 

@@ -60,7 +60,7 @@
 #define COND2		{ ASPEED_IP_SCU, SCU94, GENMASK(1, 0), 0, 0 }
 
 /* LHCR0 is offset from the end of the H8S/2168-compatible registers */
-#define LHCR0		0x20
+#define LHCR0		0xa0
 #define GFX064		0x64
 
 #define B14 0
@@ -614,6 +614,8 @@ PIN_DECL_1(N3, GPIOJ2, SGPMO);
 SIG_EXPR_LIST_DECL_SINGLE(N4, SGPMI, SGPM, SIG_DESC_SET(SCU84, 11));
 PIN_DECL_1(N4, GPIOJ3, SGPMI);
 
+FUNC_GROUP_DECL(SGPM, R2, L2, N3, N4);
+
 #define N5 76
 SIG_EXPR_LIST_DECL_SINGLE(N5, VGAHS, VGAHS, SIG_DESC_SET(SCU84, 12));
 SIG_EXPR_LIST_DECL_SINGLE(N5, DASHN5, DASHN5, SIG_DESC_SET(SCU94, 8));
@@ -885,43 +887,43 @@ SIG_EXPR_LIST_DECL_SINGLE(AB4, DASHAB4, DASHAB4, VPI_24_RSVD_DESC,
 PIN_DECL_1(AB4, GPIOO3, DASHAB4);
 
 #define AB3 116
-SIG_EXPR_LIST_DECL_SINGLE(AB3, VPIR2, VPI24, VPI24_DESC, SIG_DESC_SET(SCU88, 12),
-			  COND2);
+SIG_EXPR_LIST_DECL_SINGLE(AB3, VPIR2, VPI24, VPI24_DESC,
+			  SIG_DESC_SET(SCU88, 12), COND2);
 PIN_DECL_1(AB3, GPIOO4, VPIR2);
 
 #define Y4 117
-SIG_EXPR_LIST_DECL_SINGLE(Y4, VPIR3, VPI24, VPI24_DESC, SIG_DESC_SET(SCU88, 13),
-			  COND2);
+SIG_EXPR_LIST_DECL_SINGLE(Y4, VPIR3, VPI24, VPI24_DESC,
+			  SIG_DESC_SET(SCU88, 13), COND2);
 PIN_DECL_1(Y4, GPIOO5, VPIR3);
 
 #define AA4 118
-SIG_EXPR_LIST_DECL_SINGLE(AA4, VPIR4, VPI24, VPI24_DESC, SIG_DESC_SET(SCU88, 14),
-			  COND2);
+SIG_EXPR_LIST_DECL_SINGLE(AA4, VPIR4, VPI24, VPI24_DESC,
+			  SIG_DESC_SET(SCU88, 14), COND2);
 PIN_DECL_1(AA4, GPIOO6, VPIR4);
 
 #define W4 119
-SIG_EXPR_LIST_DECL_SINGLE(W4, VPIR5, VPI24, VPI24_DESC, SIG_DESC_SET(SCU88, 15),
-			  COND2);
+SIG_EXPR_LIST_DECL_SINGLE(W4, VPIR5, VPI24, VPI24_DESC,
+			  SIG_DESC_SET(SCU88, 15), COND2);
 PIN_DECL_1(W4, GPIOO7, VPIR5);
 
 #define V4 120
-SIG_EXPR_LIST_DECL_SINGLE(V4, VPIR6, VPI24, VPI24_DESC, SIG_DESC_SET(SCU88, 16),
-			  COND2);
+SIG_EXPR_LIST_DECL_SINGLE(V4, VPIR6, VPI24, VPI24_DESC,
+			  SIG_DESC_SET(SCU88, 16), COND2);
 PIN_DECL_1(V4, GPIOP0, VPIR6);
 
 #define W5 121
-SIG_EXPR_LIST_DECL_SINGLE(W5, VPIR7, VPI24, VPI24_DESC, SIG_DESC_SET(SCU88, 17),
-			  COND2);
+SIG_EXPR_LIST_DECL_SINGLE(W5, VPIR7, VPI24, VPI24_DESC,
+			  SIG_DESC_SET(SCU88, 17), COND2);
 PIN_DECL_1(W5, GPIOP1, VPIR7);
 
 #define AA5 122
-SIG_EXPR_LIST_DECL_SINGLE(AA5, VPIR8, VPI24, VPI24_DESC, SIG_DESC_SET(SCU88, 18),
-			  COND2);
+SIG_EXPR_LIST_DECL_SINGLE(AA5, VPIR8, VPI24, VPI24_DESC,
+			  SIG_DESC_SET(SCU88, 18), COND2);
 PIN_DECL_1(AA5, GPIOP2, VPIR8);
 
 #define AB5 123
-SIG_EXPR_LIST_DECL_SINGLE(AB5, VPIR9, VPI24, VPI24_DESC, SIG_DESC_SET(SCU88, 19),
-			  COND2);
+SIG_EXPR_LIST_DECL_SINGLE(AB5, VPIR9, VPI24, VPI24_DESC,
+			  SIG_DESC_SET(SCU88, 19), COND2);
 PIN_DECL_1(AB5, GPIOP3, VPIR9);
 
 FUNC_GROUP_DECL(VPI24, T1, U2, P4, P3, Y1, AB2, AA1, Y2, AA2, P5, R5, T5, V3,
@@ -1488,8 +1490,9 @@ SIG_EXPR_DECL_SINGLE(SIOPWRGD, ACPI, AB20_DESC);
 SIG_EXPR_LIST_DECL_DUAL(AB20, SIOPWRGD, SIOPWRGD, ACPI);
 SIG_EXPR_LIST_DECL_SINGLE(AB20, NORA1, PNOR, PNOR_DESC);
 SIG_EXPR_LIST_DECL_SINGLE(AB20, GPIOZ1, GPIOZ1);
-PIN_DECL_(AB20, SIG_EXPR_LIST_PTR(AB20, VPOG3), SIG_EXPR_LIST_PTR(AB20, SIOPWRGD),
-		SIG_EXPR_LIST_PTR(AB20, NORA1), SIG_EXPR_LIST_PTR(AB20, GPIOZ1));
+PIN_DECL_(AB20, SIG_EXPR_LIST_PTR(AB20, VPOG3),
+	  SIG_EXPR_LIST_PTR(AB20, SIOPWRGD), SIG_EXPR_LIST_PTR(AB20, NORA1),
+	  SIG_EXPR_LIST_PTR(AB20, GPIOZ1));
 FUNC_GROUP_DECL(SIOPWRGD, AB20);
 
 #define AB21 202
@@ -1507,8 +1510,9 @@ SIG_EXPR_DECL_SINGLE(SIOPBO, ACPI, AB21_DESC);
 SIG_EXPR_LIST_DECL_DUAL(AB21, SIOPBO, SIOPBO, ACPI);
 SIG_EXPR_LIST_DECL_SINGLE(AB21, NORA2, PNOR, PNOR_DESC);
 SIG_EXPR_LIST_DECL_SINGLE(AB21, GPIOZ2, GPIOZ2);
-PIN_DECL_(AB21, SIG_EXPR_LIST_PTR(AB21, VPOG4), SIG_EXPR_LIST_PTR(AB21, SIOPBO),
-		SIG_EXPR_LIST_PTR(AB21, NORA2), SIG_EXPR_LIST_PTR(AB21, GPIOZ2));
+PIN_DECL_(AB21, SIG_EXPR_LIST_PTR(AB21, VPOG4),
+	  SIG_EXPR_LIST_PTR(AB21, SIOPBO), SIG_EXPR_LIST_PTR(AB21, NORA2),
+	  SIG_EXPR_LIST_PTR(AB21, GPIOZ2));
 FUNC_GROUP_DECL(SIOPBO, AB21);
 
 #define AA21 203
@@ -1526,8 +1530,9 @@ SIG_EXPR_DECL_SINGLE(SIOSCI, ACPI, AA21_DESC);
 SIG_EXPR_LIST_DECL_DUAL(AA21, SIOSCI, SIOSCI, ACPI);
 SIG_EXPR_LIST_DECL_SINGLE(AA21, NORA3, PNOR, PNOR_DESC);
 SIG_EXPR_LIST_DECL_SINGLE(AA21, GPIOZ3, GPIOZ3);
-PIN_DECL_(AA21, SIG_EXPR_LIST_PTR(AA21, VPOG5), SIG_EXPR_LIST_PTR(AA21, SIOSCI),
-		SIG_EXPR_LIST_PTR(AA21, NORA3), SIG_EXPR_LIST_PTR(AA21, GPIOZ3));
+PIN_DECL_(AA21, SIG_EXPR_LIST_PTR(AA21, VPOG5),
+	  SIG_EXPR_LIST_PTR(AA21, SIOSCI), SIG_EXPR_LIST_PTR(AA21, NORA3),
+	  SIG_EXPR_LIST_PTR(AA21, GPIOZ3));
 FUNC_GROUP_DECL(SIOSCI, AA21);
 
 FUNC_GROUP_DECL(ACPI, R22, R21, P22, P21, Y20, AB20, AB21, AA21);
@@ -1660,8 +1665,9 @@ SIG_EXPR_LIST_ALIAS(AA22, VPOR5, VPO);
 SIG_EXPR_LIST_DECL_SINGLE(AA22, SALT10, SALT10, AA22_DESC);
 SIG_EXPR_LIST_DECL_SINGLE(AA22, NORD3, PNOR, PNOR_DESC);
 SIG_EXPR_LIST_DECL_SINGLE(AA22, GPIOAA3, GPIOAA3);
-PIN_DECL_(AA22, SIG_EXPR_LIST_PTR(AA22, VPOR5), SIG_EXPR_LIST_PTR(AA22, SALT10),
-		SIG_EXPR_LIST_PTR(AA22, NORD3), SIG_EXPR_LIST_PTR(AA22, GPIOAA3));
+PIN_DECL_(AA22, SIG_EXPR_LIST_PTR(AA22, VPOR5),
+	  SIG_EXPR_LIST_PTR(AA22, SALT10), SIG_EXPR_LIST_PTR(AA22, NORD3),
+	  SIG_EXPR_LIST_PTR(AA22, GPIOAA3));
 FUNC_GROUP_DECL(SALT10, AA22);
 
 #define U22 212
@@ -2252,6 +2258,7 @@ static const struct aspeed_pin_group aspeed_g5_groups[] = {
 	ASPEED_PINCTRL_GROUP(SD2),
 	ASPEED_PINCTRL_GROUP(SDA1),
 	ASPEED_PINCTRL_GROUP(SDA2),
+	ASPEED_PINCTRL_GROUP(SGPM),
 	ASPEED_PINCTRL_GROUP(SGPS1),
 	ASPEED_PINCTRL_GROUP(SGPS2),
 	ASPEED_PINCTRL_GROUP(SIOONCTRL),
@@ -2421,6 +2428,7 @@ static const struct aspeed_pin_function aspeed_g5_functions[] = {
 	ASPEED_PINCTRL_FUNC(SD2),
 	ASPEED_PINCTRL_FUNC(SDA1),
 	ASPEED_PINCTRL_FUNC(SDA2),
+	ASPEED_PINCTRL_FUNC(SGPM),
 	ASPEED_PINCTRL_FUNC(SGPS1),
 	ASPEED_PINCTRL_FUNC(SGPS2),
 	ASPEED_PINCTRL_FUNC(SIOONCTRL),
@@ -2468,124 +2476,124 @@ static const struct aspeed_pin_function aspeed_g5_functions[] = {
 
 static struct aspeed_pin_config aspeed_g5_configs[] = {
 	/* GPIOA, GPIOQ */
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { B14, B13 }, SCU8C, 16 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { B14, B13 }, SCU8C, 16 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { A11, N20 }, SCU8C, 16 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { A11, N20 }, SCU8C, 16 },
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, B14, B13, SCU8C, 16),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   B14, B13, SCU8C, 16),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, A11, N20, SCU8C, 16),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   A11, N20, SCU8C, 16),
 
 	/* GPIOB, GPIOR */
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { K19, H20 }, SCU8C, 17 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { K19, H20 }, SCU8C, 17 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { AA19, E10 }, SCU8C, 17 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { AA19, E10 }, SCU8C, 17 },
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, K19, H20, SCU8C, 17),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   K19, H20, SCU8C, 17),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, AA19, E10, SCU8C, 17),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   AA19, E10, SCU8C, 17),
 
 	/* GPIOC, GPIOS*/
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { C12, B11 }, SCU8C, 18 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { C12, B11 }, SCU8C, 18 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { V20, AA20 }, SCU8C, 18 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { V20, AA20 }, SCU8C, 18 },
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, C12, B11, SCU8C, 18),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   C12, B11, SCU8C, 18),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, V20, AA20, SCU8C, 18),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   V20, AA20, SCU8C, 18),
 
 	/* GPIOD, GPIOY */
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { F19, C21 }, SCU8C, 19 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { F19, C21 }, SCU8C, 19 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { R22, P20 }, SCU8C, 19 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { R22, P20 }, SCU8C, 19 },
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, F19, C21, SCU8C, 19),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   F19, C21, SCU8C, 19),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, R22, P20, SCU8C, 19),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   R22, P20, SCU8C, 19),
 
 	/* GPIOE, GPIOZ */
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { B20, B19 }, SCU8C, 20 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { B20, B19 }, SCU8C, 20 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { Y20, W21 }, SCU8C, 20 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { Y20, W21 }, SCU8C, 20 },
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, B20, B19, SCU8C, 20),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   B20, B19, SCU8C, 20),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, Y20, W21, SCU8C, 20),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   Y20, W21, SCU8C, 20),
 
 	/* GPIOF, GPIOAA */
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { J19, H18 }, SCU8C, 21 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { J19, H18 }, SCU8C, 21 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { Y21, P19 }, SCU8C, 21 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { Y21, P19 }, SCU8C, 21 },
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, J19, H18, SCU8C, 21),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   J19, H18, SCU8C, 21),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, Y21, P19, SCU8C, 21),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   Y21, P19, SCU8C, 21),
 
-	/* GPIOG, GPIOAB */
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { A19, E14 }, SCU8C, 22 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { A19, E14 }, SCU8C, 22 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { N19, R20 }, SCU8C, 22 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { N19, R20 }, SCU8C, 22 },
+		/* GPIOG, GPIOAB */
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, A19, E14, SCU8C, 22),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   A19, E14, SCU8C, 22),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, N19, R20, SCU8C, 22),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   N19, R20, SCU8C, 22),
 
 	/* GPIOH, GPIOAC */
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { A18,  D18  }, SCU8C, 23 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { A18,  D18  }, SCU8C, 23 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { G21,  G22  }, SCU8C, 23 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { G21,  G22  }, SCU8C, 23 },
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, A18,  D18, SCU8C, 23),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   A18,  D18, SCU8C, 23),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, G21,  G22, SCU8C, 23),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   G21,  G22, SCU8C, 23),
 
 	/* GPIOs [I, P] */
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { C18, A15 }, SCU8C, 24 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { C18, A15 }, SCU8C, 24 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { R2,  T3  }, SCU8C, 25 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { R2,  T3  }, SCU8C, 25 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { L3,  R1  }, SCU8C, 26 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { L3,  R1  }, SCU8C, 26 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { T2,  W1  }, SCU8C, 27 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { T2,  W1  }, SCU8C, 27 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { Y1,  T5  }, SCU8C, 28 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { Y1,  T5  }, SCU8C, 28 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { V2,  T4  }, SCU8C, 29 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { V2,  T4  }, SCU8C, 29 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { U5,  W4  }, SCU8C, 30 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { U5,  W4  }, SCU8C, 30 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { V4,  V6  }, SCU8C, 31 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { V4,  V6  }, SCU8C, 31 },
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, C18, A15, SCU8C, 24),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   C18, A15, SCU8C, 24),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, R2,  T3,  SCU8C, 25),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   R2,  T3,  SCU8C, 25),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, L3,  R1,  SCU8C, 26),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   L3,  R1,  SCU8C, 26),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, T2,  W1,  SCU8C, 27),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   T2,  W1,  SCU8C, 27),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, Y1,  T5,  SCU8C, 28),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   Y1,  T5,  SCU8C, 28),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, V2,  T4,  SCU8C, 29),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   V2,  T4,  SCU8C, 29),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, U5,  W4,  SCU8C, 30),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   U5,  W4,  SCU8C, 30),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, V4,  V6,  SCU8C, 31),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   V4,  V6,  SCU8C, 31),
 
 	/* GPIOs T[0-5] (RGMII1 Tx pins) */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { B5, B5 }, SCU90, 8 },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { E9, A5 }, SCU90, 9 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { B5, D7 }, SCU90, 12 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { B5, D7 }, SCU90, 12 },
+	ASPEED_SB_PINCONF(PIN_CONFIG_DRIVE_STRENGTH, B5, B5, SCU90, 8),
+	ASPEED_SB_PINCONF(PIN_CONFIG_DRIVE_STRENGTH, E9, A5, SCU90, 9),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, B5, D7, SCU90, 12),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   B5, D7, SCU90, 12),
 
 	/* GPIOs T[6-7], U[0-3] (RGMII2 TX pins) */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { B2, B2 }, SCU90, 10 },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { B1, B3 }, SCU90, 11 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { B2, D4 }, SCU90, 14 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { B2, D4 }, SCU90, 14 },
+	ASPEED_SB_PINCONF(PIN_CONFIG_DRIVE_STRENGTH, B2, B2, SCU90, 10),
+	ASPEED_SB_PINCONF(PIN_CONFIG_DRIVE_STRENGTH, B1, B3, SCU90, 11),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, B2, D4, SCU90, 14),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   B2, D4, SCU90, 14),
 
 	/* GPIOs U[4-7], V[0-1] (RGMII1 Rx pins) */
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { B4, C4 }, SCU90, 13 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { B4, C4 }, SCU90, 13 },
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, B4, C4, SCU90, 13),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   B4, C4, SCU90, 13),
 
 	/* GPIOs V[2-7] (RGMII2 Rx pins) */
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { C2, E6 }, SCU90, 15 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { C2, E6 }, SCU90, 15 },
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, C2, E6, SCU90, 15),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   C2, E6, SCU90, 15),
 
 	/* ADC pull-downs (SCUA8[19:4]) */
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { F4, F4 }, SCUA8, 4 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { F4, F4 }, SCUA8, 4 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { F5, F5 }, SCUA8, 5 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { F5, F5 }, SCUA8, 5 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { E2, E2 }, SCUA8, 6 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { E2, E2 }, SCUA8, 6 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { E1, E1 }, SCUA8, 7 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { E1, E1 }, SCUA8, 7 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { F3, F3 }, SCUA8, 8 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { F3, F3 }, SCUA8, 8 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { E3, E3 }, SCUA8, 9 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { E3, E3 }, SCUA8, 9 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { G5, G5 }, SCUA8, 10 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { G5, G5 }, SCUA8, 10 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { G4, G4 }, SCUA8, 11 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { G4, G4 }, SCUA8, 11 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { F2, F2 }, SCUA8, 12 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { F2, F2 }, SCUA8, 12 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { G3, G3 }, SCUA8, 13 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { G3, G3 }, SCUA8, 13 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { G2, G2 }, SCUA8, 14 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { G2, G2 }, SCUA8, 14 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { F1, F1 }, SCUA8, 15 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { F1, F1 }, SCUA8, 15 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { H5, H5 }, SCUA8, 16 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { H5, H5 }, SCUA8, 16 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { G1, G1 }, SCUA8, 17 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { G1, G1 }, SCUA8, 17 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { H3, H3 }, SCUA8, 18 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { H3, H3 }, SCUA8, 18 },
-	{ PIN_CONFIG_BIAS_PULL_DOWN, { H4, H4 }, SCUA8, 19 },
-	{ PIN_CONFIG_BIAS_DISABLE,   { H4, H4 }, SCUA8, 19 },
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, F4, F4, SCUA8, 4),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   F4, F4, SCUA8, 4),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, F5, F5, SCUA8, 5),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   F5, F5, SCUA8, 5),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, E2, E2, SCUA8, 6),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   E2, E2, SCUA8, 6),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, E1, E1, SCUA8, 7),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   E1, E1, SCUA8, 7),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, F3, F3, SCUA8, 8),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   F3, F3, SCUA8, 8),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, E3, E3, SCUA8, 9),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   E3, E3, SCUA8, 9),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, G5, G5, SCUA8, 10),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   G5, G5, SCUA8, 10),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, G4, G4, SCUA8, 11),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   G4, G4, SCUA8, 11),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, F2, F2, SCUA8, 12),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   F2, F2, SCUA8, 12),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, G3, G3, SCUA8, 13),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   G3, G3, SCUA8, 13),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, G2, G2, SCUA8, 14),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   G2, G2, SCUA8, 14),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, F1, F1, SCUA8, 15),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   F1, F1, SCUA8, 15),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, H5, H5, SCUA8, 16),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   H5, H5, SCUA8, 16),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, G1, G1, SCUA8, 17),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   G1, G1, SCUA8, 17),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, H3, H3, SCUA8, 18),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   H3, H3, SCUA8, 18),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, H4, H4, SCUA8, 19),
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   H4, H4, SCUA8, 19),
 
 	/*
 	 * Debounce settings for GPIOs D and E passthrough mode are in
@@ -2596,15 +2604,97 @@ static struct aspeed_pin_config aspeed_g5_configs[] = {
 	 * controller. Due to this tangle between GPIO and pinctrl we don't yet
 	 * fully support pass-through debounce.
 	 */
-	{ PIN_CONFIG_INPUT_DEBOUNCE, { F19, E21 }, SCUA8, 20 },
-	{ PIN_CONFIG_INPUT_DEBOUNCE, { F20, D20 }, SCUA8, 21 },
-	{ PIN_CONFIG_INPUT_DEBOUNCE, { D21, E20 }, SCUA8, 22 },
-	{ PIN_CONFIG_INPUT_DEBOUNCE, { G18, C21 }, SCUA8, 23 },
-	{ PIN_CONFIG_INPUT_DEBOUNCE, { B20, C20 }, SCUA8, 24 },
-	{ PIN_CONFIG_INPUT_DEBOUNCE, { F18, F17 }, SCUA8, 25 },
-	{ PIN_CONFIG_INPUT_DEBOUNCE, { E18, D19 }, SCUA8, 26 },
-	{ PIN_CONFIG_INPUT_DEBOUNCE, { A20, B19 }, SCUA8, 27 },
+	ASPEED_SB_PINCONF(PIN_CONFIG_INPUT_DEBOUNCE, F19, E21, SCUA8, 20),
+	ASPEED_SB_PINCONF(PIN_CONFIG_INPUT_DEBOUNCE, F20, D20, SCUA8, 21),
+	ASPEED_SB_PINCONF(PIN_CONFIG_INPUT_DEBOUNCE, D21, E20, SCUA8, 22),
+	ASPEED_SB_PINCONF(PIN_CONFIG_INPUT_DEBOUNCE, G18, C21, SCUA8, 23),
+	ASPEED_SB_PINCONF(PIN_CONFIG_INPUT_DEBOUNCE, B20, C20, SCUA8, 24),
+	ASPEED_SB_PINCONF(PIN_CONFIG_INPUT_DEBOUNCE, F18, F17, SCUA8, 25),
+	ASPEED_SB_PINCONF(PIN_CONFIG_INPUT_DEBOUNCE, E18, D19, SCUA8, 26),
+	ASPEED_SB_PINCONF(PIN_CONFIG_INPUT_DEBOUNCE, A20, B19, SCUA8, 27),
 };
+
+static struct regmap *aspeed_g5_acquire_regmap(struct aspeed_pinmux_data *ctx,
+					       int ip)
+{
+	if (ip == ASPEED_IP_SCU) {
+		WARN(!ctx->maps[ip], "Missing SCU syscon!");
+		return ctx->maps[ip];
+	}
+
+	if (ip >= ASPEED_NR_PINMUX_IPS)
+		return ERR_PTR(-EINVAL);
+
+	if (likely(ctx->maps[ip]))
+		return ctx->maps[ip];
+
+	if (ip == ASPEED_IP_GFX) {
+		struct device_node *node;
+		struct regmap *map;
+
+		node = of_parse_phandle(ctx->dev->of_node,
+					"aspeed,external-nodes", 0);
+		if (node) {
+			map = syscon_node_to_regmap(node);
+			of_node_put(node);
+			if (IS_ERR(map))
+				return map;
+		} else
+			return ERR_PTR(-ENODEV);
+
+		ctx->maps[ASPEED_IP_GFX] = map;
+		dev_dbg(ctx->dev, "Acquired GFX regmap");
+		return map;
+	}
+
+	if (ip == ASPEED_IP_LPC) {
+		struct device_node *node;
+		struct regmap *map;
+
+		node = of_parse_phandle(ctx->dev->of_node,
+					"aspeed,external-nodes", 1);
+		if (node) {
+			map = syscon_node_to_regmap(node->parent);
+			of_node_put(node);
+			if (IS_ERR(map))
+				return map;
+		} else
+			return ERR_PTR(-ENODEV);
+
+		ctx->maps[ASPEED_IP_LPC] = map;
+		dev_dbg(ctx->dev, "Acquired LPC regmap");
+		return map;
+	}
+
+	return ERR_PTR(-EINVAL);
+}
+
+static int aspeed_g5_sig_expr_eval(struct aspeed_pinmux_data *ctx,
+				   const struct aspeed_sig_expr *expr,
+				   bool enabled)
+{
+	int ret;
+	int i;
+
+	for (i = 0; i < expr->ndescs; i++) {
+		const struct aspeed_sig_desc *desc = &expr->descs[i];
+		struct regmap *map;
+
+		map = aspeed_g5_acquire_regmap(ctx, desc->ip);
+		if (IS_ERR(map)) {
+			dev_err(ctx->dev,
+				"Failed to acquire regmap for IP block %d\n",
+				desc->ip);
+			return PTR_ERR(map);
+		}
+
+		ret = aspeed_sig_desc_eval(desc, enabled, ctx->maps[desc->ip]);
+		if (ret <= 0)
+			return ret;
+	}
+
+	return 1;
+}
 
 /**
  * Configure a pin's signal by applying an expression's descriptor state for
@@ -2619,7 +2709,7 @@ static struct aspeed_pin_config aspeed_g5_configs[] = {
  * Return: 0 if the expression is configured as requested and a negative error
  * code otherwise
  */
-static int aspeed_g5_sig_expr_set(const struct aspeed_pinmux_data *ctx,
+static int aspeed_g5_sig_expr_set(struct aspeed_pinmux_data *ctx,
 				  const struct aspeed_sig_expr *expr,
 				  bool enable)
 {
@@ -2630,9 +2720,15 @@ static int aspeed_g5_sig_expr_set(const struct aspeed_pinmux_data *ctx,
 		const struct aspeed_sig_desc *desc = &expr->descs[i];
 		u32 pattern = enable ? desc->enable : desc->disable;
 		u32 val = (pattern << __ffs(desc->mask));
+		struct regmap *map;
 
-		if (!ctx->maps[desc->ip])
-			return -ENODEV;
+		map = aspeed_g5_acquire_regmap(ctx, desc->ip);
+		if (IS_ERR(map)) {
+			dev_err(ctx->dev,
+				"Failed to acquire regmap for IP block %d\n",
+				desc->ip);
+			return PTR_ERR(map);
+		}
 
 		/*
 		 * Strap registers are configured in hardware or by early-boot
@@ -2641,19 +2737,15 @@ static int aspeed_g5_sig_expr_set(const struct aspeed_pinmux_data *ctx,
 		 * deconfigured and is the reason we re-evaluate after writing
 		 * all descriptor bits.
 		 *
-		 * Port D and port E GPIO loopback modes are the exception
+		 * Port D and port E GPIO loopback modes are the only exception
 		 * as those are commonly used with front-panel buttons to allow
 		 * normal operation of the host when the BMC is powered off or
 		 * fails to boot. Once the BMC has booted, the loopback mode
 		 * must be disabled for the BMC to control host power-on and
 		 * reset.
-		 *
-		 * HW_STRAP1[13:12], the setting for SPI1, should be configured
-		 * after the device powers on no matter whether the external
-		 * strap is set or not
 		 */
 		if (desc->ip == ASPEED_IP_SCU && desc->reg == HW_STRAP1 &&
-		    !(desc->mask & (BIT(21) | BIT(22) | BIT(13) | BIT(12))))
+		    !(desc->mask & (BIT(21) | BIT(22))))
 			continue;
 
 		if (desc->ip == ASPEED_IP_SCU && desc->reg == HW_STRAP2)
@@ -2688,7 +2780,16 @@ static int aspeed_g5_sig_expr_set(const struct aspeed_pinmux_data *ctx,
 	return 0;
 }
 
+static const struct aspeed_pin_config_map aspeed_g5_pin_config_map[] = {
+	{ PIN_CONFIG_BIAS_PULL_DOWN,  0, 1, BIT_MASK(0)},
+	{ PIN_CONFIG_BIAS_PULL_DOWN, -1, 0, BIT_MASK(0)},
+	{ PIN_CONFIG_BIAS_DISABLE,   -1, 1, BIT_MASK(0)},
+	{ PIN_CONFIG_DRIVE_STRENGTH,  8, 0, BIT_MASK(0)},
+	{ PIN_CONFIG_DRIVE_STRENGTH, 16, 1, BIT_MASK(0)},
+};
+
 static const struct aspeed_pinmux_ops aspeed_g5_ops = {
+	.eval = aspeed_g5_sig_expr_eval,
 	.set = aspeed_g5_sig_expr_set,
 };
 
@@ -2704,6 +2805,8 @@ static struct aspeed_pinctrl_data aspeed_g5_pinctrl_data = {
 	},
 	.configs = aspeed_g5_configs,
 	.nconfigs = ARRAY_SIZE(aspeed_g5_configs),
+	.confmaps = aspeed_g5_pin_config_map,
+	.nconfmaps = ARRAY_SIZE(aspeed_g5_pin_config_map),
 };
 
 static const struct pinmux_ops aspeed_g5_pinmux_ops = {
@@ -2744,34 +2847,11 @@ static struct pinctrl_desc aspeed_g5_pinctrl_desc = {
 static int aspeed_g5_pinctrl_probe(struct platform_device *pdev)
 {
 	int i;
-	struct regmap *map;
-	struct device_node *node;
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_g5_pins); i++)
 		aspeed_g5_pins[i].number = i;
 
-	node = of_parse_phandle(pdev->dev.of_node, "aspeed,external-nodes", 0);
-	map = syscon_node_to_regmap(node);
-	of_node_put(node);
-	if (IS_ERR(map)) {
-		dev_warn(&pdev->dev, "No GFX phandle found, some mux configurations may fail\n");
-		map = NULL;
-	}
-	aspeed_g5_pinctrl_data.pinmux.maps[ASPEED_IP_GFX] = map;
-
-	node = of_parse_phandle(pdev->dev.of_node, "aspeed,external-nodes", 1);
-	if (node) {
-		map = syscon_node_to_regmap(node->parent);
-		if (IS_ERR(map)) {
-			dev_warn(&pdev->dev, "LHC parent is not a syscon, some mux configurations may fail\n");
-			map = NULL;
-		}
-	} else {
-		dev_warn(&pdev->dev, "No LHC phandle found, some mux configurations may fail\n");
-		map = NULL;
-	}
-	of_node_put(node);
-	aspeed_g5_pinctrl_data.pinmux.maps[ASPEED_IP_LPC] = map;
+	aspeed_g5_pinctrl_data.pinmux.dev = &pdev->dev;
 
 	return aspeed_pinctrl_probe(pdev, &aspeed_g5_pinctrl_desc,
 			&aspeed_g5_pinctrl_data);
@@ -2779,6 +2859,10 @@ static int aspeed_g5_pinctrl_probe(struct platform_device *pdev)
 
 static const struct of_device_id aspeed_g5_pinctrl_of_match[] = {
 	{ .compatible = "aspeed,ast2500-pinctrl", },
+	/*
+	 * The aspeed,g5-pinctrl compatible has been removed the from the
+	 * bindings, but keep the match in case of old devicetrees.
+	 */
 	{ .compatible = "aspeed,g5-pinctrl", },
 	{ },
 };

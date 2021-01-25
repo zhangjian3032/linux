@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Aspeed AST2400/2500/2600 ADC
  *
  * Copyright (C) 2017 Google, Inc.
  * Copyright (C) ASPEED Technology Inc.
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
  */
 
 #include <linux/clk.h>
@@ -59,17 +56,17 @@
 #define ASPEED_G3_ADC_CTRL_COMPEN_CLR BIT(6)
 #define ASPEED_G3_ADC_CTRL_COMPEN     BIT(5)
 /* [7:6] only exist after ast2600 */
-#define REF_VLOTAGE_2500mV (0 << 6)
-#define REF_VLOTAGE_1200mV (1 << 6)
-#define REF_VLOTAGE_1550mV (2 << 6)
-#define REF_VLOTAGE_900mV  (3 << 6)
+#define REF_VOLTAGE_2500mV (0 << 6)
+#define REF_VOLTAGE_1200mV (1 << 6)
+#define REF_VOLTAGE_1550mV (2 << 6)
+#define REF_VOLTAGE_900mV  (3 << 6)
 /* [8] */
 #define ASPEED_ADC_CTRL_INIT_RDY BIT(8)
 /* [12] */
 #define ASPEED_ADC_CH7_VOLTAGE_NORMAL  (0 << 12)
 #define ASPEED_ADC_CH7_VOLTAGE_BATTERY (1 << 12)
 /* [13] */
-#define ASPEED_ADC_EN_BATTERY_SESING BIT(13)
+#define ASPEED_ADC_EN_BATTERY_SENSING BIT(13)
 /* [31:16] */
 #define ASPEED_ADC_CTRL_CH_EN(n)  (1 << (16 + n))
 #define ASPEED_ADC_CTRL_CH_EN_ALL GENMASK(31, 16)
@@ -146,7 +143,7 @@ static void aspeed_adc_battery_read(int *val, struct aspeed_adc_data *data,
 {
 	u32 eng_ctrl = readl(data->base + ASPEED_REG_ENGINE_CONTROL);
 	writel(eng_ctrl | ASPEED_ADC_CH7_VOLTAGE_BATTERY |
-		       ASPEED_ADC_EN_BATTERY_SESING,
+		       ASPEED_ADC_EN_BATTERY_SENSING,
 	       data->base + ASPEED_REG_ENGINE_CONTROL);
 	mdelay(1);
 	*val = readw(data->base + chan_address) + data->cv;
@@ -155,9 +152,9 @@ static void aspeed_adc_battery_read(int *val, struct aspeed_adc_data *data,
 	else if (*val < 0)
 		*val = 0;
 	if (data->battery_sensing_div) {
-		*val = (*val * 3) / 2;
-	} else {
 		*val = (*val * 3);
+	} else {
+		*val = (*val * 3) / 2;
 	}
 	writel(eng_ctrl & (~(GENMASK(13, 12))),
 	       data->base + ASPEED_REG_ENGINE_CONTROL);
@@ -308,10 +305,10 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 	if (of_find_property(data->dev->of_node, "battery-sensing", NULL)) {
 		data->battery_sensing_en = 1;
 		if (readl(data->base + ASPEED_REG_ENGINE_CONTROL) &
-		    BATTERY_SENSING_VOL_DIVIDE_2_3) {
-			data->battery_sensing_div = 0;
-		} else {
+		    BATTERY_SENSING_VOL_DIVIDE_1_3) {
 			data->battery_sensing_div = 1;
+		} else {
+			data->battery_sensing_div = 0;
 		}
 		dev_dbg(data->dev, "aspeed_adc: battery-sensing enable \n");
 	}
@@ -507,7 +504,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		data->clk_scaler = clk_hw_register_divider(
 			&pdev->dev, scaler_clk_name, clk_parent_name,
 			CLK_SET_RATE_UNGATE,
-			data->base + ASPEED_REG_CLOCK_CONTROL, 0, 15,
+			data->base + ASPEED_REG_CLOCK_CONTROL, 0, 16,
 			CLK_DIVIDER_ONE_BASED, &data->clk_lock);
 		if (IS_ERR(data->clk_scaler))
 			return PTR_ERR(data->clk_scaler);
@@ -515,19 +512,19 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 		if (!of_property_read_u32(pdev->dev.of_node, "ref_voltage",
 					  &ref_voltage)) {
 			if (ref_voltage == 2500)
-				eng_ctrl = REF_VLOTAGE_2500mV;
+				eng_ctrl = REF_VOLTAGE_2500mV;
 			else if (ref_voltage == 1200)
-				eng_ctrl = REF_VLOTAGE_1200mV;
+				eng_ctrl = REF_VOLTAGE_1200mV;
 			else if ((ref_voltage >= 1550) && (ref_voltage <= 2700))
-				eng_ctrl = REF_VLOTAGE_1550mV;
+				eng_ctrl = REF_VOLTAGE_1550mV;
 			else if ((ref_voltage >= 900) && (ref_voltage <= 1650))
-				eng_ctrl = REF_VLOTAGE_900mV;
+				eng_ctrl = REF_VOLTAGE_900mV;
 			else {
 				eng_ctrl = 0;
 			}
 		} else {
 			ref_voltage = 1200;
-			eng_ctrl = REF_VLOTAGE_1200mV;
+			eng_ctrl = REF_VOLTAGE_1200mV;
 		}
 	}
 	data->vref_voltage = ref_voltage;

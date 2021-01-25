@@ -1,4 +1,9 @@
-menu "ASPEED SoC drivers"
+# SPDX-License-Identifier: GPL-2.0-only
+menu "Aspeed SoC drivers"
+
+config SOC_ASPEED
+	def_bool y
+	depends on ARCH_ASPEED || COMPILE_TEST
 
 config ASPEED_BMC_MISC
 	bool "Miscellaneous ASPEED BMC interfaces"
@@ -35,6 +40,61 @@ config ASPEED_MCTP
 	help
 	  Driver for MCTP
 
+config ASPEED_LPC_CTRL
+	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
+	tristate "Aspeed ast2400/2500 HOST LPC to BMC bridge control"
+	---help---
+	  Control Aspeed ast2400/2500 HOST LPC to BMC mappings through
+	  ioctl()s, the driver also provides a read/write interface to a BMC ram
+	  region where the host LPC read/write region can be buffered.
+
+config ASPEED_LPC_SNOOP
+	tristate "Aspeed ast2500 HOST LPC snoop support"
+	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
+	help
+	  Provides a driver to control the LPC snoop interface which
+	  allows the BMC to listen on and save the data written by
+	  the host to an arbitrary LPC I/O port.
+
+config ASPEED_LPC_PCC
+	tristate "Aspeed Post Code Capture support"
+	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
+	help
+	  Provides a driver to control the LPC PCC interface,
+	  allowing the BMC to snoop data bytes written by the
+	  the host to an arbitrary LPC I/O port.
+
+config ASPEED_LPC_MBOX
+	tristate "Aspeed LPC Mailbox Controller"
+	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
+	help
+	  Expose teh ASPEED LPC MBOX registers found on Aspeed SoCs
+	  to userspace.
+
+config ASPEED_UDMA
+	tristate "Aspeed UDMA Engine Driver"
+	depends on SOC_ASPEED && REGMAP && MFD_SYSCON && HAS_DMA
+	help
+	  Enable support for the Aspeed UDMA Engine found on the Aspeed AST2XXX
+	  SOCs. The UDMA engine can perform UART DMA operations between the memory
+	  buffer and the UART/VUART devices.
+
+config ASPEED_ESPI
+	tristate "Aspeed eSPI Engine Driver"
+	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
+	help
+	  Enable support for the Aspeed eSPI engine. The eSPI engine
+	  plays as a slave device in BMC to communicate with the host
+	  side master over the eSPI interface. The four eSPI channels,
+	  namely peripheral, virtual wire, out-of-band, and flash are
+	  supported.
+
+config ASPEED_ESPI_MMBI
+	tristate "Aspeed eSPI MMBI Driver"
+	depends on ASPEED_ESPI
+	help
+	  Control Aspeed eSPI MMBI driver
+
 config ASPEED_XDMA
 	tristate "ASPEED XDMA Driver"
 	default n
@@ -48,5 +108,11 @@ config ASPEED_SSP
           Driver for secondary-service-processor	
 
 source "drivers/soc/aspeed/rvas/Kconfig"
+
+config ASPEED_UART_ROUTING
+	tristate "Aspeed UART routing control"
+	help
+	  Control Aspeed UART routing via sysfs. This enables UART
+	  and I/O components to be dynamically connected at runtime.
 
 endmenu

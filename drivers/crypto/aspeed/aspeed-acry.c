@@ -245,16 +245,15 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 
 	aspeed_acry_sram_mapping();
 
+	acry_dev->buf_addr = dma_alloc_coherent(dev, ASPEED_ACRY_BUFF_SIZE,
+						&acry_dev->buf_dma_addr, GFP_KERNEL);
+	memzero_explicit(acry_dev->buf_addr, ASPEED_ACRY_BUFF_SIZE);
+
 	err = aspeed_acry_register(acry_dev);
 	if (err) {
 		dev_err(dev, "err in register alg");
 		return err;
 	}
-
-	acry_dev->buf_addr = dma_alloc_coherent(dev, ASPEED_ACRY_BUFF_SIZE,
-						&acry_dev->buf_dma_addr, GFP_KERNEL);
-	memzero_explicit(acry_dev->buf_addr, ASPEED_ACRY_BUFF_SIZE);
-
 	printk("ASPEED RSA Accelerator successfully registered \n");
 
 	return 0;

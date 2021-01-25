@@ -1,22 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * eSPI MMBI driver for the Aspeed SoC
- *
- * Copyright (C) ASPEED Technology Inc.
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
+ * Copyright 2020 Aspeed Technology Inc.
  */
 #include <linux/poll.h>
 #include <linux/sched.h>
@@ -44,13 +28,14 @@
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 
-#include "regs-aspeed-espi.h"
+#include <uapi/linux/aspeed-espi.h>
+#include "aspeed-espi-ctrl.h"
+#include "aspeed-espi-perif.h"
 #include "aspeed-espi-mmbi.h"
 
 #define AST_SCU_HW_STRAP2	(0x510)
 #define ENABLE_LPC_MODE		BIT(6)
 #define MAX_APP_INSTANCES	(8)
-
 
 struct aspeed_espi_mmbi_data {
 	struct device			*dev;
@@ -62,13 +47,11 @@ struct aspeed_espi_mmbi_data {
 	u8						*mmbi_blk_virt;
 	dma_addr_t				mmbi_blk_phys;
 	bool 					is_open;
-	struct espi_ch_data		p_rx_channel;
-	struct espi_ch_data		p_tx_channel;
-	struct espi_ch_data		np_tx_channel;
 	spinlock_t 				espi_mmbi_lock;
 	u8						espi_mmbi_intr_sts[MAX_APP_INSTANCES];
 	wait_queue_head_t 		espi_mmbi_intr_wq[MAX_APP_INSTANCES];
 	struct mmbi_host_rwp   	arr_mmbi_host_rwp[MAX_APP_INSTANCES];
+	struct aspeed_espi_ctrl *espi_ctrl;
 };
 
 
@@ -127,13 +110,6 @@ static void aspeed_espi_mmbi_ctrl_init(struct aspeed_espi_mmbi_data *aspeed_espi
 	aspeed_espi_mmbi_write(aspeed_espi_mmbi, val, ESPI_MMBI_CTRL);
 	aspeed_espi_mmbi_write(aspeed_espi_mmbi, 0xffff, ESPI_MMBI_INT_ENL);
 
-	if(aspeed_espi_mmbi->dma_mode) { //TO DO
-		aspeed_espi_mmbi_write(aspeed_espi_mmbi, aspeed_espi_mmbi->p_rx_channel.dma_addr, ASPEED_ESPI_PCP_RX_DMA);
-		aspeed_espi_mmbi_write(aspeed_espi_mmbi, aspeed_espi_mmbi->p_tx_channel.dma_addr, ASPEED_ESPI_PCP_TX_DMA);
-		aspeed_espi_mmbi_write(aspeed_espi_mmbi, aspeed_espi_mmbi->np_tx_channel.dma_addr, ASPEED_ESPI_PCNP_TX_DMA);
-		aspeed_espi_mmbi_write(aspeed_espi_mmbi, aspeed_espi_mmbi_read(aspeed_espi_mmbi, ASPEED_ESPI_CTRL) |
-					   ESPI_CTRL_PCNP_TX_DMA | ESPI_CTRL_PCP_RX_DMA | ESPI_CTRL_PCP_TX_DMA,  ASPEED_ESPI_CTRL);
-	}
 }
 
 static void aspeed_espi_mmbi_h2b_rwp_int(u32 sts_mmbi,void *dev_id)
@@ -141,10 +117,10 @@ static void aspeed_espi_mmbi_h2b_rwp_int(u32 sts_mmbi,void *dev_id)
 	struct aspeed_espi_mmbi_data *aspeed_espi_mmbi = dev_id;
 	u8 h2b_rwp_sts = 0;
 	u8 app_index = 0;
-	u32 flags;
+	unsigned long flags;
 
 	for (app_index=0;app_index<MAX_APP_INSTANCES;app_index++) {
-		if (h2b_rwp_sts=(sts_mmbi & 0x3)) {
+		if ( (h2b_rwp_sts=(sts_mmbi & 0x3)) ) {
 			ESPI_MMBI_DBUG("APP #%d interrupt status : %x\n", app_index, h2b_rwp_sts);
 			spin_lock_irqsave(&aspeed_espi_mmbi->espi_mmbi_lock, flags);
 			if (h2b_rwp_sts &1) {
@@ -170,7 +146,7 @@ static irqreturn_t aspeed_espi_mmbi_isr(int this_irq, void *dev_id)
 {
 	struct aspeed_espi_mmbi_data *aspeed_espi_mmbi = dev_id;
 
-	u32 sts = aspeed_espi_mmbi_read(aspeed_espi_mmbi, ASPEED_ESPI_ISR);
+	u32 sts = aspeed_espi_mmbi_read(aspeed_espi_mmbi, ESPI_INT_STS);
 	u32 sts_mmbi = aspeed_espi_mmbi_read(aspeed_espi_mmbi, ESPI_MMBI_INT_STS);
 
 	ESPI_MMBI_DBUG("sts : %x\n", sts);
@@ -187,7 +163,7 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	int ret = 0;
 	struct miscdevice *c = file->private_data;
 	struct aspeed_espi_mmbi_data *aspeed_espi_mmbi = dev_get_drvdata(c->this_device);
-	u32 flags;
+	unsigned long flags;
 	struct aspeed_espi_mmbi_xfer espi_mmbi_xfer = {0};
 	struct aspeed_espi_mmbi_ints espi_mmbi_ints = {0};
 	struct aspeed_espi_mmbi_partition_op espi_mmbi_pop = {0};
@@ -198,7 +174,10 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	switch (cmd) {
 	case ASPEED_ESPI_MMBI_IOCRX:
 		ESPI_MMBI_DBUG(" ASPEED_ESPI_MMBI_IOCRX\n");
-		copy_from_user(&espi_mmbi_xfer, (void*)arg, sizeof(espi_mmbi_xfer));
+		if (copy_from_user(&espi_mmbi_xfer, (void*)arg, sizeof(espi_mmbi_xfer)) ) {
+			ESPI_MMBI_DBUG("copy_from_user  fail\n");
+			ret = -EFAULT;
+		}
 		ESPI_MMBI_DBUG(" App: %d, Offset: 0x%x, len:0x%x \n",
 				espi_mmbi_xfer.app_index,
 				espi_mmbi_xfer.offset,
@@ -208,9 +187,12 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 				espi_mmbi_xfer.len);
 
 		if (mmbi_ptr){
-			copy_to_user(espi_mmbi_xfer.xfer_buf,
+			if (copy_to_user(espi_mmbi_xfer.xfer_buf,
 					mmbi_ptr,
-					espi_mmbi_xfer.len);
+					espi_mmbi_xfer.len) ) {
+				ESPI_MMBI_DBUG("copy_to_user  fail\n");
+				ret = -EFAULT;
+			}
 			spin_lock_irqsave(&aspeed_espi_mmbi->espi_mmbi_lock, flags);
 //			aspeed_espi_mmbi->espi_mmbi_intr_sts[app_index] &= (~0x1);
 			spin_unlock_irqrestore(&aspeed_espi_mmbi->espi_mmbi_lock, flags);
@@ -220,7 +202,10 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		break;
 	case ASPEED_ESPI_MMBIP_IOCTX:
 		ESPI_MMBI_DBUG(" ASPEED_ESPI_MMBIP_IOCTX\n");
-		copy_from_user(&espi_mmbi_xfer, (void*)arg, sizeof(espi_mmbi_xfer));
+		if (copy_from_user(&espi_mmbi_xfer, (void*)arg, sizeof(espi_mmbi_xfer))){
+			ESPI_MMBI_DBUG("copy_to_user  fail\n");
+			ret = -EFAULT;
+		}
 		ESPI_MMBI_DBUG(" App: %d, Offset: 0x%x, len:0x%x \n",
 				espi_mmbi_xfer.app_index,
 				espi_mmbi_xfer.offset,
@@ -230,9 +215,12 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 				espi_mmbi_xfer.len);
 
 		if (mmbi_ptr){
-			copy_from_user(mmbi_ptr,
+			if (copy_from_user(mmbi_ptr,
 						espi_mmbi_xfer.xfer_buf,
-						espi_mmbi_xfer.len);
+						espi_mmbi_xfer.len) ) {
+				ESPI_MMBI_DBUG("copy_from_user  fail\n");
+				ret = -EFAULT;
+			}
 			spin_lock_irqsave(&aspeed_espi_mmbi->espi_mmbi_lock, flags);
 //			aspeed_espi_mmbi->espi_mmbi_intr_sts[app_index] &= (~0x2);
 			spin_unlock_irqrestore(&aspeed_espi_mmbi->espi_mmbi_lock, flags);
@@ -242,7 +230,10 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		break;
 	case ASPEED_ESPI_MMBI_IOWFI:
 		ESPI_MMBI_DBUG(" ASPEED_ESPI_MMBI_IOWFI\n");
-		copy_from_user(&espi_mmbi_ints, (void*)arg, sizeof(espi_mmbi_ints));
+		if (copy_from_user(&espi_mmbi_ints, (void*)arg, sizeof(espi_mmbi_ints))) {
+			ESPI_MMBI_DBUG("copy_from_user  fail\n");
+			ret = -EFAULT;
+		}
 		ESPI_MMBI_DBUG(" APP index: %d\n",espi_mmbi_ints.app_index);
 
 		wait_event_interruptible(aspeed_espi_mmbi->espi_mmbi_intr_wq[espi_mmbi_ints.app_index],
@@ -256,11 +247,17 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		espi_mmbi_ints.host_rwp[0] = aspeed_espi_mmbi->arr_mmbi_host_rwp[app_index].b2h_host_rd;
 		espi_mmbi_ints.host_rwp[1] = aspeed_espi_mmbi->arr_mmbi_host_rwp[app_index].h2b_host_wr;
 		spin_unlock_irqrestore(&aspeed_espi_mmbi->espi_mmbi_lock, flags);
-		copy_to_user((void*)arg, &espi_mmbi_ints, sizeof(espi_mmbi_ints));
+		if (copy_to_user((void*)arg, &espi_mmbi_ints, sizeof(espi_mmbi_ints))) {
+			ESPI_MMBI_DBUG("copy_to_user  fail\n");
+			ret = -EFAULT;
+		}
 		break;
 	case ASPEED_ESPI_MMBI_IOREAD:
 		ESPI_MMBI_DBUG(" ASPEED_ESPI_MMBI_IOREAD\n");
-		copy_from_user(&espi_mmbi_pop, (void*)arg, sizeof(espi_mmbi_pop));
+		if (copy_from_user(&espi_mmbi_pop, (void*)arg, sizeof(espi_mmbi_pop))) {
+			ESPI_MMBI_DBUG("copy_from_user  fail\n");
+			ret = -EFAULT;
+		}
 		ESPI_MMBI_DBUG(" Offset: 0x%x, len:0x%x \n",
 						espi_mmbi_pop.offset, espi_mmbi_pop.len);
 		mmbi_ptr = aspeed_espi_mmbi_get_mem_loc(aspeed_espi_mmbi,
@@ -270,7 +267,7 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 			if (copy_to_user(espi_mmbi_pop.data_buf,
 					mmbi_ptr,
 					espi_mmbi_pop.len) ) {
-				ESPI_MMBI_DBUG("copy_from_user  fail\n");
+				ESPI_MMBI_DBUG("copy_to_user  fail\n");
 				ret = -EFAULT;
 			}
 		} else {
@@ -279,7 +276,10 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		break;
 	case ASPEED_ESPI_MMBI_IOWRITE:
 		ESPI_MMBI_DBUG(" ASPEED_ESPI_MMBI_IOWRITE\n");
-		copy_from_user(&espi_mmbi_pop, (void*)arg, sizeof(espi_mmbi_pop));
+		if (copy_from_user(&espi_mmbi_pop, (void*)arg, sizeof(espi_mmbi_pop))) {
+			ESPI_MMBI_DBUG("copy_from_user  fail\n");
+			ret = -EFAULT;
+		}
 		ESPI_MMBI_DBUG(" Offset: 0x%x, len:0x%x \n",
 				espi_mmbi_pop.offset, espi_mmbi_pop.len);
 		mmbi_ptr = aspeed_espi_mmbi_get_mem_loc(aspeed_espi_mmbi,
@@ -299,7 +299,10 @@ static long espi_mmbi_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		break;
 	case ASPEED_ESPI_MMBI_REG:
 		ESPI_MMBI_DBUG(" ASPEED_ESPI_MMBI_REG\n");
-		copy_from_user(&espi_mmbi_reg, (void*)arg, sizeof(espi_mmbi_reg));
+		if (copy_from_user(&espi_mmbi_reg, (void*)arg, sizeof(espi_mmbi_reg))) {
+			ESPI_MMBI_DBUG("copy_from_user  fail\n");
+			ret = -EFAULT;
+		}
 		ESPI_MMBI_DBUG(" read Offset: 0x%x\n",espi_mmbi_reg.offset);
 		espi_mmbi_reg.value = aspeed_espi_mmbi_read(aspeed_espi_mmbi, espi_mmbi_reg.offset);
 		if (copy_to_user((void*)arg, &espi_mmbi_reg, sizeof(espi_mmbi_reg))) {
@@ -374,6 +377,8 @@ static int aspeed_espi_mmbi_probe(struct platform_device *pdev)
 	int ret = 0, i = 0;
 	struct regmap *scu;
 	struct device_node *espi_dev_node;
+	struct device_node *espi_ctrl_dev_node;
+	struct platform_device *espi_ctrl_pdev;
 	u32 val;
 
 	ESPI_MMBI_DBUG("\n");
@@ -396,8 +401,7 @@ static int aspeed_espi_mmbi_probe(struct platform_device *pdev)
 	ESPI_MMBI_DBUG("get dev_id\n");
 	dev_id = of_match_device(aspeed_espi_mmbi_of_matches, &pdev->dev);
 	if (!dev_id) {
-		ret = -EINVAL;
-		goto err_free;
+		return -EINVAL;
 	}
 
 	aspeed_espi_mmbi->dev = &pdev->dev;
@@ -413,31 +417,48 @@ static int aspeed_espi_mmbi_probe(struct platform_device *pdev)
 	aspeed_espi_mmbi->reg_base = of_iomap(espi_dev_node, 0);
 	if (aspeed_espi_mmbi->reg_base == NULL) {
 		dev_err(&pdev->dev, "failed to ioremap() registers\n");
-		ret = -ENODEV;
-		goto err_free;
+		return -ENODEV;
 	}
 
-	ESPI_MMBI_DBUG("aspeed_espi_mmbi->reg_base=0x%x\n", aspeed_espi_mmbi->reg_base );
-	//dma_alloc_coherent 64KB MMBI block and program mmbi control register
-	aspeed_espi_mmbi->mmbi_blk_virt = dma_alloc_coherent(&pdev->dev, MMBI_TOTAL_SIZE, &aspeed_espi_mmbi->mmbi_blk_phys, GFP_KERNEL);
-	//TODO add allocation error checking
-	ESPI_MMBI_DBUG("aspeed_espi_mmbi->mmbi_blk_virt =0x%x\n", aspeed_espi_mmbi->mmbi_blk_virt );
-	ESPI_MMBI_DBUG("aspeed_espi_mmbi->mmbi_blk_phys =0x%x\n", aspeed_espi_mmbi->mmbi_blk_phys );
-	aspeed_espi_mmbi_write(aspeed_espi_mmbi, aspeed_espi_mmbi->mmbi_blk_phys, ASPEED_ESPI_PC_RX_SADDR);
-	aspeed_espi_mmbi_write(aspeed_espi_mmbi, aspeed_espi_mmbi->mmbi_blk_phys, ASPEED_ESPI_PC_RX_TADDR);
+	ESPI_MMBI_DBUG("aspeed_espi_mmbi->reg_base=0x%x\n", (u32)aspeed_espi_mmbi->reg_base );
+	//check if peripheral channel is set up
+	espi_ctrl_dev_node = of_find_compatible_node(NULL, NULL, "aspeed,ast2600-espi-ctrl");
+	espi_ctrl_pdev = of_find_device_by_node(espi_ctrl_dev_node);
+	if ((!espi_ctrl_pdev) || (!espi_ctrl_pdev->dev.driver)) {
+		ESPI_MMBI_DBUG("peripheral channel not set up, defer probe\n");
+		return -EPROBE_DEFER;
+	}
+
+	aspeed_espi_mmbi->espi_ctrl = dev_get_drvdata(&espi_ctrl_pdev->dev);
+	if (aspeed_espi_mmbi->espi_ctrl && aspeed_espi_mmbi->espi_ctrl->perif && aspeed_espi_mmbi->espi_ctrl->perif->mcyc_virt) {
+		aspeed_espi_mmbi->mmbi_blk_virt = aspeed_espi_mmbi->espi_ctrl->perif->mcyc_virt;
+		aspeed_espi_mmbi->mmbi_blk_phys = aspeed_espi_mmbi->espi_ctrl->perif->mcyc_taddr;
+	} else {
+		//dma_alloc_coherent 64KB MMBI block and program mmbi control register
+		aspeed_espi_mmbi->espi_ctrl = NULL;
+		aspeed_espi_mmbi->mmbi_blk_virt = dma_alloc_coherent(&pdev->dev, MMBI_TOTAL_SIZE, &aspeed_espi_mmbi->mmbi_blk_phys, GFP_KERNEL);
+		ESPI_MMBI_DBUG("aspeed_espi_mmbi->mmbi_blk_virt =0x%x\n", (u32)aspeed_espi_mmbi->mmbi_blk_virt );
+		ESPI_MMBI_DBUG("aspeed_espi_mmbi->mmbi_blk_phys =0x%x\n", (u32)aspeed_espi_mmbi->mmbi_blk_phys );
+		if (!aspeed_espi_mmbi->mmbi_blk_virt) {
+			dev_err(&pdev->dev, "cannot allocate memory cycle region\n");
+			return -ENOMEM;
+		}
+		//aspeed_espi_mmbi_write(aspeed_espi_mmbi, (u32)aspeed_espi_mmbi->mmbi_blk_phys, ESPI_PERIF_PC_RX_SADDR);
+		aspeed_espi_mmbi_write(aspeed_espi_mmbi, (u32)aspeed_espi_mmbi->mmbi_blk_phys, ESPI_PERIF_PC_RX_TADDR);
+	}
+
 	// peripheral channel memory W/R cycle enable
-	val = aspeed_espi_mmbi_read(aspeed_espi_mmbi,ASPEED_ESPI_CTRL2);
-	val &= ~ESPI_DISABLE_PERP_MEM_READ;
-	val &= ~ESPI_DISABLE_PERP_MEM_WRITE;
-	aspeed_espi_mmbi_write(aspeed_espi_mmbi, val, ASPEED_ESPI_CTRL2);
+	val = aspeed_espi_mmbi_read(aspeed_espi_mmbi,ESPI_CTRL2);
+	val &= ~ESPI_CTRL2_MEMCYC_RD_DIS;
+	val &= ~ESPI_CTRL2_MEMCYC_WR_DIS;
+	aspeed_espi_mmbi_write(aspeed_espi_mmbi, val, ESPI_CTRL2);
 	ESPI_MMBI_DBUG("aspeed_espi_mmbi  ASPEED_ESPI_CTRL2=0x%x\n", val);
 
 	ESPI_MMBI_DBUG("platform get irq");
 	aspeed_espi_mmbi->irq = platform_get_irq(pdev, 0);
 	if (aspeed_espi_mmbi->irq < 0) {
 		dev_err(&pdev->dev, "no irq specified\n");
-		ret = -ENOENT;
-		goto err_free;
+		return -ENOENT;
 	}
 
 	ESPI_MMBI_DBUG("request irq\n");
@@ -445,7 +466,7 @@ static int aspeed_espi_mmbi_probe(struct platform_device *pdev)
 						   0, dev_name(&pdev->dev), aspeed_espi_mmbi);
 	if (ret) {
 		printk("AST ESPI MMBI Unable to get IRQ");
-		goto err_free;
+		return -ENOENT;
 	}
 
 	spin_lock_init(&aspeed_espi_mmbi->espi_mmbi_lock);
@@ -472,9 +493,6 @@ static int aspeed_espi_mmbi_probe(struct platform_device *pdev)
 err_free_irq:
 	free_irq(aspeed_espi_mmbi->irq, pdev);
 
-err_free:
-	kfree(aspeed_espi_mmbi);
-
 	return ret;
 }
 
@@ -488,7 +506,8 @@ static int aspeed_espi_mmbi_remove(struct platform_device *pdev)
 		return -ENODEV;
 
 	misc_deregister(&aspeed_espi_mmbi_misc);
-	dma_free_coherent(&pdev->dev, MMBI_TOTAL_SIZE,aspeed_espi_mmbi->mmbi_blk_virt,aspeed_espi_mmbi->mmbi_blk_phys);
+	if (!aspeed_espi_mmbi->espi_ctrl)
+		dma_free_coherent(&pdev->dev, MMBI_TOTAL_SIZE,aspeed_espi_mmbi->mmbi_blk_virt,aspeed_espi_mmbi->mmbi_blk_phys);
 	return 0;
 }
 

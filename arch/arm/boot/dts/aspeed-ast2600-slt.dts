@@ -339,7 +339,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
-		aspeed,min_rpm = <750000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@1 {
@@ -347,7 +348,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x01>;
-		aspeed,min_rpm = <750000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@2 {
@@ -355,7 +357,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x02>;
-		aspeed,min_rpm = <750000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@3 {
@@ -363,7 +366,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x03>;
-		aspeed,min_rpm = <750000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@4 {
@@ -371,7 +375,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x04>;
-		aspeed,min_rpm = <750000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@5 {
@@ -379,7 +384,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x05>;
-		aspeed,min_rpm = <750000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@6 {
@@ -387,7 +393,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x06>;
-		aspeed,min_rpm = <750000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@7 {
@@ -395,7 +402,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x07>;
-		aspeed,min_rpm = <750000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@8 {
@@ -403,7 +411,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x08>;
-		aspeed,min_rpm = <750000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@9 {
@@ -411,7 +420,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x09>;
-		aspeed,min_rpm = <750000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@10 {
@@ -419,7 +429,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0a>;
-		aspeed,min_rpm = <750000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@11 {
@@ -427,7 +438,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0b>;
-		aspeed,min_rpm = <750000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@12 {
@@ -435,7 +447,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0c>;
-		aspeed,min_rpm = <750000000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@13 {
@@ -443,7 +456,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0d>;
-		aspeed,min_rpm = <750000000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@14 {
@@ -451,7 +465,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0e>;
-		aspeed,min_rpm = <750000000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 
 	fan@15 {
@@ -459,7 +474,8 @@
 		aspeed,target_pwm = <25000>;
 		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0f>;
-		aspeed,min_rpm = <750000000>;
+		aspeed,pulse-pr = <2>;
+		aspeed,tacho-div = <0>;
 	};
 };
 

@@ -211,7 +211,19 @@ int ast_vhub_std_dev_request(struct ast_vhub_ep *ep,
 
 	/* First packet, grab speed */
 	if (d->gadget.speed == USB_SPEED_UNKNOWN) {
+		u32 reg = 0;
 		d->gadget.speed = ep->vhub->speed;
+      	reg = readl(d->regs + AST_VHUB_DEV_EN_CTRL);
+		if (reg&VHUB_DEV_EN_SPEED_SEL_HIGH) {
+		   if (d->gadget.speed != USB_SPEED_HIGH) {
+			   reg &= ~VHUB_DEV_EN_SPEED_SEL_HIGH;
+			   writel(reg, d->regs + AST_VHUB_DEV_EN_CTRL);
+		   }
+		}
+		else if (d->gadget.speed == USB_SPEED_HIGH) {
+			reg |= VHUB_DEV_EN_SPEED_SEL_HIGH;
+			writel(reg, d->regs + AST_VHUB_DEV_EN_CTRL);
+		}
 		if (d->gadget.speed > d->driver->max_speed)
 			d->gadget.speed = d->driver->max_speed;
 		DDBG(d, "fist packet, captured speed %d\n",

@@ -151,16 +151,15 @@ static int aspeed_i2c_global_probe(struct platform_device *pdev)
 	i2c_ic->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 
 	if (IS_ERR(i2c_ic->rst)) {
-		dev_err(&pdev->dev,
+		dev_dbg(&pdev->dev,
 			"missing or invalid reset controller device tree entry");
-		return PTR_ERR(i2c_ic->rst);
+	} else {
+		//SCU I2C Reset 
+		reset_control_assert(i2c_ic->rst);
+		udelay(3);
+		reset_control_deassert(i2c_ic->rst);
 	}
-
-	//SCU I2C Reset 
-	reset_control_assert(i2c_ic->rst);
-	udelay(3);
-	reset_control_deassert(i2c_ic->rst);
-
+	
 	/* ast2600 init */
 	writel(ASPEED_I2CG_SLAVE_PKT_NAK | ASPEED_I2CG_CTRL_NEW_REG, i2c_ic->base + ASPEED_I2CG_CTRL);
 	parent_clk = devm_clk_get(&pdev->dev, NULL);
@@ -170,7 +169,7 @@ static int aspeed_i2c_global_probe(struct platform_device *pdev)
 //	printk("parent_clk_frequency %ld \n", parent_clk_frequency);
 	clk_divider = aspeed_i2c_ic_get_new_clk_divider(parent_clk_frequency, node);
 	writel(clk_divider, i2c_ic->base + ASPEED_I2CG_CLK_DIV_CTRL);
-	
+
 	pr_info("i2c global registered \n");
 
 	return 0;

@@ -1,0 +1,99 @@
+ASPEED AST2600 PWM and Fan Tacho controller device driver
+
+The ASPEED PWM controller can support upto 16 PWM outputs. The ASPEED Fan Tacho
+controller can support upto 16 Fan tachometer inputs.
+
+There can be upto 16 fans supported. Each fan can have one PWM output and
+one/two Fan tach inputs.
+
+Required properties for pwm-tacho node:
+- #address-cells : should be 1.
+
+- #size-cells : should be 1.
+
+- #cooling-cells: Please refer to Documentation/devicetree/bindings/thermal/thermal.txt.
+
+- reg : address and length of the register set for the device.
+
+- pinctrl-names : a pinctrl state named "default" must be defined.
+
+- pinctrl-0 : phandle referencing pin configuration of the PWM ports.
+
+- compatible : should be "aspeed,ast2400-pwm-tacho" for AST2400 and
+	       "aspeed,ast2500-pwm-tacho" for AST2500.
+
+- clocks : phandle to clock provider with the clock number in the second cell
+
+- resets : phandle to reset controller with the reset number in the second cell
+
+fan subnode format:
+===================
+Under fan subnode there can upto 8 child nodes, with each child node
+representing a fan. If there are 8 fans each fan can have one PWM port and
+one/two Fan tach inputs.
+For PWM port can be configured cooling-levels to create cooling device.
+Cooling device could be bound to a thermal zone for the thermal control.
+
+Required properties for each child node:
+- reg : should specify PWM source port.
+	integer value in the range 0 to 16 with 0 indicating PWM port A and
+	15 indicating PWM port P.
+
+- cooling-levels: PWM duty cycle values in a range from 0 to 255
+                  which correspond to thermal cooling states.
+
+- aspeed,target_pwm: define the pwm frequency
+- aspeed,default-duty-point: define the defult duty point of pwm (0~255)
+- aspeed,fan-tach-ch : should specify the Fan tach input channel.
+                integer value in the range 0 through 15, with 0 indicating
+		Fan tach channel 0 and 15 indicating Fan tach channel 15.
+		Atleast one Fan tach input channel is required.
+- aspeed,pulse-pr : define the tachometer pulses per fan revolution as
+            an integer (default is 2 interrupts per revolution).
+            The value must be greater than zero.
+- aspeed,min-rpm : define the minimal revolutions per minute of the measure fan 
+					used to caculate the sample period of tach
+- aspeed,tacho-div : define the tachometer clock divider as an integer (default is 5).
+            formula of tacho clock = HCLK / (2^tacho-div)^2
+- aspeed,wdt-reload-enable: Enable the function of wdt reset reload duty point.
+- aspeed,wdt-reload-duty-point: define the duty point after wdt reset. (0~255)
+Examples:
+
+pwm_tacho: pwm-tacho-controller@1e610000 {
+    compatible = "aspeed,ast2600-pwm-tachometer";
+    #address-cells = <1>;
+    #size-cells = <0>;
+    reg = <0x1e610000 0x100>;
+    clocks = <&syscon ASPEED_CLK_AHB>;
+    resets = <&syscon ASPEED_RESET_PWM>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_tach0_default
+			&pinctrl_pwm1_default &pinctrl_tach1_default
+			&pinctrl_pwm2_default &pinctrl_tach2_default
+			&pinctrl_pwm3_default &pinctrl_tach3_default
+			&pinctrl_pwm4_default &pinctrl_tach4_default
+			&pinctrl_pwm5_default &pinctrl_tach5_default
+			&pinctrl_pwm6_default &pinctrl_tach6_default
+			&pinctrl_pwm7_default &pinctrl_tach7_default
+			&pinctrl_pwm8g1_default &pinctrl_tach8_default
+			&pinctrl_pwm9g1_default &pinctrl_tach9_default
+			&pinctrl_pwm10g1_default &pinctrl_tach10_default
+			&pinctrl_pwm11g1_default &pinctrl_tach11_default
+			&pinctrl_pwm12g1_default &pinctrl_tach12_default
+			&pinctrl_pwm13g1_default &pinctrl_tach13_default
+			&pinctrl_pwm14g1_default &pinctrl_tach14_default
+			&pinctrl_pwm15g1_default &pinctrl_tach15_default>;
+
+	fan@0 {
+		reg = <0x00>;
+		aspeed,target_pwm = <25000>;
+		aspeed,default-duty-point = <128>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
+		aspeed,tacho-div = <5>;
+		aspeed,pulse-pr = <2>;
+		aspeed,min-rpm = <1000>;
+		aspeed,wdt-reload-enable;
+		aspeed,wdt-reload-duty-point = <1>;
+	};
+};

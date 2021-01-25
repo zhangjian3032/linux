@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 // Copyright 2018 IBM Corporation
 
+#include <linux/regmap.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_crtc_helper.h>
@@ -12,9 +13,23 @@ static int aspeed_gfx_get_modes(struct drm_connector *connector)
 {
 	struct aspeed_gfx *priv = container_of(connector, struct aspeed_gfx, connector);
 
-	if(priv->version == GFX_AST2600) 
-		return drm_add_modes_noedid(connector, 1024, 768);
-	else
+	if(priv->version == GFX_AST2600) {
+		u32 clk_src;
+		regmap_read(priv->scu, 0x300, &clk_src);
+		if (((clk_src >> 8) & 0x7) == 0x2)
+			//usb 40Mhz
+			return drm_add_modes_noedid(connector, 800, 600);
+		else if (((clk_src >> 8) & 0x7) == 0x7)
+			//hpll div 16 = 75Mhz
+			return drm_add_modes_noedid(connector, 1024, 768);
+		else if (((clk_src >> 8) & 0x7) == 0x4)
+			//dp div2 = 135Mhz
+			return drm_add_modes_noedid(connector, 1280, 1024);
+		else {
+			printk("unknow clk source \n");
+			return drm_add_modes_noedid(connector, 800, 600);
+		}
+	} else
 		return drm_add_modes_noedid(connector, 800, 600);
 }
 

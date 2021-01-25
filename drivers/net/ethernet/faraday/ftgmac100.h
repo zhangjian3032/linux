@@ -172,8 +172,10 @@
 /*
  * test mode control register
  */
-#define FTGMAC100_TM_RQ_TX_VALID_DIS	(1 << 28)
-#define FTGMAC100_TM_RQ_RR_IDLE_PREV	(1 << 27)
+#define FTGMAC100_TM_RQ_TX_VALID_DIS (1 << 28)
+#define FTGMAC100_TM_RQ_RR_IDLE_PREV (1 << 27)
+#define FTGMAC100_TM_DEFAULT                                                   \
+	(FTGMAC100_TM_RQ_TX_VALID_DIS | FTGMAC100_TM_RQ_RR_IDLE_PREV)
 
 /*
  * PHY control register

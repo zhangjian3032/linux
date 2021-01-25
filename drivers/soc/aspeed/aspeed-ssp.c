@@ -21,6 +21,25 @@
 #define AST2600_CVIC_PENDING_STATUS	0x18
 #define AST2600_CVIC_PENDING_CLEAR	0x1C
 
+#define SSP_CTRL_REG			0xa00
+#define SSP_CTRL_RESET_ASSERT		BIT(1)
+#define SSP_CTRL_EN			BIT(0)
+
+#define SSP_MEM_BASE_REG		0xa04
+#define SSP_IMEM_LIMIT_REG		0xa08
+#define SSP_DMEM_LIMIT_REG		0xa0c
+#define SSP_CACHE_RANGE_REG		0xa40
+#define SSP_CACHE_INVALID_REG		0xa44
+#define SSP_CACHE_CTRL_REG		0xa48
+#define SSP_CACHE_CLEAR_ICACHE		BIT(2)
+#define SSP_CACHE_CLEAR_DCACHE		BIT(1)
+#define SSP_CACHE_EN			BIT(0)
+
+#define SSP_TOTAL_MEM_SZ		(32 * 1024 * 1024)
+#define SSP_CACHED_MEM_SZ		(16 * 1024 * 1024)
+#define SSP_UNCACHED_MEM_SZ		(SSP_TOTAL_MEM_SZ - SSP_CACHED_MEM_SZ)
+#define SSP_CACHE_RANGE_CONFIG		(SSP_CACHED_MEM_SZ >> 24)
+
 struct ast2600_ssp {
 	struct device		*dev;
 	struct regmap 		*scu;
@@ -94,9 +113,9 @@ static int ast_ssp_probe(struct platform_device *pdev)
 			"failed to initialize reserved mem: %d\n", ret);
 	}
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-	priv->ssp_mem = dma_alloc_coherent(priv->dev, 0x00200000, &priv->hw_addr,
-					 GFP_KERNEL);
-	
+	priv->ssp_mem = dma_alloc_coherent(priv->dev, SSP_TOTAL_MEM_SZ,
+					   &priv->hw_addr, GFP_KERNEL);
+
 	printk("virtual addr = 0x%08x, phy_addr = 0x%08x\n",
 	       (uint32_t)priv->ssp_mem, priv->hw_addr);
 	if (request_firmware(&firmware, SSP_FILE_NAME, &pdev->dev) < 0) {
@@ -132,19 +151,23 @@ static int ast_ssp_probe(struct platform_device *pdev)
 
 	printk("init CM3 memory bases\n");
 	priv->scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
-	regmap_write(priv->scu, 0xa00, 0);
+	regmap_write(priv->scu, SSP_CTRL_REG, 0);
 	mdelay(1);
-	regmap_write(priv->scu, 0xa04, priv->hw_addr);
-	regmap_write(priv->scu, 0xa48, 3);
+	regmap_write(priv->scu, SSP_MEM_BASE_REG, priv->hw_addr);
+	regmap_write(priv->scu, SSP_CACHE_CTRL_REG,
+		     SSP_CACHE_CLEAR_DCACHE | SSP_CACHE_EN);
 	mdelay(1);
-	regmap_write(priv->scu, 0xa48, 1);
-	regmap_write(priv->scu, 0xa08, priv->hw_addr + 0x00100000);
-	regmap_write(priv->scu, 0xa0c, priv->hw_addr + 0x00200000);
-	regmap_write(priv->scu, 0xa00, 2);
+	regmap_write(priv->scu, SSP_CACHE_CTRL_REG, SSP_CACHE_EN);
+	regmap_write(priv->scu, SSP_IMEM_LIMIT_REG, priv->hw_addr + SSP_CACHED_MEM_SZ);
+	regmap_write(priv->scu, SSP_DMEM_LIMIT_REG, priv->hw_addr + SSP_TOTAL_MEM_SZ);
+
+	regmap_write(priv->scu, SSP_CACHE_RANGE_REG, SSP_CACHE_RANGE_CONFIG);
+
+	regmap_write(priv->scu, SSP_CTRL_REG, SSP_CTRL_RESET_ASSERT);
 	mdelay(1);
-	regmap_write(priv->scu, 0xa00, 0);
+	regmap_write(priv->scu, SSP_CTRL_REG, 0);
 	mdelay(1);
-	regmap_write(priv->scu, 0xa00, 1);
+	regmap_write(priv->scu, SSP_CTRL_REG, SSP_CTRL_EN);
 	printk("CM3 init done\n");
 	return 0;
 }
@@ -155,12 +178,12 @@ static int ast_ssp_remove(struct platform_device *pdev)
 	int i;
 
 	printk("SSP module removed\n");
-	regmap_write(priv->scu, 0xa00, 0);
+	regmap_write(priv->scu, SSP_CTRL_REG, 0);
 	for (i = 0; i < priv->n_irq; i++) {
 		free_irq(priv->irq[i], priv);
 	}
 
-	dma_free_coherent(priv->dev, 0x00200000, priv->ssp_mem, priv->hw_addr);
+	dma_free_coherent(priv->dev, SSP_TOTAL_MEM_SZ, priv->ssp_mem, priv->hw_addr);
 	kfree(priv);
 
 	misc_deregister((struct miscdevice *)&ast_ssp_misc);

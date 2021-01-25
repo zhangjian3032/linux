@@ -122,8 +122,8 @@ static int aspeed_hace_register(struct aspeed_hace_dev *hace_dev)
 {
 	aspeed_register_hace_crypto_algs(hace_dev);
 	aspeed_register_hace_hash_algs(hace_dev);
-	if (hace_dev->version != 6)
-		aspeed_register_hace_rsa_algs(hace_dev);
+	// if (hace_dev->version != 6)
+	// 	aspeed_register_hace_rsa_algs(hace_dev);
 
 	return 0;
 }
