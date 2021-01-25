@@ -220,18 +220,24 @@ aspeed_jtag_write(struct aspeed_jtag_info *aspeed_jtag, u32 val, u32 reg)
 /******************************************************************************/
 static void aspeed_jtag_set_freq(struct aspeed_jtag_info *aspeed_jtag, unsigned int freq)
 {
-	int div;
+	int div, diff;
 
-	for (div = 0; div < JTAG_TCK_DIVISOR_MASK; div++) {
-		if ((aspeed_jtag->clkin / (div + 1)) <= freq)
-			break;
-	}
-	aspeed_jtag->sw_delay = DIV_ROUND_UP(1000000000 , freq);
+	/* SW mode frequency setting */
+	aspeed_jtag->sw_delay = DIV_ROUND_UP(1000000000, freq);
 	JTAG_DBUG("sw mode delay = %d \n", aspeed_jtag->sw_delay);
+	/* HW mode frequency setting */
+	div = DIV_ROUND_UP(aspeed_jtag->clkin, freq);
+	diff = abs(aspeed_jtag->clkin - div * freq);
+	if (diff > abs(aspeed_jtag->clkin - (div - 1) * freq))
+		div = div - 1;
+	/* JTAG clock frequency formaula = Clock in / (TCK divisor + 1) */
+	if (div >= 1)
+		div = div - 1;
+	JTAG_DBUG("%d target freq = %d div = %d", aspeed_jtag->clkin, freq, div);
 	/* 
 	 * HW constraint:
-	 * AST2600 minimal divide = 7 
-	 * AST2500 minimal divide = 1
+	 * AST2600 minimal TCK divisor = 7 
+	 * AST2500 minimal TCK divisor = 1
 	 */
 	if (aspeed_jtag->config->jtag_version == 6) {
 		if (div < 7)
