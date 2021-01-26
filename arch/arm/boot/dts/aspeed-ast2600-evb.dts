@@ -765,13 +765,13 @@
 	/* Renesas SPD5118 */
 	spd5118_1_0: spd@50,3C000000001 {
 		reg = <0x50 0x3C0 0x00000001>;
-		assigned-address = <0x50>;
+		assigned-address = <0x52>;
 	};
 
 	/* Renesas SPD5118 */
 	spd5118_1_1: spd@51,3C000000002 {
 		reg = <0x51 0x3C0 0x00000002>;
-		assigned-address = <0x51>;
+		assigned-address = <0x53>;
 	};
 };
 
