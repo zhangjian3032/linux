@@ -15,11 +15,8 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/uaccess.h>
-#include <uapi/linux/aspeed-espi.h>
-
+#include "aspeed-espi.h"
 #include "aspeed-espi-ctrl.h"
-
-
 
 /* include alloc/free/event/ioctl handlers of eSPI channels */
 #include "aspeed-espi-perif.h"
