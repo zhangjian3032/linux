@@ -695,7 +695,7 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 				if (i2c_bus->mode == DMA_MODE) {
 					cmd |= AST_I2CS_TX_DMA_EN;
 					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &i2c_bus->slave_dma_buf[0]);
-#ifdef CONFIG_I2C_SLAVE_EEPROM	//one byte send back
+#if 1 				//currently i2c slave framework only support one byte request. 
 					dev_dbg(i2c_bus->dev, "tx: [%x]\n", i2c_bus->slave_dma_buf[0]);
 					aspeed_i2c_write(i2c_bus, AST_I2CS_SET_TX_DMA_LEN(1), AST_I2CS_DMA_LEN);
 #else
@@ -708,7 +708,7 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 				} else if (i2c_bus->mode == BUFF_MODE) {
 					cmd |= AST_I2CS_TX_BUFF_EN;
 					i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &byte_data);
-#ifdef CONFIG_I2C_SLAVE_EEPROM
+#if 1				//currently i2c slave framework only support one byte request. 
 					dev_dbg(i2c_bus->dev, "tx : [%02x]", byte_data);
 					writeb(byte_data, i2c_bus->buf_base);
 					aspeed_i2c_write(i2c_bus, AST_I2CC_SET_TX_BUF_LEN(1), AST_I2CC_BUFF_CTRL);

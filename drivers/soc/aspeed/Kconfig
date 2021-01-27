@@ -75,6 +75,15 @@ config ASPEED_XDMA
 	  SOCs. The XDMA engine can perform automatic PCI DMA operations
 	  between the AST2XXX (acting as a BMC) and a host processor.
 
+config ASPEED_VGA_SHAREDMEM
+	tristate "Aspeed VGA Shared memory"
+	depends on SOC_ASPEED
+	help
+	  To access VGA shared memory on Aspeed BMC, enable this option.
+	  This driver used by ManagedDataRegionlV2 specification. In the
+	  specification, BIOS will transfer whole SMBIOS table to VGA memory,
+	  and BMC can get the table from VGA memory through this driver.
+
 config ASPEED_MCTP
 	tristate "Aspeed MCTP Engine Driver"
 	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
