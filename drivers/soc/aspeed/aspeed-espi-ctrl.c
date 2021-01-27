@@ -104,12 +104,35 @@ static irqreturn_t aspeed_espi_ctrl_rst_isr(int irq, void *arg)
 static int aspeed_espi_ctrl_probe(struct platform_device *pdev)
 {
 	int rc = 0;
+	uint32_t reg;
 	struct aspeed_espi_ctrl *espi_ctrl;
 	struct device *dev = &pdev->dev;
+	struct regmap *scu;
 
 	espi_ctrl = devm_kzalloc(dev, sizeof(*espi_ctrl), GFP_KERNEL);
 	if (!espi_ctrl)
 		return -ENOMEM;
+
+	espi_ctrl->version = (uint32_t)of_device_get_match_data(dev);
+
+	scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
+	if (IS_ERR(scu)) {
+		dev_err(dev, "cannot to find SCU regmap\n");
+		return -ENODEV;
+	}
+
+	if (espi_ctrl->version == ESPI_AST2500) {
+		regmap_read(scu, 0x70, &reg);
+		if ((reg & 0x2000000) == 0)
+			return -EPERM;
+	} else if (espi_ctrl->version == ESPI_AST2600) {
+		regmap_read(scu, 0x510, &reg);
+		if (reg & 0x40)
+			return -EPERM;
+	} else {
+		dev_err(dev, "unknown eSPI version\n");
+		return -EINVAL;
+	}
 
 	espi_ctrl->map = syscon_node_to_regmap(dev->parent->of_node);
 	if (IS_ERR(espi_ctrl->map)) {
@@ -143,7 +166,6 @@ static int aspeed_espi_ctrl_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	espi_ctrl->version = (uint32_t)of_device_get_match_data(dev);
 
 	espi_ctrl->perif = aspeed_espi_perif_alloc(dev, espi_ctrl);
 	if (IS_ERR(espi_ctrl->perif)) {
