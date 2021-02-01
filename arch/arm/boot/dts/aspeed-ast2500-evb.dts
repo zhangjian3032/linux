@@ -33,6 +33,14 @@
 			compatible = "shared-dma-pool";
 			reusable;
 		};
+
+		video_engine_memory: video {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
 	};
 
 	iio-hwmon {
@@ -162,10 +170,12 @@
 	status = "okay";
 };
 
+#if 0
 &gfx {
      status = "okay";
      memory-region = <&gfx_memory>;
 };
+#endif
 
 &pwm_tacho {
         status = "okay";
@@ -217,4 +227,8 @@
                 aspeed,fan-tach-ch = /bits/ 8 <0x07>;
         };
 
+};
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
 };

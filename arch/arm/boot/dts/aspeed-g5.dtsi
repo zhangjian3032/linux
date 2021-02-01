@@ -294,12 +294,17 @@
 			};
 
 			video: video@1e700000 {
+#if 0
 				compatible = "aspeed,ast2500-video-engine";
+#else
+				compatible = "aspeed,ast2500-video";
+#endif
 				reg = <0x1e700000 0x1000>;
 				clocks = <&syscon ASPEED_CLK_GATE_VCLK>,
 					 <&syscon ASPEED_CLK_GATE_ECLK>;
 				clock-names = "vclk", "eclk";
 				interrupts = <7>;
+				resets = <&syscon ASPEED_RESET_VIDEO>;
 				status = "disabled";
 			};
 
@@ -521,6 +526,7 @@
 
 				sio_regs: regs {
 					compatible = "aspeed,bmc-misc";
+					status = "disabled";
 				};
 
 				uart_routing: uart_routing@9c {
