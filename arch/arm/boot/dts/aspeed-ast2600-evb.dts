@@ -828,3 +828,8 @@
 	memory-region = <&vga_memory>;
 };
 #endif
+
+&lpc_snoop {
+	status = "okay";
+	snoop-ports = <0x80>;
+};
