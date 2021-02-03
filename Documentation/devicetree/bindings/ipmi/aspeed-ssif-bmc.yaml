@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ipmi/aspeed-ssif-bmc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Aspeed SSIF IPMI interface
+
+description: SSIF IPMI device bindings for Aspeed
+
+maintainers:
+  - Thang Nguyen <thangqn@amperecomputing.com>
+
+properties:
+  compatible:
+    enum:
+      "aspeed,ast2500-ssif-bmc"
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    ssif-bmc@10 {
+        compatible = "aspeed,ast2500-ssif-bmc";
+        reg = <0x10>;
+    };
