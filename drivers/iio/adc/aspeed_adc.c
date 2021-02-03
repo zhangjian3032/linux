@@ -505,7 +505,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 			&pdev->dev, scaler_clk_name, clk_parent_name,
 			CLK_SET_RATE_UNGATE,
 			data->base + ASPEED_REG_CLOCK_CONTROL, 0, 16,
-			CLK_DIVIDER_ONE_BASED, &data->clk_lock);
+			0, &data->clk_lock);
 		if (IS_ERR(data->clk_scaler))
 			return PTR_ERR(data->clk_scaler);
 		/* ref_voltage config */
