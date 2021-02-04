@@ -42,25 +42,35 @@ struct aspeed_i2c_bus {
 void aspeed_i2c_enable_interrupt(struct aspeed_i2c_bus *bus,
 		unsigned long mask)
 {
+#if 0
 	unsigned long current_mask;
 
 	current_mask = readl(bus->base + ASPEED_I2C_INTR_CTRL_REG);
 	writel(current_mask | mask, bus->base + ASPEED_I2C_INTR_CTRL_REG);
+#else
+	printk("enable i2c interrupt \n");
+#endif
 }
 
 void aspeed_i2c_disable_interrupt(struct aspeed_i2c_bus *bus,
 		unsigned long mask)
 {
+#if 0
 	unsigned long current_mask;
 
 	current_mask = readl(bus->base + ASPEED_I2C_INTR_CTRL_REG);
 	writel(current_mask & ~mask, bus->base + ASPEED_I2C_INTR_CTRL_REG);
+#else
+	printk("disable i2c interrupt \n");
+#endif
 }
 
 void aspeed_set_ssif_bmc_status(struct ssif_bmc_ctx *ssif_bmc, unsigned int status)
 {
 	struct aspeed_i2c_bus *bus;
 	unsigned long flags;
+
+	printk("aspeed_set_ssif_bmc_status === \n");
 
 	bus = (struct aspeed_i2c_bus *)ssif_bmc->priv;
 	if (!bus)
@@ -69,6 +79,7 @@ void aspeed_set_ssif_bmc_status(struct ssif_bmc_ctx *ssif_bmc, unsigned int stat
 	spin_lock_irqsave(&bus->lock, flags);
 
 	if (status & SSIF_BMC_BUSY) {
+		/* TODO set auto nack */
 		/* Ignore RX_DONE and SLAVE_MATCH when slave busy processing */
 		aspeed_i2c_disable_interrupt(bus, ASPEED_I2CD_INTR_RX_DONE);
 		aspeed_i2c_disable_interrupt(bus, ASPEED_I2CD_INTR_SLAVE_MATCH);
@@ -108,6 +119,7 @@ static int ssif_bmc_remove(struct i2c_client *client)
 
 static const struct of_device_id ssif_bmc_match[] = {
 	{ .compatible = "aspeed,ast2500-ssif-bmc" },
+	{ .compatible = "aspeed,ast2600-ssif-bmc" },	
 	{ },
 };
 
