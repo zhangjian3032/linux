@@ -3345,9 +3345,9 @@ static const struct aspeed_video_config ast2400_config = {
 };
 
 static const struct of_device_id aspeed_video_matches[] = {
-	{ .compatible = "aspeed,ast2400-video-engine",	.data = &ast2400_config, },
-	{ .compatible = "aspeed,ast2500-video-engine",	.data = &ast2500_config, },
-	{ .compatible = "aspeed,ast2600-video-engine",	.data = &ast2600_config, },
+	{ .compatible = "aspeed,ast2400-video",	.data = &ast2400_config, },
+	{ .compatible = "aspeed,ast2500-video",	.data = &ast2500_config, },
+	{ .compatible = "aspeed,ast2600-video",	.data = &ast2600_config, },
 	{},
 };
 
