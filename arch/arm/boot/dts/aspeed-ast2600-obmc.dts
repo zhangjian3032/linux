@@ -579,7 +579,7 @@
 &i2c6 {
 	status = "okay";
 
-	ipmb@10 {
+	ipmb@12 {
 		compatible = "ipmb-dev";
 		reg = <0x12>;
 		i2c-protocol;
