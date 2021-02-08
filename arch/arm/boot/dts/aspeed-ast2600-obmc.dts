@@ -556,6 +556,10 @@
 
 };
 
+&i2c3 {
+	status = "okay";
+};
+
 &i2c4 {
 	status = "okay";
 
@@ -850,4 +854,8 @@
 &lpc_snoop {
 	status = "okay";
 	snoop-ports = <0x80>;
+};
+
+&ibt {
+	status = "okay";
 };
