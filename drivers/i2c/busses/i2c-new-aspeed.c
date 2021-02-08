@@ -25,6 +25,7 @@
 #include <linux/regmap.h>
 #include <linux/of_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/i2c-smbus.h>
 #include "ast2600-i2c-global.h"
 
 /***************************************************************************/
@@ -396,6 +397,10 @@ struct aspeed_new_i2c_bus {
 	u32					state;			//I2C xfer mode state matchine
 	u32					bus_recover;
 	struct i2c_adapter	adap;
+	/* smbus alert */
+	int					alert_enable;
+	struct i2c_smbus_alert_setup alert_data;
+	struct i2c_client *ara;
 	/* Multi-master */
 	bool				multi_master;
 	/* master structure */	
@@ -1010,6 +1015,9 @@ int aspeed_new_i2c_master_irq(struct aspeed_new_i2c_bus *i2c_bus)
 
 	dev_dbg(i2c_bus->dev, "M sts %x\n", sts);
 
+	if(!i2c_bus->alert_enable)
+		sts &= ~AST_I2CM_SMBUS_ALT;
+
 	if (AST_I2CM_BUS_RECOVER_FAIL & sts) {
 		printk("AST_I2CM_BUS_RECOVER_FAIL \n");
 		dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CM_BUS_RECOVER_FAIL= %x\n", sts);
@@ -1045,6 +1053,7 @@ int aspeed_new_i2c_master_irq(struct aspeed_new_i2c_bus *i2c_bus)
 			aspeed_i2c_write(i2c_bus, aspeed_i2c_read(i2c_bus, AST_I2CM_IER) &
 				      ~AST_I2CM_SMBUS_ALT,
 				      AST_I2CM_IER);
+			i2c_handle_smbus_alert(i2c_bus->ara);
 			aspeed_i2c_write(i2c_bus, AST_I2CM_SMBUS_ALT, AST_I2CM_ISR);
 			dev_err(i2c_bus->dev, "TODO aspeed_master_alert_recv bus id %d, Disable Alt, Please Imple \n",
 				   i2c_bus->adap.nr);
@@ -1340,12 +1349,17 @@ static void aspeed_new_i2c_init(struct aspeed_new_i2c_bus *i2c_bus)
 	aspeed_i2c_write(i2c_bus, 0xfffffff, AST_I2CM_ISR);
 
 	/* Set interrupt generation of I2C master controller */
-	if (of_property_read_bool(pdev->dev.of_node, "smbus-alert"))
+	if (of_property_read_bool(pdev->dev.of_node, "smbus-alert")) {
+		i2c_bus->alert_enable = 1;
+		i2c_bus->ara = i2c_setup_smbus_alert(&i2c_bus->adap,
+							 &i2c_bus->alert_data);
 		aspeed_i2c_write(i2c_bus, AST_I2CM_PKT_DONE | AST_I2CM_BUS_RECOVER |
 						AST_I2CM_SMBUS_ALT, AST_I2CM_IER);
-	else
+	} else {
+		i2c_bus->alert_enable = 0;
 		aspeed_i2c_write(i2c_bus, AST_I2CM_PKT_DONE | AST_I2CM_BUS_RECOVER,
 						AST_I2CM_IER);
+	}
 
 #ifdef CONFIG_I2C_SLAVE
 	//for memory buffer initial
