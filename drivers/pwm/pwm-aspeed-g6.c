@@ -24,54 +24,55 @@
  * PWM HW register offset define
  *********************************************************/
 //PWM Control Register
-#define ASPEED_PWM_CTRL_CH(ch)			((ch * 0x10) + 0x00)
+#define ASPEED_PWM_CTRL_CH(ch) ((ch * 0x10) + 0x00)
 //PWM Duty Cycle Register
-#define ASPEED_PWM_DUTY_CYCLE_CH(ch)	((ch * 0x10) + 0x04)
+#define ASPEED_PWM_DUTY_CYCLE_CH(ch) ((ch * 0x10) + 0x04)
 /**********************************************************
- * PWM register Bit field 
+ * PWM register Bit field
  *********************************************************/
 /*PWM_CTRL */
-#define  PWM_LOAD_SEL_AS_WDT_BIT	(19)	//load selection as WDT
-#define  PWM_DUTY_LOAD_AS_WDT_EN	BIT(18)	//enable PWM duty load as WDT
-#define  PWM_DUTY_SYNC_DIS			BIT(17)	//disable PWM duty sync
-#define	 PWM_CLK_ENABLE				BIT(16)	//enable PWM clock
-#define  PWM_LEVEL_OUTPUT			BIT(15)	//output PWM level
-#define  PWM_INVERSE				BIT(14) //inverse PWM pin
-#define  PWM_OPEN_DRAIN_EN			BIT(13)	//enable open-drain
-#define  PWM_PIN_EN					BIT(12) //enable PWM pin
-#define  PWM_CLK_DIV_H_MASK			(0xf << 8)	//PWM clock division H bit [3:0]
-#define  PWM_CLK_DIV_L_MASK			(0xff)	//PWM clock division H bit [3:0]
+#define PWM_LOAD_SEL_AS_WDT_BIT (19) //load selection as WDT
+#define PWM_DUTY_LOAD_AS_WDT_EN BIT(18) //enable PWM duty load as WDT
+#define PWM_DUTY_SYNC_DIS BIT(17) //disable PWM duty sync
+#define PWM_CLK_ENABLE BIT(16) //enable PWM clock
+#define PWM_LEVEL_OUTPUT BIT(15) //output PWM level
+#define PWM_INVERSE BIT(14) //inverse PWM pin
+#define PWM_OPEN_DRAIN_EN BIT(13) //enable open-drain
+#define PWM_PIN_EN BIT(12) //enable PWM pin
+#define PWM_CLK_DIV_H_MASK (0xf << 8) //PWM clock division H bit [3:0]
+#define PWM_CLK_DIV_L_MASK (0xff) //PWM clock division H bit [3:0]
 /* [19] */
 #define LOAD_SEL_FALLING 0
-#define LOAD_SEL_RIGING  1
+#define LOAD_SEL_RIGING 1
 
 /*PWM_DUTY_CYCLE */
-#define  PWM_PERIOD_BIT					(24)	//pwm period bit [7:0]
-#define  PWM_PERIOD_BIT_MASK			(0xff << 24)	//pwm period bit [7:0]
-#define  PWM_RISING_FALLING_AS_WDT_BIT  (16)	
-#define  PWM_RISING_FALLING_AS_WDT_MASK (0xff << 16)	//pwm rising/falling point bit [7:0] as WDT
-#define  PWM_RISING_FALLING_MASK		(0xffff)	
-#define  PWM_FALLING_POINT_BIT			(8)	//pwm falling point bit [7:0]
-#define  PWM_RISING_POINT_BIT			(0)	//pwm rising point bit [7:0]
+#define PWM_PERIOD_BIT (24) //pwm period bit [7:0]
+#define PWM_PERIOD_BIT_MASK (0xff << 24) //pwm period bit [7:0]
+#define PWM_RISING_FALLING_AS_WDT_BIT (16)
+#define PWM_RISING_FALLING_AS_WDT_MASK                                         \
+	(0xff << 16) //pwm rising/falling point bit [7:0] as WDT
+#define PWM_RISING_FALLING_MASK (0xffff)
+#define PWM_FALLING_POINT_BIT (8) //pwm falling point bit [7:0]
+#define PWM_RISING_POINT_BIT (0) //pwm rising point bit [7:0]
 /* [31:24] */
-#define  DEFAULT_PWM_PERIOD 0xff
+#define DEFAULT_PWM_PERIOD 0xff
 /**********************************************************
  * Software setting
  *********************************************************/
-#define DEFAULT_TARGET_PWM_FREQ		25000
+#define DEFAULT_TARGET_PWM_FREQ 25000
 #define DEFAULT_DUTY_PT 10
 #define DEFAULT_WDT_RELOAD_DUTY_PT 16
 
 struct aspeed_pwm_data {
 	struct regmap *regmap;
 	unsigned long clk_freq;
-	struct reset_control *reset;	
+	struct reset_control *reset;
 	/* for pwm */
-	struct pwm_chip			chip;
+	struct pwm_chip chip;
 };
 
 static int regmap_aspeed_pwm_reg_write(void *context, unsigned int reg,
-					     unsigned int val)
+				       unsigned int val)
 {
 	void __iomem *regs = (void __iomem *)context;
 
@@ -80,7 +81,7 @@ static int regmap_aspeed_pwm_reg_write(void *context, unsigned int reg,
 }
 
 static int regmap_aspeed_pwm_reg_read(void *context, unsigned int reg,
-					    unsigned int *val)
+				      unsigned int *val)
 {
 	void __iomem *regs = (void __iomem *)context;
 
@@ -99,9 +100,11 @@ static const struct regmap_config aspeed_pwm_regmap_config = {
 };
 
 static void aspeed_set_pwm_channel_enable(struct regmap *regmap, u8 pwm_channel,
-				       bool enable)
+					  bool enable)
 {
-	regmap_update_bits(regmap, ASPEED_PWM_CTRL_CH(pwm_channel), (PWM_CLK_ENABLE | PWM_PIN_EN), enable ? (PWM_CLK_ENABLE | PWM_PIN_EN) : 0);
+	regmap_update_bits(regmap, ASPEED_PWM_CTRL_CH(pwm_channel),
+			   (PWM_CLK_ENABLE | PWM_PIN_EN),
+			   enable ? (PWM_CLK_ENABLE | PWM_PIN_EN) : 0);
 }
 
 /**
@@ -110,13 +113,13 @@ static void aspeed_set_pwm_channel_enable(struct regmap *regmap, u8 pwm_channel,
  */
 struct aspeed_pwm {
 	u32 freq;
-	
 };
 /*
  * The PWM frequency = HCLK(200Mhz) / (clock division L bit *
  * clock division H bit * (period bit + 1))
  */
-static void aspeed_set_pwm_freq(struct aspeed_pwm_data *priv, struct pwm_device *pwm, u32 freq)
+static void aspeed_set_pwm_freq(struct aspeed_pwm_data *priv,
+				struct pwm_device *pwm, u32 freq)
 {
 	u32 ctrl_value;
 	u32 target_div, cal_freq;
@@ -124,7 +127,7 @@ static void aspeed_set_pwm_freq(struct aspeed_pwm_data *priv, struct pwm_device 
 	u32 div_h = BIT(5) - 1, div_l = BIT(8) - 1;
 	u8 div_found;
 	u32 index = pwm->hwpwm;
-    struct aspeed_pwm *channel = pwm_get_chip_data(pwm);
+	struct aspeed_pwm *channel = pwm_get_chip_data(pwm);
 
 	regmap_read(priv->regmap, ASPEED_PWM_CTRL_CH(index), &ctrl_value);
 
@@ -149,20 +152,21 @@ static void aspeed_set_pwm_freq(struct aspeed_pwm_data *priv, struct pwm_device 
 		}
 	}
 	if (div_found == 0) {
-		printk(KERN_WARNING "target freq: %d too slow set minimal frequency\n", freq);
+		pr_debug("target freq: %d too slow set minimal frequency\n",
+			 freq);
 	}
 	channel->freq = cal_freq / (BIT(div_h) * (div_l + 1));
-	printk(KERN_DEBUG "div h %x, l : %x pwm out clk %d\n", div_h, div_l,
-			channel->freq);
-	printk(KERN_DEBUG "hclk %ld, target pwm freq %d, real pwm freq %d\n", priv->clk_freq,
-			freq, channel->freq);
+	pr_debug("div h %x, l : %x pwm out clk %d\n", div_h, div_l,
+		 channel->freq);
+	pr_debug("hclk %ld, target pwm freq %d, real pwm freq %d\n",
+		 priv->clk_freq, freq, channel->freq);
 	ctrl_value &= ~GENMASK(11, 0);
 	ctrl_value |= (div_h << 8) | div_l;
 	regmap_write(priv->regmap, ASPEED_PWM_CTRL_CH(index), ctrl_value);
 }
 
-
-static void aspeed_set_pwm_duty(struct aspeed_pwm_data *priv, struct pwm_device *pwm, u32 duty_pt)
+static void aspeed_set_pwm_duty(struct aspeed_pwm_data *priv,
+				struct pwm_device *pwm, u32 duty_pt)
 {
 	u32 duty_value;
 	u32 index = pwm->hwpwm;
@@ -173,37 +177,36 @@ static void aspeed_set_pwm_duty(struct aspeed_pwm_data *priv, struct pwm_device 
 			    &duty_value);
 		duty_value &= ~GENMASK(15, 8);
 		duty_value |= (duty_pt << PWM_FALLING_POINT_BIT);
-		regmap_write(priv->regmap, ASPEED_PWM_DUTY_CYCLE_CH(index), duty_value);
+		regmap_write(priv->regmap, ASPEED_PWM_DUTY_CYCLE_CH(index),
+			     duty_value);
 		aspeed_set_pwm_channel_enable(priv->regmap, index, true);
 	}
 }
 
-static void aspeed_set_pwm_polarity(struct aspeed_pwm_data *priv, struct pwm_device *pwm, u8 polarity)
+static void aspeed_set_pwm_polarity(struct aspeed_pwm_data *priv,
+				    struct pwm_device *pwm, u8 polarity)
 {
 	u32 ctrl_value;
 	u32 index = pwm->hwpwm;
-	regmap_read(priv->regmap, ASPEED_PWM_CTRL_CH(index),
-			    &ctrl_value);
+	regmap_read(priv->regmap, ASPEED_PWM_CTRL_CH(index), &ctrl_value);
 	ctrl_value &= ~PWM_INVERSE;
 	ctrl_value |= (polarity) ? PWM_INVERSE : 0;
-	regmap_write(priv->regmap, ASPEED_PWM_CTRL_CH(index),
-			    ctrl_value);
+	regmap_write(priv->regmap, ASPEED_PWM_CTRL_CH(index), ctrl_value);
 }
 
 static int aspeed_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-    struct device *dev = chip->dev;
-    struct aspeed_pwm_data *priv = dev_get_drvdata(dev);
+	struct device *dev = chip->dev;
+	struct aspeed_pwm_data *priv = dev_get_drvdata(dev);
 	struct aspeed_pwm *channel;
 	u32 duty_value;
-    u32 index = pwm->hwpwm;
+	u32 index = pwm->hwpwm;
 
 	regmap_read(priv->regmap, ASPEED_PWM_DUTY_CYCLE_CH(index), &duty_value);
 	duty_value &= ~GENMASK(31, 24);
-    duty_value &= ~GENMASK(7,0);
+	duty_value &= ~GENMASK(7, 0);
 	duty_value |= (DEFAULT_PWM_PERIOD << PWM_PERIOD_BIT);
 	regmap_write(priv->regmap, ASPEED_PWM_DUTY_CYCLE_CH(index), duty_value);
-
 
 	channel = devm_kzalloc(dev, sizeof(*channel), GFP_KERNEL);
 	if (!channel)
@@ -213,16 +216,17 @@ static int aspeed_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	return 0;
 }
+
 static void aspeed_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-    struct device *dev = chip->dev;
+	struct device *dev = chip->dev;
 	struct aspeed_pwm *channel = pwm_get_chip_data(pwm);
 
 	devm_kfree(dev, channel);
 }
 
 static int aspeed_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			const struct pwm_state *state)
+			    const struct pwm_state *state)
 {
 	struct device *dev = chip->dev;
 	struct aspeed_pwm_data *priv = dev_get_drvdata(dev);
@@ -254,7 +258,7 @@ static const struct pwm_ops aspeed_pwm_ops = {
 static int aspeed_pwm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-    struct clk *clk;
+	struct clk *clk;
 	int ret;
 	struct aspeed_pwm_data *priv;
 
@@ -262,13 +266,12 @@ static int aspeed_pwm_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->regmap = syscon_node_to_regmap(
-			pdev->dev.parent->of_node);
+	priv->regmap = syscon_node_to_regmap(pdev->dev.parent->of_node);
 	if (IS_ERR(priv->regmap)) {
 		dev_err(dev, "Couldn't get regmap\n");
 		return -ENODEV;
 	}
-	
+
 	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk))
 		return -ENODEV;
@@ -295,12 +298,14 @@ static int aspeed_pwm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to add PWM chip: %d\n", ret);
 		return ret;
 	}
-    dev_set_drvdata(dev, priv);
+	dev_set_drvdata(dev, priv);
 	return ret;
 }
 
 static const struct of_device_id of_pwm_match_table[] = {
-	{ .compatible = "aspeed,ast2600-pwm", },
+	{
+		.compatible = "aspeed,ast2600-pwm",
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, of_pwm_match_table);
@@ -314,3 +319,7 @@ static struct platform_driver aspeed_pwm_driver = {
 };
 
 module_platform_driver(aspeed_pwm_driver);
+
+MODULE_AUTHOR("Billy Tsai <billy_tsai@aspeedtech.com>");
+MODULE_DESCRIPTION("ASPEED PWM device driver");
+MODULE_LICENSE("GPL");
