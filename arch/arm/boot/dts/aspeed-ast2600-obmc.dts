@@ -528,10 +528,6 @@
 
 };
 
-&i2c3 {
-	status = "okay";
-};
-
 &i2c4 {
 	status = "okay";
 
@@ -828,5 +824,13 @@
 };
 
 &ibt {
+	status = "okay";
+};
+
+&vuart1 {
+	virtual;
+	port = <0x3f8>;
+	sirq = <4>;
+	sirq-polarity = <1>;
 	status = "okay";
 };
