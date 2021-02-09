@@ -1643,21 +1643,29 @@ static int aspeed_udc_remove(struct platform_device *pdev)
 
 static int aspeed_udc_probe(struct platform_device *pdev)
 {
-	enum usb_device_speed max_speed;
-	struct aspeed_udc	*udc;
+	enum usb_device_speed 	max_speed;
+	struct device   		*dev = &pdev->dev;
+	struct aspeed_udc		*udc;
 	struct aspeed_udc_ep	*ep;		
-	struct resource	*res;
+	struct resource			*res;
 	int	rc = 0;
 	int i;
-
-	UDC_DBG(" \n");
 
 	udc = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_udc), GFP_KERNEL);
 	if (!udc)
 		return -ENOMEM;
 
-	spin_lock_init(&udc->lock);
+///
+	/* init software state */
+	udc->gadget.dev.parent = dev;
 	udc->pdev = pdev;
+	spin_lock_init(&udc->lock);
+
+	udc->gadget.ops = &ast_udc_ops;
+	udc->gadget.ep0 = &udc->ep[0].ep;
+	udc->gadget.name = "aspeed-udc";
+	udc->gadget.dev.init_name = "gadget";
+///
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	udc->reg = devm_ioremap_resource(&pdev->dev, res);
@@ -1684,6 +1692,8 @@ static int aspeed_udc_probe(struct platform_device *pdev)
 	if (max_speed != USB_SPEED_UNKNOWN && max_speed < USB_SPEED_HIGH)
 			udc->force_usb1 = true;
 
+	printk("aspeed_udc_probe 2\n");
+
 	/* Mask & ack all interrupts before installing the handler */
 	ast_udc_write(udc, 0, ASPEED_UDC_IER);	
 	ast_udc_write(udc, 0x1ffff, ASPEED_UDC_ISR);
@@ -1701,23 +1711,25 @@ static int aspeed_udc_probe(struct platform_device *pdev)
 	 * one per port and one for the vHub itself
 	 */
 
+	printk("aspeed_udc_probe 3\n");
+
 	//TODO only one is enough 
-	udc->ep0_ctrl_buf = dma_alloc_coherent(udc->gadget.dev.parent,
+	udc->ep0_ctrl_buf = dma_alloc_coherent(&pdev->dev,
 					EP_DMA_SIZE * AST_NUM_ENDPOINTS, &udc->ep0_ctrl_dma, GFP_KERNEL);
 
 
+	printk("aspeed_udc_probe 4\n");
+
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
 	udc->gadget.max_speed = USB_SPEED_HIGH;
-	udc->gadget.dev.parent = &pdev->dev;
-	udc->gadget.ops = &ast_udc_ops;
-	udc->gadget.ep0 = &udc->ep[0].ep;
-	udc->gadget.name = "aspeed-udc";
-	udc->gadget.dev.init_name = "gadget";
+
 
 	udc->root_setup = udc->reg + 0x80;
 
 	INIT_LIST_HEAD(&udc->gadget.ep_list);
 	INIT_LIST_HEAD(&udc->gadget.ep0->ep_list);
+
+	printk("aspeed_udc_probe 5\n");
 
 
 	for (i = 0; i < AST_NUM_ENDPOINTS; i++) {
@@ -1757,7 +1769,7 @@ static int aspeed_udc_probe(struct platform_device *pdev)
 		
 		INIT_LIST_HEAD(&ep->queue);				
 	}
-	
+	printk("aspeed_udc_probe 6\n");
 	udc->desc_mode = desc_mode; //1; //Set value for TEST
 
 	printk("ast_udc: current dma mode = %s\n", udc->desc_mode ? "descriptor mode" : "single buffer mode");
