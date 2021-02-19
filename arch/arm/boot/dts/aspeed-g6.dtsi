@@ -812,7 +812,6 @@
 				clocks = <&syscon ASPEED_CLK_APB1>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				status = "disabled";
 			};
 
 			rtc: rtc@1e781000 {
