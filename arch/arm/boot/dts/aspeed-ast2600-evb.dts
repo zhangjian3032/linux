@@ -478,6 +478,8 @@
 
 #if 1
 &fmc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fwqspi_default>;
 	status = "okay";
 
 	flash@0 {
