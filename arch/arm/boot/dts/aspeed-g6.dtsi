@@ -415,7 +415,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			pwm_tach: pwm_tach@1e789000 {
+			pwm_tach: pwm_tach@1e610000 {
 				compatible = "simple-mfd", "syscon";
 				#address-cells = <1>;
 				#size-cells = <1>;
