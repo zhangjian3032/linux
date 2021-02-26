@@ -14,6 +14,11 @@
 /* UART DMA registers offset */
 #define UDMA_TX_DMA_EN		0x000
 #define UDMA_RX_DMA_EN		0x004
+#define UDMA_MISC		0x008
+#define   UDMA_MISC_TX_BUFSZ_MASK	GENMASK(1, 0)
+#define   UDMA_MISC_TX_BUFSZ_SHIFT	0
+#define   UDMA_MISC_RX_BUFSZ_MASK	GENMASK(3, 2)
+#define   UDMA_MISC_RX_BUFSZ_SHIFT	2
 #define UDMA_TIMEOUT_TIMER	0x00c
 #define UDMA_TX_DMA_RST		0x020
 #define UDMA_RX_DMA_RST		0x024
@@ -22,21 +27,21 @@
 #define UDMA_RX_DMA_INT_EN	0x038
 #define UDMA_RX_DMA_INT_STAT	0x03c
 
-#define UDMA_CHX_OFF(x) ((x) * 0x20)
+#define UDMA_CHX_OFF(x)		((x) * 0x20)
 #define UDMA_CHX_TX_RD_PTR(x)	(0x040 + UDMA_CHX_OFF(x))
 #define UDMA_CHX_TX_WR_PTR(x)	(0x044 + UDMA_CHX_OFF(x))
 #define UDMA_CHX_TX_BUF_BASE(x)	(0x048 + UDMA_CHX_OFF(x))
 #define UDMA_CHX_TX_CTRL(x)	(0x04c + UDMA_CHX_OFF(x))
-#define 	UDMA_TX_CTRL_TMOUT_DISABLE	BIT(4)
-#define 	UDMA_TX_CTRL_BUFSZ_MASK		GENMASK(3, 0)
-#define 	UDMA_TX_CTRL_BUFSZ_SHIFT	0
+#define   UDMA_TX_CTRL_TMOUT_DISABLE	BIT(4)
+#define   UDMA_TX_CTRL_BUFSZ_MASK	GENMASK(3, 0)
+#define   UDMA_TX_CTRL_BUFSZ_SHIFT	0
 #define UDMA_CHX_RX_RD_PTR(x)	(0x050 + UDMA_CHX_OFF(x))
 #define UDMA_CHX_RX_WR_PTR(x)	(0x054 + UDMA_CHX_OFF(x))
 #define UDMA_CHX_RX_BUF_BASE(x)	(0x058 + UDMA_CHX_OFF(x))
 #define UDMA_CHX_RX_CTRL(x)	(0x05c + UDMA_CHX_OFF(x))
-#define 	UDMA_RX_CTRL_TMOUT_DISABLE	BIT(4)
-#define 	UDMA_RX_CTRL_BUFSZ_MASK		GENMASK(3, 0)
-#define 	UDMA_RX_CTRL_BUFSZ_SHIFT	0
+#define   UDMA_RX_CTRL_TMOUT_DISABLE	BIT(4)
+#define   UDMA_RX_CTRL_BUFSZ_MASK	GENMASK(3, 0)
+#define   UDMA_RX_CTRL_BUFSZ_SHIFT	0
 
 #define UDMA_MAX_CHANNEL	14
 #define UDMA_TIMEOUT		0x200
@@ -363,6 +368,7 @@ static irqreturn_t aspeed_udma_isr(int irq, void *arg)
 static int aspeed_udma_probe(struct platform_device *pdev)
 {
 	int i, rc;
+	uint32_t reg;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
 
@@ -394,6 +400,16 @@ static int aspeed_udma_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to request IRQ handler\n");
 		return rc;
 	}
+
+	/*
+	 * For AST2600 A1 legacy design.
+	 *  - TX ringbuffer size: 4KB
+	 *  - RX ringbuffer size: 64KB
+	 *  - Timeout timer disabled
+	 */
+	reg = ((UDMA_BUFSZ_CODE_4KB << UDMA_MISC_TX_BUFSZ_SHIFT) & UDMA_MISC_TX_BUFSZ_MASK) |
+	      ((UDMA_BUFSZ_CODE_64KB << UDMA_MISC_RX_BUFSZ_SHIFT) & UDMA_MISC_RX_BUFSZ_MASK);
+	writel(reg, udma->regs + UDMA_MISC);
 
 	for (i = 0; i < UDMA_MAX_CHANNEL; ++i) {
 		writel(0, udma->regs + UDMA_CHX_TX_WR_PTR(i));
