@@ -240,6 +240,7 @@ static int aspeed_sdhci_probe(struct platform_device *pdev)
 	struct aspeed_sdhci *dev;
 	struct sdhci_host *host;
 	struct resource *res;
+	uint32_t reg_val;
 	int slot;
 	int ret;
 
@@ -263,6 +264,14 @@ static int aspeed_sdhci_probe(struct platform_device *pdev)
 	dev->width_mask = !slot ? ASPEED_SDC_S0MMC8 : ASPEED_SDC_S1MMC8;
 
 	sdhci_get_of_property(pdev);
+
+	if (of_property_read_bool(pdev->dev.parent->of_node, "mmc-hs200-1_8v")) {
+		reg_val = readl(host->ioaddr + 0x40);
+		/* support 1.8V */
+		reg_val |= BIT(26);
+		/* write to sdhci140 or sdhci240 mirror register */
+		writel(reg_val, dev->parent->regs + (0x10 * (slot + 1)));
+	}
 
 	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pltfm_host->clk))
