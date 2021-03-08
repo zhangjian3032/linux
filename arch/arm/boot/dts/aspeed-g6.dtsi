@@ -111,6 +111,11 @@
 			    <0x40466000 0x2000>;
 		};
 
+		ahbc: ahbc@1e600000 {
+			compatible = "aspeed,aspeed-ahbc", "syscon";
+			reg = < 0x1e600000 0x100>;
+		};
+
 		cvic: copro-interrupt-controller@1e6c0000 {
 			compatible = "aspeed,ast2600-cvic", "aspeed-cvic";
 			valid-sources = <0xffffffff>;
@@ -598,6 +603,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_pcie1rc_default>;
 #endif
+				aspeed,ahbc = <&ahbc>;
 				status = "disabled";
 
 				pcie_intc0: legacy-interrupt-controller {
