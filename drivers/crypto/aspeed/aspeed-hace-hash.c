@@ -60,6 +60,20 @@ static const u32 sha512_iv[16] = {
 	0xabd9831fUL, 0x6bbd41fbUL, 0x19cde05bUL, 0x79217e13UL
 };
 
+static const u32 sha512_224_iv[16] = {
+	0xC8373D8CUL, 0xA24D5419UL, 0x6699E173UL, 0xD6D4DC89UL,
+	0xAEB7FA1DUL, 0x829CFF32UL, 0x14D59D67UL, 0xCF9F2F58UL,
+	0x692B6D0FUL, 0xA84DD47BUL, 0x736FE377UL, 0x4289C404UL,
+	0xA8859D3FUL, 0xC8361D6AUL, 0xADE61211UL, 0xA192D691UL
+};
+
+static const u32 sha512_256_iv[16] = {
+	0x94213122UL, 0x2CF72BFCUL, 0xA35F559FUL, 0xC2644CC8UL,
+	0x6BB89323UL, 0x51B1536FUL, 0x19773896UL, 0xBDEA4059UL,
+	0xE23E2896UL, 0xE3FF8EA8UL, 0x251E5EBEUL, 0x92398653UL,
+	0xFC99012BUL, 0xAAB8852CUL, 0xDC2DB70EUL, 0xA22CC581UL
+};
+
 static void aspeed_ahash_iV(struct aspeed_sham_reqctx *rctx)
 {
 	if (rctx->flags & SHA_FLAGS_MD5)
@@ -74,6 +88,10 @@ static void aspeed_ahash_iV(struct aspeed_sham_reqctx *rctx)
 		memcpy(rctx->digest, sha384_iv, 64);
 	else if (rctx->flags & SHA_FLAGS_SHA512)
 		memcpy(rctx->digest, sha512_iv, 64);
+	else if (rctx->flags & SHA_FLAGS_SHA512_224)
+		memcpy(rctx->digest, sha512_224_iv, 64);
+	else if (rctx->flags & SHA_FLAGS_SHA512_256)
+		memcpy(rctx->digest, sha512_256_iv, 64);
 }
 
 static void aspeed_ahash_fill_padding(struct aspeed_sham_reqctx *rctx)
@@ -606,6 +624,54 @@ static int aspeed_sham_init(struct ahash_request *req)
 	return 0;
 }
 
+static int aspeed_sha512s_init(struct ahash_request *req)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct aspeed_sham_ctx *tctx = crypto_ahash_ctx(tfm);
+	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
+	struct aspeed_sha_hmac_ctx *bctx = tctx->base;
+
+	AHASH_DBG("digest size: %d\n", crypto_ahash_digestsize(tfm));
+
+	rctx->cmd = HASH_CMD_ACC_MODE;
+	rctx->flags = 0;
+
+	switch (crypto_ahash_digestsize(tfm)) {
+	case SHA224_DIGEST_SIZE:
+		rctx->cmd |= HASH_CMD_SHA512_SER | HASH_CMD_SHA512_224 |
+			     HASH_CMD_SHA_SWAP;
+		rctx->flags |= SHA_FLAGS_SHA512_224;
+		rctx->digsize = SHA224_DIGEST_SIZE;
+		rctx->block_size = SHA512_BLOCK_SIZE;
+		memcpy(rctx->digest, sha512_224_iv, 64);
+		break;
+	case SHA256_DIGEST_SIZE:
+		rctx->cmd |= HASH_CMD_SHA512_SER | HASH_CMD_SHA512_256 |
+			     HASH_CMD_SHA_SWAP;
+		rctx->flags |= SHA_FLAGS_SHA512_256;
+		rctx->digsize = SHA256_DIGEST_SIZE;
+		rctx->block_size = SHA512_BLOCK_SIZE;
+		memcpy(rctx->digest, sha512_256_iv, 64);
+		break;
+	default:
+		dev_err(tctx->hace_dev->dev, "%d not support\n", crypto_ahash_digestsize(tfm));
+		return -EINVAL;
+	}
+	rctx->bufcnt = 0;
+	rctx->total = 0;
+	rctx->digcnt[0] = 0;
+	rctx->digcnt[1] = 0;
+	rctx->buflen = SHA512_BLOCK_SIZE;
+	//hmac cmd
+	if (tctx->flags & SHA_FLAGS_HMAC) {
+		rctx->digcnt[0] = rctx->block_size;
+		rctx->bufcnt = rctx->block_size;
+		memcpy(rctx->buffer, bctx->ipad, rctx->block_size);
+		rctx->flags |= SHA_FLAGS_HMAC;
+	}
+	return 0;
+}
+
 static int aspeed_sham_digest(struct ahash_request *req)
 {
 	AHASH_DBG("\n");
@@ -707,6 +773,16 @@ static int aspeed_sham_cra_sha384_init(struct crypto_tfm *tfm)
 static int aspeed_sham_cra_sha512_init(struct crypto_tfm *tfm)
 {
 	return aspeed_sham_cra_init_alg(tfm, "sha512");
+}
+
+static int aspeed_sham_cra_sha512_224_init(struct crypto_tfm *tfm)
+{
+	return aspeed_sham_cra_init_alg(tfm, "sha512_224");
+}
+
+static int aspeed_sham_cra_sha512_256_init(struct crypto_tfm *tfm)
+{
+	return aspeed_sham_cra_init_alg(tfm, "sha512_256");
 }
 
 static void aspeed_sham_cra_exit(struct crypto_tfm *tfm)
@@ -1043,6 +1119,64 @@ struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 	},
 	{
 		.alg.ahash = {
+			.init	= aspeed_sha512s_init,
+			.update	= aspeed_sham_update,
+			.final	= aspeed_sham_final,
+			.finup	= aspeed_sham_finup,
+			.digest	= aspeed_sham_digest,
+			.export	= aspeed_sham_export,
+			.import	= aspeed_sham_import,
+			.halg = {
+				.digestsize = SHA224_DIGEST_SIZE,
+				.statesize = sizeof(struct aspeed_sham_reqctx),
+				.base = {
+					.cra_name		= "sha512_224",
+					.cra_driver_name	= "aspeed-sha512_224",
+					.cra_priority		= 300,
+					.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+					.cra_blocksize		= SHA512_BLOCK_SIZE,
+					.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
+					.cra_alignmask		= 0,
+					.cra_module		= THIS_MODULE,
+					.cra_init		= aspeed_sham_cra_init,
+					.cra_exit		= aspeed_sham_cra_exit,
+				}
+			}
+		},
+	},
+	{
+		.alg.ahash = {
+			.init	= aspeed_sha512s_init,
+			.update	= aspeed_sham_update,
+			.final	= aspeed_sham_final,
+			.finup	= aspeed_sham_finup,
+			.digest	= aspeed_sham_digest,
+			.export	= aspeed_sham_export,
+			.import	= aspeed_sham_import,
+			.halg = {
+				.digestsize = SHA256_DIGEST_SIZE,
+				.statesize = sizeof(struct aspeed_sham_reqctx),
+				.base = {
+					.cra_name		= "sha512_256",
+					.cra_driver_name	= "aspeed-sha512_256",
+					.cra_priority		= 300,
+					.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+					.cra_blocksize		= SHA512_BLOCK_SIZE,
+					.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
+					.cra_alignmask		= 0,
+					.cra_module		= THIS_MODULE,
+					.cra_init		= aspeed_sham_cra_init,
+					.cra_exit		= aspeed_sham_cra_exit,
+				}
+			}
+		},
+	},
+	{
+		.alg.ahash = {
 			.init	= aspeed_sham_init,
 			.update	= aspeed_sham_update,
 			.final	= aspeed_sham_final,
@@ -1096,6 +1230,66 @@ struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 					.cra_alignmask		= 0,
 					.cra_module		= THIS_MODULE,
 					.cra_init		= aspeed_sham_cra_sha512_init,
+					.cra_exit		= aspeed_sham_cra_exit,
+				}
+			}
+		},
+	},
+	{
+		.alg.ahash = {
+			.init	= aspeed_sha512s_init,
+			.update	= aspeed_sham_update,
+			.final	= aspeed_sham_final,
+			.finup	= aspeed_sham_finup,
+			.digest	= aspeed_sham_digest,
+			.setkey	= aspeed_sham_setkey,
+			.export	= aspeed_sham_export,
+			.import	= aspeed_sham_import,
+			.halg = {
+				.digestsize = SHA224_DIGEST_SIZE,
+				.statesize = sizeof(struct aspeed_sham_reqctx),
+				.base = {
+					.cra_name		= "hmac(sha512_224)",
+					.cra_driver_name	= "aspeed-hmac-sha512_224",
+					.cra_priority		= 300,
+					.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+					.cra_blocksize		= SHA512_BLOCK_SIZE,
+					.cra_ctxsize		= sizeof(struct aspeed_sham_ctx) + sizeof(struct aspeed_sha_hmac_ctx),
+					.cra_alignmask		= 0,
+					.cra_module		= THIS_MODULE,
+					.cra_init		= aspeed_sham_cra_sha512_224_init,
+					.cra_exit		= aspeed_sham_cra_exit,
+				}
+			}
+		},
+	},
+	{
+		.alg.ahash = {
+			.init	= aspeed_sha512s_init,
+			.update	= aspeed_sham_update,
+			.final	= aspeed_sham_final,
+			.finup	= aspeed_sham_finup,
+			.digest	= aspeed_sham_digest,
+			.setkey	= aspeed_sham_setkey,
+			.export	= aspeed_sham_export,
+			.import	= aspeed_sham_import,
+			.halg = {
+				.digestsize = SHA256_DIGEST_SIZE,
+				.statesize = sizeof(struct aspeed_sham_reqctx),
+				.base = {
+					.cra_name		= "hmac(sha512_256)",
+					.cra_driver_name	= "aspeed-hmac-sha512_256",
+					.cra_priority		= 300,
+					.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+					.cra_blocksize		= SHA512_BLOCK_SIZE,
+					.cra_ctxsize		= sizeof(struct aspeed_sham_ctx) + sizeof(struct aspeed_sha_hmac_ctx),
+					.cra_alignmask		= 0,
+					.cra_module		= THIS_MODULE,
+					.cra_init		= aspeed_sham_cra_sha512_256_init,
 					.cra_exit		= aspeed_sham_cra_exit,
 				}
 			}

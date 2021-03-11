@@ -166,8 +166,10 @@
 #define SHA_FLAGS_SHA256		BIT(20)
 #define SHA_FLAGS_SHA384		BIT(21)
 #define SHA_FLAGS_SHA512		BIT(22)
+#define SHA_FLAGS_SHA512_224		BIT(23)
+#define SHA_FLAGS_SHA512_256		BIT(24)
 
-#define SHA_FLAGS_FINUP			BIT(23)
+#define SHA_FLAGS_FINUP			BIT(25)
 
 struct aspeed_hace_dev;
 
