@@ -978,7 +978,7 @@ void aspeed_udc_ep0_out(struct aspeed_udc *udc)
 	if((rx_len < ep->ep.maxpacket) || (req->req.actual == req->req.length)) {
 		//[UVC Gadget] aspeed_udc_ep0_tx will "always" cause a zero length IN (Status OK) for SET_CUR
 		//This is not our case. So, gadget driver will response in DATA Stage by itself
-		//aspeed_udc_ep0_tx(udc);  
+		aspeed_udc_ep0_tx(udc);
 		if(!ep->ep_dir) {
 			aspeed_udc_done(ep, req, 0);
 		}		
