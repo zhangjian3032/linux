@@ -204,7 +204,7 @@ static const struct clk_div_table ast2600_emmc_extclk_div_table[] = {
 	{ 0 }
 };
 
-static const struct clk_div_table ast2600_sd_div_table[] = {
+static const struct clk_div_table ast2600_sd_div_a1_table[] = {
 	{ 0x0, 2 },
 	{ 0x1, 4 },
 	{ 0x2, 6 },
@@ -213,6 +213,18 @@ static const struct clk_div_table ast2600_sd_div_table[] = {
 	{ 0x5, 12 },
 	{ 0x6, 14 },
 	{ 0x7, 16 },
+	{ 0 }
+};
+
+static const struct clk_div_table ast2600_sd_div_a2_table[] = {
+	{ 0x0, 2 },
+	{ 0x1, 4 },
+	{ 0x2, 6 },
+	{ 0x3, 8 },
+	{ 0x4, 10 },
+	{ 0x5, 12 },
+	{ 0x6, 14 },
+	{ 0x7, 1 },
 	{ 0 }
 };
 
@@ -623,7 +635,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		//ast2600 emmc clk should under 200Mhz
 		hw = clk_hw_register_divider_table(dev, "emmc_extclk", "emmc_extclk_gate", 0,
 						scu_g6_base + ASPEED_G6_CLK_SELECTION1, 12, 3, 0,
-						ast2600_sd_div_table,
+						ast2600_emmc_extclk_div_table,
 						&aspeed_g6_clk_lock);
 		if (IS_ERR(hw))
 			return PTR_ERR(hw);
@@ -648,6 +660,8 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		aspeed_g6_clk_data->hws[ASPEED_CLK_EMMC] = hw;
 	}
 
+	clk_hw_register_fixed_rate(NULL, "hclk", NULL, 0, 200000000);
+
 	regmap_read(map, 0x310, &val);
 	if(val & BIT(8)) {
 		/* SD/SDIO clock divider and gate */
@@ -664,13 +678,25 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		if (IS_ERR(hw))
 				return PTR_ERR(hw);
 	}
-	
-	hw = clk_hw_register_divider_table(dev, "sd_extclk", "sd_extclk_gate",
+
+	regmap_read(map, 0x14, &val);
+	if (((val & GENMASK(23, 16)) >> 16) >= 2) {
+		/* A2 clock divisor is different from A1/A0 */
+		hw = clk_hw_register_divider_table(dev, "sd_extclk", "sd_extclk_gate",
 					0, scu_g6_base + ASPEED_G6_CLK_SELECTION4, 28, 3, 0,
-					ast2600_sd_div_table,
+					ast2600_sd_div_a2_table,
 					&aspeed_g6_clk_lock);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
+		if (IS_ERR(hw))
+			return PTR_ERR(hw);
+	} else {
+		hw = clk_hw_register_divider_table(dev, "sd_extclk", "sd_extclk_gate",
+					0, scu_g6_base + ASPEED_G6_CLK_SELECTION4, 28, 3, 0,
+					ast2600_sd_div_a1_table,
+					&aspeed_g6_clk_lock);
+		if (IS_ERR(hw))
+			return PTR_ERR(hw);
+	}
+
 	aspeed_g6_clk_data->hws[ASPEED_CLK_SDIO] = hw;
 
 	/* MAC1/2 RMII 50MHz RCLK */

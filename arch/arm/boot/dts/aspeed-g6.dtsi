@@ -1107,8 +1107,10 @@
 					interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 					sdhci,auto-cmd12;
 					clocks = <&syscon ASPEED_CLK_SDIO>;
-					power-gpio = <&gpio0 ASPEED_GPIO(V, 0) GPIO_ACTIVE_LOW>;
-					power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 1) GPIO_ACTIVE_LOW>;
+					power-gpio = <&gpio0 ASPEED_GPIO(V, 0)
+								GPIO_ACTIVE_HIGH>;
+					power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 1)
+								GPIO_ACTIVE_HIGH>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_sd1_default>;
 					status = "disabled";
@@ -1120,8 +1122,10 @@
 					interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 					sdhci,auto-cmd12;
 					clocks = <&syscon ASPEED_CLK_SDIO>;
-					power-gpio = <&gpio0 ASPEED_GPIO(V, 2) GPIO_ACTIVE_LOW>;
-					power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 3) GPIO_ACTIVE_LOW>;
+					power-gpio = <&gpio0 ASPEED_GPIO(V, 2)
+								GPIO_ACTIVE_HIGH>;
+					power-switch-gpio = <&gpio0 ASPEED_GPIO(V, 3)
+								GPIO_ACTIVE_HIGH>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_sd2_default>;
 					status = "disabled";

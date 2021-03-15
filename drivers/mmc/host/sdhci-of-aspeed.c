@@ -150,34 +150,36 @@ static void sdhci_aspeed_set_power(struct sdhci_host *host, unsigned char mode,
 			}
 	}
 
-    if (host->pwr == pwr)
-            return;
+	if (host->pwr == pwr)
+		return;
 
     host->pwr = pwr;
 
-    if (pwr == 0) {
-            if(gpio_is_valid(dev->pwr_pin))
-                    gpio_set_value(dev->pwr_pin, 0);
-            sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
-    } else {
-            pwr |= SDHCI_POWER_ON;
+	if (pwr == 0) {
+		if (gpio_is_valid(dev->pwr_pin))
+			gpio_set_value(dev->pwr_pin, 0);
 
-            if(pwr & SDHCI_POWER_ON) {
-                    if(gpio_is_valid(dev->pwr_pin))
-                            gpio_set_value(dev->pwr_pin, 1);
-            }
+		sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
+	} else {
+		pwr |= SDHCI_POWER_ON;
 
-            if (pwr & SDHCI_POWER_330) {
-                    if(gpio_is_valid(dev->pwr_sw_pin))
-                            gpio_set_value(dev->pwr_sw_pin, 1);
-            } else if (pwr & SDHCI_POWER_180) {
-                    if(gpio_is_valid(dev->pwr_sw_pin))
-                            gpio_set_value(dev->pwr_sw_pin, 0);
-            } else
-                    printk("todo fail check ~~ \n");
+		if (pwr & SDHCI_POWER_ON) {
+			if (gpio_is_valid(dev->pwr_pin))
+				gpio_set_value(dev->pwr_pin, 1);
+		}
 
-            sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
-    }
+		if (pwr & SDHCI_POWER_330) {
+			if (gpio_is_valid(dev->pwr_sw_pin))
+				gpio_set_value(dev->pwr_sw_pin, 1);
+		} else if (pwr & SDHCI_POWER_180) {
+			if (gpio_is_valid(dev->pwr_sw_pin))
+				gpio_set_value(dev->pwr_sw_pin, 0);
+		} else {
+			dev_err(&host->mmc->class_dev, "todo fail check ~~\n");
+		}
+
+		sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
+	}
 }
 
 static void aspeed_sdhci_voltage_switch(struct sdhci_host *host)
@@ -188,8 +190,9 @@ static void aspeed_sdhci_voltage_switch(struct sdhci_host *host)
 	if (dev->pwr_sw_pin <= 0) {
 		return;
 	}
-    if (gpio_is_valid(dev->pwr_sw_pin))
-            gpio_set_value(dev->pwr_sw_pin, 0);
+
+	if (gpio_is_valid(dev->pwr_sw_pin))
+		gpio_set_value(dev->pwr_sw_pin, 0);
 }
 
 /*
@@ -265,12 +268,21 @@ static int aspeed_sdhci_probe(struct platform_device *pdev)
 
 	sdhci_get_of_property(pdev);
 
-	if (of_property_read_bool(pdev->dev.parent->of_node, "mmc-hs200-1_8v")) {
+	if (of_property_read_bool(pdev->dev.parent->of_node, "mmc-hs200-1_8v") ||
+		of_property_read_bool(pdev->dev.parent->of_node, "sd-uhs-sdr104")) {
 		reg_val = readl(host->ioaddr + 0x40);
 		/* support 1.8V */
 		reg_val |= BIT(26);
 		/* write to sdhci140 or sdhci240 mirror register */
 		writel(reg_val, dev->parent->regs + (0x10 * (slot + 1)));
+	}
+
+	if (of_property_read_bool(pdev->dev.parent->of_node, "sd-uhs-sdr104")) {
+		reg_val = readl(host->ioaddr + 0x44);
+		/* SDR104 */
+		reg_val |= BIT(1);
+		/* write to sdhci144 or sdhci244 mirror register */
+		writel(reg_val, dev->parent->regs + (0x04 + (slot + 1) * 0x10));
 	}
 
 	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
@@ -292,8 +304,9 @@ static int aspeed_sdhci_probe(struct platform_device *pdev)
 		if (gpio_is_valid(dev->pwr_pin)) {
 			if (devm_gpio_request(&pdev->dev, dev->pwr_pin,
 								  "mmc_pwr")) {
-				printk("devm_gpio_request pwr fail \n");
+				dev_err(&pdev->dev, "devm_gpio_request pwr fail\n");
 			}
+
 			gpio_direction_output(dev->pwr_pin, 1);
 		}
 	}
@@ -304,8 +317,9 @@ static int aspeed_sdhci_probe(struct platform_device *pdev)
 		if (gpio_is_valid(dev->pwr_sw_pin)) {
 			if (devm_gpio_request(&pdev->dev, dev->pwr_sw_pin,
 							  "mmc_pwr_sw")) {
-				printk("devm_gpio_request pwr sw fail \n");
+				dev_err(&pdev->dev, "devm_gpio_request pwr sw fail\n");
 			}
+
 			gpio_direction_output(dev->pwr_sw_pin, 1);
 		}
 	}
