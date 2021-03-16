@@ -35,22 +35,22 @@ static irqreturn_t aspeed_espi_ctrl_isr(int irq, void *arg)
 
 	if (sts & ESPI_INT_STS_PERIF_BITS) {
 		aspeed_espi_perif_event(sts, espi_ctrl->perif);
-		regmap_write(espi_ctrl->map, ESPI_INT_STS, ESPI_INT_STS_PERIF_BITS);
+		regmap_write(espi_ctrl->map, ESPI_INT_STS, sts & ESPI_INT_STS_PERIF_BITS);
 	}
 
 	if (sts & ESPI_INT_STS_VW_BITS) {
 		aspeed_espi_vw_event(sts, espi_ctrl->vw);
-		regmap_write(espi_ctrl->map, ESPI_INT_STS, ESPI_INT_STS_VW_BITS);
+		regmap_write(espi_ctrl->map, ESPI_INT_STS, sts & ESPI_INT_STS_VW_BITS);
 	}
 
 	if (sts & (ESPI_INT_STS_OOB_BITS | ESPI_INT_STS_HW_RST_DEASSERT)) {
 		aspeed_espi_oob_event(sts, espi_ctrl->oob);
-		regmap_write(espi_ctrl->map, ESPI_INT_STS, ESPI_INT_STS_OOB_BITS);
+		regmap_write(espi_ctrl->map, ESPI_INT_STS, sts & ESPI_INT_STS_OOB_BITS);
 	}
 
 	if (sts & ESPI_INT_STS_FLASH_BITS) {
 		aspeed_espi_flash_event(sts, espi_ctrl->flash);
-		regmap_write(espi_ctrl->map, ESPI_INT_STS, ESPI_INT_STS_FLASH_BITS);
+		regmap_write(espi_ctrl->map, ESPI_INT_STS, sts & ESPI_INT_STS_FLASH_BITS);
 	}
 
 	if (sts & ESPI_INT_STS_HW_RST_DEASSERT) {
