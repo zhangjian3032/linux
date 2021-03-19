@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Crypto driver for the Aspeed SoC
  *
@@ -20,8 +21,7 @@
 // #define ASPEED_AHASH_DEBUG
 
 #ifdef ASPEED_AHASH_DEBUG
-//#define AHASH_DBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
-#define AHASH_DBG(fmt, args...) printk("%s() " fmt, __FUNCTION__, ## args)
+#define AHASH_DBG(fmt, args...) pr_notice("%s() " fmt, __func__, ## args)
 #else
 #define AHASH_DBG(fmt, args...)
 #endif
@@ -116,6 +116,7 @@ static int aspeed_ahash_dma_prepare(struct aspeed_hace_dev *hace_dev)
 	struct aspeed_engine_hash *hash_engine = &hace_dev->hash_engine;
 	struct ahash_request *req = hash_engine->ahash_req;
 	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
+	struct device *dev = hace_dev->dev;
 	int length;
 	int remain;
 
@@ -123,15 +124,14 @@ static int aspeed_ahash_dma_prepare(struct aspeed_hace_dev *hace_dev)
 	length = rctx->total + rctx->bufcnt;
 	remain = length % rctx->block_size;
 
-	// printk("length: %d, remain: %d\n", length, remain);
 	if (rctx->bufcnt)
 		memcpy(hash_engine->ahash_src_addr, rctx->buffer, rctx->bufcnt);
-	if (rctx-> total + rctx->bufcnt < 0xa000) {
+	if (rctx->total + rctx->bufcnt < 0xa000) {
 		scatterwalk_map_and_copy(hash_engine->ahash_src_addr + rctx->bufcnt,
 					 rctx->src_sg, rctx->offset, rctx->total - remain, 0);
 		rctx->offset += rctx->total - remain;
 	} else {
-		printk("too long!!!!!!!!!!!!!!!");
+		dev_err(dev, "Hash data length is too long");
 	}
 
 	scatterwalk_map_and_copy(rctx->buffer, rctx->src_sg,
@@ -167,7 +167,7 @@ static int aspeed_ahash_append_sg_map(struct aspeed_hace_dev *hace_dev)
 		return -EINVAL;
 	}
 
-	src_list = (struct aspeed_sg_list *) hash_engine->ahash_src_addr;
+	src_list = (struct aspeed_sg_list *)hash_engine->ahash_src_addr;
 	rctx->digest_dma_addr = dma_map_single(hace_dev->dev, rctx->digest,
 					       SHA512_DIGEST_SIZE, DMA_BIDIRECTIONAL);
 	if (rctx->bufcnt != 0) {
@@ -337,7 +337,6 @@ static int aspeed_ahash_update_resume(struct aspeed_hace_dev *hace_dev)
 			return aspeed_hace_ahash_trigger(hace_dev, aspeed_ahash_transfer);
 	}
 
-
 	return aspeed_ahash_complete(hace_dev, 0);
 }
 
@@ -408,10 +407,8 @@ int aspeed_hace_hash_handle_queue(struct aspeed_hace_dev *hace_dev,
 	if (backlog)
 		backlog->complete(backlog, -EINPROGRESS);
 
-
 	hash_engine->ahash_req = ahash_request_cast(areq);
 	rctx = ahash_request_ctx(hash_engine->ahash_req);
-
 
 	if (rctx->op == SHA_OP_UPDATE)
 		aspeed_ahash_req_update(hace_dev);
@@ -442,7 +439,11 @@ int aspeed_hace_ahash_trigger(struct aspeed_hace_dev *hace_dev,
 	aspeed_hace_write(hace_dev, rctx->cmd, ASPEED_HACE_HASH_CMD);
 	// rctx->bufcnt = 0;
 #ifndef CONFIG_CRYPTO_DEV_ASPEED_AHASH_INT
-	while (aspeed_hace_read(hace_dev, ASPEED_HACE_STS) & HACE_HASH_BUSY);
+	u32 sts;
+
+	do {
+		sts = aspeed_hace_read(hace_dev, ASPEED_HACE_STS);
+	} while (sts & HACE_HASH_BUSY);
 	aspeed_hace_write(hace_dev, sts, ASPEED_HACE_STS);
 	resume(hace_dev);
 	return 0;
@@ -471,7 +472,7 @@ static int aspeed_sham_update(struct ahash_request *req)
 
 	if (rctx->bufcnt + rctx->total < rctx->block_size) {
 		// sg_copy_to_buffer(rctx->src_sg, rctx->src_nents,
-		// 		  rctx->buffer + rctx->bufcnt, rctx->total);
+		//		rctx->buffer + rctx->bufcnt, rctx->total);
 		scatterwalk_map_and_copy(rctx->buffer + rctx->bufcnt, rctx->src_sg,
 					 rctx->offset, rctx->total, 0);
 		rctx->bufcnt += rctx->total;
@@ -522,7 +523,7 @@ static int aspeed_sham_finup(struct ahash_request *req)
 
 	/*
 	 * final() has to be always called to cleanup resources
-	 * even if udpate() failed, except EINPROGRESS
+	 * even if update() failed, except EINPROGRESS
 	 */
 	err2 = aspeed_sham_final(req);
 
@@ -587,9 +588,8 @@ static int aspeed_sham_init(struct ahash_request *req)
 		memcpy(rctx->digest, sha512_iv, 64);
 		break;
 	default:
-		printk("%d not support \n", crypto_ahash_digestsize(tfm));
+		dev_err(tctx->hace_dev->dev, "%d not support\n", crypto_ahash_digestsize(tfm));
 		return -EINVAL;
-		break;
 	}
 	rctx->bufcnt = 0;
 	rctx->total = 0;
@@ -653,7 +653,7 @@ static int aspeed_sham_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base
 	tctx->hace_dev = algt->hace_dev;
 	tctx->flags = 0;
 
-	AHASH_DBG("%s crypto dev %x \n", crypto_tfm_alg_name(tfm),
+	AHASH_DBG("%s crypto dev %x\n", crypto_tfm_alg_name(tfm),
 		  (u32)tctx->hace_dev);
 
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
@@ -661,12 +661,12 @@ static int aspeed_sham_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base
 
 	if (alg_base) {
 		struct aspeed_sha_hmac_ctx *bctx = tctx->base;
+
 		tctx->flags |= SHA_FLAGS_HMAC;
 		bctx->shash = crypto_alloc_shash(alg_base, 0,
 						 CRYPTO_ALG_NEED_FALLBACK);
 		if (IS_ERR(bctx->shash)) {
-			pr_err("aspeed-sham: base driver '%s' "
-			       "could not be loaded.\n", alg_base);
+			dev_err(tctx->hace_dev->dev, "aspeed-sham: base driver '%s' could not be loaded.\n", alg_base);
 			return PTR_ERR(bctx->shash);
 		}
 	}
@@ -717,7 +717,8 @@ static void aspeed_sham_cra_exit(struct crypto_tfm *tfm)
 
 	if (tctx->flags & SHA_FLAGS_HMAC) {
 		struct aspeed_sha_hmac_ctx *bctx = tctx->base;
-		AHASH_DBG("HMAC \n");
+
+		AHASH_DBG("HMAC\n");
 		crypto_free_shash(bctx->shash);
 	}
 }
@@ -726,7 +727,7 @@ static int aspeed_sham_export(struct ahash_request *req, void *out)
 {
 	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
 
-	AHASH_DBG("rctx->bufcnt %d \n", rctx->bufcnt);
+	AHASH_DBG("rctx->bufcnt %d\n", rctx->bufcnt);
 
 	memcpy(out, rctx, sizeof(*rctx));
 	return 0;
@@ -980,6 +981,7 @@ struct aspeed_hace_alg aspeed_ahash_algs[] = {
 		},
 	},
 };
+
 struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 	{
 		.alg.ahash = {

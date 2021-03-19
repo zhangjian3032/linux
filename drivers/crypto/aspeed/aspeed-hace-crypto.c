@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Crypto driver for the Aspeed SoC
  *
@@ -19,8 +20,7 @@
 // #define ASPEED_CIPHER_DEBUG
 
 #ifdef ASPEED_CIPHER_DEBUG
-//#define CIPHER_DBG(fmt, args...) printk(KERN_DEBUG "%s() " fmt, __FUNCTION__, ## args)
-#define CIPHER_DBG(fmt, args...) printk("%s() " fmt, __FUNCTION__, ## args)
+#define CIPHER_DBG(fmt, args...) pr_notice("%s() " fmt, __func__, ## args)
 #else
 #define CIPHER_DBG(fmt, args...)
 #endif
@@ -60,13 +60,11 @@ int aspeed_hace_crypto_handle_queue(struct aspeed_hace_dev *hace_dev,
 
 	err = ctx->start(hace_dev);
 
-
 	// crypto_engine->sk_req = skcipher_request_cast(areq);
 	// err = aspeed_hace_skcipher_trigger(hace_dev);
 
 	return (crypto_engine->is_async) ? ret : err;
 }
-
 
 static inline int aspeed_crypto_wait_for_data_ready(struct aspeed_hace_dev *hace_dev,
 		aspeed_hace_fn_t resume)
@@ -76,9 +74,13 @@ static inline int aspeed_crypto_wait_for_data_ready(struct aspeed_hace_dev *hace
 
 	return -EINPROGRESS;
 #else
-	CIPHER_DBG("\n");
+	u32 sts;
 
-	while (aspeed_hace_read(hace_dev, ASPEED_HACE_STS) & HACE_CRYPTO_BUSY);
+	CIPHER_DBG("\n");
+	do {
+		sts = aspeed_hace_read(hace_dev, ASPEED_HACE_STS);
+	} while (sts & HACE_CRYPTO_BUSY);
+
 	return resume(hace_dev);
 #endif
 }
@@ -111,13 +113,14 @@ static int aspeed_sk_sg_transfer(struct aspeed_hace_dev *hace_dev)
 	struct skcipher_request *req = skcipher_request_cast(crypto_engine->areq);
 	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
 	struct aspeed_cipher_ctx *ctx = crypto_skcipher_ctx(cipher);
+	struct device *dev = hace_dev->dev;
 
 	CIPHER_DBG("\n");
 	if (req->src == req->dst) {
-		dma_unmap_sg(hace_dev->dev, req->src, ctx->src_nents, DMA_BIDIRECTIONAL);
+		dma_unmap_sg(dev, req->src, ctx->src_nents, DMA_BIDIRECTIONAL);
 	} else {
-		dma_unmap_sg(hace_dev->dev, req->src, ctx->src_nents, DMA_TO_DEVICE);
-		dma_unmap_sg(hace_dev->dev, req->dst, ctx->dst_nents, DMA_FROM_DEVICE);
+		dma_unmap_sg(dev, req->src, ctx->src_nents, DMA_TO_DEVICE);
+		dma_unmap_sg(dev, req->dst, ctx->dst_nents, DMA_FROM_DEVICE);
 	}
 
 	return aspeed_sk_complete(hace_dev, 0);
@@ -129,6 +132,7 @@ static int aspeed_sk_cpu_transfer(struct aspeed_hace_dev *hace_dev)
 	struct skcipher_request *req = skcipher_request_cast(crypto_engine->areq);
 	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
 	struct aspeed_cipher_ctx *ctx = crypto_skcipher_ctx(cipher);
+	struct device *dev = hace_dev->dev;
 	struct scatterlist *out_sg = req->dst;
 	int nbytes = 0;
 	int err = 0;
@@ -136,11 +140,12 @@ static int aspeed_sk_cpu_transfer(struct aspeed_hace_dev *hace_dev)
 	CIPHER_DBG("\n");
 	nbytes = sg_copy_from_buffer(out_sg, ctx->dst_nents, crypto_engine->cipher_addr, req->cryptlen);
 	if (!nbytes) {
-		printk("nbytes %d req->cryptlen %d\n", nbytes, req->cryptlen);
+		dev_err(dev, "nbytes %d req->cryptlen %d\n", nbytes, req->cryptlen);
 		err = -EINVAL;
 	}
 	return aspeed_sk_complete(hace_dev, err);
 }
+
 # if 0
 static int aspeed_sk_dma_start(struct aspeed_hace_dev *hace_dev)
 {
@@ -150,7 +155,7 @@ static int aspeed_sk_dma_start(struct aspeed_hace_dev *hace_dev)
 	struct aspeed_cipher_ctx *ctx = crypto_skcipher_ctx(cipher);
 
 	CIPHER_DBG("\n");
-	CIPHER_DBG("req->cryptlen %d , nb_in_sg %d, nb_out_sg %d \n", req->cryptlen, ctx->src_nents, ctx->dst_nents);
+	CIPHER_DBG("req->cryptlen %d , nb_in_sg %d, nb_out_sg %d\n", req->cryptlen, ctx->src_nents, ctx->dst_nents);
 	if (req->dst == req->src) {
 		if (!dma_map_sg(hace_dev->dev, req->src, 1, DMA_BIDIRECTIONAL)) {
 			dev_err(hace_dev->dev, "[%s:%d] dma_map_sg(src) error\n",
@@ -188,15 +193,15 @@ static int aspeed_sk_cpu_start(struct aspeed_hace_dev *hace_dev)
 	struct skcipher_request *req = skcipher_request_cast(crypto_engine->areq);
 	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
 	struct aspeed_cipher_ctx *ctx = crypto_skcipher_ctx(cipher);
+	struct device *dev = hace_dev->dev;
 	struct scatterlist *in_sg = req->src;
 	int nbytes = 0;
 
-
 	CIPHER_DBG("\n");
 	nbytes = sg_copy_to_buffer(in_sg, ctx->src_nents, crypto_engine->cipher_addr, req->cryptlen);
-	CIPHER_DBG("copy nbytes %d, req->cryptlen %d , nb_in_sg %d, nb_out_sg %d \n", nbytes, req->cryptlen, ctx->src_nents, ctx->dst_nents);
+	CIPHER_DBG("copy nbytes %d, req->cryptlen %d , nb_in_sg %d, nb_out_sg %d\n", nbytes, req->cryptlen, ctx->src_nents, ctx->dst_nents);
 	if (!nbytes) {
-		printk("nbytes error \n");
+		dev_err(dev, "nbytes error\n");
 		return -EINVAL;
 	}
 #ifdef CONFIG_CRYPTO_DEV_ASPEED_SK_INT
@@ -216,6 +221,7 @@ static int aspeed_sk_g6_start(struct aspeed_hace_dev *hace_dev)
 	struct skcipher_request *req = skcipher_request_cast(crypto_engine->areq);
 	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
 	struct aspeed_cipher_ctx *ctx = crypto_skcipher_ctx(cipher);
+	struct device *dev = hace_dev->dev;
 	struct aspeed_sg_list *src_list, *dst_list;
 	dma_addr_t src_dma_addr, dst_dma_addr;
 	struct scatterlist *s;
@@ -227,29 +233,29 @@ static int aspeed_sk_g6_start(struct aspeed_hace_dev *hace_dev)
 			HACE_CMD_AES_KEY_HW_EXP | HACE_CMD_MBUS_REQ_SYNC_EN;
 
 	if (req->dst == req->src) {
-		ctx->src_sg_len = dma_map_sg(hace_dev->dev, req->src, ctx->src_nents, DMA_BIDIRECTIONAL);
+		ctx->src_sg_len = dma_map_sg(dev, req->src, ctx->src_nents, DMA_BIDIRECTIONAL);
 		ctx->dst_sg_len = ctx->src_sg_len;
 		if (!ctx->src_sg_len) {
-			dev_err(hace_dev->dev, "[%s:%d] dma_map_sg(src) error\n",
+			dev_err(dev, "[%s:%d] dma_map_sg(src) error\n",
 				__func__, __LINE__);
 			return -EINVAL;
 		}
 	} else {
-		ctx->src_sg_len = dma_map_sg(hace_dev->dev, req->src, ctx->src_nents, DMA_TO_DEVICE);
+		ctx->src_sg_len = dma_map_sg(dev, req->src, ctx->src_nents, DMA_TO_DEVICE);
 		if (!ctx->src_sg_len) {
-			dev_err(hace_dev->dev, "[%s:%d] dma_map_sg(src) error\n",
+			dev_err(dev, "[%s:%d] dma_map_sg(src) error\n",
 				__func__, __LINE__);
 			return -EINVAL;
 		}
-		ctx->dst_sg_len = dma_map_sg(hace_dev->dev, req->dst, ctx->dst_nents, DMA_FROM_DEVICE);
+		ctx->dst_sg_len = dma_map_sg(dev, req->dst, ctx->dst_nents, DMA_FROM_DEVICE);
 		if (!ctx->dst_sg_len) {
-			dev_err(hace_dev->dev, "[%s:%d] dma_map_sg(dst) error\n",
+			dev_err(dev, "[%s:%d] dma_map_sg(dst) error\n",
 				__func__, __LINE__);
 			return -EINVAL;
 		}
 	}
 
-	src_list = (struct aspeed_sg_list *) crypto_engine->cipher_addr;
+	src_list = (struct aspeed_sg_list *)crypto_engine->cipher_addr;
 	src_dma_addr = crypto_engine->cipher_dma_addr;
 	total = req->cryptlen;
 	for_each_sg(req->src, s, ctx->src_sg_len, i) {
@@ -259,10 +265,9 @@ static int aspeed_sk_g6_start(struct aspeed_hace_dev *hace_dev)
 			src_list[i].len |= BIT(31);
 			total = 0;
 			break;
-		} else {
-			src_list[i].len = sg_dma_len(s);
-			total -= src_list[i].len;
 		}
+		src_list[i].len = sg_dma_len(s);
+		total -= src_list[i].len;
 	}
 	if (total != 0)
 		return -EINVAL;
@@ -273,7 +278,7 @@ static int aspeed_sk_g6_start(struct aspeed_hace_dev *hace_dev)
 		// dummy read for a1
 		READ_ONCE(src_list[ctx->src_sg_len]);
 	} else {
-		dst_list = (struct aspeed_sg_list *) crypto_engine->dst_sg_addr;
+		dst_list = (struct aspeed_sg_list *)crypto_engine->dst_sg_addr;
 		dst_dma_addr = crypto_engine->dst_sg_dma_addr;
 		total = req->cryptlen;
 		for_each_sg(req->dst, s, ctx->dst_sg_len, i) {
@@ -283,10 +288,9 @@ static int aspeed_sk_g6_start(struct aspeed_hace_dev *hace_dev)
 				dst_list[i].len |= BIT(31);
 				total = 0;
 				break;
-			} else {
-				dst_list[i].len = sg_dma_len(s);
-				total -= dst_list[i].len;
 			}
+			dst_list[i].len = sg_dma_len(s);
+			total -= dst_list[i].len;
 		}
 		dst_list[ctx->dst_sg_len].phy_addr = 0;
 		dst_list[ctx->dst_sg_len].len = 0;
@@ -300,40 +304,40 @@ static int aspeed_sk_g6_start(struct aspeed_hace_dev *hace_dev)
 	// i = 0;
 	// printk("src_list\n");
 	// while (1) {
-	// 	printk("addr: %x\n", src_list[i].phy_addr);
-	// 	if (src_list[i].len & BIT(31)) {
-	// 		printk("len: %lu\n", src_list[i].len & ~BIT(31));
-	// 		break;
-	// 	} else {
-	// 		printk("len: %lu\n", src_list[i].len);
-	// 		i++;
-	// 	}
+	//	printk("addr: %x\n", src_list[i].phy_addr);
+	//	if (src_list[i].len & BIT(31)) {
+	//		printk("len: %lu\n", src_list[i].len & ~BIT(31));
+	//		break;
+	//	} else {
+	//		printk("len: %lu\n", src_list[i].len);
+	//		i++;
+	//	}
 	// }
 	// if (req->dst == req->src) {
-	// 	printk("dst_list\n");
-	// 	while (1) {
-	// 		printk("addr: %x\n", src_list[i].phy_addr);
-	// 		if (src_list[i].len & BIT(31)) {
-	// 			printk("len: %lu\n", src_list[i].len & ~BIT(31));
-	// 			break;
-	// 		} else {
-	// 			printk("len: %lu\n", src_list[i].len);
-	// 			i++;
-	// 		}
-	// 	}
+	//	printk("dst_list\n");
+	//	while (1) {
+	//		printk("addr: %x\n", src_list[i].phy_addr);
+	//		if (src_list[i].len & BIT(31)) {
+	//			printk("len: %lu\n", src_list[i].len & ~BIT(31));
+	//			break;
+	//		} else {
+	//			printk("len: %lu\n", src_list[i].len);
+	//			i++;
+	//		}
+	//	}
 	// } else {
-	// 	i = 0;
-	// 	printk("dst_list\n");
-	// 	while (1) {
-	// 		printk("addr: %x\n", dst_list[i].phy_addr);
-	// 		if (dst_list[i].len & BIT(31)) {
-	// 			printk("len: %lu\n", dst_list[i].len & ~BIT(31));
-	// 			break;
-	// 		} else {
-	// 			printk("len: %lu\n", dst_list[i].len);
-	// 			i++;
-	// 		}
-	// 	}
+	//	i = 0;
+	//	printk("dst_list\n");
+	//	while (1) {
+	//		printk("addr: %x\n", dst_list[i].phy_addr);
+	//		if (dst_list[i].len & BIT(31)) {
+	//			printk("len: %lu\n", dst_list[i].len & ~BIT(31));
+	//			break;
+	//		} else {
+	//			printk("len: %lu\n", dst_list[i].len);
+	//			i++;
+	//		}
+	//	}
 	// }
 #ifdef CONFIG_CRYPTO_DEV_ASPEED_SK_INT
 	crypto_engine->resume = aspeed_sk_sg_transfer;
@@ -362,7 +366,7 @@ int aspeed_hace_skcipher_trigger(struct aspeed_hace_dev *hace_dev)
 	ctx->dst_nents = sg_nents(req->dst);
 	ctx->src_nents = sg_nents(req->src);
 	// if ((ctx->dst_nents == 1) && (ctx->src_nents == 1))
-	// 	return aspeed_sk_dma_start(hace_dev);
+	//	return aspeed_sk_dma_start(hace_dev);
 	if (hace_dev->version == 6)
 		return aspeed_sk_g6_start(hace_dev);
 
@@ -392,7 +396,7 @@ static int aspeed_rc4_setkey(struct crypto_skcipher *cipher, const u8 *in_key,
 	int i, j = 0, k = 0;
 	u8 *rc4_key = ctx->cipher_key;
 
-	CIPHER_DBG("keylen : %d : %s  \n", key_len, in_key);
+	CIPHER_DBG("keylen : %d : %s\n", key_len, in_key);
 
 	*(u32 *)(ctx->cipher_key + 0) = 0x0;
 	*(u32 *)(ctx->cipher_key + 4) = 0x0;
@@ -403,6 +407,7 @@ static int aspeed_rc4_setkey(struct crypto_skcipher *cipher, const u8 *in_key,
 
 	for (i = 0; i < 256; i++) {
 		u32 a = rc4_key[16 + i];
+
 		j = (j + in_key[k] + a) & 0xff;
 		rc4_key[16 + i] = rc4_key[16 + j];
 		rc4_key[16 + j] = a;
@@ -445,7 +450,7 @@ static int aspeed_des_crypt(struct skcipher_request *req, u32 cmd)
 		memcpy(ctx->cipher_key + 8, req->iv, 8);
 
 	cmd |= HACE_CMD_DES_SELECT | HACE_CMD_RI_WO_DATA_ENABLE | HACE_CMD_DES |
-	       HACE_CMD_CONTEXT_LOAD_ENABLE | HACE_CMD_CONTEXT_SAVE_ENABLE ;
+	       HACE_CMD_CONTEXT_LOAD_ENABLE | HACE_CMD_CONTEXT_SAVE_ENABLE;
 
 	ctx->enc_cmd = cmd;
 
@@ -457,13 +462,14 @@ static int aspeed_des_setkey(struct crypto_skcipher *cipher, const u8 *key,
 {
 	struct crypto_tfm *tfm = crypto_skcipher_tfm(cipher);
 	struct aspeed_cipher_ctx *ctx = crypto_skcipher_ctx(cipher);
+	struct device *dev = ctx->hace_dev->dev;
 	int err;
 
-	CIPHER_DBG("bits : %d : \n", keylen);
+	CIPHER_DBG("bits : %d :\n", keylen);
 
-	if ((keylen != DES_KEY_SIZE) && (keylen != 2 * DES_KEY_SIZE) && (keylen != 3 * DES_KEY_SIZE)) {
+	if (keylen != DES_KEY_SIZE && keylen != 2 * DES_KEY_SIZE && keylen != 3 * DES_KEY_SIZE) {
 		crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		printk("keylen fail %d bits \n", keylen);
+		dev_err(dev, "keylen fail %d bits\n", keylen);
 		return -EINVAL;
 	}
 
@@ -641,7 +647,7 @@ static int aspeed_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 	struct aspeed_cipher_ctx *ctx = crypto_skcipher_ctx(cipher);
 	struct crypto_aes_ctx gen_aes_key;
 
-	CIPHER_DBG("bits : %d \n", (keylen * 8));
+	CIPHER_DBG("bits : %d\n", (keylen * 8));
 
 	if (keylen != AES_KEYSIZE_128 && keylen != AES_KEYSIZE_192 &&
 	    keylen != AES_KEYSIZE_256) {
@@ -742,8 +748,6 @@ static void aspeed_crypto_cra_exit(struct crypto_skcipher *tfm)
 	CIPHER_DBG("\n");
 	//disable clk ??
 	dma_free_coherent(ctx->hace_dev->dev, PAGE_SIZE, ctx->cipher_key, ctx->cipher_key_dma);
-
-	return;
 }
 
 static int aspeed_aead_complete(struct aspeed_hace_dev *hace_dev, int err)
@@ -769,16 +773,17 @@ static int aspeed_aead_transfer(struct aspeed_hace_dev *hace_dev)
 	struct aead_request *req = aead_request_cast(crypto_engine->areq);
 	struct crypto_aead *cipher = crypto_aead_reqtfm(req);
 	struct aspeed_cipher_ctx *ctx = crypto_aead_ctx(cipher);
+	struct device *dev = hace_dev->dev;
 	int err = 0;
 	int enc = (ctx->enc_cmd & HACE_CMD_ENCRYPT) ? 1 : 0;
 	u32 offset, authsize, tag[4];
 
 	CIPHER_DBG("\n");
 	if (req->src == req->dst) {
-		dma_unmap_sg(hace_dev->dev, req->src, ctx->src_nents, DMA_BIDIRECTIONAL);
+		dma_unmap_sg(dev, req->src, ctx->src_nents, DMA_BIDIRECTIONAL);
 	} else {
-		dma_unmap_sg(hace_dev->dev, req->src, ctx->src_nents, DMA_TO_DEVICE);
-		dma_unmap_sg(hace_dev->dev, req->dst, ctx->dst_nents, DMA_FROM_DEVICE);
+		dma_unmap_sg(dev, req->src, ctx->src_nents, DMA_TO_DEVICE);
+		dma_unmap_sg(dev, req->dst, ctx->dst_nents, DMA_FROM_DEVICE);
 	}
 	authsize = crypto_aead_authsize(cipher);
 	if (!enc) {
@@ -800,6 +805,7 @@ static int  aspeed_aead_start(struct aspeed_hace_dev *hace_dev)
 	struct aead_request *req = aead_request_cast(crypto_engine->areq);
 	struct crypto_aead *cipher = crypto_aead_reqtfm(req);
 	struct aspeed_cipher_ctx *ctx = crypto_aead_ctx(cipher);
+	struct device *dev = hace_dev->dev;
 	struct aspeed_sg_list *src_list, *dst_list;
 	dma_addr_t src_dma_addr, dst_dma_addr;
 	dma_addr_t tag_dma_addr;
@@ -816,31 +822,31 @@ static int  aspeed_aead_start(struct aspeed_hace_dev *hace_dev)
 			HACE_CMD_GCM_TAG_ADDR_SEL;
 
 	if (req->dst == req->src) {
-		ctx->src_sg_len = dma_map_sg(hace_dev->dev, req->src, ctx->src_nents, DMA_BIDIRECTIONAL);
+		ctx->src_sg_len = dma_map_sg(dev, req->src, ctx->src_nents, DMA_BIDIRECTIONAL);
 		ctx->dst_sg_len = ctx->src_sg_len;
 		if (!ctx->src_sg_len) {
-			dev_err(hace_dev->dev, "[%s:%d] dma_map_sg(src) error\n",
+			dev_err(dev, "[%s:%d] dma_map_sg(src) error\n",
 				__func__, __LINE__);
 			return -EINVAL;
 		}
 	} else {
-		ctx->src_sg_len = dma_map_sg(hace_dev->dev, req->src, ctx->src_nents, DMA_TO_DEVICE);
+		ctx->src_sg_len = dma_map_sg(dev, req->src, ctx->src_nents, DMA_TO_DEVICE);
 		if (!ctx->src_sg_len) {
-			dev_err(hace_dev->dev, "[%s:%d] dma_map_sg(src) error\n",
+			dev_err(dev, "[%s:%d] dma_map_sg(src) error\n",
 				__func__, __LINE__);
 			return -EINVAL;
 		}
-		ctx->dst_sg_len = dma_map_sg(hace_dev->dev, req->dst, ctx->dst_nents, DMA_FROM_DEVICE);
+		ctx->dst_sg_len = dma_map_sg(dev, req->dst, ctx->dst_nents, DMA_FROM_DEVICE);
 		if (!ctx->dst_sg_len) {
-			dma_unmap_sg(hace_dev->dev, req->dst, ctx->dst_nents, DMA_FROM_DEVICE);
-			dev_err(hace_dev->dev, "[%s:%d] dma_map_sg(dst) error\n",
+			dma_unmap_sg(dev, req->dst, ctx->dst_nents, DMA_FROM_DEVICE);
+			dev_err(dev, "[%s:%d] dma_map_sg(dst) error\n",
 				__func__, __LINE__);
 			return -EINVAL;
 		}
 	}
 
-	src_list = (struct aspeed_sg_list *) crypto_engine->cipher_addr;
-	dst_list = (struct aspeed_sg_list *) crypto_engine->dst_sg_addr;
+	src_list = (struct aspeed_sg_list *)crypto_engine->cipher_addr;
+	dst_list = (struct aspeed_sg_list *)crypto_engine->dst_sg_addr;
 	src_dma_addr = crypto_engine->cipher_dma_addr;
 	dst_dma_addr = crypto_engine->dst_sg_dma_addr;
 	tag_dma_addr = crypto_engine->dst_sg_dma_addr + ASPEED_CRYPTO_GCM_TAG_OFFSET;
@@ -855,10 +861,9 @@ static int  aspeed_aead_start(struct aspeed_hace_dev *hace_dev)
 			src_list[i].len |= BIT(31);
 			total = 0;
 			break;
-		} else {
-			src_list[i].len = sg_dma_len(s);
-			total -= src_list[i].len;
 		}
+		src_list[i].len = sg_dma_len(s);
+		total -= src_list[i].len;
 	}
 	src_list[ctx->src_sg_len].phy_addr = 0;
 	src_list[ctx->src_sg_len].len = 0;
@@ -884,13 +889,12 @@ static int  aspeed_aead_start(struct aspeed_hace_dev *hace_dev)
 					total = 0;
 					offset = 0;
 					break;
-				} else {
-					dst_list[j].len = sg_dma_len(s) - offset;
-					total -= dst_list[j].len;
-					offset = 0;
-					j++;
-					continue;
 				}
+				dst_list[j].len = sg_dma_len(s) - offset;
+				total -= dst_list[j].len;
+				offset = 0;
+				j++;
+				continue;
 			} else {
 				offset -= sg_dma_len(s);
 			}
@@ -902,12 +906,11 @@ static int  aspeed_aead_start(struct aspeed_hace_dev *hace_dev)
 				j++;
 				total = 0;
 				break;
-			} else {
-				dst_list[j].phy_addr = sg_dma_address(s);
-				dst_list[j].len = sg_dma_len(s);
-				total -= dst_list[j].len;
-				j++;
 			}
+			dst_list[j].phy_addr = sg_dma_address(s);
+			dst_list[j].len = sg_dma_len(s);
+			total -= dst_list[j].len;
+			j++;
 		}
 	}
 	if (total != 0 || offset != 0)
@@ -916,38 +919,37 @@ static int  aspeed_aead_start(struct aspeed_hace_dev *hace_dev)
 	// i = 0;
 	// printk("src_list\n");
 	// while (1) {
-	// 	printk("addr: %x\n", src_list[i].phy_addr);
-	// 	if (src_list[i].len & BIT(31)) {
-	// 		printk("len: %lu\n", src_list[i].len & ~BIT(31));
-	// 		break;
-	// 	} else {
-	// 		printk("len: %lu\n", src_list[i].len);
-	// 		i++;
-	// 	}
+	//	printk("addr: %x\n", src_list[i].phy_addr);
+	//	if (src_list[i].len & BIT(31)) {
+	//		printk("len: %lu\n", src_list[i].len & ~BIT(31));
+	//		break;
+	//	} else {
+	//		printk("len: %lu\n", src_list[i].len);
+	//		i++;
+	//	}
 	// }
 
 	// i = 0;
 	// printk("dst_list\n");
 	// while (1) {
-	// 	printk("addr: %x\n", dst_list[i].phy_addr);
-	// 	if (dst_list[i].len & BIT(31)) {
-	// 		printk("len: %lu\n", dst_list[i].len & ~BIT(31));
-	// 		break;
-	// 	} else {
-	// 		printk("len: %lu\n", dst_list[i].len);
-	// 		i++;
-	// 	}
+	//	printk("addr: %x\n", dst_list[i].phy_addr);
+	//	if (dst_list[i].len & BIT(31)) {
+	//		printk("len: %lu\n", dst_list[i].len & ~BIT(31));
+	//		break;
+	//	} else {
+	//		printk("len: %lu\n", dst_list[i].len);
+	//		i++;
+	//	}
 	// }
 #ifdef CONFIG_CRYPTO_DEV_ASPEED_SK_INT
 	crypto_engine->resume = aspeed_aead_transfer;
 #endif
 	aspeed_hace_write(hace_dev, src_dma_addr, ASPEED_HACE_SRC);
 	aspeed_hace_write(hace_dev, dst_dma_addr, ASPEED_HACE_DEST);
-	if (enc) {
+	if (enc)
 		aspeed_hace_write(hace_dev, req->cryptlen, ASPEED_HACE_DATA_LEN);
-	} else {
+	else
 		aspeed_hace_write(hace_dev, req->cryptlen - authsize, ASPEED_HACE_DATA_LEN);
-	}
 	aspeed_hace_write(hace_dev, tag_dma_addr, ASPEED_HACE_GCM_TAG_BASE_ADDR);
 	aspeed_hace_write(hace_dev, req->assoclen, ASPEED_HACE_GCM_ADD_LEN);
 	aspeed_hace_write(hace_dev, ctx->enc_cmd, ASPEED_HACE_CMD);
@@ -1064,7 +1066,7 @@ static int aspeed_gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 	struct aspeed_cipher_ctx *ctx = crypto_aead_ctx(tfm);
 	u8 *data;
 
-	CIPHER_DBG("bits : %d \n", (keylen * 8));
+	CIPHER_DBG("bits : %d\n", (keylen * 8));
 
 	if (keylen != AES_KEYSIZE_128 && keylen != AES_KEYSIZE_192 &&
 	    keylen != AES_KEYSIZE_256) {
@@ -1135,7 +1137,7 @@ static int aspeed_gcm_init(struct crypto_aead *tfm)
 	ctx->start = aspeed_hace_aead_trigger;
 	ctx->aes = crypto_alloc_skcipher("ecb(aes)", 0, 0);
 	if (IS_ERR(ctx->aes)) {
-		pr_err("aspeed-gcm: base driver 'ecb(aes)' could not be loaded.\n");
+		dev_err(ctx->hace_dev->dev, "aspeed-gcm: base driver 'ecb(aes)' could not be loaded.\n");
 		return PTR_ERR(ctx->aes);
 	}
 	return 0;
@@ -1526,6 +1528,7 @@ struct aspeed_hace_alg aspeed_crypto_algs_g6[] = {
 	},
 
 };
+
 struct aspeed_hace_alg aspeed_aead_algs_g6[] = {
 	{
 		.alg.aead = {
@@ -1556,6 +1559,7 @@ int aspeed_register_hace_crypto_algs(struct aspeed_hace_dev *hace_dev)
 {
 	int i;
 	int err = 0;
+
 	for (i = 0; i < ARRAY_SIZE(aspeed_crypto_algs); i++) {
 		aspeed_crypto_algs[i].hace_dev = hace_dev;
 		err = crypto_register_skcipher(&aspeed_crypto_algs[i].alg.skcipher);
