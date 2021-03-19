@@ -1349,27 +1349,6 @@ struct aspeed_hace_alg aspeed_crypto_algs[] = {
 	},
 	{
 		.alg.skcipher = {
-			.min_keysize	= DES3_EDE_KEY_SIZE,
-			.max_keysize	= DES3_EDE_KEY_SIZE,
-			.setkey		= aspeed_des_setkey,
-			.encrypt	= aspeed_tdes_ecb_encrypt,
-			.decrypt	= aspeed_tdes_ecb_decrypt,
-			.init		= aspeed_crypto_cra_init,
-			.exit		= aspeed_crypto_cra_exit,
-			.base = {
-				.cra_name		= "ecb(des3_ede)",
-				.cra_driver_name	= "aspeed-ecb-tdes",
-				.cra_priority		= 300,
-				.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC,
-				.cra_blocksize		= DES_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct aspeed_cipher_ctx),
-				.cra_alignmask		= 0x0f,
-				.cra_module		= THIS_MODULE,
-			}
-		}
-	},
-	{
-		.alg.skcipher = {
 			.ivsize		= DES_BLOCK_SIZE,
 			.min_keysize	= DES3_EDE_KEY_SIZE,
 			.max_keysize	= DES3_EDE_KEY_SIZE,
