@@ -480,8 +480,15 @@ static void aspeed_espi_oob_enable(struct aspeed_espi_oob *espi_oob)
 	else
 		regmap_write(espi_ctrl->map, ESPI_OOB_RX_CTRL, ESPI_OOB_RX_CTRL_PEND_SERV);
 
+	/*
+	 * cleanup OOB RX FIFO to get rid of the data
+	 * of OOB early init side-effect
+	 */
 	regmap_update_bits(espi_ctrl->map, ESPI_CTRL,
 			   ESPI_CTRL_OOB_RX_SW_RST, ESPI_CTRL_OOB_RX_SW_RST);
+
+	regmap_write(espi_ctrl->map, ESPI_OOB_RX_CTRL,
+		     ESPI_OOB_RX_CTRL_PEND_SERV);
 
 	if (espi_oob->dma_mode) {
 		if (espi_ctrl->version == ESPI_AST2500) {
