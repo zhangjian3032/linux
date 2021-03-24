@@ -293,6 +293,9 @@ static void aspeed_espi_flash_enable(struct aspeed_espi_flash *espi_flash)
 				   ESPI_CTRL_FLASH_TX_DMA_EN | ESPI_CTRL_FLASH_RX_DMA_EN);
 	}
 
+	regmap_write(espi_ctrl->map, ESPI_INT_STS,
+		     ESPI_INT_STS_FLASH_BITS);
+
 	regmap_update_bits(espi_ctrl->map, ESPI_INT_EN,
 			   ESPI_INT_EN_FLASH_BITS,
 			   ESPI_INT_EN_FLASH_BITS);

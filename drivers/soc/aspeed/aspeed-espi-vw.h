@@ -97,6 +97,9 @@ static void aspeed_espi_vw_enable(struct aspeed_espi_vw *espi_vw)
 {
 	struct aspeed_espi_ctrl *espi_ctrl = espi_vw->ctrl;
 
+	regmap_write(espi_ctrl->map, ESPI_INT_STS,
+		     ESPI_INT_STS_VW_BITS);
+
 	regmap_update_bits(espi_ctrl->map, ESPI_INT_EN,
 			   ESPI_INT_EN_VW_BITS,
 			   ESPI_INT_EN_VW_BITS);

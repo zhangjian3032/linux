@@ -519,6 +519,9 @@ static void aspeed_espi_oob_enable(struct aspeed_espi_oob *espi_oob)
 				   ESPI_CTRL_OOB_TX_DMA_EN | ESPI_CTRL_OOB_RX_DMA_EN);
 	}
 
+	regmap_write(espi_ctrl->map, ESPI_INT_STS,
+		     ESPI_INT_STS_OOB_BITS);
+
 	regmap_update_bits(espi_ctrl->map, ESPI_INT_EN,
 			   ESPI_INT_EN_OOB_BITS,
 			   ESPI_INT_EN_OOB_BITS);

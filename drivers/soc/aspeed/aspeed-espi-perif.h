@@ -379,6 +379,9 @@ static void aspeed_espi_perif_enable(struct aspeed_espi_perif *espi_perif)
 			       ESPI_CTRL_PERIF_PC_RX_DMA_EN);
 	}
 
+	regmap_write(espi_ctrl->map, ESPI_INT_STS,
+		     ESPI_INT_STS_PERIF_BITS);
+
 	regmap_update_bits(espi_ctrl->map, ESPI_INT_EN,
 			   ESPI_INT_EN_PERIF_BITS,
 			   ESPI_INT_EN_PERIF_BITS);
