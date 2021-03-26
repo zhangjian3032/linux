@@ -832,8 +832,6 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 		smp_mb();
 		if (ftgmac100_tx_buf_avail(priv) >= TX_THRESHOLD)
 			netif_wake_queue(netdev);
-		else
-			wake_napi_bh = 1;
 	}
 
 	/* When sending UDP packets, we may never receive a packet to activate 
