@@ -447,8 +447,11 @@ static void aspeed_jtag_run_test_idle(struct aspeed_jtag_info *aspeed_jtag, stru
 	} else {
 		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_SW);  //dis sw mode
 		mdelay(2);
-		if (runtest->reset)
+		if (runtest->reset) {
 			aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN | JTAG_FORCE_TMS, ASPEED_JTAG_CTRL);	// x TMS high + 1 TMS low
+			if (aspeed_jtag->sts)
+				aspeed_jtag_write(aspeed_jtag, JTAG_DATA_COMPLETE | JTAG_INST_COMPLETE, ASPEED_JTAG_ISR);
+		}
 		else
 			aspeed_jtag_run_to_idle(aspeed_jtag);
 		aspeed_jtag->sts = 0;
