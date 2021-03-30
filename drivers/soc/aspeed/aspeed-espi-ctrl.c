@@ -114,7 +114,7 @@ static int aspeed_espi_ctrl_probe(struct platform_device *pdev)
 
 	espi_ctrl->version = (uint32_t)of_device_get_match_data(dev);
 
-	scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
+	scu = syscon_regmap_lookup_by_phandle(dev->of_node, "aspeed,scu");
 	if (IS_ERR(scu)) {
 		dev_err(dev, "cannot to find SCU regmap\n");
 		return -ENODEV;
