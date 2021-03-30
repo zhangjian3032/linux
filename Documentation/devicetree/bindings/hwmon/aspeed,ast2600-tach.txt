@@ -1,0 +1,82 @@
+ASPEED AST2600 Fan Tacho controller device driver
+
+The ASPEED Fan Tacho controller can support upto 16 Fan tachometer inputs.
+
+Required properties for tacho node:
+- #address-cells : should be 1.
+
+- #size-cells : should be 1.
+
+- reg : address and length of the register set for the device.
+
+- pinctrl-names : a pinctrl state named "default" must be defined.
+
+- pinctrl-0 : phandle referencing pin configuration of the PWM ports.
+
+- compatible : should be "aspeed,ast2600-tach"
+
+- clocks : phandle to clock provider with the clock number in the second cell
+
+- resets : phandle to reset controller with the reset number in the second cell
+
+fan subnode format:
+===================
+Under fan subnode there can upto 16 child nodes, with each child node
+representing a fan.
+
+Required properties for each child node:
+- aspeed,fan-tach-ch : should specify the Fan tach input channel.
+                integer value in the range 0 through 15, with 0 indicating
+		Fan tach channel 0 and 15 indicating Fan tach channel 15.
+		Atleast one Fan tach input channel is required.
+- aspeed,pulse-pr : define the tachometer pulses per fan revolution as
+            	an integer (default is 2 interrupts per revolution).
+            	The value must be greater than zero.
+- aspeed,min-rpm : define the minimal revolutions per minute of the measure fan
+		used to calculate the sample period of tach
+- aspeed,tacho-div : define the tachometer clock divider as an integer
+		(default is 5). formula of tacho clock = HCLK / (2^tacho-div)^2
+
+Examples:
+
+pwm_tach: pwm_tach@1e610000 {
+	compatible = "simple-mfd", "syscon";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	reg = <0x1e610000 0x100>;
+	ranges = <0 0x1e610000 0x100>;
+	pwm: pwm@0 {
+		compatible = "aspeed,ast2600-pwm";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#pwm-cells = <3>;
+		reg = <0x0 0x100>;
+		clocks = <&syscon ASPEED_CLK_AHB>;
+		resets = <&syscon ASPEED_RESET_PWM>;
+		status = "disabled";
+	};
+	tach: tach@0 {
+		compatible = "aspeed,ast2600-tach";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x0 0x100>;
+		clocks = <&syscon ASPEED_CLK_AHB>;
+		resets = <&syscon ASPEED_RESET_PWM>;
+		status = "disabled";
+	};
+};
+
+
+&tach {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_tach0_default
+			...>;
+	fan@0 {
+		aspeed,tach-ch = <0x00>;
+		aspeed,pulse-pr = <2>;
+		aspeed,min-rpm = <1000>;
+		aspeed,tacho-div = <5>;
+	};
+        ...
+}
