@@ -698,6 +698,7 @@
 							      <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
 					clocks = <&syscon ASPEED_CLK_GATE_ESPICLK>;
 					resets = <&syscon ASPEED_RESET_ESPI>;
+					aspeed,scu = <&syscon>;
 					status = "disabled";
 				};
 
