@@ -442,7 +442,7 @@ static void aspeed_jtag_run_test_idle(struct aspeed_jtag_info *aspeed_jtag, stru
 		}
 
 		for (i = 0; i < runtest->tck; i++)
-			TCK_Cycle(aspeed_jtag, 0, 0);	// stay on IDLE for at lease  TCK cycle
+			TCK_Cycle(aspeed_jtag, 0, 0);	// stay on IDLE for at least  TCK cycle
 
 	} else {
 		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_SW);  //dis sw mode
@@ -455,6 +455,9 @@ static void aspeed_jtag_run_test_idle(struct aspeed_jtag_info *aspeed_jtag, stru
 		else
 			aspeed_jtag_run_to_idle(aspeed_jtag);
 		aspeed_jtag->sts = 0;
+
+		for (i = 0; i < runtest->tck; i++)
+			TCK_Cycle(aspeed_jtag, 0, 0);	// stay on IDLE for at least TCK cycle
 	}
 }
 
