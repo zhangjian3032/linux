@@ -810,7 +810,7 @@ static void aspeed_hw_jtag_sdr_xfer(struct aspeed_jtag_info *aspeed_jtag, struct
 				aspeed_jtag->tdo[index + i] = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_DATA) >> (32 - shift_bits);
 			else
 				aspeed_jtag->tdo[index + i] = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_DATA);
-			JTAG_DBUG("R dr->dr_data[%d]: %x\n", index, aspeed_jtag->tdo[index]);
+			JTAG_DBUG("R dr->dr_data[%d]: %x\n", index + i, aspeed_jtag->tdo[index + i]);
 			shift_bits -= 32;
 		}
 
