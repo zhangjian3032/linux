@@ -584,6 +584,10 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 		sts &= ~(AST_I2CS_PKT_DONE | AST_I2CS_PKT_ERROR);
 		aspeed_i2c_write(i2c_bus, AST_I2CS_PKT_DONE, AST_I2CS_ISR);
 		switch (sts) {
+		case AST_I2CS_SLAVE_MATCH:
+			dev_dbg(i2c_bus->dev, "S : Sw\n");
+			i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+			break;
 			case AST_I2CS_SLAVE_MATCH | AST_I2CS_STOP:
 				dev_dbg(i2c_bus->dev, "S : Sw|P \n");
 				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);
