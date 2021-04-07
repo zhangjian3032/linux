@@ -119,7 +119,7 @@ struct runtest_idle {
 	xfer_mode	mode;	//0 :HW mode, 1: SW mode
 	unsigned char	reset;	//Test Logic Reset
 	unsigned char	end;	//o: idle, 1: ir pause, 2: drpause
-	unsigned char	tck;	//keep tck
+	unsigned int	tck;	//The number of tck
 };
 
 struct sir_xfer {
