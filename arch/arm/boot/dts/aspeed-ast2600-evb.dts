@@ -223,15 +223,6 @@
 		#cooling-cells = <2>;
 		cooling-levels = <0 15 128 255>;
 	};
-
-	fan15: pwm-fan15 {
-		compatible = "pwm-fan";
-		pwms = <&pwm 15 40000 0>;	/* Target freq:25 kHz */
-		cooling-min-state = <0>;
-		cooling-max-state = <3>;
-		#cooling-cells = <2>;
-		cooling-levels = <0 15 128 255>;
-	};
 };
 
 &trng {
@@ -301,8 +292,7 @@
 			&pinctrl_pwm11g1_default
 			&pinctrl_pwm12g1_default
 			&pinctrl_pwm13g1_default
-			&pinctrl_pwm14g1_default
-			&pinctrl_pwm15g1_default>;
+			&pinctrl_pwm14g1_default>;
 };
 
 &tach {
