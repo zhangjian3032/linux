@@ -43,17 +43,12 @@
 
 static struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev);
 static void ast_i2c_destroy(struct ast_i2c_chan *i2c);
-static int ast_cursor_set(struct drm_crtc *crtc,
-			  struct drm_file *file_priv,
-			  uint32_t handle,
-			  uint32_t width,
-			  uint32_t height);
-static int ast_cursor_move(struct drm_crtc *crtc,
-			   int x, int y);
+static int ast_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
+			  uint32_t handle, uint32_t width, uint32_t height);
+static int ast_cursor_move(struct drm_crtc *crtc, int x, int y);
 
-static inline void ast_load_palette_index(struct ast_private *ast,
-				     u8 index, u8 red, u8 green,
-				     u8 blue)
+static inline void ast_load_palette_index(struct ast_private *ast, u8 index,
+					  u8 red, u8 green, u8 blue)
 {
 	ast_io_write8(ast, AST_IO_DAC_INDEX_WRITE, index);
 	ast_io_read8(ast, AST_IO_SEQ_PORT);
@@ -82,7 +77,8 @@ static void ast_crtc_load_lut(struct drm_crtc *crtc)
 		ast_load_palette_index(ast, i, *r++ >> 8, *g++ >> 8, *b++ >> 8);
 }
 
-static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mode *mode,
+static bool ast_get_vbios_mode_info(struct drm_crtc *crtc,
+				    struct drm_display_mode *mode,
 				    struct drm_display_mode *adjusted_mode,
 				    struct ast_vbios_mode_info *vbios_mode)
 {
@@ -121,11 +117,16 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 	case 1024:
 		vbios_mode->enh_table = &res_1024x768[refresh_rate_index];
 		break;
+	case 1152:
+		vbios_mode->enh_table = &res_1152x864[refresh_rate_index];
+		break;
 	case 1280:
 		if (crtc->mode.crtc_vdisplay == 800)
-			vbios_mode->enh_table = &res_1280x800[refresh_rate_index];
+			vbios_mode->enh_table =
+				&res_1280x800[refresh_rate_index];
 		else
-			vbios_mode->enh_table = &res_1280x1024[refresh_rate_index];
+			vbios_mode->enh_table =
+				&res_1280x1024[refresh_rate_index];
 		break;
 	case 1360:
 		vbios_mode->enh_table = &res_1360x768[refresh_rate_index];
@@ -135,18 +136,22 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 		break;
 	case 1600:
 		if (crtc->mode.crtc_vdisplay == 900)
-			vbios_mode->enh_table = &res_1600x900[refresh_rate_index];
+			vbios_mode->enh_table =
+				&res_1600x900[refresh_rate_index];
 		else
-			vbios_mode->enh_table = &res_1600x1200[refresh_rate_index];
+			vbios_mode->enh_table =
+				&res_1600x1200[refresh_rate_index];
 		break;
 	case 1680:
 		vbios_mode->enh_table = &res_1680x1050[refresh_rate_index];
 		break;
 	case 1920:
 		if (crtc->mode.crtc_vdisplay == 1080)
-			vbios_mode->enh_table = &res_1920x1080[refresh_rate_index];
+			vbios_mode->enh_table =
+				&res_1920x1080[refresh_rate_index];
 		else
-			vbios_mode->enh_table = &res_1920x1200[refresh_rate_index];
+			vbios_mode->enh_table =
+				&res_1920x1200[refresh_rate_index];
 		break;
 	default:
 		return false;
@@ -159,19 +164,19 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 
 		while (loop->refresh_rate != 0xff) {
 			if ((check_sync) &&
-			    (((mode->flags & DRM_MODE_FLAG_NVSYNC)  &&
-			      (loop->flags & PVSync))  ||
-			     ((mode->flags & DRM_MODE_FLAG_PVSYNC)  &&
-			      (loop->flags & NVSync))  ||
-			     ((mode->flags & DRM_MODE_FLAG_NHSYNC)  &&
-			      (loop->flags & PHSync))  ||
-			     ((mode->flags & DRM_MODE_FLAG_PHSYNC)  &&
+			    (((mode->flags & DRM_MODE_FLAG_NVSYNC) &&
+			      (loop->flags & PVSync)) ||
+			     ((mode->flags & DRM_MODE_FLAG_PVSYNC) &&
+			      (loop->flags & NVSync)) ||
+			     ((mode->flags & DRM_MODE_FLAG_NHSYNC) &&
+			      (loop->flags & PHSync)) ||
+			     ((mode->flags & DRM_MODE_FLAG_PHSYNC) &&
 			      (loop->flags & NHSync)))) {
 				loop++;
 				continue;
 			}
-			if (loop->refresh_rate <= refresh_rate
-			    && (!best || loop->refresh_rate > best->refresh_rate))
+			if (loop->refresh_rate <= refresh_rate &&
+			    (!best || loop->refresh_rate > best->refresh_rate))
 				best = loop;
 			loop++;
 		}
@@ -189,19 +194,19 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 	adjusted_mode->crtc_hblank_start = vbios_mode->enh_table->hde + hborder;
 	adjusted_mode->crtc_hblank_end = vbios_mode->enh_table->ht - hborder;
 	adjusted_mode->crtc_hsync_start = vbios_mode->enh_table->hde + hborder +
-		vbios_mode->enh_table->hfp;
-	adjusted_mode->crtc_hsync_end = (vbios_mode->enh_table->hde + hborder +
-					 vbios_mode->enh_table->hfp +
-					 vbios_mode->enh_table->hsync);
+					  vbios_mode->enh_table->hfp;
+	adjusted_mode->crtc_hsync_end =
+		(vbios_mode->enh_table->hde + hborder +
+		 vbios_mode->enh_table->hfp + vbios_mode->enh_table->hsync);
 
 	adjusted_mode->crtc_vtotal = vbios_mode->enh_table->vt;
 	adjusted_mode->crtc_vblank_start = vbios_mode->enh_table->vde + vborder;
 	adjusted_mode->crtc_vblank_end = vbios_mode->enh_table->vt - vborder;
 	adjusted_mode->crtc_vsync_start = vbios_mode->enh_table->vde + vborder +
-		vbios_mode->enh_table->vfp;
-	adjusted_mode->crtc_vsync_end = (vbios_mode->enh_table->vde + vborder +
-					 vbios_mode->enh_table->vfp +
-					 vbios_mode->enh_table->vsync);
+					  vbios_mode->enh_table->vfp;
+	adjusted_mode->crtc_vsync_end =
+		(vbios_mode->enh_table->vde + vborder +
+		 vbios_mode->enh_table->vfp + vbios_mode->enh_table->vsync);
 
 	refresh_rate_index = vbios_mode->enh_table->refresh_rate_index;
 	mode_id = vbios_mode->enh_table->mode_id;
@@ -209,8 +214,10 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 	if (ast->chip == AST1180) {
 		/* TODO 1180 */
 	} else {
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8c, (u8)((color_index & 0xf) << 4));
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8d, refresh_rate_index & 0xff);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8c,
+				  (u8)((color_index & 0xf) << 4));
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8d,
+				  refresh_rate_index & 0xff);
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8e, mode_id & 0xff);
 
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0x00);
@@ -218,20 +225,24 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0xa8);
 			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x92,
 					  fb->format->cpp[0] * 8);
-			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x93, adjusted_mode->clock / 1000);
-			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x94, adjusted_mode->crtc_hdisplay);
-			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x95, adjusted_mode->crtc_hdisplay >> 8);
+			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x93,
+					  adjusted_mode->clock / 1000);
+			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x94,
+					  adjusted_mode->crtc_hdisplay);
+			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x95,
+					  adjusted_mode->crtc_hdisplay >> 8);
 
-			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x96, adjusted_mode->crtc_vdisplay);
-			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x97, adjusted_mode->crtc_vdisplay >> 8);
+			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x96,
+					  adjusted_mode->crtc_vdisplay);
+			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x97,
+					  adjusted_mode->crtc_vdisplay >> 8);
 		}
 	}
 
 	return true;
-
-
 }
-static void ast_set_std_reg(struct drm_crtc *crtc, struct drm_display_mode *mode,
+static void ast_set_std_reg(struct drm_crtc *crtc,
+			    struct drm_display_mode *mode,
 			    struct ast_vbios_mode_info *vbios_mode)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
@@ -250,7 +261,7 @@ static void ast_set_std_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 		jreg = stdtable->seq[i];
 		if (!i)
 			jreg |= 0x20;
-		ast_set_index_reg(ast, AST_IO_SEQ_PORT, (i + 1) , jreg);
+		ast_set_index_reg(ast, AST_IO_SEQ_PORT, (i + 1), jreg);
 	}
 
 	/* Set CRTC */
@@ -276,11 +287,13 @@ static void ast_set_std_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 		ast_set_index_reg(ast, AST_IO_GR_PORT, i, stdtable->gr[i]);
 }
 
-static void ast_set_crtc_reg(struct drm_crtc *crtc, struct drm_display_mode *mode,
+static void ast_set_crtc_reg(struct drm_crtc *crtc,
+			     struct drm_display_mode *mode,
 			     struct ast_vbios_mode_info *vbios_mode)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
-	u8 jreg05 = 0, jreg07 = 0, jreg09 = 0, jregAC = 0, jregAD = 0, jregAE = 0;
+	u8 jreg05 = 0, jreg07 = 0, jreg09 = 0, jregAC = 0, jregAD = 0,
+	   jregAE = 0;
 	u16 temp, precache = 0;
 
 	if (((ast->chip == AST2500) || (ast->chip == AST2600)) &&
@@ -306,20 +319,22 @@ static void ast_set_crtc_reg(struct drm_crtc *crtc, struct drm_display_mode *mod
 
 	temp = ((mode->crtc_hblank_end >> 3) - 1) & 0x7f;
 	if (temp & 0x20)
-		jreg05 |= 0x80;  /* HBE D[5] */
+		jreg05 |= 0x80; /* HBE D[5] */
 	if (temp & 0x40)
-		jregAD |= 0x01;  /* HBE D[5] */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x03, 0xE0, (temp & 0x1f));
+		jregAD |= 0x01; /* HBE D[5] */
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x03, 0xE0,
+			       (temp & 0x1f));
 
-	temp = ((mode->crtc_hsync_start-precache) >> 3) - 1;
+	temp = ((mode->crtc_hsync_start - precache) >> 3) - 1;
 	if (temp & 0x100)
 		jregAC |= 0x40; /* HRS D[5] */
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x04, 0x00, temp);
 
-	temp = (((mode->crtc_hsync_end-precache) >> 3) - 1) & 0x3f;
+	temp = (((mode->crtc_hsync_end - precache) >> 3) - 1) & 0x3f;
 	if (temp & 0x20)
 		jregAD |= 0x04; /* HRE D[5] */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x05, 0x60, (u8)((temp & 0x1f) | jreg05));
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x05, 0x60,
+			       (u8)((temp & 0x1f) | jreg05));
 
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAC, 0x00, jregAC);
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAD, 0x00, jregAD);
@@ -381,7 +396,8 @@ static void ast_set_crtc_reg(struct drm_crtc *crtc, struct drm_display_mode *mod
 
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x07, 0x00, jreg07);
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x09, 0xdf, jreg09);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAE, 0x00, (jregAE | 0x80));
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAE, 0x00,
+			       (jregAE | 0x80));
 
 	if (precache)
 		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0x3f, 0x80);
@@ -403,26 +419,42 @@ static void ast_set_offset_reg(struct drm_crtc *crtc)
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xb0, (offset >> 8) & 0x3f);
 }
 
-static void ast_set_dclk_reg(struct drm_device *dev, struct drm_display_mode *mode,
+static void ast_set_dclk_reg(struct drm_device *dev,
+			     struct drm_display_mode *mode,
 			     struct ast_vbios_mode_info *vbios_mode)
 {
 	struct ast_private *ast = dev->dev_private;
 	const struct ast_vbios_dclk_info *clk_info;
 
-	if ((ast->chip == AST2500) || (ast->chip == AST2600))
-		clk_info = &dclk_table_ast2500[vbios_mode->enh_table->dclk_index];
-	else
-		clk_info = &dclk_table[vbios_mode->enh_table->dclk_index];
+	if ((ast->chip == AST2500) || (ast->chip == AST2600)) {
+		if (ast->RefCLK25MHz)
+			clk_info =
+				&dclk_table_ast2500_25MHz[vbios_mode->enh_table
+								  ->dclk_index];
+		else
+			clk_info = &dclk_table_ast2500[vbios_mode->enh_table
+							       ->dclk_index];
+	} else {
+		if (ast->RefCLK25MHz)
+			clk_info = &dclk_table_25MHz[vbios_mode->enh_table
+							     ->dclk_index];
+		else
+			clk_info =
+				&dclk_table[vbios_mode->enh_table->dclk_index];
+	}
 
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xc0, 0x00, clk_info->param1);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xc1, 0x00, clk_info->param2);
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xc0, 0x00,
+			       clk_info->param1);
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xc1, 0x00,
+			       clk_info->param2);
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xbb, 0x0f,
 			       (clk_info->param3 & 0xc0) |
-			       ((clk_info->param3 & 0x3) << 4));
+				       ((clk_info->param3 & 0x3) << 4));
 }
 
-static void ast_set_ext_reg(struct drm_crtc *crtc, struct drm_display_mode *mode,
-			     struct ast_vbios_mode_info *vbios_mode)
+static void ast_set_ext_reg(struct drm_crtc *crtc,
+			    struct drm_display_mode *mode,
+			    struct ast_vbios_mode_info *vbios_mode)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
 	const struct drm_framebuffer *fb = crtc->primary->fb;
@@ -452,14 +484,15 @@ static void ast_set_ext_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa8, 0xfd, jregA8);
 
 	/* Set Threshold */
-	if (ast->chip == AST2300 || ast->chip == AST2400 ||
-	    ast->chip == AST2500 || ast->chip == AST2600) {
+	if (ast->chip == AST2600) {
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa7, 0xe0);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa6, 0xa0);
+	} else if (ast->chip == AST2300 || ast->chip == AST2400 ||
+		   ast->chip == AST2500 || ast->chip == AIP200) {
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa7, 0x78);
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa6, 0x60);
-	} else if (ast->chip == AST2100 ||
-		   ast->chip == AST1100 ||
-		   ast->chip == AST2200 ||
-		   ast->chip == AST2150) {
+	} else if (ast->chip == AST2100 || ast->chip == AST1100 ||
+		   ast->chip == AST2200 || ast->chip == AST2150) {
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa7, 0x3f);
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa6, 0x2f);
 	} else {
@@ -468,21 +501,25 @@ static void ast_set_ext_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 	}
 }
 
-static void ast_set_sync_reg(struct drm_device *dev, struct drm_display_mode *mode,
-		      struct ast_vbios_mode_info *vbios_mode)
+static void ast_set_sync_reg(struct drm_device *dev,
+			     struct drm_display_mode *mode,
+			     struct ast_vbios_mode_info *vbios_mode)
 {
 	struct ast_private *ast = dev->dev_private;
 	u8 jreg;
 
-	jreg  = ast_io_read8(ast, AST_IO_MISC_PORT_READ);
+	jreg = ast_io_read8(ast, AST_IO_MISC_PORT_READ);
 	jreg &= ~0xC0;
-	if (vbios_mode->enh_table->flags & NVSync) jreg |= 0x80;
-	if (vbios_mode->enh_table->flags & NHSync) jreg |= 0x40;
+	if (vbios_mode->enh_table->flags & NVSync)
+		jreg |= 0x80;
+	if (vbios_mode->enh_table->flags & NHSync)
+		jreg |= 0x40;
 	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, jreg);
 }
 
-static bool ast_set_dac_reg(struct drm_crtc *crtc, struct drm_display_mode *mode,
-		     struct ast_vbios_mode_info *vbios_mode)
+static bool ast_set_dac_reg(struct drm_crtc *crtc,
+			    struct drm_display_mode *mode,
+			    struct ast_vbios_mode_info *vbios_mode)
 {
 	const struct drm_framebuffer *fb = crtc->primary->fb;
 
@@ -490,6 +527,7 @@ static bool ast_set_dac_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 	case 8:
 		break;
 	default:
+		ast_crtc_load_lut(crtc);
 		return false;
 	}
 	return true;
@@ -502,38 +540,60 @@ static void ast_set_start_address_crt1(struct drm_crtc *crtc, unsigned offset)
 
 	addr = offset >> 2;
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x0d, (u8)(addr & 0xff));
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x0c, (u8)((addr >> 8) & 0xff));
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xaf, (u8)((addr >> 16) & 0xff));
-
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x0c,
+			  (u8)((addr >> 8) & 0xff));
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xaf,
+			  (u8)((addr >> 16) & 0xff));
 }
 
 static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
+	u8 ch = 0x03;
 
 	if (ast->chip == AST1180)
 		return;
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0);
+		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x01, 0xdf, 0);
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xfc, 0);
 		if (ast->tx_chip_type == AST_TX_DP501)
 			ast_set_dp501_video_output(crtc->dev, 1);
+
+		if (ast->tx_chip_type == AST_TX_ASTDP) {
+#ifdef DPControlPower
+			ast_dp_PowerOnOff(crtc->dev, 1);
+#endif
+			ast_wait_one_vsync(ast);
+			ast_dp_SetOnOff(crtc->dev, 1);
+		}
+
 		ast_crtc_load_lut(crtc);
 		break;
+	case DRM_MODE_DPMS_STANDBY:
+	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
+		ch = mode;
 		if (ast->tx_chip_type == AST_TX_DP501)
 			ast_set_dp501_video_output(crtc->dev, 0);
-		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x20);
+
+		if (ast->tx_chip_type == AST_TX_ASTDP) {
+			ast_dp_SetOnOff(crtc->dev, 0);
+#ifdef DPControlPower
+			ast_dp_PowerOnOff(crtc->dev, 0);
+#endif
+		}
+
+		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x01, 0xdf, 0x20);
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xfc, ch);
 		break;
 	}
 }
 
 static int ast_crtc_do_set_base(struct drm_crtc *crtc,
-				struct drm_framebuffer *fb,
-				int x, int y, int atomic)
+				struct drm_framebuffer *fb, int x, int y,
+				int atomic)
 {
 	struct drm_gem_vram_object *gbo;
 	int ret;
@@ -566,16 +626,15 @@ err_drm_gem_vram_unpin:
 }
 
 static int ast_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-			     struct drm_framebuffer *old_fb)
+				  struct drm_framebuffer *old_fb)
 {
 	return ast_crtc_do_set_base(crtc, old_fb, x, y, 0);
 }
 
 static int ast_crtc_mode_set(struct drm_crtc *crtc,
 			     struct drm_display_mode *mode,
-			     struct drm_display_mode *adjusted_mode,
-			     int x, int y,
-			     struct drm_framebuffer *old_fb)
+			     struct drm_display_mode *adjusted_mode, int x,
+			     int y, struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct ast_private *ast = crtc->dev->dev_private;
@@ -603,21 +662,16 @@ static int ast_crtc_mode_set(struct drm_crtc *crtc,
 
 	ast_crtc_mode_set_base(crtc, x, y, old_fb);
 
+	//Set Aspeed Display-Port
+	if (ast->tx_chip_type == AST_TX_ASTDP) {
+		ast_dp_SetOutput(crtc, &vbios_mode);
+	}
+
 	return 0;
 }
 
 static void ast_crtc_disable(struct drm_crtc *crtc)
 {
-#if 1
-	struct ast_private *ast = crtc->dev->dev_private;
-
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x0C, 0x00);
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x80, 0xa8);
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa8, 0x00);
-#endif
-	printk("ast_crtc_disable \n");
-	return;
-//#endif
 	DRM_DEBUG_KMS("\n");
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {
@@ -632,16 +686,12 @@ static void ast_crtc_disable(struct drm_crtc *crtc)
 
 static void ast_crtc_prepare(struct drm_crtc *crtc)
 {
-
 }
 
 static void ast_crtc_commit(struct drm_crtc *crtc)
 {
-	struct ast_private *ast = crtc->dev->dev_private;
-	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0);
-	ast_crtc_load_lut(crtc);
+	ast_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
-
 
 static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 	.dpms = ast_crtc_dpms,
@@ -655,7 +705,6 @@ static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 
 static void ast_crtc_reset(struct drm_crtc *crtc)
 {
-
 }
 
 static int ast_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
@@ -666,7 +715,6 @@ static int ast_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 
 	return 0;
 }
-
 
 static void ast_crtc_destroy(struct drm_crtc *crtc)
 {
@@ -703,8 +751,8 @@ static void ast_encoder_destroy(struct drm_encoder *encoder)
 	kfree(encoder);
 }
 
-
-static struct drm_encoder *ast_best_single_encoder(struct drm_connector *connector)
+static struct drm_encoder *
+ast_best_single_encoder(struct drm_connector *connector)
 {
 	int enc_id = connector->encoder_ids[0];
 	/* pick the encoder ids */
@@ -713,32 +761,27 @@ static struct drm_encoder *ast_best_single_encoder(struct drm_connector *connect
 	return NULL;
 }
 
-
 static const struct drm_encoder_funcs ast_enc_funcs = {
 	.destroy = ast_encoder_destroy,
 };
 
 static void ast_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
-
 }
 
 static void ast_encoder_mode_set(struct drm_encoder *encoder,
-			       struct drm_display_mode *mode,
-			       struct drm_display_mode *adjusted_mode)
+				 struct drm_display_mode *mode,
+				 struct drm_display_mode *adjusted_mode)
 {
 }
 
 static void ast_encoder_prepare(struct drm_encoder *encoder)
 {
-
 }
 
 static void ast_encoder_commit(struct drm_encoder *encoder)
 {
-
 }
-
 
 static const struct drm_encoder_helper_funcs ast_enc_helper_funcs = {
 	.dpms = ast_encoder_dpms,
@@ -778,10 +821,22 @@ static int ast_get_modes(struct drm_connector *connector)
 
 		flags = ast_dp501_read_edid(connector->dev, (u8 *)edid);
 		if (flags)
-			ast->dp501_maxclk = ast_get_dp501_max_clk(connector->dev);
+			ast->dp501_maxclk =
+				ast_get_dp501_max_clk(connector->dev);
 		else
 			kfree(edid);
+	} else if (ast->tx_chip_type == AST_TX_ASTDP) {
+		edid = kmalloc(256, GFP_KERNEL);
+		if (!edid)
+			return -ENOMEM;
+
+		flags = ast_dp_read_edid(connector->dev, (u8 *)edid);
+		if (!flags) {
+			DRM_INFO("ReadEDID_AspeedDP(!flags)\n");
+			kfree(edid);
+		}
 	}
+
 	if (!flags)
 		edid = drm_get_edid(connector, &ast_connector->i2c->adapter);
 	if (edid) {
@@ -795,13 +850,17 @@ static int ast_get_modes(struct drm_connector *connector)
 }
 
 static enum drm_mode_status ast_mode_valid(struct drm_connector *connector,
-			  struct drm_display_mode *mode)
+					   struct drm_display_mode *mode)
 {
 	struct ast_private *ast = connector->dev->dev_private;
 	int flags = MODE_NOMODE;
 	uint32_t jtemp;
 
-	if (ast->support_wide_screen) {
+	if (ast->support_newvga_mode) {
+		if ((mode->hdisplay == 1152) && (mode->vdisplay == 864))
+			return MODE_OK;
+	}
+	if ((ast->support_wide_screen) && (ast->support_newvga_mode)) {
 		if ((mode->hdisplay == 1680) && (mode->vdisplay == 1050))
 			return MODE_OK;
 		if ((mode->hdisplay == 1280) && (mode->vdisplay == 800))
@@ -816,12 +875,15 @@ static enum drm_mode_status ast_mode_valid(struct drm_connector *connector,
 		if ((ast->chip == AST2100) || (ast->chip == AST2200) ||
 		    (ast->chip == AST2300) || (ast->chip == AST2400) ||
 		    (ast->chip == AST2500) || (ast->chip == AST1180) ||
-			(ast->chip == AST2600)) {
-			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1080))
+		    (ast->chip == AST2600)) {
+			if ((mode->hdisplay == 1920) &&
+			    (mode->vdisplay == 1080))
 				return MODE_OK;
 
-			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1200)) {
-				jtemp = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
+			if ((mode->hdisplay == 1920) &&
+			    (mode->vdisplay == 1200)) {
+				jtemp = ast_get_index_reg_mask(
+					ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
 				if (jtemp & 0x01)
 					return MODE_NOMODE;
 				else
@@ -831,19 +893,24 @@ static enum drm_mode_status ast_mode_valid(struct drm_connector *connector,
 	}
 	switch (mode->hdisplay) {
 	case 640:
-		if (mode->vdisplay == 480) flags = MODE_OK;
+		if (mode->vdisplay == 480)
+			flags = MODE_OK;
 		break;
 	case 800:
-		if (mode->vdisplay == 600) flags = MODE_OK;
+		if (mode->vdisplay == 600)
+			flags = MODE_OK;
 		break;
 	case 1024:
-		if (mode->vdisplay == 768) flags = MODE_OK;
+		if (mode->vdisplay == 768)
+			flags = MODE_OK;
 		break;
 	case 1280:
-		if (mode->vdisplay == 1024) flags = MODE_OK;
+		if (mode->vdisplay == 1024)
+			flags = MODE_OK;
 		break;
 	case 1600:
-		if (mode->vdisplay == 1200) flags = MODE_OK;
+		if (mode->vdisplay == 1200)
+			flags = MODE_OK;
 		break;
 	default:
 		return flags;
@@ -888,8 +955,7 @@ static int ast_connector_init(struct drm_device *dev)
 	if (!ast_connector->i2c)
 		DRM_ERROR("failed to add ddc bus for connector\n");
 
-	drm_connector_init_with_ddc(dev, connector,
-				    &ast_connector_funcs,
+	drm_connector_init_with_ddc(dev, connector, &ast_connector_funcs,
 				    DRM_MODE_CONNECTOR_VGA,
 				    &ast_connector->i2c->adapter);
 
@@ -902,7 +968,8 @@ static int ast_connector_init(struct drm_device *dev)
 
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 
-	encoder = list_first_entry(&dev->mode_config.encoder_list, struct drm_encoder, head);
+	encoder = list_first_entry(&dev->mode_config.encoder_list,
+				   struct drm_encoder, head);
 	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
@@ -964,6 +1031,13 @@ int ast_mode_init(struct drm_device *dev)
 	ast_crtc_init(dev);
 	ast_encoder_init(dev);
 	ast_connector_init(dev);
+
+	//ArcSung@011521
+	//This patch only on BMC side
+	//There are not user application to excute setmode flow
+	//use this func to setmode when connector state changing
+	drm_kms_helper_poll_init(dev);
+
 	return 0;
 }
 
@@ -976,18 +1050,25 @@ static int get_clock(void *i2c_priv)
 {
 	struct ast_i2c_chan *i2c = i2c_priv;
 	struct ast_private *ast = i2c->dev->dev_private;
-	uint32_t val, val2, count, pass;
+	volatile uint32_t val, val2, count, pass;
 
 	count = 0;
 	pass = 0;
-	val = (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0x10) >> 4) & 0x01;
+	val = (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0x10) >> 4) &
+	      0x01;
 	do {
-		val2 = (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0x10) >> 4) & 0x01;
-		if (val == val2) {
+		val2 = (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7,
+					       0x10) >>
+			4) &
+		       0x01;
+		if (val == val2)
 			pass++;
-		} else {
+		else {
 			pass = 0;
-			val = (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0x10) >> 4) & 0x01;
+			val = (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT,
+						      0xb7, 0x10) >>
+			       4) &
+			      0x01;
 		}
 	} while ((pass < 5) && (count++ < 0x10000));
 
@@ -998,18 +1079,25 @@ static int get_data(void *i2c_priv)
 {
 	struct ast_i2c_chan *i2c = i2c_priv;
 	struct ast_private *ast = i2c->dev->dev_private;
-	uint32_t val, val2, count, pass;
+	volatile uint32_t val, val2, count, pass;
 
 	count = 0;
 	pass = 0;
-	val = (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0x20) >> 5) & 0x01;
+	val = (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0x20) >> 5) &
+	      0x01;
 	do {
-		val2 = (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0x20) >> 5) & 0x01;
+		val2 = (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7,
+					       0x20) >>
+			5) &
+		       0x01;
 		if (val == val2) {
 			pass++;
 		} else {
 			pass = 0;
-			val = (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0x20) >> 5) & 0x01;
+			val = (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT,
+						      0xb7, 0x20) >>
+			       5) &
+			      0x01;
 		}
 	} while ((pass < 5) && (count++ < 0x10000));
 
@@ -1025,8 +1113,10 @@ static void set_clock(void *i2c_priv, int clock)
 
 	for (i = 0; i < 0x10000; i++) {
 		ujcrb7 = ((clock & 0x01) ? 0 : 1);
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0xf4, ujcrb7);
-		jtemp = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0x01);
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0xf4,
+				       ujcrb7);
+		jtemp = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7,
+					       0x01);
 		if (ujcrb7 == jtemp)
 			break;
 	}
@@ -1041,8 +1131,10 @@ static void set_data(void *i2c_priv, int data)
 
 	for (i = 0; i < 0x10000; i++) {
 		ujcrb7 = ((data & 0x01) ? 0 : 1) << 2;
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0xf1, ujcrb7);
-		jtemp = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0x04);
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0xf1,
+				       ujcrb7);
+		jtemp = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7,
+					       0x04);
 		if (ujcrb7 == jtemp)
 			break;
 	}
@@ -1130,7 +1222,8 @@ static u32 copy_cursor_image(u8 *src, u8 *dst, int width, int height)
 	last_alpha_dst_delta = alpha_dst_delta - (width << 1);
 
 	srcxor = src;
-	dstxor = (u8 *)dst + last_alpha_dst_delta + (AST_MAX_HWC_HEIGHT - height) * alpha_dst_delta;
+	dstxor = (u8 *)dst + last_alpha_dst_delta +
+		 (AST_MAX_HWC_HEIGHT - height) * alpha_dst_delta;
 	per_pixel_copy = width & 1;
 	two_pixel_copy = width >> 1;
 
@@ -1138,23 +1231,28 @@ static u32 copy_cursor_image(u8 *src, u8 *dst, int width, int height)
 		for (i = 0; i < two_pixel_copy; i++) {
 			srcdata32[0].ul = *((u32 *)srcxor) & 0xf0f0f0f0;
 			srcdata32[1].ul = *((u32 *)(srcxor + 4)) & 0xf0f0f0f0;
-			data32.b[0] = srcdata32[0].b[1] | (srcdata32[0].b[0] >> 4);
-			data32.b[1] = srcdata32[0].b[3] | (srcdata32[0].b[2] >> 4);
-			data32.b[2] = srcdata32[1].b[1] | (srcdata32[1].b[0] >> 4);
-			data32.b[3] = srcdata32[1].b[3] | (srcdata32[1].b[2] >> 4);
+			data32.b[0] =
+				srcdata32[0].b[1] | (srcdata32[0].b[0] >> 4);
+			data32.b[1] =
+				srcdata32[0].b[3] | (srcdata32[0].b[2] >> 4);
+			data32.b[2] =
+				srcdata32[1].b[1] | (srcdata32[1].b[0] >> 4);
+			data32.b[3] =
+				srcdata32[1].b[3] | (srcdata32[1].b[2] >> 4);
 
 			writel(data32.ul, dstxor);
 			csum += data32.ul;
 
 			dstxor += 4;
 			srcxor += 8;
-
 		}
 
 		for (i = 0; i < per_pixel_copy; i++) {
 			srcdata32[0].ul = *((u32 *)srcxor) & 0xf0f0f0f0;
-			data16.b[0] = srcdata32[0].b[1] | (srcdata32[0].b[0] >> 4);
-			data16.b[1] = srcdata32[0].b[3] | (srcdata32[0].b[2] >> 4);
+			data16.b[0] =
+				srcdata32[0].b[1] | (srcdata32[0].b[0] >> 4);
+			data16.b[1] =
+				srcdata32[0].b[3] | (srcdata32[0].b[2] >> 4);
 			writew(data16.us, dstxor);
 			csum += (u32)data16.us;
 
@@ -1166,11 +1264,8 @@ static u32 copy_cursor_image(u8 *src, u8 *dst, int width, int height)
 	return csum;
 }
 
-static int ast_cursor_set(struct drm_crtc *crtc,
-			  struct drm_file *file_priv,
-			  uint32_t handle,
-			  uint32_t width,
-			  uint32_t height)
+static int ast_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
+			  uint32_t handle, uint32_t width, uint32_t height)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
 	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
@@ -1206,8 +1301,8 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 		goto err_drm_gem_vram_unpin;
 	}
 
-	dst = drm_gem_vram_kmap(drm_gem_vram_of_gem(ast->cursor_cache),
-				false, NULL);
+	dst = drm_gem_vram_kmap(drm_gem_vram_of_gem(ast->cursor_cache), false,
+				NULL);
 	if (IS_ERR(dst)) {
 		ret = PTR_ERR(dst);
 		goto err_drm_gem_vram_kunmap;
@@ -1218,7 +1313,7 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 		goto err_drm_gem_vram_kunmap;
 	}
 
-	dst += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor;
+	dst += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE) * ast->next_cursor;
 
 	/* do data transfer to cursor cache */
 	csum = copy_cursor_image(src, dst, width, height);
@@ -1228,7 +1323,9 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 		struct drm_gem_vram_object *dst_gbo =
 			drm_gem_vram_of_gem(ast->cursor_cache);
 		u8 *dst = drm_gem_vram_kmap(dst_gbo, false, NULL);
-		dst += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor + AST_HWC_SIZE;
+		dst += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE) *
+			       ast->next_cursor +
+		       AST_HWC_SIZE;
 		writel(csum, dst);
 		writel(width, dst + AST_HWC_SIGNATURE_SizeX);
 		writel(height, dst + AST_HWC_SIGNATURE_SizeY);
@@ -1237,11 +1334,14 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 
 		/* set pattern offset */
 		gpu_addr = (u64)dst_gpu;
-		gpu_addr += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor;
+		gpu_addr += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE) *
+			    ast->next_cursor;
 		gpu_addr >>= 3;
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc8, gpu_addr & 0xff);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc9, (gpu_addr >> 8) & 0xff);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xca, (gpu_addr >> 16) & 0xff);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc9,
+				  (gpu_addr >> 8) & 0xff);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xca,
+				  (gpu_addr >> 16) & 0xff);
 	}
 	ast_crtc->offset_x = AST_MAX_HWC_WIDTH - width;
 	ast_crtc->offset_y = AST_MAX_HWC_WIDTH - height;
@@ -1265,17 +1365,17 @@ err_drm_gem_object_put_unlocked:
 	return ret;
 }
 
-static int ast_cursor_move(struct drm_crtc *crtc,
-			   int x, int y)
+static int ast_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
 	struct ast_private *ast = crtc->dev->dev_private;
 	int x_offset, y_offset;
 	u8 *sig;
 
-	sig = drm_gem_vram_kmap(drm_gem_vram_of_gem(ast->cursor_cache),
-				false, NULL);
-	sig += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor + AST_HWC_SIZE;
+	sig = drm_gem_vram_kmap(drm_gem_vram_of_gem(ast->cursor_cache), false,
+				NULL);
+	sig += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE) * ast->next_cursor +
+	       AST_HWC_SIZE;
 	writel(x, sig + AST_HWC_SIGNATURE_X);
 	writel(y, sig + AST_HWC_SIGNATURE_Y);
 

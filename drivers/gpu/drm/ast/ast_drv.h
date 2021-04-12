@@ -40,20 +40,20 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_fb_helper.h>
 
-#define DRIVER_AUTHOR		"Dave Airlie"
+#define DRIVER_AUTHOR "Dave Airlie"
 
-#define DRIVER_NAME		"ast"
-#define DRIVER_DESC		"AST"
-#define DRIVER_DATE		"20120228"
+#define DRIVER_NAME "ast"
+#define DRIVER_DESC "AST"
+#define DRIVER_DATE "20210125"
 
-#define DRIVER_MAJOR		0
-#define DRIVER_MINOR		1
-#define DRIVER_PATCHLEVEL	0
+#define DRIVER_MAJOR 1
+#define DRIVER_MINOR 11
+#define DRIVER_PATCHLEVEL 3
 
 #define PCI_CHIP_AST2000 0x2000
 #define PCI_CHIP_AST2100 0x2010
 #define PCI_CHIP_AST1180 0x1180
-
+#define PCI_CHIP_AIP200 0xA200
 
 enum ast_chip {
 	AST2000,
@@ -66,6 +66,7 @@ enum ast_chip {
 	AST2500,
 	AST2600,
 	AST1180,
+	AIP200,
 };
 
 enum ast_tx_chip {
@@ -73,21 +74,23 @@ enum ast_tx_chip {
 	AST_TX_SIL164,
 	AST_TX_ITE66121,
 	AST_TX_DP501,
+	AST_TX_ASTDP,
 };
 
 #define AST_DRAM_512Mx16 0
-#define AST_DRAM_1Gx16   1
+#define AST_DRAM_1Gx16 1
 #define AST_DRAM_512Mx32 2
-#define AST_DRAM_1Gx32   3
-#define AST_DRAM_2Gx16   6
-#define AST_DRAM_4Gx16   7
-#define AST_DRAM_8Gx16   8
+#define AST_DRAM_1Gx32 3
+#define AST_DRAM_2Gx16 6
+#define AST_DRAM_4Gx16 7
+#define AST_DRAM_8Gx16 8
 
 struct ast_private {
 	struct drm_device *dev;
 
 	void __iomem *regs;
 	void __iomem *ioregs;
+	void __iomem *reservedbuffer;
 
 	enum ast_chip chip;
 	bool vga2_clone;
@@ -101,16 +104,17 @@ struct ast_private {
 	struct drm_gem_object *cursor_cache;
 	int next_cursor;
 	bool support_wide_screen;
-	enum {
-		ast_use_p2a,
-		ast_use_dt,
-		ast_use_defaults
-	} config_mode;
+	bool support_newvga_mode;
+	bool RefCLK25MHz;
+	enum { ast_use_p2a, ast_use_dt, ast_use_defaults } config_mode;
 
 	enum ast_tx_chip tx_chip_type;
 	u8 dp501_maxclk;
 	u8 *dp501_fw_addr;
-	const struct firmware *dp501_fw;	/* dp501 fw */
+	const struct firmware *dp501_fw; /* dp501 fw */
+
+	// ASTDP
+	u8 ASTDP_State;
 };
 
 int ast_driver_load(struct drm_device *dev, unsigned long flags);
@@ -118,104 +122,116 @@ void ast_driver_unload(struct drm_device *dev);
 
 struct ast_gem_object;
 
-#define AST_IO_AR_PORT_WRITE		(0x40)
-#define AST_IO_MISC_PORT_WRITE		(0x42)
-#define AST_IO_VGA_ENABLE_PORT		(0x43)
-#define AST_IO_SEQ_PORT			(0x44)
-#define AST_IO_DAC_INDEX_READ		(0x47)
-#define AST_IO_DAC_INDEX_WRITE		(0x48)
-#define AST_IO_DAC_DATA		        (0x49)
-#define AST_IO_GR_PORT			(0x4E)
-#define AST_IO_CRTC_PORT		(0x54)
-#define AST_IO_INPUT_STATUS1_READ	(0x5A)
-#define AST_IO_MISC_PORT_READ		(0x4C)
+#define AST_IO_AR_PORT_WRITE (0x40)
+#define AST_IO_MISC_PORT_WRITE (0x42)
+#define AST_IO_VGA_ENABLE_PORT (0x43)
+#define AST_IO_SEQ_PORT (0x44)
+#define AST_IO_DAC_INDEX_READ (0x47)
+#define AST_IO_DAC_INDEX_WRITE (0x48)
+#define AST_IO_DAC_DATA (0x49)
+#define AST_IO_GR_PORT (0x4E)
+#define AST_IO_CRTC_PORT (0x54)
+#define AST_IO_INPUT_STATUS1_READ (0x5A)
+#define AST_IO_MISC_PORT_READ (0x4C)
 
-#define AST_IO_MM_OFFSET		(0x380)
+#define MMIOREG_DP_DATA                                                        \
+	(0x20000) // PCIS14 + 0x20000~0x20XXX -> AHB 0x1800_0XXX (only for ast2600)
+#define MMIOREG_DP_EDID (0x20800)
+#define MMIOREG_DP_REG (0x24000) // PCIS14 + 0x24000~0x24XXX -> AHB 0x1801_0XXX
+#define MMIOREG_DP_INST                                                        \
+	(0x28000) // PCIS14 + 0x28000~0x2BXXX -> AHB 0x1802_0XXX~0x1802_3XXX
 
-#define __ast_read(x) \
-static inline u##x ast_read##x(struct ast_private *ast, u32 reg) { \
-u##x val = 0;\
-val = ioread##x(ast->regs + reg); \
-return val;\
-}
+#define AST_IO_MM_OFFSET (0x380)
+
+#define __ast_read(x)                                                          \
+	static inline u##x ast_read##x(struct ast_private *ast, u32 reg)       \
+	{                                                                      \
+		u##x val = 0;                                                  \
+		val = ioread##x(ast->regs + reg);                              \
+		return val;                                                    \
+	}
 
 __ast_read(8);
 __ast_read(16);
 __ast_read(32)
 
-#define __ast_io_read(x) \
-static inline u##x ast_io_read##x(struct ast_private *ast, u32 reg) { \
-u##x val = 0;\
-val = ioread##x(ast->ioregs + reg); \
-return val;\
-}
+#define __ast_io_read(x)                                                       \
+	static inline u##x ast_io_read##x(struct ast_private *ast, u32 reg)    \
+	{                                                                      \
+		u##x val = 0;                                                  \
+		val = ioread##x(ast->ioregs + reg);                            \
+		return val;                                                    \
+	}
 
-__ast_io_read(8);
+	__ast_io_read(8);
 __ast_io_read(16);
 __ast_io_read(32);
 
-#define __ast_write(x) \
-static inline void ast_write##x(struct ast_private *ast, u32 reg, u##x val) {\
-	iowrite##x(val, ast->regs + reg);\
+#define __ast_write(x)                                                         \
+	static inline void ast_write##x(struct ast_private *ast, u32 reg,      \
+					u##x val)                              \
+	{                                                                      \
+		iowrite##x(val, ast->regs + reg);                              \
 	}
 
 __ast_write(8);
 __ast_write(16);
 __ast_write(32);
 
-#define __ast_io_write(x) \
-static inline void ast_io_write##x(struct ast_private *ast, u32 reg, u##x val) {\
-	iowrite##x(val, ast->ioregs + reg);\
+#define __ast_io_write(x)                                                      \
+	static inline void ast_io_write##x(struct ast_private *ast, u32 reg,   \
+					   u##x val)                           \
+	{                                                                      \
+		iowrite##x(val, ast->ioregs + reg);                            \
 	}
 
 __ast_io_write(8);
 __ast_io_write(16);
 #undef __ast_io_write
 
-static inline void ast_set_index_reg(struct ast_private *ast,
-				     uint32_t base, uint8_t index,
-				     uint8_t val)
+static inline void ast_set_index_reg(struct ast_private *ast, uint32_t base,
+				     uint8_t index, uint8_t val)
 {
 	ast_io_write16(ast, base, ((u16)val << 8) | index);
 }
 
-void ast_set_index_reg_mask(struct ast_private *ast,
-			    uint32_t base, uint8_t index,
-			    uint8_t mask, uint8_t val);
-uint8_t ast_get_index_reg(struct ast_private *ast,
-			  uint32_t base, uint8_t index);
-uint8_t ast_get_index_reg_mask(struct ast_private *ast,
-			       uint32_t base, uint8_t index, uint8_t mask);
+void ast_set_index_reg_mask(struct ast_private *ast, uint32_t base,
+			    uint8_t index, uint8_t mask, uint8_t val);
+uint8_t ast_get_index_reg(struct ast_private *ast, uint32_t base,
+			  uint8_t index);
+uint8_t ast_get_index_reg_mask(struct ast_private *ast, uint32_t base,
+			       uint8_t index, uint8_t mask);
 
 static inline void ast_open_key(struct ast_private *ast)
 {
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x80, 0xA8);
 }
 
-#define AST_VIDMEM_SIZE_8M    0x00800000
-#define AST_VIDMEM_SIZE_16M   0x01000000
-#define AST_VIDMEM_SIZE_32M   0x02000000
-#define AST_VIDMEM_SIZE_64M   0x04000000
-#define AST_VIDMEM_SIZE_128M  0x08000000
+void inline ast_wait_one_vsync(struct ast_private *ast);
+
+#define AST_VIDMEM_SIZE_8M 0x00800000
+#define AST_VIDMEM_SIZE_16M 0x01000000
+#define AST_VIDMEM_SIZE_32M 0x02000000
+#define AST_VIDMEM_SIZE_64M 0x04000000
+#define AST_VIDMEM_SIZE_128M 0x08000000
 
 #define AST_VIDMEM_DEFAULT_SIZE AST_VIDMEM_SIZE_8M
 
 #define AST_MAX_HWC_WIDTH 64
 #define AST_MAX_HWC_HEIGHT 64
 
-#define AST_HWC_SIZE                (AST_MAX_HWC_WIDTH*AST_MAX_HWC_HEIGHT*2)
-#define AST_HWC_SIGNATURE_SIZE      32
+#define AST_HWC_SIZE (AST_MAX_HWC_WIDTH * AST_MAX_HWC_HEIGHT * 2)
+#define AST_HWC_SIGNATURE_SIZE 32
 
 #define AST_DEFAULT_HWC_NUM 2
 /* define for signature structure */
-#define AST_HWC_SIGNATURE_CHECKSUM  0x00
-#define AST_HWC_SIGNATURE_SizeX     0x04
-#define AST_HWC_SIGNATURE_SizeY     0x08
-#define AST_HWC_SIGNATURE_X         0x0C
-#define AST_HWC_SIGNATURE_Y         0x10
-#define AST_HWC_SIGNATURE_HOTSPOTX  0x14
-#define AST_HWC_SIGNATURE_HOTSPOTY  0x18
-
+#define AST_HWC_SIGNATURE_CHECKSUM 0x00
+#define AST_HWC_SIGNATURE_SizeX 0x04
+#define AST_HWC_SIGNATURE_SizeY 0x08
+#define AST_HWC_SIGNATURE_X 0x0C
+#define AST_HWC_SIGNATURE_Y 0x10
+#define AST_HWC_SIGNATURE_HOTSPOTX 0x14
+#define AST_HWC_SIGNATURE_HOTSPOTY 0x18
 
 struct ast_i2c_chan {
 	struct i2c_adapter adapter;
@@ -285,8 +301,7 @@ extern void ast_mode_fini(struct drm_device *dev);
 int ast_mm_init(struct ast_private *ast);
 void ast_mm_fini(struct ast_private *ast);
 
-int ast_gem_create(struct drm_device *dev,
-		   u32 size, bool iskernel,
+int ast_gem_create(struct drm_device *dev, u32 size, bool iskernel,
 		   struct drm_gem_object **obj);
 
 /* ast post */
@@ -296,6 +311,7 @@ bool ast_is_vga_enabled(struct drm_device *dev);
 void ast_post_gpu(struct drm_device *dev);
 u32 ast_mindwm(struct ast_private *ast, u32 r);
 void ast_moutdwm(struct ast_private *ast, u32 r, u32 v);
+void patch_ahb_ast2500(struct ast_private *ast);
 /* ast dp501 */
 void ast_set_dp501_video_output(struct drm_device *dev, u8 mode);
 bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size);
@@ -303,4 +319,14 @@ bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata);
 u8 ast_get_dp501_max_clk(struct drm_device *dev);
 void ast_init_3rdtx(struct drm_device *dev);
 void ast_release_firmware(struct drm_device *dev);
+/* aspeed DP */
+#define DPControlPower
+bool ast_dp_read_edid(struct drm_device *dev, u8 *ediddata);
+bool ast_dp_launch(struct drm_device *dev, u8 bPower);
+#ifdef DPControlPower
+void ast_dp_PowerOnOff(struct drm_device *dev, u8 Mode);
+#endif
+void ast_dp_SetOnOff(struct drm_device *dev, u8 Mode);
+void ast_dp_SetOutput(struct drm_crtc *crtc,
+		      struct ast_vbios_mode_info *vbios_mode);
 #endif

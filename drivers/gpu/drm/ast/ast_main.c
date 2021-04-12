@@ -37,32 +37,54 @@
 
 #include "ast_drv.h"
 
-void ast_set_index_reg_mask(struct ast_private *ast,
-			    uint32_t base, uint8_t index,
-			    uint8_t mask, uint8_t val)
+void ast_set_index_reg_mask(struct ast_private *ast, uint32_t base,
+			    uint8_t index, uint8_t mask, uint8_t val)
 {
-	u8 tmp;
-	ast_io_write8(ast, base, index);
-	tmp = (ast_io_read8(ast, base + 1) & mask) | val;
-	ast_set_index_reg(ast, base, index, tmp);
+	uint16_t volatile usData;
+	uint8_t volatile jData;
+
+	do {
+		ast_io_write8(ast, base, index);
+		usData = ast_io_read16(ast, base);
+	} while ((uint8_t)(usData) != index);
+
+	jData = (uint8_t)(usData >> 8);
+	jData &= mask;
+	jData |= val;
+	usData = ((uint16_t)jData << 8) | (uint16_t)index;
+	ast_io_write16(ast, base, usData);
 }
 
-uint8_t ast_get_index_reg(struct ast_private *ast,
-			  uint32_t base, uint8_t index)
+uint8_t ast_get_index_reg(struct ast_private *ast, uint32_t base, uint8_t index)
 {
-	uint8_t ret;
-	ast_io_write8(ast, base, index);
-	ret = ast_io_read8(ast, base + 1);
-	return ret;
+	uint16_t volatile usData;
+	uint8_t volatile jData;
+
+	do {
+		ast_io_write8(ast, base, index);
+		usData = ast_io_read16(ast, base);
+	} while ((uint8_t)(usData) != index);
+
+	jData = (uint8_t)(usData >> 8);
+
+	return jData;
 }
 
-uint8_t ast_get_index_reg_mask(struct ast_private *ast,
-			       uint32_t base, uint8_t index, uint8_t mask)
+uint8_t ast_get_index_reg_mask(struct ast_private *ast, uint32_t base,
+			       uint8_t index, uint8_t mask)
 {
-	uint8_t ret;
-	ast_io_write8(ast, base, index);
-	ret = ast_io_read8(ast, base + 1) & mask;
-	return ret;
+	uint16_t volatile usData;
+	uint8_t volatile jData;
+
+	do {
+		ast_io_write8(ast, base, index);
+		usData = ast_io_read16(ast, base);
+	} while ((uint8_t)(usData) != index);
+
+	jData = (uint8_t)(usData >> 8);
+	jData &= mask;
+
+	return jData;
 }
 
 static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
@@ -76,8 +98,8 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 	*scu_rev = 0xffffffff;
 
 	/* Check if we have device-tree properties */
-	if (np && !of_property_read_u32(np, "aspeed,scu-revision-id",
-					scu_rev)) {
+	if (np &&
+	    !of_property_read_u32(np, "aspeed,scu-revision-id", scu_rev)) {
 		/* We do, disable P2A access */
 		ast->config_mode = ast_use_dt;
 		DRM_INFO("Using device-tree for configuration\n");
@@ -96,9 +118,23 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 	jregd0 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
 	jregd1 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
 	if (!(jregd0 & 0x80) || !(jregd1 & 0x10)) {
+		/* Patch AST2500 */
+		if (((dev->pdev->revision & 0xF0) == 0x40) &&
+		    ((jregd0 & 0xC0) == 0))
+			patch_ahb_ast2500(ast);
+
 		/* Double check it's actually working */
-		data = ast_read32(ast, 0xf004);
-		if ((data != 0xFFFFFFFF) && (data != 0x00)) {		// for AST2600, data == 0x00
+		if ((dev->pdev->revision & 0xF0) >= 0x30)
+			data = ast_read32(ast, 0xf004);
+		else /* AST2300 and before */
+		{
+			ast_write32(ast, 0xf004, 0x1e6e0000);
+			ast_write32(ast, 0xf000, 0x1);
+			data = ast_read32(ast, 0x1207c);
+		}
+
+		if ((data != 0xFFFFFFFF) &&
+		    (data != 0x00)) { // for AST2600, data == 0x00
 			/* P2A works, grab silicon revision */
 			ast->config_mode = ast_use_p2a;
 
@@ -134,7 +170,6 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	} else
 		*need_post = false;
 
-
 	/* Enable extended register access */
 	ast_open_key(ast);
 	ast_enable_mmio(dev);
@@ -150,6 +185,9 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	if (dev->pdev->device == PCI_CHIP_AST1180) {
 		ast->chip = AST1100;
 		DRM_INFO("AST 1180 detected\n");
+	} else if (dev->pdev->device == PCI_CHIP_AIP200) {
+		ast->chip = AIP200;
+		DRM_INFO("AIP 200 detected\n");
 	} else {
 		if (dev->pdev->revision >= 0x50) {
 			ast->chip = AST2600;
@@ -189,33 +227,52 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 		}
 	}
 
-	/* Check if we support wide screen */
+	/* Check 25MHz Ref CLK */
+	ast->RefCLK25MHz = false;
+	if ((ast->chip == AST2400) || (ast->chip == AST2500) ||
+	    (ast->chip == AST2600)) {
+		if (ast->config_mode == ast_use_p2a) {
+			jreg = ast_read32(ast, 0x12070);
+			if (jreg & 0x00800000)
+				ast->RefCLK25MHz = true;
+		} else {
+			jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT,
+						      0xd0, 0xff);
+			if (jreg & 0x04)
+				ast->RefCLK25MHz = true;
+		}
+	}
+
+	/* Check if we newvga mode & support wide screen */
+	ast->support_wide_screen = true;
 	switch (ast->chip) {
+	case AIP200:
 	case AST1180:
-		ast->support_wide_screen = true;
+		ast->support_newvga_mode = true;
 		break;
 	case AST2000:
-		ast->support_wide_screen = false;
+		ast->support_newvga_mode = false;
 		break;
 	default:
-		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
+		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0,
+					      0xff);
 		if (!(jreg & 0x80))
-			ast->support_wide_screen = true;
+			ast->support_newvga_mode = true;
 		else if (jreg & 0x01)
-			ast->support_wide_screen = true;
+			ast->support_newvga_mode = true;
 		else {
-			ast->support_wide_screen = false;
+			ast->support_newvga_mode = false;
 			if (ast->chip == AST2300 &&
 			    (scu_rev & 0x300) == 0x0) /* ast1300 */
-				ast->support_wide_screen = true;
+				ast->support_newvga_mode = true;
 			if (ast->chip == AST2400 &&
 			    (scu_rev & 0x300) == 0x100) /* ast1400 */
-				ast->support_wide_screen = true;
+				ast->support_newvga_mode = true;
 			if (ast->chip == AST2500 &&
-			    scu_rev == 0x100)           /* ast2510 */
-				ast->support_wide_screen = true;
-			if (ast->chip == AST2600)           /* ast2600 */
-				ast->support_wide_screen = true;
+			    scu_rev == 0x100) /* ast2510 */
+				ast->support_newvga_mode = true;
+			if (ast->chip == AST2600) /* ast2600 */
+				ast->support_newvga_mode = true;
 		}
 		break;
 	}
@@ -232,27 +289,31 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	 * SIL164 when there is none.
 	 */
 	if (!*need_post) {
-		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xff);
+		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3,
+					      0xff);
 		if (jreg & 0x80)
 			ast->tx_chip_type = AST_TX_SIL164;
 	}
 
-	if ((ast->chip == AST2300) || (ast->chip == AST2400)) {
+	if ((ast->chip == AST2300) || (ast->chip == AST2400) ||
+	    (ast->chip == AST2500)) {
 		/*
 		 * On AST2300 and 2400, look the configuration set by the SoC in
 		 * the SOC scratch register #1 bits 11:8 (interestingly marked
 		 * as "reserved" in the spec)
 		 */
-		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
+		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1,
+					      0xff);
 		switch (jreg) {
 		case 0x04:
 			ast->tx_chip_type = AST_TX_SIL164;
 			break;
 		case 0x08:
-			ast->dp501_fw_addr = kzalloc(32*1024, GFP_KERNEL);
+			ast->dp501_fw_addr = kzalloc(32 * 1024, GFP_KERNEL);
 			if (ast->dp501_fw_addr) {
 				/* backup firmware */
-				if (ast_backup_fw(dev, ast->dp501_fw_addr, 32*1024)) {
+				if (ast_backup_fw(dev, ast->dp501_fw_addr,
+						  32 * 1024) == false) {
 					kfree(ast->dp501_fw_addr);
 					ast->dp501_fw_addr = NULL;
 				}
@@ -261,15 +322,20 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 		case 0x0c:
 			ast->tx_chip_type = AST_TX_DP501;
 		}
+	} else if (ast->chip == AST2600) {
+		ast_dp_launch(ast->dev, 0);
 	}
 
 	/* Print stuff for diagnostic purposes */
-	switch(ast->tx_chip_type) {
+	switch (ast->tx_chip_type) {
 	case AST_TX_SIL164:
 		DRM_INFO("Using Sil164 TMDS transmitter\n");
 		break;
 	case AST_TX_DP501:
 		DRM_INFO("Using DP501 DisplayPort transmitter\n");
+		break;
+	case AST_TX_ASTDP:
+		DRM_INFO("Using ASPEED DisplayPort transmitter\n");
 		break;
 	default:
 		DRM_INFO("Analog VGA only\n");
@@ -411,10 +477,18 @@ static u32 ast_get_vram_info(struct drm_device *dev)
 	vram_size = AST_VIDMEM_DEFAULT_SIZE;
 	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xaa, 0xff);
 	switch (jreg & 3) {
-	case 0: vram_size = AST_VIDMEM_SIZE_8M; break;
-	case 1: vram_size = AST_VIDMEM_SIZE_16M; break;
-	case 2: vram_size = AST_VIDMEM_SIZE_32M; break;
-	case 3: vram_size = AST_VIDMEM_SIZE_64M; break;
+	case 0:
+		vram_size = AST_VIDMEM_SIZE_8M;
+		break;
+	case 1:
+		vram_size = AST_VIDMEM_SIZE_16M;
+		break;
+	case 2:
+		vram_size = AST_VIDMEM_SIZE_32M;
+		break;
+	case 3:
+		vram_size = AST_VIDMEM_SIZE_64M;
+		break;
 	}
 
 	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x99, 0xff);
@@ -438,37 +512,7 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	struct ast_private *ast;
 	bool need_post;
 	int ret = 0;
-#if 1
-	int i;
 
-	uint8_t temp;
-	uint8_t SLT_CR[256]= {
-		0x0e, 0xef, 0xef, 0x92, 0xf5, 0x1a, 0x63, 0x00, 0x00, 0x40, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00,
-		0x3b, 0x80, 0x37, 0xc0, 0x40, 0x37, 0x64, 0xa3, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x02, 0x20,
-		0xff, 0xff, 0x20, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x07, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xa8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x01, 0x38, 0x40,
-		0x20, 0xa8, 0x20, 0x94, 0x80, 0x07, 0x38, 0x04, 0x94, 0xc0, 0x00, 0x00, 0x80, 0x38, 0x47, 0x3f,
-		0x7f, 0x06, 0x1f, 0x08, 0x40, 0x00, 0x60, 0x78, 0x02, 0x00, 0x09, 0xd0, 0x01, 0x04, 0x8f, 0x00,
-		0x03, 0xb8, 0x11, 0x42, 0x00, 0x00, 0xa4, 0x30, 0x9d, 0xe0, 0x0a, 0x8f, 0x2c, 0xe7, 0x95, 0x62,
-		0x1f, 0x45, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00 };
-
-	uint8_t SLT_SR[5]= {0x03, 0x01, 0x0f, 0x00, 0x0e};
-	uint8_t SLT_AR[20] = {
-		0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
-		0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
-		0x01,0x00,0x00,0x00};
-	uint8_t SLT_GR[9] = {
-		0x00,0x00,0x00,0x00,0x00,0x00,0x05,0x0f,
-		0xff};
-#endif
 	ast = kzalloc(sizeof(struct ast_private), GFP_KERNEL);
 	if (!ast)
 		return -ENOMEM;
@@ -487,10 +531,10 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	 * assume the chip has MMIO enabled by default (rev 0x20
 	 * and higher).
 	 */
-//	if (!(pci_resource_flags(dev->pdev, 2) & IORESOURCE_IO)) {
-		DRM_INFO("platform has no IO space, trying MMIO\n");
-		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
-//	}
+	//	if (!(pci_resource_flags(dev->pdev, 2) & IORESOURCE_IO)) {
+	DRM_INFO("platform has no IO space, trying MMIO\n");
+	ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
+	//	}
 
 #if 0
 	/* "map" IO regs if the above hasn't done so already */
@@ -514,36 +558,14 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 			goto out_free;
 		ast->vram_size = ast_get_vram_info(dev);
 		DRM_INFO("dram MCLK=%u Mhz type=%d bus_width=%d size=%08x\n",
-			 ast->mclk, ast->dram_type,
-			 ast->dram_bus_width, ast->vram_size);
+			 ast->mclk, ast->dram_type, ast->dram_bus_width,
+			 ast->vram_size);
 	}
 
 	ret = ast_mm_init(ast);
 	if (ret)
 		goto out_free;
 
-#if 1
-	/* set MR */
-	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x2F);
-	/* Set GR */
-	for (i = 0; i < 9; i++)
-		ast_set_index_reg(ast, AST_IO_GR_PORT, i, SLT_GR[i]);
-
-	/* Set CR */
-	for (i=0; i<256; i++)	// for ARM-MMIO on AST2600A1
-	{
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x00);
-		temp = SLT_CR[i];
-//		DRM_ERROR("CR[i] = %x\n", temp);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, temp);
-//		DRM_ERROR("CR[%x] = %x\n", i, ast_get_index_reg(ast, AST_IO_CRTC_PORT, i));
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x80);
-	}
-
-	/* Set SR */
-	for (i=0; i<5; i++)
-		ast_set_index_reg(ast, AST_IO_SEQ_PORT, i, SLT_SR[i]);
-#endif
 	drm_mode_config_init(dev);
 
 	dev->mode_config.funcs = (void *)&ast_mode_funcs;
@@ -553,13 +575,10 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->mode_config.prefer_shadow = 1;
 	dev->mode_config.fb_base = pci_resource_start(ast->dev->pdev, 0);
 
-	if (ast->chip == AST2100 ||
-	    ast->chip == AST2200 ||
-	    ast->chip == AST2300 ||
-	    ast->chip == AST2400 ||
-	    ast->chip == AST2500 ||
-	    ast->chip == AST2600 ||
-	    ast->chip == AST1180) {
+	if (ast->chip == AST2100 || ast->chip == AST2200 ||
+	    ast->chip == AST2300 || ast->chip == AST2400 ||
+	    ast->chip == AST2500 || ast->chip == AST2600 ||
+	    ast->chip == AIP200 || ast->chip == AST1180) {
 		dev->mode_config.max_width = 1920;
 		dev->mode_config.max_height = 2048;
 	} else {
@@ -571,42 +590,6 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto out_free;
 
-#if 1
-	/* set MR */
-	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x2F);
-
-	/* set AR */
-	temp = ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ);
-	for (i = 0; i < 20; i++) {
-		temp = SLT_AR[i];
-		ast_io_write8(ast, AST_IO_AR_PORT_WRITE, (u8)i);
-		ast_io_write8(ast, AST_IO_AR_PORT_WRITE, temp);
-	}
-	ast_io_write8(ast, AST_IO_AR_PORT_WRITE, 0x14);
-	ast_io_write8(ast, AST_IO_AR_PORT_WRITE, 0x00);
-
-	temp = ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ);
-	ast_io_write8(ast, AST_IO_AR_PORT_WRITE, 0x20);
-
-	/* Set GR */
-	for (i = 0; i < 9; i++)
-		ast_set_index_reg(ast, AST_IO_GR_PORT, i, SLT_GR[i]);
-
-	/* Set CR */
-	for (i=0; i<256; i++)	// for ARM-MMIO on AST2600A1
-	{
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x00);
-		temp = SLT_CR[i];
-//		DRM_ERROR("CR[i] = %x\n", temp);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, temp);
-//		DRM_ERROR("CR[%x] = %x\n", i, ast_get_index_reg(ast, AST_IO_CRTC_PORT, i));
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x80);
-	}
-
-	/* Set SR */
-	for (i=0; i<5; i++)
-		ast_set_index_reg(ast, AST_IO_SEQ_PORT, i, SLT_SR[i]);
-#endif
 	ret = drm_fbdev_generic_setup(dev, 32);
 	if (ret)
 		goto out_free;
@@ -637,8 +620,7 @@ void ast_driver_unload(struct drm_device *dev)
 	kfree(ast);
 }
 
-int ast_gem_create(struct drm_device *dev,
-		   u32 size, bool iskernel,
+int ast_gem_create(struct drm_device *dev, u32 size, bool iskernel,
 		   struct drm_gem_object **obj)
 {
 	struct drm_gem_vram_object *gbo;
@@ -659,4 +641,14 @@ int ast_gem_create(struct drm_device *dev,
 	}
 	*obj = &gbo->bo.base;
 	return 0;
+}
+
+void inline ast_wait_one_vsync(struct ast_private *ast)
+{
+	while (!(ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ) & 0x8))
+		;
+	while ((ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ) & 0x8))
+		;
+	while (!(ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ) & 0x8))
+		;
 }

@@ -48,20 +48,20 @@ module_param_named(modeset, ast_modeset, int, 0400);
 
 static struct drm_driver driver;
 
-#define AST_VGA_DEVICE(id, info) {		\
-	.class = PCI_BASE_CLASS_DISPLAY << 16,	\
-	.class_mask = 0xff0000,			\
-	.vendor = PCI_VENDOR_ASPEED,			\
-	.device = id,				\
-	.subvendor = PCI_ANY_ID,		\
-	.subdevice = PCI_ANY_ID,		\
-	.driver_data = (unsigned long) info }
+#define AST_VGA_DEVICE(id, info)                                               \
+	{                                                                      \
+		.class = PCI_BASE_CLASS_DISPLAY << 16, .class_mask = 0xff0000, \
+		.vendor = PCI_VENDOR_ASPEED, .device = id,                     \
+		.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID,              \
+		.driver_data = (unsigned long)info                             \
+	}
 
 static const struct pci_device_id pciidlist[] = {
 	AST_VGA_DEVICE(PCI_CHIP_AST2000, NULL),
 	AST_VGA_DEVICE(PCI_CHIP_AST2100, NULL),
+	AST_VGA_DEVICE(PCI_CHIP_AIP200, NULL),
 	/*	AST_VGA_DEVICE(PCI_CHIP_AST1180, NULL), - don't bind to 1180 for now */
-	{0, 0, 0},
+	{ 0, 0, 0 },
 };
 
 MODULE_DEVICE_TABLE(pci, pciidlist);
@@ -79,7 +79,8 @@ static void ast_kick_out_firmware_fb(struct pci_dev *pdev)
 	ap->ranges[0].size = pci_resource_len(pdev, 0);
 
 #ifdef CONFIG_X86
-	primary = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
+	primary =
+		pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 #endif
 	drm_fb_helper_remove_conflicting_framebuffers(ap, "astdrmfb", primary);
 	kfree(ap);
@@ -92,21 +93,21 @@ static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
-static void
-ast_pci_remove(struct pci_dev *pdev)
+static void ast_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
 	drm_put_dev(dev);
 }
 
-
-
 static int ast_drm_freeze(struct drm_device *dev)
 {
+	DRM_INFO("%s \n", __func__);
 	drm_kms_helper_poll_disable(dev);
 	pci_save_state(dev->pdev);
 	drm_fb_helper_set_suspend_unlocked(dev->fb_helper, true);
+
+	DRM_INFO("%s leave\n", __func__);
 
 	return 0;
 }
@@ -126,6 +127,7 @@ static int ast_drm_resume(struct drm_device *dev)
 {
 	int ret;
 
+	DRM_INFO("%s \n", __func__);
 	if (pci_enable_device(dev->pdev))
 		return -EIO;
 
@@ -134,6 +136,7 @@ static int ast_drm_resume(struct drm_device *dev)
 		return ret;
 
 	drm_kms_helper_poll_enable(dev);
+	DRM_INFO("%s leave\n", __func__);
 	return 0;
 }
 
@@ -166,7 +169,6 @@ static int ast_pm_freeze(struct device *dev)
 	if (!ddev || !ddev->dev_private)
 		return -ENODEV;
 	return ast_drm_freeze(ddev);
-
 }
 
 static int ast_pm_thaw(struct device *dev)
@@ -201,27 +203,24 @@ static struct pci_driver ast_pci_driver = {
 	.driver.pm = &ast_pm_ops,
 };
 
-static const struct file_operations ast_fops = {
-	.owner = THIS_MODULE,
-	DRM_VRAM_MM_FILE_OPERATIONS
-};
+static const struct file_operations ast_fops = { .owner = THIS_MODULE,
+						 DRM_VRAM_MM_FILE_OPERATIONS };
 
-static struct drm_driver driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM,
+static struct drm_driver driver = { .driver_features =
+					    DRIVER_MODESET | DRIVER_GEM,
 
-	.load = ast_driver_load,
-	.unload = ast_driver_unload,
+				    .load = ast_driver_load,
+				    .unload = ast_driver_unload,
 
-	.fops = &ast_fops,
-	.name = DRIVER_NAME,
-	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
-	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
-	.patchlevel = DRIVER_PATCHLEVEL,
+				    .fops = &ast_fops,
+				    .name = DRIVER_NAME,
+				    .desc = DRIVER_DESC,
+				    .date = DRIVER_DATE,
+				    .major = DRIVER_MAJOR,
+				    .minor = DRIVER_MINOR,
+				    .patchlevel = DRIVER_PATCHLEVEL,
 
-	DRM_GEM_VRAM_DRIVER
-};
+				    DRM_GEM_VRAM_DRIVER };
 
 static int __init ast_init(void)
 {
@@ -243,4 +242,3 @@ module_exit(ast_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL and additional rights");
-
