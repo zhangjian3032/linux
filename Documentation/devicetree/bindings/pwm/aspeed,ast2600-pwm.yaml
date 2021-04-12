@@ -21,24 +21,21 @@ properties:
   "#pwm-cells":
     const: 3
 
-pwm-cells:
-  - channel
-# period in terms of nanoseconds
-  - period
-# PWM_POLARITY_INVERTED
-  - flag
+  reg:
+    maxItems: 1
 
 additionalProperties: false
 
 examples:
   - |
-    // The PWM should be a subnode of a "aspeed,ast2600-pwn-tach" compatible node.
-    pwm_tach@1e610000 {
-      compatible = "aspeed,ast2600-pwm-tach", "simple-mfd", "syscon";
+    // The PWM should be a subnode of a "aspeed,ast2600-pwm-tach" compatible
+    // node.
+    pwm_tach: pwm_tach@1e610000 {
+      compatible = "aspeed,ast2600-pwm-tach", "syscon", "simple-mfd";
       #address-cells = <1>;
       #size-cells = <1>;
       reg = <0x1e610000 0x100>;
-      ranges = <0 0x1e610000 0x100>;
+
       pwm: pwm@0 {
         compatible = "aspeed,ast2600-pwm";
         #pwm-cells = <3>;
