@@ -140,6 +140,15 @@ config ASPEED_UART_ROUTING
 	  Control Aspeed UART routing via sysfs. This enables UART
 	  and I/O components to be dynamically connected at runtime.
 
+config ASPEED_VGA_SHAREDMEM
+	tristate "Aspeed VGA Shared memory"
+	depends on SOC_ASPEED
+	help
+	  To access VGA shared memory on Aspeed BMC, enable this option.
+	  This driver used by ManagedDataRegionlV2 specification. In the
+	  specification, BIOS will transfer whole SMBIOS table to VGA memory,
+	  and BMC can get the table from VGA memory through this driver.
+
 source "drivers/soc/aspeed/rvas/Kconfig"
 
 endmenu
