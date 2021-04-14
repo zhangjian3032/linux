@@ -75,6 +75,9 @@ config ASPEED_XDMA
 	  SOCs. The XDMA engine can perform automatic PCI DMA operations
 	  between the AST2XXX (acting as a BMC) and a host processor.
 
+config ASPEED_HOST_XDMA
+	tristate "ASPEED Host xDMA Device"
+
 config ASPEED_VGA_SHAREDMEM
 	tristate "Aspeed VGA Shared memory"
 	depends on SOC_ASPEED
