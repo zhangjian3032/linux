@@ -43,7 +43,7 @@ static irqreturn_t aspeed_espi_ctrl_isr(int irq, void *arg)
 		regmap_write(espi_ctrl->map, ESPI_INT_STS, sts & ESPI_INT_STS_VW_BITS);
 	}
 
-	if (sts & (ESPI_INT_STS_OOB_BITS | ESPI_INT_STS_HW_RST_DEASSERT)) {
+	if (sts & (ESPI_INT_STS_OOB_BITS)) {
 		aspeed_espi_oob_event(sts, espi_ctrl->oob);
 		regmap_write(espi_ctrl->map, ESPI_INT_STS, sts & ESPI_INT_STS_OOB_BITS);
 	}
@@ -54,48 +54,34 @@ static irqreturn_t aspeed_espi_ctrl_isr(int irq, void *arg)
 	}
 
 	if (sts & ESPI_INT_STS_HW_RST_DEASSERT) {
+		aspeed_espi_perif_enable(espi_ctrl->perif);
+		aspeed_espi_vw_enable(espi_ctrl->vw);
+		aspeed_espi_oob_enable(espi_ctrl->oob);
+		aspeed_espi_flash_enable(espi_ctrl->flash);
+
+		regmap_write(espi_ctrl->map, ESPI_SYSEVT_INT_T0, 0x0);
+		regmap_write(espi_ctrl->map, ESPI_SYSEVT_INT_T1, 0x0);
+		regmap_write(espi_ctrl->map, ESPI_SYSEVT_INT_EN, 0xffffffff);
+
+		regmap_write(espi_ctrl->map, ESPI_SYSEVT1_INT_T0, 0x1);
+		regmap_write(espi_ctrl->map, ESPI_SYSEVT1_INT_EN, 0x1);
+
+		if (espi_ctrl->version == ESPI_AST2500)
+			regmap_write(espi_ctrl->map, ESPI_SYSEVT_INT_T2,
+				     ESPI_SYSEVT_INT_T2_HOST_RST_WARN |
+				     ESPI_SYSEVT_INT_T2_OOB_RST_WARN);
+
+		regmap_update_bits(espi_ctrl->map, ESPI_INT_EN,
+				   ESPI_INT_EN_HW_RST_DEASSERT,
+				   ESPI_INT_EN_HW_RST_DEASSERT);
+
+
 		regmap_update_bits(espi_ctrl->map, ESPI_SYSEVT,
 				   ESPI_SYSEVT_SLV_BOOT_STS | ESPI_SYSEVT_SLV_BOOT_DONE,
 				   ESPI_SYSEVT_SLV_BOOT_STS | ESPI_SYSEVT_SLV_BOOT_DONE);
 
 		regmap_write(espi_ctrl->map, ESPI_INT_STS, ESPI_INT_STS_HW_RST_DEASSERT);
 	}
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t aspeed_espi_ctrl_rst_isr(int irq, void *arg)
-{
-	struct aspeed_espi_ctrl *espi_ctrl = (struct aspeed_espi_ctrl *)arg;
-
-	/*
-	 * For AST2600 A1/A0, DO NOT toggle eSPI reset,
-	 * otherwise OOB_FREE will not be set
-	 *
-	 * reset_control_assert(espi_ctrl->reset);
-	 * reset_control_deassert(espi_ctrl->reset);
-	 */
-
-	aspeed_espi_perif_enable(espi_ctrl->perif);
-	aspeed_espi_vw_enable(espi_ctrl->vw);
-	aspeed_espi_oob_enable(espi_ctrl->oob);
-	aspeed_espi_flash_enable(espi_ctrl->flash);
-
-	regmap_write(espi_ctrl->map, ESPI_SYSEVT_INT_T0, 0x0);
-	regmap_write(espi_ctrl->map, ESPI_SYSEVT_INT_T1, 0x0);
-	regmap_write(espi_ctrl->map, ESPI_SYSEVT_INT_EN, 0xffffffff);
-
-	regmap_write(espi_ctrl->map, ESPI_SYSEVT1_INT_T0, 0x1);
-	regmap_write(espi_ctrl->map, ESPI_SYSEVT1_INT_EN, 0x1);
-
-	if (espi_ctrl->version == ESPI_AST2500)
-		regmap_write(espi_ctrl->map, ESPI_SYSEVT_INT_T2,
-			     ESPI_SYSEVT_INT_T2_HOST_RST_WARN |
-			     ESPI_SYSEVT_INT_T2_OOB_RST_WARN);
-
-	regmap_update_bits(espi_ctrl->map, ESPI_INT_EN,
-			   ESPI_INT_EN_HW_RST_DEASSERT,
-			   ESPI_INT_EN_HW_RST_DEASSERT);
 
 	return IRQ_HANDLED;
 }
@@ -142,10 +128,6 @@ static int aspeed_espi_ctrl_probe(struct platform_device *pdev)
 	espi_ctrl->irq = platform_get_irq(pdev, 0);
 	if (espi_ctrl->irq < 0)
 		return espi_ctrl->irq;
-
-	espi_ctrl->irq_rst = platform_get_irq(pdev, 1);
-	if (espi_ctrl->irq_rst < 0)
-		return espi_ctrl->irq_rst;
 
 	espi_ctrl->rst = devm_reset_control_get(dev, NULL);
 	if (IS_ERR(espi_ctrl->rst)) {
@@ -205,14 +187,6 @@ static int aspeed_espi_ctrl_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	rc = devm_request_irq(dev, espi_ctrl->irq_rst,
-			      aspeed_espi_ctrl_rst_isr,
-			      IRQF_SHARED, DEVICE_NAME, espi_ctrl);
-	if (rc) {
-		dev_err(dev, "failed to request reset IRQ\n");
-		return rc;
-	}
-
 	regmap_update_bits(espi_ctrl->map, ESPI_INT_EN,
 			   ESPI_INT_EN_HW_RST_DEASSERT,
 			   ESPI_INT_EN_HW_RST_DEASSERT);
@@ -230,7 +204,6 @@ static int aspeed_espi_ctrl_remove(struct platform_device *pdev)
 	struct aspeed_espi_ctrl *espi_ctrl = dev_get_drvdata(dev);
 
 	devm_free_irq(dev, espi_ctrl->irq, espi_ctrl);
-	devm_free_irq(dev, espi_ctrl->irq_rst, espi_ctrl);
 
 	aspeed_espi_perif_free(dev, espi_ctrl->perif);
 	aspeed_espi_vw_free(dev, espi_ctrl->vw);

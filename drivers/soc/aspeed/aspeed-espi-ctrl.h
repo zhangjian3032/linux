@@ -16,7 +16,6 @@ struct aspeed_espi_ctrl {
 	struct reset_control *rst;
 
 	int irq;
-	int irq_rst;
 
 	struct aspeed_espi_perif *perif;
 	struct aspeed_espi_vw *vw;

@@ -417,44 +417,7 @@ static const struct file_operations aspeed_espi_oob_fops = {
 
 static void aspeed_espi_oob_event(uint32_t sts, struct aspeed_espi_oob *espi_oob)
 {
-	int i;
 	unsigned long flags;
-	struct aspeed_espi_oob_dma *dma = &espi_oob->dma;
-	struct aspeed_espi_ctrl *espi_ctrl = espi_oob->ctrl;
-
-	if (sts & ESPI_INT_STS_HW_RST_DEASSERT) {
-		if(espi_oob->dma_mode) {
-			if (espi_ctrl->version == ESPI_AST2500) {
-				regmap_write(espi_ctrl->map, ESPI_OOB_TX_DMA, dma->tx_addr);
-				regmap_write(espi_ctrl->map, ESPI_OOB_RX_DMA, dma->rx_addr);
-			}
-			else {
-				regmap_update_bits(espi_ctrl->map, ESPI_CTRL,
-						   ESPI_CTRL_OOB_TX_DMA_EN | ESPI_CTRL_OOB_RX_DMA_EN,
-						   ESPI_CTRL_OOB_TX_DMA_EN | ESPI_CTRL_OOB_RX_DMA_EN);
-
-				for (i = 0; i < dma->rx_desc_num; ++i)
-					dma->rx_desc[i].dirty = 0;
-
-				regmap_write(espi_ctrl->map, ESPI_OOB_TX_DMA, dma->tx_desc_addr);
-				regmap_write(espi_ctrl->map, ESPI_OOB_TX_DMA_RB_SIZE, dma->tx_desc_num);
-				regmap_write(espi_ctrl->map, ESPI_OOB_TX_DMA_RD_PTR, OOB_DMA_UNLOCK);
-				regmap_write(espi_ctrl->map, ESPI_OOB_TX_DMA_WR_PTR, 0);
-
-				regmap_write(espi_ctrl->map, ESPI_OOB_RX_DMA, dma->rx_desc_addr);
-				regmap_write(espi_ctrl->map, ESPI_OOB_RX_DMA_RB_SIZE, dma->rx_desc_num);
-				regmap_write(espi_ctrl->map, ESPI_OOB_RX_DMA_RD_PTR, OOB_DMA_UNLOCK);
-				regmap_write(espi_ctrl->map, ESPI_OOB_RX_DMA_WS_PTR, 0);
-
-				regmap_update_bits(espi_ctrl->map, ESPI_OOB_RX_DMA_WS_PTR,
-						   ESPI_OOB_RX_DMA_WS_PTR_RECV_EN,
-						   ESPI_OOB_RX_DMA_WS_PTR_RECV_EN);
-		    }
-		}
-
-		regmap_update_bits(espi_ctrl->map, ESPI_CTRL,
-				   ESPI_CTRL_OOB_SW_RDY, ESPI_CTRL_OOB_SW_RDY);
-	}
 
 	if (sts & ESPI_INT_STS_OOB_RX_CMPLT) {
 		spin_lock_irqsave(&espi_oob->lock, flags);
@@ -491,6 +454,10 @@ static void aspeed_espi_oob_enable(struct aspeed_espi_oob *espi_oob)
 		     ESPI_OOB_RX_CTRL_PEND_SERV);
 
 	if (espi_oob->dma_mode) {
+		regmap_update_bits(espi_ctrl->map, ESPI_CTRL,
+				   ESPI_CTRL_OOB_TX_DMA_EN | ESPI_CTRL_OOB_RX_DMA_EN,
+				   ESPI_CTRL_OOB_TX_DMA_EN | ESPI_CTRL_OOB_RX_DMA_EN);
+
 		if (espi_ctrl->version == ESPI_AST2500) {
 			regmap_write(espi_ctrl->map, ESPI_OOB_TX_DMA, dma->tx_addr);
 			regmap_write(espi_ctrl->map, ESPI_OOB_RX_DMA, dma->rx_addr);
@@ -513,10 +480,6 @@ static void aspeed_espi_oob_enable(struct aspeed_espi_oob *espi_oob)
 					   ESPI_OOB_RX_DMA_WS_PTR_RECV_EN,
 					   ESPI_OOB_RX_DMA_WS_PTR_RECV_EN);
 		}
-
-		regmap_update_bits(espi_ctrl->map, ESPI_CTRL,
-				   ESPI_CTRL_OOB_TX_DMA_EN | ESPI_CTRL_OOB_RX_DMA_EN,
-				   ESPI_CTRL_OOB_TX_DMA_EN | ESPI_CTRL_OOB_RX_DMA_EN);
 	}
 
 	regmap_write(espi_ctrl->map, ESPI_INT_STS,
