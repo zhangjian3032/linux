@@ -694,8 +694,7 @@
 				espi_ctrl: espi-ctrl@0 {
 					compatible = "aspeed,ast2600-espi-ctrl";
 					reg = <0x0 0x800>;
-					interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
-							      <&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
+					interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&syscon ASPEED_CLK_GATE_ESPICLK>;
 					resets = <&syscon ASPEED_RESET_ESPI>;
 					aspeed,scu = <&syscon>;
