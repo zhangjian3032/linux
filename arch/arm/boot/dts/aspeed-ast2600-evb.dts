@@ -118,7 +118,7 @@
 
 	fan3: pwm-fan3 {
 		compatible = "pwm-fan";
-		pwms = <&pwm 3 1 40000 0>;	/* Target freq:25 kHz */
+		pwms = <&pwm 3 40000 0>;	/* Target freq:25 kHz */
 		cooling-min-state = <0>;
 		cooling-max-state = <3>;
 		#cooling-cells = <2>;
@@ -127,7 +127,7 @@
 
 	fan4: pwm-fan4 {
 		compatible = "pwm-fan";
-		pwms = <&pwm 4 1 40000 0>;	/* Target freq:25 kHz */
+		pwms = <&pwm 4 40000 0>;	/* Target freq:25 kHz */
 		cooling-min-state = <0>;
 		cooling-max-state = <3>;
 		#cooling-cells = <2>;
@@ -136,7 +136,7 @@
 
 	fan5: pwm-fan5 {
 		compatible = "pwm-fan";
-		pwms = <&pwm 5 1 40000 0>;	/* Target freq:25 kHz */
+		pwms = <&pwm 5 40000 0>;	/* Target freq:25 kHz */
 		cooling-min-state = <0>;
 		cooling-max-state = <3>;
 		#cooling-cells = <2>;
@@ -145,7 +145,7 @@
 
 	fan6: pwm-fan6 {
 		compatible = "pwm-fan";
-		pwms = <&pwm 6 1 40000 0>;	/* Target freq:25 kHz */
+		pwms = <&pwm 6 40000 0>;	/* Target freq:25 kHz */
 		cooling-min-state = <0>;
 		cooling-max-state = <3>;
 		#cooling-cells = <2>;
@@ -154,7 +154,7 @@
 
 	fan7: pwm-fan7 {
 		compatible = "pwm-fan";
-		pwms = <&pwm 7 1 40000 0>;	/* Target freq:25 kHz */
+		pwms = <&pwm 7 40000 0>;	/* Target freq:25 kHz */
 		cooling-min-state = <0>;
 		cooling-max-state = <3>;
 		#cooling-cells = <2>;
@@ -163,7 +163,7 @@
 
 	fan8: pwm-fan8 {
 		compatible = "pwm-fan";
-		pwms = <&pwm 8 1 40000 0>;	/* Target freq:25 kHz */
+		pwms = <&pwm 8 40000 0>;	/* Target freq:25 kHz */
 		cooling-min-state = <0>;
 		cooling-max-state = <3>;
 		#cooling-cells = <2>;
