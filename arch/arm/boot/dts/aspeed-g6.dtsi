@@ -1366,6 +1366,7 @@
 		clock-frequency = <1000000>;
 		rd-sampling-point = <8>;
 		cmd-timeout-ms = <1000>;
+		64byte-mode;
 		status = "disabled";
 	};
 };
