@@ -444,15 +444,11 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 	if (i2c_bus->clk_div_mode) {
 		regmap_read(i2c_bus->global_reg, ASPEED_I2CG_CLK_DIV_CTRL,
 			    &clk_div_reg);
-		base_clk1 = i2c_bus->apb_clk / (((clk_div_reg & 0xff) + 2) / 2);
-		base_clk2 = i2c_bus->apb_clk /
-			    ((((clk_div_reg >> 8) & 0xff) + 2) / 2);
-		base_clk3 = i2c_bus->apb_clk /
-			    ((((clk_div_reg >> 16) & 0xff) + 2) / 2);
-		base_clk4 = i2c_bus->apb_clk /
-			    ((((clk_div_reg >> 24) & 0xff) + 2) / 2);
-		//printk("base_clk1 %ld, base_clk2 %ld, base_clk3 %ld,
-		//base_clk4 %ld\n", base_clk1, base_clk2, base_clk3, base_clk4);
+		base_clk1 = (i2c_bus->apb_clk*10) / ((((clk_div_reg & 0xff) + 2) * 10) / 2);
+		base_clk2 = (i2c_bus->apb_clk*10) / (((((clk_div_reg >> 8) & 0xff) + 2) * 10) / 2);
+		base_clk3 = (i2c_bus->apb_clk*10) / (((((clk_div_reg >> 16) & 0xff) + 2) * 10) / 2);
+		base_clk4 = (i2c_bus->apb_clk*10) / (((((clk_div_reg >> 24) & 0xff) + 2) * 10)/ 2);
+//		printk("base_clk1 %ld, base_clk2 %ld, base_clk3 %ld, base_clk4 %ld\n", base_clk1, base_clk2, base_clk3, base_clk4);
 		if ((i2c_bus->apb_clk / i2c_bus->bus_frequency) <= 32) {
 			div = 0;
 			divider_ratio =

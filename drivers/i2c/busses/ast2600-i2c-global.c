@@ -161,7 +161,7 @@ static int aspeed_i2c_global_probe(struct platform_device *pdev)
 	}
 	
 	/* ast2600 init */
-	writel(ASPEED_I2CG_SLAVE_PKT_NAK | ASPEED_I2CG_CTRL_NEW_REG, i2c_ic->base + ASPEED_I2CG_CTRL);
+	writel(ASPEED_I2CG_SLAVE_PKT_NAK | ASPEED_I2CG_CTRL_NEW_REG | ASPEED_I2CG_CTRL_NEW_CLK_DIV, i2c_ic->base + ASPEED_I2CG_CTRL);
 	parent_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(parent_clk))
 		return PTR_ERR(parent_clk);
