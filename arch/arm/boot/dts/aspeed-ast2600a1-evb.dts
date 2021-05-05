@@ -168,7 +168,7 @@
 
 &emmc_controller {
 	status = "okay";
-	timing-phase = <0x700FF>;
+	timing-phase = <0x300FF>;
 };
 
 &emmc {
