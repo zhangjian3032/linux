@@ -296,7 +296,7 @@
 &mac0 {
 	status = "okay";
 
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-rxid";
 	phy-handle = <&ethphy0>;
 
 	pinctrl-names = "default";
@@ -306,7 +306,7 @@
 &mac1 {
 	status = "okay";
 
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-rxid";
 	phy-handle = <&ethphy1>;
 
 	pinctrl-names = "default";
@@ -748,16 +748,16 @@
 };
 
 &syscon {
-	mac0-clk-delay = <0x1d 0x1b
-			  0x10 0x17
-			  0x10 0x17>;
-	mac1-clk-delay = <0x1d 0x10
+	mac0-clk-delay = <0x10 0x0a
 			  0x10 0x10
 			  0x10 0x10>;
-	mac2-clk-delay = <0x0a 0x04
+	mac1-clk-delay = <0x10 0x0a
+			  0x10 0x10
+			  0x10 0x10>;
+	mac2-clk-delay = <0x08 0x04
 			  0x08 0x04
 			  0x08 0x04>;
-	mac3-clk-delay = <0x0e 0x04
+	mac3-clk-delay = <0x08 0x04
 			  0x08 0x04
 			  0x08 0x04>;
 };
