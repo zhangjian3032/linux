@@ -3037,7 +3037,7 @@ static int spi_nor_spimem_check_op(struct spi_nor *nor,
 		op->addr.nbytes = 3;
 
 	if (!spi_mem_supports_op(nor->spimem, op))
-			return -ENOTSUPP;
+		return -ENOTSUPP;
 
 	return 0;
 }
