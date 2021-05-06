@@ -432,13 +432,10 @@
 					status = "disabled";
 				};
 
-				tach: tach@0 {
+				tach: tach {
 					compatible = "aspeed,ast2600-tach";
 					#address-cells = <1>;
 					#size-cells = <0>;
-					reg = <0x0 0x100>;
-					clocks = <&syscon ASPEED_CLK_AHB>;
-					resets = <&syscon ASPEED_RESET_PWM>;
 					status = "disabled";
 				};
 			};
