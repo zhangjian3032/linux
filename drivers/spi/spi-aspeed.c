@@ -71,6 +71,11 @@ enum aspeed_spi_ctl_reg_value {
 
 #define ASPEED_SPI_MAX_CS 5
 
+/* definition for controller flag */
+#define SPI_MODE_USER	0x00000001
+#define SPI_FIXED_LOW_W_CLK 0x00000002
+#define SPI_DMA_WRITE	0x00000004
+
 struct aspeed_spi_controller;
 struct aspeed_spi_chip;
 
@@ -114,6 +119,8 @@ struct aspeed_spi_controller {
 	int irq; /* for dma write */
 	struct completion dma_done;
 	struct aspeed_spi_chip *chips; /* pointers to attached chips */
+	uint32_t flag;
+	spinlock_t lock;
 };
 
 static uint32_t
@@ -445,7 +452,7 @@ no_calib:
  * AST2600 SPI memory controllers support multiple chip selects.
  * The start address of a decode range should be multiple
  * of its related flash size. Namely, the total decoded size
- * from flash 0 to flash N should be multiple of flash (N + 1).
+ * from flash 0 to flash N should be multiple of (N + 1) flash size.
  */
 void aspeed_2600_adjust_decode_sz(uint32_t decode_sz_arr[], int len)
 {
@@ -599,7 +606,9 @@ static const struct aspeed_spi_info ast2600_spi_info = {
  * following SPI flash operation sequences: (command) only,
  * (command and address) only or (coommand and data) only.
  */
-static int aspeed_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
+static int aspeed_spi_exec_op_cmd_mode(
+	struct spi_mem *mem,
+	const struct spi_mem_op *op)
 {
 	struct aspeed_spi_controller *ast_ctrl =
 		spi_controller_get_devdata(mem->spi->master);
@@ -695,8 +704,100 @@ static int aspeed_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	return 0;
 }
 
-#if 1
-static ssize_t aspeed_spi_dirmap_read(struct spi_mem_dirmap_desc *desc,
+#if 0
+static int aspeed_spi_read_from_ahb(void *buf, void __iomem *src, size_t len)
+{
+	size_t offset = 0;
+
+	if (IS_ALIGNED((uintptr_t)src, sizeof(uintptr_t)) &&
+	    IS_ALIGNED((uintptr_t)buf, sizeof(uintptr_t))) {
+		ioread32_rep(src, buf, len >> 2);
+		offset = len & ~0x3;
+		len -= offset;
+	}
+
+	ioread8_rep(src, (uint8_t *)buf + offset, len);
+
+	return 0;
+}
+
+static int aspeed_spi_write_to_ahb(void __iomem *dst, const void *buf,
+				   size_t len)
+{
+	size_t offset = 0;
+
+	if (IS_ALIGNED((uintptr_t)dst, sizeof(uintptr_t)) &&
+	    IS_ALIGNED((uintptr_t)buf, sizeof(uintptr_t))) {
+		iowrite32_rep(dst, buf, len >> 2);
+		offset = len & ~0x3;
+		len -= offset;
+	}
+
+	iowrite8_rep(dst, (const uint8_t *)buf + offset, len);
+
+	return 0;
+}
+
+static int aspeed_spi_exec_op_user_mode(
+	struct spi_mem *mem,
+	const struct spi_mem_op *op)
+{
+	struct aspeed_spi_controller *ast_ctrl =
+		spi_controller_get_devdata(mem->spi->master);
+	struct device *dev = ast_ctrl->dev;
+	uint32_t cs = mem->spi->chip_select;
+	struct aspeed_spi_chip *chip = &ast_ctrl->chips[cs];
+	uint32_t ctrl_val;
+	uint8_t dummy_data[16] = {0};
+	uint8_t addr[4] = {0};
+	int i;
+
+	dev_dbg(dev, "cmd:%x(%d),addr:%llx(%d),dummy:%d(%d),data_len:0x%x(%d)\n",
+		op->cmd.opcode, op->cmd.buswidth, op->addr.val,
+		op->addr.buswidth, op->dummy.nbytes, op->dummy.buswidth,
+		op->data.nbytes, op->data.buswidth);
+
+	/* start user mode */
+	ctrl_val = chip->ctrl_val[ASPEED_SPI_BASE];
+	writel(ctrl_val, ast_ctrl->regs + OFFSET_CE0_CTRL_REG + cs * 4);
+	ctrl_val &= (~CTRL_STOP_ACTIVE);
+	writel(ctrl_val, ast_ctrl->regs + OFFSET_CE0_CTRL_REG + cs * 4);
+
+	/* send command */
+	aspeed_spi_write_to_ahb(chip->ahb_base, &op->cmd.opcode, 1);
+
+	/* send address */
+	for (i = op->addr.nbytes; i > 0; i--) {
+		addr[op->addr.nbytes - i] =
+			((uint32_t)op->addr.val >> ((i - 1) * 8)) & 0xff;
+	}
+	aspeed_spi_write_to_ahb(chip->ahb_base, addr, op->addr.nbytes);
+
+	/* send dummy cycle */
+	aspeed_spi_write_to_ahb(chip->ahb_base, dummy_data, op->dummy.nbytes);
+
+	/* change io_mode */
+	ctrl_val |= aspeed_spi_get_io_mode(op->data.buswidth);
+	writel(ctrl_val, ast_ctrl->regs + OFFSET_CE0_CTRL_REG + cs * 4);
+
+	/* send data */
+	if (op->data.dir == SPI_MEM_DATA_OUT)
+		aspeed_spi_write_to_ahb(chip->ahb_base, op->data.buf.out, op->data.nbytes);
+	else
+		aspeed_spi_read_from_ahb(op->data.buf.in, chip->ahb_base, op->data.nbytes);
+
+	ctrl_val |= CTRL_STOP_ACTIVE;
+	writel(ctrl_val, ast_ctrl->regs + OFFSET_CE0_CTRL_REG + cs * 4);
+
+	/* restore controller setting */
+	writel(chip->ctrl_val[ASPEED_SPI_READ],
+	       ast_ctrl->regs + OFFSET_CE0_CTRL_REG + cs * 4);
+
+	return 0;
+}
+#endif
+
+static ssize_t aspeed_spi_dirmap_cmd_read(struct spi_mem_dirmap_desc *desc,
 				  uint64_t offs, size_t len, void *buf)
 {
 	struct aspeed_spi_controller *ast_ctrl =
@@ -718,14 +819,15 @@ static ssize_t aspeed_spi_dirmap_read(struct spi_mem_dirmap_desc *desc,
 
 	return len;
 }
-#else
+
 /*
  * When DMA memory mode is enabled, there is a limitation for AST2600,
  * both DMA source and destination address should be 4-byte aligned.
  * Thus, a 4-byte aligned buffer should be allocated previously and
  * CPU needs to copy data from it after DMA done.
  */
-static ssize_t aspeed_spi_dirmap_read(struct spi_mem_dirmap_desc *desc,
+#if 0
+static ssize_t aspeed_spi_dirmap_dma_read(struct spi_mem_dirmap_desc *desc,
 				  uint64_t offs, size_t len, void *buf)
 {
 	int ret = 0;
@@ -798,7 +900,47 @@ static ssize_t aspeed_spi_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	return ret ? 0 : len;
 }
 #endif
-static ssize_t aspeed_spi_dirmap_write(struct spi_mem_dirmap_desc *desc,
+
+static ssize_t aspeed_spi_dirmap_cmd_write(struct spi_mem_dirmap_desc *desc,
+				   uint64_t offs, size_t len, const void *buf)
+{
+	struct aspeed_spi_controller *ast_ctrl =
+		spi_controller_get_devdata(desc->mem->spi->master);
+	struct aspeed_spi_chip *chip =
+		&ast_ctrl->chips[desc->mem->spi->chip_select];
+	uint32_t reg_val;
+	uint32_t target_cs = desc->mem->spi->chip_select;
+	struct spi_mem_op op_tmpl = desc->info.op_tmpl;
+	unsigned long flags;
+
+	if (chip->ahb_window_sz < offs + len) {
+		dev_info(ast_ctrl->dev,
+			 "write range exceeds flash remapping size\n");
+		return 0;
+	}
+
+	dev_dbg(ast_ctrl->dev, "write op:0x%x, addr:0x%llx, len:0x%x\n",
+		op_tmpl.cmd.opcode, offs, len);
+
+	reg_val = ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_WRITE];
+	writel(reg_val, ast_ctrl->regs + OFFSET_CE0_CTRL_REG + target_cs * 4);
+
+	/* Due to spi-flash's characteristic, write process couldn't be
+	 * interrupted. Otherwise, CS will be inactive and remain data
+	 * cannot be written into flash successfully even if CS is
+	 * active again.
+	 */
+	spin_lock_irqsave(&ast_ctrl->lock, flags);
+	memcpy_toio(chip->ahb_base + offs, buf, len);
+	spin_unlock_irqrestore(&ast_ctrl->lock, flags);
+
+	reg_val = ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_READ];
+	writel(reg_val, ast_ctrl->regs + OFFSET_CE0_CTRL_REG + target_cs * 4);
+
+	return len;
+}
+
+static ssize_t aspeed_spi_dirmap_dma_write(struct spi_mem_dirmap_desc *desc,
 				   uint64_t offs, size_t len, const void *buf)
 {
 	int ret = 0;
@@ -907,27 +1049,29 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_IN) {
 		/* record original decode size */
-		for (cs = 0; cs < ast_ctrl->num_cs; cs++) {
-			reg_val = readl(ast_ctrl->regs +
-					OFFSET_CE0_DECODE_RANGE_REG + cs * 4);
-			decode_sz_arr[cs] =
-				info->segment_end(ast_ctrl, reg_val) -
-				info->segment_start(ast_ctrl, reg_val);
+		if (!((ast_ctrl->flag & SPI_MODE_USER) == SPI_MODE_USER)) {
+			for (cs = 0; cs < ast_ctrl->num_cs; cs++) {
+				reg_val = readl(ast_ctrl->regs +
+						OFFSET_CE0_DECODE_RANGE_REG + cs * 4);
+				decode_sz_arr[cs] =
+					info->segment_end(ast_ctrl, reg_val) -
+					info->segment_start(ast_ctrl, reg_val);
+			}
+
+			decode_sz_arr[target_cs] = desc->info.length;
+
+			if (info->adjust_decode_sz)
+				info->adjust_decode_sz(decode_sz_arr, ast_ctrl->num_cs);
+
+			for (cs = 0; cs < ast_ctrl->num_cs; cs++) {
+				dev_dbg(dev, "cs: %d, sz: 0x%x\n", cs,
+					decode_sz_arr[cs]);
+			}
+
+			ret = aspeed_spi_decode_range_config(ast_ctrl, decode_sz_arr);
+			if (ret)
+				return ret;
 		}
-
-		decode_sz_arr[target_cs] = desc->info.length;
-
-		if (info->adjust_decode_sz)
-			info->adjust_decode_sz(decode_sz_arr, ast_ctrl->num_cs);
-
-		for (cs = 0; cs < ast_ctrl->num_cs; cs++) {
-			dev_dbg(dev, "cs: %d, sz: 0x%x\n", cs,
-				decode_sz_arr[cs]);
-		}
-
-		ret = aspeed_spi_decode_range_config(ast_ctrl, decode_sz_arr);
-		if (ret)
-			return ret;
 
 		reg_val = readl(ast_ctrl->regs + OFFSET_CE0_CTRL_REG +
 				target_cs * 4) &
@@ -951,11 +1095,17 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 			 ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_READ]);
 
 	} else if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_OUT) {
-		reg_val = (readl(ast_ctrl->regs + OFFSET_CE0_CTRL_REG +
-				target_cs * 4) &
-			  (~info->cmd_io_ctrl_mask) & (~0x0f000f00)) | 0x03000000;
+		reg_val = readl(ast_ctrl->regs + OFFSET_CE0_CTRL_REG +
+					target_cs * 4) & (~info->cmd_io_ctrl_mask);
+
+		if ((ast_ctrl->flag & SPI_FIXED_LOW_W_CLK) == SPI_FIXED_LOW_W_CLK) {
+			/* adjust spi clk for write */
+			reg_val = (reg_val & (~0x0f000f00)) | 0x03000000;
+		}
+
 		reg_val |= aspeed_spi_get_io_mode(op_tmpl.data.buswidth) |
 			   op_tmpl.cmd.opcode << 16 | CTRL_IO_MODE_CMD_WRITE;
+
 		ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_WRITE] = reg_val;
 
 		dev_info(dev, "write bus width: %d [0x%08x]\n",
@@ -1024,13 +1174,24 @@ static bool aspeed_spi_support_op(struct spi_mem *mem,
 	return true;
 }
 
-static const struct spi_controller_mem_ops aspeed_spi_mem_ops = {
-	.exec_op = aspeed_spi_exec_op,
+/* AST2600-A3 */
+static const struct spi_controller_mem_ops aspeed_spi_ops_cmd_read_cmd_write = {
+	.exec_op = aspeed_spi_exec_op_cmd_mode,
 	.get_name = aspeed_spi_get_name,
 	.supports_op = aspeed_spi_support_op,
 	.dirmap_create = aspeed_spi_dirmap_create,
-	.dirmap_read = aspeed_spi_dirmap_read,
-	.dirmap_write = aspeed_spi_dirmap_write,
+	.dirmap_read = aspeed_spi_dirmap_cmd_read,
+	.dirmap_write = aspeed_spi_dirmap_cmd_write,
+};
+
+/* AST2600-A1/A2 */
+static const struct spi_controller_mem_ops aspeed_spi_ops_cmd_read_dma_write = {
+	.exec_op = aspeed_spi_exec_op_cmd_mode,
+	.get_name = aspeed_spi_get_name,
+	.supports_op = aspeed_spi_support_op,
+	.dirmap_create = aspeed_spi_dirmap_create,
+	.dirmap_read = aspeed_spi_dirmap_cmd_read,
+	.dirmap_write = aspeed_spi_dirmap_dma_write,
 };
 
 /*
@@ -1125,6 +1286,33 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 		goto end;
 	}
 
+	ast_ctrl->flag = 0;
+	if (of_property_read_bool(dev->of_node, "fmc-spi-user-mode")) {
+		dev_info(dev, "adopt user mode\n");
+		ast_ctrl->flag |= SPI_MODE_USER;
+	}
+
+	/* Should be set on AST2600-A1/A2 for errata 65 */
+	if (of_property_read_bool(dev->of_node, "low-spi-clk-write")) {
+		dev_info(dev, "adopt low spi clk for write\n");
+		ast_ctrl->flag |= SPI_FIXED_LOW_W_CLK;
+	}
+
+	/*
+	 * "spi-dma-write" should be set on AST2600-A1/A2 for errata 65.
+	 * Should NOT be set on AST2600-A3 with high SPI clock
+	 */
+	if (of_property_read_bool(dev->of_node, "spi-dma-write")) {
+		dev_info(dev, "adopt dma write mode\n");
+		ast_ctrl->flag |= SPI_DMA_WRITE;
+	}
+
+	if ((ast_ctrl->flag & SPI_MODE_USER) && (ast_ctrl->flag & SPI_DMA_WRITE)) {
+		dev_err(dev, "Invalid mode selection\n");
+		ret = -EINVAL;
+		goto end;
+	}
+
 	ast_ctrl->op_buf = dma_alloc_coherent(dev,
 		WRITTEN_DMA_BUF_LEN, &ast_ctrl->dma_addr_phy, GFP_DMA | GFP_KERNEL);
 	if (!ast_ctrl->op_buf) {
@@ -1159,7 +1347,15 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 		SPI_RX_DUAL | SPI_RX_QUAD | SPI_TX_DUAL | SPI_TX_QUAD;
 
 	spi_ctrl->bus_num = -1;
-	spi_ctrl->mem_ops = &aspeed_spi_mem_ops;
+
+	if ((ast_ctrl->flag & SPI_DMA_WRITE) == SPI_DMA_WRITE) {
+		/* for AST2600-A1/A2 */
+		spi_ctrl->mem_ops = &aspeed_spi_ops_cmd_read_dma_write;
+	} else {
+		/* for AST2600-A3 */
+		spi_ctrl->mem_ops = &aspeed_spi_ops_cmd_read_cmd_write;
+	}
+
 	spi_ctrl->dev.of_node = dev->of_node;
 	spi_ctrl->num_chipselect = ast_ctrl->num_cs;
 
