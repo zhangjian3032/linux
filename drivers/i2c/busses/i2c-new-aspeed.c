@@ -508,7 +508,10 @@ static u8 aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 			 ctrl & ~(AST_I2CC_MASTER_EN | AST_I2CC_SLAVE_EN),
 			 AST_I2CC_FUN_CTRL);
 
-	aspeed_i2c_write(i2c_bus, ctrl, AST_I2CC_FUN_CTRL);
+	aspeed_i2c_write(i2c_bus,
+			 aspeed_i2c_read(i2c_bus, AST_I2CC_FUN_CTRL) |
+				 AST_I2CC_MASTER_EN,
+			 AST_I2CC_FUN_CTRL);
 
 	//Let's retry 10 times
 	reinit_completion(&i2c_bus->cmd_complete);
@@ -538,6 +541,8 @@ static u8 aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 	}
 	dev_dbg(i2c_bus->dev, "Recovery done [%x]\n",
 		aspeed_i2c_read(i2c_bus, AST_I2CC_STS_AND_BUFF));
+
+	aspeed_i2c_write(i2c_bus, ctrl, AST_I2CC_FUN_CTRL);
 
 	return ret;
 }
