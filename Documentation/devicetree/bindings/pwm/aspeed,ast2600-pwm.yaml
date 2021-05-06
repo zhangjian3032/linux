@@ -21,24 +21,21 @@ properties:
   "#pwm-cells":
     const: 3
 
-  reg:
-    maxItems: 1
-
 additionalProperties: false
 
 examples:
   - |
     // The PWM should be a subnode of a "aspeed,ast2600-pwm-tach" compatible
     // node.
+    #include <dt-bindings/clock/ast2600-clock.h>
     pwm_tach: pwm_tach@1e610000 {
       compatible = "aspeed,ast2600-pwm-tach", "syscon", "simple-mfd";
-      #address-cells = <1>;
-      #size-cells = <1>;
       reg = <0x1e610000 0x100>;
+      clocks = <&syscon ASPEED_CLK_AHB>;
+      resets = <&syscon ASPEED_RESET_PWM>;
 
-      pwm: pwm@0 {
+      pwm: pwm {
         compatible = "aspeed,ast2600-pwm";
         #pwm-cells = <3>;
-        reg = <0x0 0x100>;
       };
     };

@@ -25,36 +25,31 @@ properties:
       - const: simple-mfd
   reg:
     maxItems: 1
-  "#address-cells":
-    const: 1
-  "#size-cells":
-    const: 1
+  clocks:
+    maxItems: 1
+  resets:
+    maxItems: 1
 
 required:
   - compatible
   - reg
-  - "#address-cells"
-  - "#size-cells"
+  - clocks
+  - resets
 
 additionalProperties:
   type: object
 
 examples:
   - |
+    #include <dt-bindings/clock/ast2600-clock.h>
     pwm_tach: pwm_tach@1e610000 {
       compatible = "aspeed,ast2600-pwm-tach", "syscon", "simple-mfd";
-      #address-cells = <1>;
-      #size-cells = <1>;
       reg = <0x1e610000 0x100>;
+      clocks = <&syscon ASPEED_CLK_AHB>;
+      resets = <&syscon ASPEED_RESET_PWM>;
 
-      pwm: pwm@0 {
+      pwm: pwm {
         compatible = "aspeed,ast2600-pwm";
         #pwm-cells = <3>;
-        reg = <0x0 0x100>;
-      };
-
-      tach: tach@1 {
-        compatible = "aspeed,ast2600-tach";
-        reg = <0x0 0x100>;
       };
     };
