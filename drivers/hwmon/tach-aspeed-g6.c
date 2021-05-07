@@ -176,6 +176,11 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 	int ret;
 
 	usec = priv->tacho_channel[fan_tach_ch].sample_period;
+	/* Restart the Tach channel to guarantee the value is fresh */
+	regmap_update_bits(priv->regmap, ASPEED_TACHO_CTRL_CH(fan_tach_ch),
+			     TACHO_ENABLE, 0);
+	regmap_update_bits(priv->regmap, ASPEED_TACHO_CTRL_CH(fan_tach_ch),
+			     TACHO_ENABLE, TACHO_ENABLE);
 	ret = regmap_read_poll_timeout(
 		priv->regmap, ASPEED_TACHO_STS_CH(fan_tach_ch), val,
 		(val & TACHO_FULL_MEASUREMENT) && (val & TACHO_VALUE_UPDATE), 0,
