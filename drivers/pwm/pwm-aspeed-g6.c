@@ -230,8 +230,8 @@ static int aspeed_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	int ret;
 
 	aspeed_pwm_get_state(chip, pwm, &cur_state);
-	dev_dbg(dev, "cur period: %dns, cur duty_cycle: %dns",
-		cur_state.period, cur_state.duty_cycle);
+	dev_dbg(dev, "cur period: %dns, cur duty_cycle: %dns", cur_state.period,
+		cur_state.duty_cycle);
 	dev_dbg(dev, "apply period: %dns, duty_cycle: %dns", state->period,
 		state->duty_cycle);
 	regmap_update_bits(priv->regmap, PWM_ASPEED_CTRL_CH(index),
@@ -254,12 +254,43 @@ static const struct pwm_ops aspeed_pwm_ops = {
 	.owner = THIS_MODULE,
 };
 
+static int aspeed_pwm_channel_config(struct aspeed_pwm_data *priv,
+				     struct device_node *child)
+{
+	u32 index, wdt_reload_duty;
+	bool wdt_reload_en;
+
+	int ret;
+
+	ret = of_property_read_u32(child, "reg", &index);
+	if (ret)
+		return ret;
+	ret = of_property_read_u32(child, "aspeed,wdt-reload-duty-point",
+				   &wdt_reload_duty);
+	if (ret)
+		return ret;
+	wdt_reload_en =
+		of_property_read_bool(child, "aspeed,wdt-reload-enable");
+
+	regmap_update_bits(priv->regmap, PWM_ASPEED_CTRL_CH(index),
+			   PWM_ASPEED_DUTY_LOAD_AS_WDT_ENABLE,
+			   wdt_reload_en ? PWM_ASPEED_DUTY_LOAD_AS_WDT_ENABLE :
+					   0);
+
+	regmap_update_bits(priv->regmap, PWM_ASPEED_DUTY_CYCLE_CH(index),
+			   PWM_ASPEED_POINT_AS_WDT,
+			   FIELD_PREP(PWM_ASPEED_POINT_AS_WDT,
+				      wdt_reload_duty));
+
+	return 0;
+}
+
 static int aspeed_pwm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int ret, index;
 	struct aspeed_pwm_data *priv;
-	struct device_node *np;
+	struct device_node *np, *child;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -330,6 +361,15 @@ static int aspeed_pwm_probe(struct platform_device *pdev)
 		clk_disable_unprepare(priv->clk);
 		return ret;
 	}
+
+	for_each_child_of_node(dev->of_node, child) {
+		ret = aspeed_pwm_channel_config(priv, child);
+		if (ret) {
+			of_node_put(child);
+			return ret;
+		}
+	}
+
 	dev_set_drvdata(dev, priv);
 	return ret;
 }

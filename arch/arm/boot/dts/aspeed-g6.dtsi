@@ -429,6 +429,8 @@
 				pwm: pwm {
 					compatible = "aspeed,ast2600-pwm";
 					#pwm-cells = <3>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 					status = "disabled";
 				};
 
