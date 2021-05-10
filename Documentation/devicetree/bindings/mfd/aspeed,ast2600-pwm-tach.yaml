@@ -36,8 +36,12 @@ required:
   - clocks
   - resets
 
-additionalProperties:
-  type: object
+child-node:
+  "^pwm(@[0-9a-f]+)?$":
+    $ref: ../pwm/aspeed,ast2600-pwm.yaml
+
+  "^tach(@[0-9a-f]+)?$":
+    $ref: ../hwmon/aspeed,ast2600-tach.yaml
 
 examples:
   - |
@@ -50,6 +54,29 @@ examples:
 
       pwm: pwm {
         compatible = "aspeed,ast2600-pwm";
+        #address-cells = <1>;
+        #size-cells = <0>;
         #pwm-cells = <3>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_pwm0_default>;
+        pwm-ch@0 {
+          reg = <0>;
+          aspeed,wdt-reload-enable;
+          aspeed,wdt-reload-duty-point = <32>;
+        };
+      };
+
+      tach: tach {
+        compatible = "aspeed,ast2600-tach";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_tach0_default>;
+        fan@0 {
+          reg = <0>;
+          aspeed,min-rpm = <1000>;
+          aspeed,pulse-pr = <2>;
+          aspeed,tach-div = <5>;
+        };
       };
     };

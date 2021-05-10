@@ -12,6 +12,8 @@ maintainers:
 
 description: |
   The ASPEED PWM controller can support upto 16 PWM outputs.
+  This module is part of the ast2600-pwm-tach multi-function device. For more
+  details see ../mfd/aspeed,ast2600-pwm-tach.yaml.
 
 properties:
   compatible:
@@ -21,21 +23,40 @@ properties:
   "#pwm-cells":
     const: 3
 
-additionalProperties: false
+  "#address-cells":
+    const: 1
 
-examples:
-  - |
-    // The PWM should be a subnode of a "aspeed,ast2600-pwm-tach" compatible
-    // node.
-    #include <dt-bindings/clock/ast2600-clock.h>
-    pwm_tach: pwm_tach@1e610000 {
-      compatible = "aspeed,ast2600-pwm-tach", "syscon", "simple-mfd";
-      reg = <0x1e610000 0x100>;
-      clocks = <&syscon ASPEED_CLK_AHB>;
-      resets = <&syscon ASPEED_RESET_PWM>;
+  "#size-cells":
+    const: 0
 
-      pwm: pwm {
-        compatible = "aspeed,ast2600-pwm";
-        #pwm-cells = <3>;
-      };
-    };
+  pinctrl-0: true
+
+  pinctrl-names:
+    const: default
+
+
+required:
+  - compatible
+  - "#pwm-cells"
+  - "#address-cells"
+  - "#size-cells"
+
+child-node:
+  description: Set extend properties for each pwm channel.
+  type: object
+  properties:
+    reg:
+      description:
+        The pwm channel index.
+      maxItems: 1
+    aspeed,wdt-reload-enable:
+      type: boolean
+      description:
+        Enable the function of wdt reset reload duty point.
+    aspeed,wdt-reload-duty-point:
+      description:
+        Define the duty point after wdt reset, 0 = 100%
+      minimum: 0
+      maximum: 255
+  required:
+    - reg
