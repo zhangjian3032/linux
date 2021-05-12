@@ -84,7 +84,7 @@ struct aspeed_tach_data {
 	bool tach_present[16];
 	struct aspeed_tacho_channel_params *tacho_channel;
 	/* for hwmon */
-	const struct attribute_group *groups[1];
+	const struct attribute_group *groups[2];
 };
 
 static int regmap_aspeed_tach_reg_write(void *context, unsigned int reg,
