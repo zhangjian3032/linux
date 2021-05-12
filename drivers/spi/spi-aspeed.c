@@ -530,7 +530,7 @@ static const struct aspeed_spi_info ast2600_fmc_info = {
 	.max_data_bus_width = 4,
 	.cmd_io_ctrl_mask = 0xf0ff40c3,
 	/* for ast2600, the minimum decode size for each CE is 2MB */
-	.min_decode_sz = 0x1000000,
+	.min_decode_sz = 0x200000,
 	.set_4byte = aspeed_spi_chip_set_4byte,
 	.calibrate = aspeed_2600_spi_timing_calibration,
 	.adjust_decode_sz = aspeed_2600_adjust_decode_sz,
@@ -577,7 +577,7 @@ static const struct aspeed_spi_info ast2600_spi_info = {
 	.max_data_bus_width = 4,
 	.cmd_io_ctrl_mask = 0xf0ff40c3,
 	/* for ast2600, the minimum decode size for each CE is 2MB */
-	.min_decode_sz = 0x1000000,
+	.min_decode_sz = 0x200000,
 	.set_4byte = aspeed_spi_chip_set_4byte,
 	.calibrate = aspeed_2600_spi_timing_calibration,
 	.adjust_decode_sz = aspeed_2600_adjust_decode_sz,
@@ -704,7 +704,7 @@ static int aspeed_spi_exec_op_cmd_mode(
 	return 0;
 }
 
-#if 0
+
 static int aspeed_spi_read_from_ahb(void *buf, void __iomem *src, size_t len)
 {
 	size_t offset = 0;
@@ -795,7 +795,6 @@ static int aspeed_spi_exec_op_user_mode(
 
 	return 0;
 }
-#endif
 
 static ssize_t aspeed_spi_dirmap_cmd_read(struct spi_mem_dirmap_desc *desc,
 				  uint64_t offs, size_t len, void *buf)
@@ -899,7 +898,6 @@ static ssize_t aspeed_spi_dirmap_dma_read(struct spi_mem_dirmap_desc *desc,
 
 	return ret ? 0 : len;
 }
-#endif
 
 static ssize_t aspeed_spi_dirmap_cmd_write(struct spi_mem_dirmap_desc *desc,
 				   uint64_t offs, size_t len, const void *buf)
@@ -939,6 +937,7 @@ static ssize_t aspeed_spi_dirmap_cmd_write(struct spi_mem_dirmap_desc *desc,
 
 	return len;
 }
+#endif
 
 static ssize_t aspeed_spi_dirmap_dma_write(struct spi_mem_dirmap_desc *desc,
 				   uint64_t offs, size_t len, const void *buf)
@@ -1119,6 +1118,14 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 			op_tmpl.cmd.opcode, op_tmpl.addr.nbytes, op_tmpl.data.buswidth);
 	}
 
+	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_OUT &&
+		desc->mem->spi->controller->mem_ops->dirmap_write == NULL)
+		return -EINVAL;
+
+	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_IN &&
+		desc->mem->spi->controller->mem_ops->dirmap_read == NULL)
+		return -EINVAL;
+
 	return ret;
 }
 
@@ -1176,12 +1183,10 @@ static bool aspeed_spi_support_op(struct spi_mem *mem,
 
 /* AST2600-A3 */
 static const struct spi_controller_mem_ops aspeed_spi_ops_cmd_read_cmd_write = {
-	.exec_op = aspeed_spi_exec_op_cmd_mode,
+	.exec_op = aspeed_spi_exec_op_user_mode,
 	.get_name = aspeed_spi_get_name,
 	.supports_op = aspeed_spi_support_op,
 	.dirmap_create = aspeed_spi_dirmap_create,
-	.dirmap_read = aspeed_spi_dirmap_cmd_read,
-	.dirmap_write = aspeed_spi_dirmap_cmd_write,
 };
 
 /* AST2600-A1/A2 */
