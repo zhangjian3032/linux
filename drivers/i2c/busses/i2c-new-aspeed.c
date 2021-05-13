@@ -450,16 +450,15 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 		base_clk4 = (i2c_bus->apb_clk*10) / (((((clk_div_reg >> 24) & 0xff) + 2) * 10)/ 2);
 //		printk("base_clk1 %ld, base_clk2 %ld, base_clk3 %ld, base_clk4 %ld\n", base_clk1, base_clk2, base_clk3, base_clk4);
 		if ((i2c_bus->apb_clk / i2c_bus->bus_frequency) <= 32) {
-			div = 0;
-			divider_ratio =
-				i2c_bus->apb_clk / i2c_bus->bus_frequency;
-		} else if ((base_clk1 / i2c_bus->bus_frequency) <= 32) {
-			div = 1;
+			div = 0; 
+			divider_ratio = i2c_bus->apb_clk / i2c_bus->bus_frequency;
+		} else if(i2c_bus->bus_frequency <= 100000) {
+			div = 1; 
 			divider_ratio = base_clk1 / i2c_bus->bus_frequency;
-		} else if ((base_clk2 / i2c_bus->bus_frequency) <= 32) {
+		} else if ((i2c_bus->bus_frequency > 100000) && (i2c_bus->bus_frequency <= 400000)) {
 			div = 2;
 			divider_ratio = base_clk2 / i2c_bus->bus_frequency;
-		} else if ((base_clk3 / i2c_bus->bus_frequency) <= 32) {
+		} else if ((i2c_bus->bus_frequency > 400000) && (i2c_bus->bus_frequency <= 1000000)) {
 			div = 3;
 			divider_ratio = base_clk3 / i2c_bus->bus_frequency;
 		} else {
@@ -998,7 +997,7 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 static void aspeed_new_i2c_do_start(struct aspeed_new_i2c_bus *i2c_bus)
 {
 	int i = 0;
-	int xfer_len;
+	int xfer_len = 0;
 	struct i2c_msg *msg = &i2c_bus->msgs[i2c_bus->msgs_index];
 	u32 cmd = AST_I2CM_PKT_EN | AST_I2CM_PKT_ADDR(msg->addr) |
 		  AST_I2CM_START_CMD;
