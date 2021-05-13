@@ -253,6 +253,7 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 	struct aspeed_adc_trim_locate trim_locate;
 	u32 trim;
 	u32 compensating_trim;
+	u32 index, temp_val = 0;
 	int ret;
 	eng_ctrl = readl(data->base + ASPEED_REG_ENGINE_CONTROL);
 	eng_ctrl |= (ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE);
@@ -286,9 +287,16 @@ static void aspeed_g6_adc_init(struct aspeed_adc_data *data)
 	       data->base + ASPEED_REG_ENGINE_CONTROL);
 	mdelay(1);
 
-	data->cv = 0x200 - (readl(data->base + 0x10) & GENMASK(9, 0));
+	/* Get 10 times average value */
+	for (index = 0; index < 10; index++) {
+		temp_val +=  (readl(data->base + 0x10) & GENMASK(9, 0));
+		mdelay(1);
+	}
+	temp_val /= 10;
 
-	dev_dbg(data->dev, "aspeed_adc: cv %d \n", data->cv);
+	data->cv = 0x200 - temp_val;
+
+	dev_info(data->dev, "aspeed_adc: cv %d\n", data->cv);
 
 	/* Disable Compensating Sensing mode */
 	writel(eng_ctrl & (~ASPEED_CTRL_COMPENSATION),
