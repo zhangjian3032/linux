@@ -108,10 +108,13 @@
 #define XSR_PAGESIZE		BIT(0)	/* Page size in Po2 or Linear */
 #define XSR_RDY			BIT(7)	/* Ready */
 
-
 /* Used for Macronix and Winbond flashes. */
 #define SPINOR_OP_EN4B		0xb7	/* Enter 4-byte mode */
 #define SPINOR_OP_EX4B		0xe9	/* Exit 4-byte mode */
+
+/* Used for Winbond gigadevice flashes. */
+#define SPINOR_OP_WINBOND_RDSR2	0x35 /* Read status register 2 */
+#define SPINOR_OP_WINBOND_WRSR2	0x31 /* Write status register 2 */
 
 /* Used for Spansion flashes only. */
 #define SPINOR_OP_BRWR		0x17	/* Bank register write */
@@ -164,6 +167,7 @@
 
 /* Status Register 2 bits. */
 #define SR2_QUAD_EN_BIT7	BIT(7)
+#define SR2_QUAD_EN_BIT1	BIT(1)
 
 /* Supported SPI protocols */
 #define SNOR_PROTO_INST_MASK	GENMASK(23, 16)

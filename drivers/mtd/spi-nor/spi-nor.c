@@ -1914,6 +1914,36 @@ static int spi_nor_read_sr2(struct spi_nor *nor, u8 *sr2)
 	return nor->read_reg(nor, SPINOR_OP_RDSR2, sr2, 1);
 }
 
+static int spi_nor_winbond_read_sr2(struct spi_nor *nor, u8 *sr2)
+{
+	if (nor->spimem) {
+		struct spi_mem_op op =
+			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WINBOND_RDSR2, 1),
+				   SPI_MEM_OP_NO_ADDR,
+				   SPI_MEM_OP_NO_DUMMY,
+				   SPI_MEM_OP_DATA_IN(1, sr2, 1));
+
+		return spi_mem_exec_op(nor->spimem, &op);
+	}
+
+	return nor->read_reg(nor, SPINOR_OP_WINBOND_RDSR2, sr2, 1);
+}
+
+static int spi_nor_winbond_write_sr2(struct spi_nor *nor, u8 *sr2)
+{
+	if (nor->spimem) {
+		struct spi_mem_op op =
+			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WINBOND_WRSR2, 1),
+				   SPI_MEM_OP_NO_ADDR,
+				   SPI_MEM_OP_NO_DUMMY,
+				   SPI_MEM_OP_DATA_OUT(1, sr2, 1));
+
+		return spi_mem_exec_op(nor->spimem, &op);
+	}
+
+	return nor->write_reg(nor, SPINOR_OP_WINBOND_WRSR2, sr2, 1);
+}
+
 /**
  * sr2_bit7_quad_enable() - set QE bit in Status Register 2.
  * @nor:	pointer to a 'struct spi_nor'
@@ -1957,7 +1987,54 @@ static int sr2_bit7_quad_enable(struct spi_nor *nor)
 
 	/* Read back and check it. */
 	ret = spi_nor_read_sr2(nor, sr2);
-	if (!(ret > 0 && (*sr2 & SR2_QUAD_EN_BIT7))) {
+	if (ret || !(*sr2 & SR2_QUAD_EN_BIT7)) {
+		dev_err(nor->dev, "SR2 Quad bit not set\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * sr2_bit1_quad_enable() - set QE bit in Status Register 2.
+ * @nor:	pointer to a 'struct spi_nor'
+ *
+ * Set the Quad Enable (QE) bit in the Status Register 2.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int winbond_sr2_bit1_quad_enable(struct spi_nor *nor)
+{
+	u8 *sr2 = nor->bouncebuf;
+	int ret;
+
+	/* Check current Quad Enable bit value. */
+	ret = spi_nor_winbond_read_sr2(nor, sr2);
+	if (ret)
+		return ret;
+	if (*sr2 & SR2_QUAD_EN_BIT1)
+		return 0;
+
+	/* Update the Quad Enable bit. */
+	*sr2 |= SR2_QUAD_EN_BIT1;
+
+	write_enable(nor);
+
+	ret = spi_nor_winbond_write_sr2(nor, sr2);
+	if (ret < 0) {
+		dev_err(nor->dev, "error while writing status register 2\n");
+		return -EINVAL;
+	}
+
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret < 0) {
+		dev_err(nor->dev, "timeout while writing status register 2\n");
+		return ret;
+	}
+
+	/* Read back and check it. */
+	ret = spi_nor_winbond_read_sr2(nor, sr2);
+	if (ret || !(*sr2 & SR2_QUAD_EN_BIT1)) {
 		dev_err(nor->dev, "SR2 Quad bit not set\n");
 		return -EINVAL;
 	}
@@ -2156,7 +2233,7 @@ static struct spi_nor_fixups mx25l25635_fixups = {
 	.post_bfpt = mx25l25635_post_bfpt_fixups,
 };
 
-static void gd25q256_default_init(struct spi_nor *nor)
+static void gd25q256_post_sfdp(struct spi_nor *nor)
 {
 	/*
 	 * Some manufacturer like GigaDevice may use different
@@ -2164,11 +2241,11 @@ static void gd25q256_default_init(struct spi_nor *nor)
 	 * indicate the quad_enable method for this case, we need
 	 * to set it in the default_init fixup hook.
 	 */
-	nor->params.quad_enable = macronix_quad_enable;
+	nor->params.quad_enable = winbond_sr2_bit1_quad_enable;
 }
 
 static struct spi_nor_fixups gd25q256_fixups = {
-	.default_init = gd25q256_default_init,
+	.post_sfdp = gd25q256_post_sfdp,
 };
 
 /* NOTE: double check command sets and memory organization when you add
