@@ -1,41 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
+ * Copyright (C) 2021 ASPEED Technology Inc.
+ *
  * CHASIS driver for the Aspeed SoC
- *
- * Copyright (C) ASPEED Technology Inc.
- * Billy Tsai<billy_tsai@aspeedtech.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
-#include <linux/poll.h>
-#include <linux/sysfs.h>
-#include <linux/clk.h>
-#include <linux/fs.h>
+#include <linux/errno.h>
 #include <linux/delay.h>
-#include <linux/init.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/miscdevice.h>
-#include <linux/slab.h>
-#include <linux/sched.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/platform_device.h>
-#include <linux/reset.h>
-#include <asm/io.h>
-#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/of_device.h>
-#include <asm/uaccess.h>
+#include <linux/platform_device.h>
+#include <linux/sysfs.h>
+#include <linux/interrupt.h>
 /******************************************************************************/
 /* ASPEED_INTRUSION_CTRL */
 #define INTRUSION_STATUS_CLEAR BIT(0)
@@ -74,6 +54,8 @@ struct aspeed_chasis {
 	struct device *dev;
 	void __iomem *base;
 	int irq;
+	/* for hwmon */
+	const struct attribute_group *groups[2];
 };
 
 static void aspeed_chasis_status_check(struct aspeed_chasis *chasis)
@@ -107,6 +89,47 @@ static void aspeed_chasis_status_check(struct aspeed_chasis *chasis)
 	}
 }
 
+static ssize_t show_state(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int index = sensor_attr->index;
+	struct aspeed_chasis *chasis = dev_get_drvdata(dev);
+	union chasis_ctrl_register chasis_ctrl;
+	uint8_t ret;
+
+	chasis_ctrl.value = readl(chasis->base);
+
+	switch (index) {
+	case 0:
+		ret = chasis_ctrl.fields.core_power_status;
+		break;
+	case 1:
+		ret = chasis_ctrl.fields.io_power_status;
+		break;
+	case 2:
+		ret = chasis_ctrl.fields.chasis_raw_status;
+		break;
+	}
+
+	return sprintf(buf, "%d\n", ret);
+}
+
+static SENSOR_DEVICE_ATTR(core_power, 0444, show_state, NULL, 0);
+static SENSOR_DEVICE_ATTR(io_power, 0444, show_state, NULL, 1);
+static SENSOR_DEVICE_ATTR(chasis, 0444, show_state, NULL, 2);
+
+static struct attribute *intrusion_dev_attrs[] = {
+	&sensor_dev_attr_core_power.dev_attr.attr,
+	&sensor_dev_attr_io_power.dev_attr.attr,
+	&sensor_dev_attr_chasis.dev_attr.attr, NULL
+};
+
+static const struct attribute_group intrusion_dev_group = {
+	.attrs = intrusion_dev_attrs,
+	.is_visible = NULL,
+};
+
 static irqreturn_t aspeed_chasis_isr(int this_irq, void *dev_id)
 {
 	struct aspeed_chasis *chasis = dev_id;
@@ -123,48 +146,47 @@ MODULE_DEVICE_TABLE(of, aspeed_chasis_of_table);
 
 static int aspeed_chasis_probe(struct platform_device *pdev)
 {
-	struct aspeed_chasis *chasis;
-	union chasis_ctrl_register chasis_ctrl;
+	struct device *dev = &pdev->dev;
+	struct aspeed_chasis *priv;
+	struct device *hwmon;
 	int ret;
 
-	dev_info(&pdev->dev, "aspeed_chasis_probe\n");
+	dev_info(dev, "aspeed_chasis_probe\n");
 
-	chasis = devm_kzalloc(&pdev->dev, sizeof(*chasis), GFP_KERNEL);
-	if (!chasis)
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
 		return -ENOMEM;
 
-	chasis->dev = &pdev->dev;
-	chasis->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(chasis->base))
-		return PTR_ERR(chasis->base);
+	priv->dev = dev;
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(priv->base))
+		return PTR_ERR(priv->base);
 
-	chasis->irq = platform_get_irq(pdev, 0);
-	if (chasis->irq < 0) {
-		dev_err(&pdev->dev, "no irq specified\n");
+	priv->irq = platform_get_irq(pdev, 0);
+	if (priv->irq < 0) {
+		dev_err(dev, "no irq specified\n");
 		ret = -ENOENT;
 		return ret;
 	}
 
-	ret = devm_request_irq(&pdev->dev, chasis->irq, aspeed_chasis_isr, 0,
-			       dev_name(&pdev->dev), chasis);
+	ret = devm_request_irq(dev, priv->irq, aspeed_chasis_isr, 0,
+			       dev_name(dev), priv);
 	if (ret) {
-		dev_err(&pdev->dev, "Chasis Unable to get IRQ");
+		dev_err(dev, "Chasis Unable to get IRQ");
 		return ret;
 	}
 
-	aspeed_chasis_status_check(chasis);
+	aspeed_chasis_status_check(priv);
 
-	// enable interrupt
-	chasis_ctrl.value = readl(chasis->base);
-	chasis_ctrl.fields.io_power_int_enable = 1;
-	chasis_ctrl.fields.intrusion_int_enable = 1;
-	chasis_ctrl.fields.core_power_int_enable = 1;
-	writel(chasis_ctrl.value, chasis->base);
-	dev_info(&pdev->dev, "Chasis ctrl value 0x%08x", chasis_ctrl.value);
+	priv->groups[0] = &intrusion_dev_group;
+	priv->groups[1] = NULL;
 
-	dev_info(&pdev->dev, "chasis driver successfully loaded.\n");
+	hwmon = devm_hwmon_device_register_with_groups(dev, "aspeed_chasis",
+						       priv, priv->groups);
 
-	return 0;
+	dev_info(dev, "chasis driver probe done.\n");
+
+	return PTR_ERR_OR_ZERO(hwmon);
 }
 
 static struct platform_driver aspeed_chasis_driver = {
@@ -178,5 +200,5 @@ static struct platform_driver aspeed_chasis_driver = {
 module_platform_driver(aspeed_chasis_driver);
 
 MODULE_AUTHOR("Billy Tsai<billy_tsai@aspeedtech.com>");
-MODULE_DESCRIPTION("AST CHASIS Driver");
-MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ASPEED CHASIS Driver");
+MODULE_LICENSE("GPL v2");

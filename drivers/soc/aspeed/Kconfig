@@ -127,6 +127,7 @@ config ASPEED_JTAG
 
 config ASPEED_CHASIS
 	tristate "ASPEED CHASIS Driver"
+	depends on SOC_ASPEED && HWMON
 	default n
 	help
 	  Driver for CHASIS Driver
