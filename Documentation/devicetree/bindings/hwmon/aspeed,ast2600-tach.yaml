@@ -37,7 +37,7 @@ required:
   - "#address-cells"
   - "#size-cells"
 
-child-node:
+additionalProperties:
   type: object
   properties:
     reg:

@@ -41,7 +41,7 @@ required:
   - "#address-cells"
   - "#size-cells"
 
-child-node:
+additionalProperties:
   description: Set extend properties for each pwm channel.
   type: object
   properties:

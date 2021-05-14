@@ -36,12 +36,14 @@ required:
   - clocks
   - resets
 
-child-node:
+patternProperties:
   "^pwm(@[0-9a-f]+)?$":
     $ref: ../pwm/aspeed,ast2600-pwm.yaml
 
   "^tach(@[0-9a-f]+)?$":
     $ref: ../hwmon/aspeed,ast2600-tach.yaml
+
+additionalProperties: false
 
 examples:
   - |
