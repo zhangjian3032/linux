@@ -1019,6 +1019,27 @@ static int i3c_master_sethid_locked(struct i3c_master_controller *master)
 	return ret;
 }
 
+int i3c_master_setmrl_locked(struct i3c_master_controller *master, u8 addr,
+			     u16 read_len, u8 ibi_len)
+{
+	struct i3c_ccc_cmd_dest dest;
+	struct i3c_ccc_mrl *mrl;
+	struct i3c_ccc_cmd cmd;
+	int ret;
+
+	mrl = i3c_ccc_cmd_dest_init(&dest, addr, sizeof(*mrl));
+	if (!mrl)
+		return -ENOMEM;
+
+	mrl->read_len = cpu_to_be16(read_len);
+	mrl->ibi_len = ibi_len;
+	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_SETMRL(addr), &dest, 1);
+	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
+	i3c_ccc_cmd_dest_cleanup(&dest);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_master_setmrl_locked);
+
 static int i3c_master_getmrl_locked(struct i3c_master_controller *master,
 				    struct i3c_device_info *info)
 {
