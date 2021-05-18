@@ -49,12 +49,13 @@
 #include <linux/bitfield.h>
 #include <linux/slab.h>
 #include <linux/pwm.h>
+#include <linux/math64.h>
 
 /* The channel number of Aspeed pwm controller */
 #define PWM_ASPEED_NR_PWMS 16
 
 /* PWM Control Register */
-#define PWM_ASPEED_CTRL_CH(ch) ((((ch)*0x10) + 0x00))
+#define PWM_ASPEED_CTRL_CH(ch) (((ch)*0x10) + 0x00)
 #define PWM_ASPEED_CTRL_LOAD_SEL_RISING_AS_WDT BIT(19)
 #define PWM_ASPEED_CTRL_DUTY_LOAD_AS_WDT_ENABLE BIT(18)
 #define PWM_ASPEED_CTRL_DUTY_SYNC_DISABLE BIT(17)
@@ -67,7 +68,7 @@
 #define PWM_ASPEED_CTRL_CLK_DIV_L GENMASK(7, 0)
 
 /* PWM Duty Cycle Register */
-#define PWM_ASPEED_DUTY_CYCLE_CH(ch) ((((ch)*0x10) + 0x04))
+#define PWM_ASPEED_DUTY_CYCLE_CH(ch) (((ch)*0x10) + 0x04)
 #define PWM_ASPEED_DUTY_CYCLE_PERIOD GENMASK(31, 24)
 #define PWM_ASPEED_DUTY_CYCLE_POINT_AS_WDT GENMASK(23, 16)
 #define PWM_ASPEED_DUTY_CYCLE_FALLING_POINT GENMASK(15, 8)
@@ -94,47 +95,46 @@ static u32 aspeed_pwm_get_period(struct pwm_chip *chip, struct pwm_device *pwm)
 	struct aspeed_pwm_data *priv = aspeed_pwm_chip_to_data(chip);
 	unsigned long rate;
 	u32 index = pwm->hwpwm;
-	u32 div_h, div_l, val;
-	u32 period;
+	u32 val;
+	u64 period, div_h, div_l, clk_period;
 
 	rate = clk_get_rate(priv->clk);
 	regmap_read(priv->regmap, PWM_ASPEED_CTRL_CH(index), &val);
 	div_h = FIELD_GET(PWM_ASPEED_CTRL_CLK_DIV_H, val);
 	div_l = FIELD_GET(PWM_ASPEED_CTRL_CLK_DIV_L, val);
-	period = DIV_ROUND_UP_ULL(NSEC_PER_SEC, rate);
-	period *= (BIT(div_h) * (div_l + 1) * (PWM_ASPEED_FIXED_PERIOD + 1));
+	regmap_read(priv->regmap, PWM_ASPEED_DUTY_CYCLE_CH(index), &val);
+	clk_period = FIELD_GET(PWM_ASPEED_DUTY_CYCLE_PERIOD, val);
+	period = (NSEC_PER_SEC * BIT(div_h) * (div_l + 1) * (clk_period + 1));
+	period = DIV_ROUND_UP_ULL(period, rate);
 
-	return period;
+	return (u32)period;
 }
 
-static int aspeed_pwm_set_freq(struct pwm_chip *chip, struct pwm_device *pwm,
-			       const struct pwm_state *state)
+static int aspeed_pwm_set_period(struct pwm_chip *chip, struct pwm_device *pwm,
+				 const struct pwm_state *state)
 {
 	struct device *dev = chip->dev;
 	struct aspeed_pwm_data *priv = aspeed_pwm_chip_to_data(chip);
 	unsigned long rate;
-	u64 div_h, div_l;
+	u64 div_h, div_l, divisor;
 	u32 index = pwm->hwpwm;
 
 	rate = clk_get_rate(priv->clk);
-	rate = DIV_ROUND_UP_ULL(rate, (PWM_ASPEED_FIXED_PERIOD + 1));
-	/* Get the smallest value for div_h  */
-	div_h = rate * (u64)state->period;
-	div_h = DIV_ROUND_DOWN_ULL(div_h, (PWM_ASPEED_CTRL_CLK_DIV_L + 1));
-	div_h = DIV_ROUND_DOWN_ULL(div_h, NSEC_PER_SEC);
-
-	div_h = order_base_2(div_h);
+	/*
+	 * Pick the smallest value for div_h so that div_l can be the biggest
+	 * which results in a finer resolution near the target period value.
+	 */
+	divisor = (u64)NSEC_PER_SEC * (PWM_ASPEED_FIXED_PERIOD + 1) *
+		  (PWM_ASPEED_CTRL_CLK_DIV_L + 1);
+	div_h = order_base_2(div64_u64((u64)rate * state->period, divisor));
 	if (div_h > 0xf)
 		div_h = 0xf;
 
-	div_l = rate * (u64)state->period;
-	dev_dbg(dev, "div_l : %lld\n", div_l);
-	div_l >>= div_h;
-	div_l = DIV_ROUND_DOWN_ULL(div_l, NSEC_PER_SEC);
-	if (div_l == 0) {
-		dev_err(dev, "Period too small, cannot implement it");
+	divisor = ((u64)NSEC_PER_SEC * (PWM_ASPEED_FIXED_PERIOD + 1)) << div_h;
+	div_l = div64_u64((u64)rate * state->period, divisor);
+
+	if (div_l == 0)
 		return -ERANGE;
-	}
 
 	div_l -= 1;
 
@@ -142,7 +142,7 @@ static int aspeed_pwm_set_freq(struct pwm_chip *chip, struct pwm_device *pwm,
 		div_l = 255;
 
 	dev_dbg(dev, "clk source: %ld div_h %lld, div_l : %lld\n", rate, div_h,
-		 div_l);
+		div_l);
 
 	regmap_update_bits(
 		priv->regmap, PWM_ASPEED_CTRL_CH(index),
@@ -152,7 +152,7 @@ static int aspeed_pwm_set_freq(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 
-static void aspeed_set_pwm_duty(struct pwm_chip *chip, struct pwm_device *pwm,
+static void aspeed_pwm_set_duty(struct pwm_chip *chip, struct pwm_device *pwm,
 				const struct pwm_state *state)
 {
 	struct device *dev = chip->dev;
@@ -163,9 +163,9 @@ static void aspeed_set_pwm_duty(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	cur_period = aspeed_pwm_get_period(chip, pwm);
 	duty_pt = DIV_ROUND_DOWN_ULL(
-		state->duty_cycle * (PWM_ASPEED_FIXED_PERIOD + 1), cur_period);
+		(u64)state->duty_cycle * (PWM_ASPEED_FIXED_PERIOD + 1), cur_period);
 	dev_dbg(dev, "cur_period = %d, duty_cycle = %d, duty_pt = %d\n",
-		 cur_period, state->duty_cycle, duty_pt);
+		cur_period, state->duty_cycle, duty_pt);
 	if (duty_pt == 0) {
 		regmap_update_bits(priv->regmap, PWM_ASPEED_CTRL_CH(index),
 				   PWM_ASPEED_CTRL_CLK_ENABLE, 0);
@@ -201,14 +201,14 @@ static void aspeed_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	state->period = aspeed_pwm_get_period(chip, pwm);
 	if (clk_en && duty_pt)
-		state->duty_cycle = DIV_ROUND_DOWN_ULL(
+		state->duty_cycle = DIV_ROUND_UP_ULL(
 			state->period * duty_pt, PWM_ASPEED_FIXED_PERIOD + 1);
 	else
 		state->duty_cycle = clk_en ? state->period : 0;
 	state->polarity = polarity;
 	state->enabled = ch_en;
 	dev_dbg(dev, "get period: %dns, duty_cycle: %dns", state->period,
-		 state->duty_cycle);
+		state->duty_cycle);
 }
 
 static int aspeed_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -220,7 +220,7 @@ static int aspeed_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	int ret;
 
 	dev_dbg(dev, "apply period: %dns, duty_cycle: %dns", state->period,
-		 state->duty_cycle);
+		state->duty_cycle);
 
 	regmap_update_bits(priv->regmap, PWM_ASPEED_CTRL_CH(index),
 			   PWM_ASPEED_CTRL_PIN_ENABLE,
@@ -235,10 +235,10 @@ static int aspeed_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			   FIELD_PREP(PWM_ASPEED_DUTY_CYCLE_PERIOD,
 				      PWM_ASPEED_FIXED_PERIOD));
 
-	ret = aspeed_pwm_set_freq(chip, pwm, state);
+	ret = aspeed_pwm_set_period(chip, pwm, state);
 	if (ret)
 		return ret;
-	aspeed_set_pwm_duty(chip, pwm, state);
+	aspeed_pwm_set_duty(chip, pwm, state);
 	regmap_update_bits(priv->regmap, PWM_ASPEED_CTRL_CH(index),
 			   PWM_ASPEED_CTRL_INVERSE,
 			   FIELD_PREP(PWM_ASPEED_CTRL_INVERSE,
@@ -270,10 +270,10 @@ static int aspeed_pwm_channel_config(struct aspeed_pwm_data *priv,
 	wdt_reload_en =
 		of_property_read_bool(child, "aspeed,wdt-reload-enable");
 
-	regmap_update_bits(priv->regmap, PWM_ASPEED_CTRL_CH(index),
-			   PWM_ASPEED_CTRL_DUTY_LOAD_AS_WDT_ENABLE,
-			   wdt_reload_en ? PWM_ASPEED_CTRL_DUTY_LOAD_AS_WDT_ENABLE :
-					   0);
+	regmap_update_bits(
+		priv->regmap, PWM_ASPEED_CTRL_CH(index),
+		PWM_ASPEED_CTRL_DUTY_LOAD_AS_WDT_ENABLE,
+		wdt_reload_en ? PWM_ASPEED_CTRL_DUTY_LOAD_AS_WDT_ENABLE : 0);
 
 	regmap_update_bits(priv->regmap, PWM_ASPEED_DUTY_CYCLE_CH(index),
 			   PWM_ASPEED_DUTY_CYCLE_POINT_AS_WDT,
