@@ -4,6 +4,7 @@
  * Copyright 2020 Aspeed Technology Inc.
  */
 
+#include <linux/aspeed-lpc-mbox.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/syscon.h>
 #include <linux/miscdevice.h>
@@ -203,6 +204,25 @@ static int aspeed_mbox_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static long aspeed_mbox_ioctl(struct file *file, unsigned int cmd,
+				 unsigned long param)
+{
+	struct aspeed_mbox *mbox = file_mbox(file);
+	const struct aspeed_mbox_model *model = mbox->model;
+	struct aspeed_mbox_ioctl_data data;
+	long ret;
+
+	switch (cmd) {
+	case ASPEED_MBOX_SIZE:
+		data.data = model->dr_num;
+		ret = copy_to_user((void __user *)param, &data, sizeof(data));
+		break;
+	default:
+		ret = -ENOTTY;
+	}
+	return ret;
+}
+
 static const struct file_operations aspeed_mbox_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_seek_end_llseek,
@@ -211,6 +231,7 @@ static const struct file_operations aspeed_mbox_fops = {
 	.open		= aspeed_mbox_open,
 	.release	= aspeed_mbox_release,
 	.poll		= aspeed_mbox_poll,
+	.unlocked_ioctl	= aspeed_mbox_ioctl,
 };
 
 static irqreturn_t aspeed_mbox_irq(int irq, void *arg)
