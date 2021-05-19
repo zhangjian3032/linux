@@ -25,9 +25,10 @@
 #define DEVICE_CTRL			0x0
 #define DEV_CTRL_ENABLE			BIT(31)
 #define DEV_CTRL_RESUME			BIT(30)
+#define DEV_CRTL_IBI_PAYLOAD_EN		BIT(9)
 #define DEV_CTRL_HOT_JOIN_NACK		BIT(8)
 #define DEV_CTRL_I2C_SLAVE_PRESENT	BIT(7)
-#define DEV_CTRL_IBI_DATA_EN		BIT(1)
+#define DEV_CTRL_IBA_INCLUDE		BIT(0)
 
 #define DEVICE_ADDR			0x4
 #define DEV_ADDR_DYNAMIC_ADDR_VALID	BIT(31)
@@ -334,7 +335,7 @@ static void dw_i3c_master_disable(struct dw_i3c_master *master)
 
 static void dw_i3c_master_enable(struct dw_i3c_master *master)
 {
-	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_ENABLE | DEV_CTRL_IBI_DATA_EN,
+	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_ENABLE,
 	       master->regs + DEVICE_CTRL);
 }
 
