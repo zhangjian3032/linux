@@ -950,3 +950,11 @@
 	status = "okay";
 	snoop-ports = <0x80>;
 };
+
+&uart6 {
+	status = "okay";
+};
+
+&uart7 {
+	status = "okay";
+};

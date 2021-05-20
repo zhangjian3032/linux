@@ -262,3 +262,11 @@
 	status = "okay";
 	memory-region = <&video_engine_memory>;
 };
+
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
