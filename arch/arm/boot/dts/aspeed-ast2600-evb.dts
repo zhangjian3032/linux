@@ -951,10 +951,10 @@
 	snoop-ports = <0x80>;
 };
 
-&uart6 {
+&uart10 {
 	status = "okay";
 };
 
-&uart7 {
+&uart11 {
 	status = "okay";
 };
