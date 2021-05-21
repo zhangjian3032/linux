@@ -240,8 +240,10 @@ irqreturn_t aspeed_pci_host_bmc_device_interrupt(int irq, void* dev_id)
 
 static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+#ifdef CONFIG_IPMI_SI
 	struct si_sm_io kcs_io;
 	struct uart_8250_port uart;
+#endif
 	struct aspeed_pci_bmc_dev *pci_bmc_dev;
 	struct device *dev = &pdev->dev;
 	u16 config_cmd_val;
@@ -377,6 +379,7 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 		goto out_unreg;
 	}
 
+#ifdef CONFIG_IPMI_SI
 	/* setup IPMI-KCS over PCIe */
 	memset(&kcs_io, 0, sizeof(kcs_io));
 	kcs_io.addr_source = SI_PCI;
@@ -417,7 +420,7 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 	rc = serial8250_register_8250_port(&uart);
 	if (rc < 0)
 		dev_err(dev, "cannot setup VUART@%xh over PCIe, rc=%d\n", ioport_vuart, rc);
-
+#endif
 	return 0;
 
 out_unreg:
