@@ -81,7 +81,7 @@ bool ast_dp_read_edid(struct drm_device *dev, u8 *ediddata)
  */
 bool ast_dp_launch(struct drm_device *dev, u8 bPower)
 {
-	u32 i = 0, j = 0, WaitCount = 5;
+	u32 i = 0, WaitCount = 5;
 	u8 bDPTX = 0;
 	u8 bDPExecute = 1;
 
@@ -96,19 +96,8 @@ bool ast_dp_launch(struct drm_device *dev, u8 bPower)
 
 	// Wait total count by different condition.
 	// This is a temp solution for DP check
-	for (j = 0; j < WaitCount; j++) {
-		// Wait BMC ready 100ms
-		for (i = 0; i < 100; i++) {
-			// 1ms
-			msleep(1);
-		}
-
-		bDPTX = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD1,
-					       0x0E);
-
-		if (bDPTX)
-			break;
-	}
+	bDPTX = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD1,
+				       0x0E);
 
 	// 0xE : ASTDP with DPMCU FW handling
 	if (bDPTX == 0x0E) {
