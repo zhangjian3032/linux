@@ -60,7 +60,7 @@
 #define SPI_DMA_STATUS		BIT(11)
 #define DMA_GET_REQ_MAGIC	0xaeed0000
 #define DMA_DISCARD_REQ_MAGIC	0xdeea0000
-#define WRITTEN_DMA_BUF_LEN	0x400
+#define WRITTEN_DMA_BUF_LEN	0x3400
 
 enum aspeed_spi_ctl_reg_value {
 	ASPEED_SPI_BASE,
@@ -75,6 +75,10 @@ enum aspeed_spi_ctl_reg_value {
 #define SPI_MODE_USER	0x00000001
 #define SPI_FIXED_LOW_W_CLK 0x00000002
 #define SPI_DMA_WRITE	0x00000004
+#define SPI_DMA_READ	0x00000008
+
+#define MAX_READ_SZ_ONCE	0x3000 /* 12KB */
+#define FIXED_REMAPPED_MEM_SZ	0x1000
 
 struct aspeed_spi_controller;
 struct aspeed_spi_chip;
@@ -504,8 +508,13 @@ aspeed_spi_decode_range_config(struct aspeed_spi_controller *ast_ctrl,
 		else
 			start_addr_phy = pre_end_addr_phy;
 
-		chip[cs].ahb_base = devm_ioremap(ast_ctrl->dev, start_addr_phy,
+		if ((ast_ctrl->flag & SPI_DMA_READ) == SPI_DMA_READ) {
+			chip[cs].ahb_base = devm_ioremap(ast_ctrl->dev, start_addr_phy,
+						 FIXED_REMAPPED_MEM_SZ);
+		} else {
+			chip[cs].ahb_base = devm_ioremap(ast_ctrl->dev, start_addr_phy,
 						 decode_sz_arr[cs]);
+		}
 		chip[cs].ahb_base_phy = (void __iomem *)start_addr_phy;
 
 		chip[cs].ahb_window_sz = decode_sz_arr[cs];
@@ -840,6 +849,10 @@ static ssize_t aspeed_spi_dirmap_dma_read(struct spi_mem_dirmap_desc *desc,
 	uint32_t reg_val;
 	uint32_t target_cs = desc->mem->spi->chip_select;
 	uint32_t extra;
+	uint32_t tb_read_len = len;
+	uint32_t read_len;
+	uint32_t buf_offs = 0;
+	uint32_t flash_offs = (uint32_t)offs;
 
 	if (chip->ahb_window_sz < offs + len) {
 		dev_info(ast_ctrl->dev,
@@ -850,52 +863,65 @@ static ssize_t aspeed_spi_dirmap_dma_read(struct spi_mem_dirmap_desc *desc,
 	dev_dbg(ast_ctrl->dev, "read op:0x%x, addr:0x%llx, len:0x%x\n",
 		op_tmpl.cmd.opcode, offs, len);
 
-	/* flash size should be 4 byte aligned */
-	extra = offs % 4;
-	offs = (offs / 4) * 4;
-	if (extra != 0)
-		len += extra;
+	while (tb_read_len > 0) {
+		/* read max 10KB bytes once */
+		read_len = MAX_READ_SZ_ONCE - (flash_offs % MAX_READ_SZ_ONCE);
+		if (tb_read_len < read_len)
+			read_len = tb_read_len;
 
-	writel(DMA_GET_REQ_MAGIC, ast_ctrl->regs + OFFSET_DMA_CTRL);
-	if (readl(ast_ctrl->regs + OFFSET_DMA_CTRL) & SPI_DAM_REQUEST) {
-		while (!(readl(ast_ctrl->regs + OFFSET_DMA_CTRL) &
-			 SPI_DAM_GRANT))
-			;
-	}
+		/* For AST2600 SPI DMA, flash offset should be 4 byte aligned */
+		extra = flash_offs % 4;
+		if (extra != 0) {
+			flash_offs = (flash_offs / 4) * 4;
+			read_len += extra;
+		}
 
-	reg_val = ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_READ];
-	writel(reg_val, ast_ctrl->regs + OFFSET_CE0_CTRL_REG + target_cs * 4);
+		writel(DMA_GET_REQ_MAGIC, ast_ctrl->regs + OFFSET_DMA_CTRL);
+		if (readl(ast_ctrl->regs + OFFSET_DMA_CTRL) & SPI_DAM_REQUEST) {
+			while (!(readl(ast_ctrl->regs + OFFSET_DMA_CTRL) &
+				 SPI_DAM_GRANT))
+				;
+		}
 
-	/* don't use dma_map_single here, since we cannot make sure the buf's
-	 * start address is 4-byte-aligned.
-	 */
-	writel(0x0, ast_ctrl->regs + OFFSET_DMA_CTRL);
-	writel(ast_ctrl->dma_addr_phy, ast_ctrl->regs + OFFSET_DMA_RAM_ADDR_REG);
-	writel(chip->ahb_base_phy + offs, ast_ctrl->regs + OFFSET_DMA_FLASH_ADDR_REG);
-	writel(len - 1, ast_ctrl->regs + OFFSET_DMA_LEN_REG);
+		reg_val = ast_ctrl->chips[target_cs].ctrl_val[ASPEED_SPI_READ];
+		writel(reg_val, ast_ctrl->regs + OFFSET_CE0_CTRL_REG + target_cs * 4);
 
-	/* enable DMA irq */
-	reg_val = readl(ast_ctrl->regs + OFFSET_INTR_CTRL_STATUS);
-	reg_val |= SPI_DMA_IRQ_EN;
-	writel(reg_val, ast_ctrl->regs + OFFSET_INTR_CTRL_STATUS);
-
-	reinit_completion(&ast_ctrl->dma_done);
-
-	/* enable read DMA */
-	writel(0x1, ast_ctrl->regs + OFFSET_DMA_CTRL);
-	timeout = wait_for_completion_timeout(&ast_ctrl->dma_done, msecs_to_jiffies(2000));
-	if (timeout == 0) {
+		/* don't use dma_map_single here, since we cannot make sure the buf's
+		 * start address is 4-byte-aligned.
+		 */
 		writel(0x0, ast_ctrl->regs + OFFSET_DMA_CTRL);
-		writel(DMA_DISCARD_REQ_MAGIC, ast_ctrl->regs + OFFSET_DMA_CTRL);
-		dev_err(dev, "write data timeout %d\n", ret);
-		ret = -1;
-	} else {
-		if (extra != 0)
-			memcpy(buf, ast_ctrl->op_buf + extra, len - extra);
-		else
-			memcpy(buf, ast_ctrl->op_buf, len);
+		writel(ast_ctrl->dma_addr_phy, ast_ctrl->regs + OFFSET_DMA_RAM_ADDR_REG);
+		writel(chip->ahb_base_phy + flash_offs, ast_ctrl->regs + OFFSET_DMA_FLASH_ADDR_REG);
+		writel(read_len - 1, ast_ctrl->regs + OFFSET_DMA_LEN_REG);
+
+		/* enable DMA irq */
+		reg_val = readl(ast_ctrl->regs + OFFSET_INTR_CTRL_STATUS);
+		reg_val |= SPI_DMA_IRQ_EN;
+		writel(reg_val, ast_ctrl->regs + OFFSET_INTR_CTRL_STATUS);
+
+		reinit_completion(&ast_ctrl->dma_done);
+
+		/* enable read DMA */
+		writel(0x1, ast_ctrl->regs + OFFSET_DMA_CTRL);
+		timeout = wait_for_completion_timeout(&ast_ctrl->dma_done, msecs_to_jiffies(2000));
+		if (timeout == 0) {
+			writel(0x0, ast_ctrl->regs + OFFSET_DMA_CTRL);
+			writel(DMA_DISCARD_REQ_MAGIC, ast_ctrl->regs + OFFSET_DMA_CTRL);
+			dev_err(dev, "read data timeout %d\n", ret);
+			ret = -1;
+			goto end;
+		} else {
+			memcpy(buf + buf_offs, ast_ctrl->op_buf + extra, read_len - extra);
+		}
+
+		read_len -= extra;
+
+		buf_offs += read_len;
+		flash_offs += read_len;
+		tb_read_len -= read_len;
 	}
 
+end:
 	return ret ? 0 : len;
 }
 
@@ -1310,6 +1336,11 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	if (of_property_read_bool(dev->of_node, "spi-dma-write")) {
 		dev_info(dev, "adopt dma write mode\n");
 		ast_ctrl->flag |= SPI_DMA_WRITE;
+	}
+
+	if (of_property_read_bool(dev->of_node, "spi-dma-read")) {
+		dev_info(dev, "adopt dma read mode\n");
+		ast_ctrl->flag |= SPI_DMA_READ;
 	}
 
 	if ((ast_ctrl->flag & SPI_MODE_USER) && (ast_ctrl->flag & SPI_DMA_WRITE)) {
