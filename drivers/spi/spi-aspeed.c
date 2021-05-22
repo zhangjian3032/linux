@@ -1240,7 +1240,7 @@ static int aspeed_spi_ctrl_init(struct aspeed_spi_controller *ast_ctrl)
 
 	/* enable write capability for all CEs */
 	val = readl(ast_ctrl->regs + OFFSET_CE_TYPE_SETTING);
-	writel(val | (GENMASK(ast_ctrl->num_cs, 0) << 16),
+	writel(val | (GENMASK(ast_ctrl->num_cs - 1, 0) << 16),
 	       ast_ctrl->regs + OFFSET_CE_TYPE_SETTING);
 
 	/* initial each CE's controller register */
