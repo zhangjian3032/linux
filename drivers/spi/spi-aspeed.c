@@ -60,7 +60,7 @@
 #define SPI_DMA_STATUS		BIT(11)
 #define DMA_GET_REQ_MAGIC	0xaeed0000
 #define DMA_DISCARD_REQ_MAGIC	0xdeea0000
-#define WRITTEN_DMA_BUF_LEN	0x3400
+#define FMC_SPI_DMA_BUF_LEN	0x3400
 
 enum aspeed_spi_ctl_reg_value {
 	ASPEED_SPI_BASE,
@@ -987,7 +987,7 @@ static ssize_t aspeed_spi_dirmap_dma_write(struct spi_mem_dirmap_desc *desc,
 	if (len < 1)
 		return 0;
 
-	if (len > WRITTEN_DMA_BUF_LEN) {
+	if (len > FMC_SPI_DMA_BUF_LEN) {
 		dev_info(dev,
 			 "written length exceeds expected value (0x%x)\n", len);
 		return 0;
@@ -1350,7 +1350,7 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	}
 
 	ast_ctrl->op_buf = dma_alloc_coherent(dev,
-		WRITTEN_DMA_BUF_LEN, &ast_ctrl->dma_addr_phy, GFP_DMA | GFP_KERNEL);
+		FMC_SPI_DMA_BUF_LEN, &ast_ctrl->dma_addr_phy, GFP_DMA | GFP_KERNEL);
 	if (!ast_ctrl->op_buf) {
 		dev_err(dev, "fail to alloc op_buf.\n");
 		ret = -ENOMEM;
