@@ -20,7 +20,6 @@
 #include <linux/reset.h>
 #include <linux/slab.h>
 
-//#define IBI_WIP
 #define CCC_WORKAROUND
 #define DEVICE_CTRL			0x0
 #define DEV_CTRL_ENABLE			BIT(31)
@@ -135,7 +134,7 @@
 					INTR_IBI_THLD_STAT |		\
 					INTR_TX_THLD_STAT |		\
 					INTR_RX_THLD_STAT)
-#ifdef IBI_WIP
+#ifdef CONFIG_ASPEED_I3C_IBI
 #define INTR_MASTER_MASK		(INTR_TRANSFER_ERR_STAT |	\
 					 INTR_RESP_READY_STAT	|	\
 					 INTR_IBI_THLD_STAT)
@@ -200,9 +199,9 @@
 #define SLAVE_CONFIG			0xec
 
 #define DEV_ADDR_TABLE_LEGACY_I2C_DEV	BIT(31)
-#ifdef IBI_WIP
 #define DEV_ADDR_TABLE_IBI_WITH_DATA	BIT(12)
 #define DEV_ADDR_TABLE_IBI_PEC_EN	BIT(11)
+#ifdef CONFIG_ASPEED_I3C_IBI
 #define DEV_ADDR_TABLE_DYNAMIC_ADDR(x)                                         \
 	((((x) << 16) & GENMASK(23, 16)) | DEV_ADDR_TABLE_IBI_WITH_DATA)
 #else
@@ -484,7 +483,7 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 	int i, ret = 0;
 	u32 nresp;
 
-#ifdef IBI_WIP
+#ifdef CONFIG_ASPEED_I3C_IBI
 	int j = 0;
 	u32 nibi;
 
@@ -736,12 +735,13 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	if (ret)
 		return ret;
 
-#ifdef IBI_WIP
+#ifdef CONFIG_ASPEED_I3C_IBI
 	thld_ctrl = readl(master->regs + QUEUE_THLD_CTRL);
 	thld_ctrl &=
 		~(QUEUE_THLD_CTRL_IBI_STA_MASK | QUEUE_THLD_CTRL_IBI_DAT_MASK);
 	thld_ctrl |= QUEUE_THLD_CTRL_IBI_STA(1);
-	thld_ctrl |= QUEUE_THLD_CTRL_IBI_DAT(1);
+	thld_ctrl |=
+		QUEUE_THLD_CTRL_IBI_DAT(CONFIG_ASPEED_I3C_IBI_MAX_PAYLOAD >> 2);
 	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
 
 	writel(0, master->regs + IBI_SIR_REQ_REJECT);
@@ -942,7 +942,7 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 	}
 
 	dw_i3c_master_free_xfer(xfer);
-#ifdef IBI_WIP
+#ifdef CONFIG_ASPEED_I3C_IBI
 	ret = i3c_master_enec_locked(m, I3C_BROADCAST_ADDR,
 				     I3C_CCC_EVENT_SIR);
 #endif

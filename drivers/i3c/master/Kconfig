@@ -30,3 +30,18 @@ config ASPEED_I3C_MASTER
 	help
 	  Aspeed I3C master controller is a Synopsys DesignWare I3C controller
 	  plus additional global control.
+
+if ASPEED_I3C_MASTER
+config ASPEED_I3C_IBI
+	bool "I3C in-band-interrupt support"
+	default y
+
+config ASPEED_I3C_IBI_MAX_PAYLOAD
+	depends on ASPEED_I3C_IBI
+	int "Max IBI payload size"
+	default 124
+
+config ASPEED_I3C_MRL
+	int "Max read length"
+	default 256
+endif
