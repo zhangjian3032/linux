@@ -18,7 +18,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #include <linux/i2c.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
@@ -39,8 +38,7 @@ struct aspeed_i2c_bus {
 #define ASPEED_I2C_INTR_CTRL_REG	0x0c
 #define ASPEED_I2CD_INTR_SLAVE_MATCH	BIT(7)
 #define ASPEED_I2CD_INTR_RX_DONE	BIT(2)
-void aspeed_i2c_enable_interrupt(struct aspeed_i2c_bus *bus,
-		unsigned long mask)
+static void aspeed_i2c_enable_interrupt(struct aspeed_i2c_bus *bus, unsigned long mask)
 {
 #if 0
 	unsigned long current_mask;
@@ -52,8 +50,7 @@ void aspeed_i2c_enable_interrupt(struct aspeed_i2c_bus *bus,
 #endif
 }
 
-void aspeed_i2c_disable_interrupt(struct aspeed_i2c_bus *bus,
-		unsigned long mask)
+static void aspeed_i2c_disable_interrupt(struct aspeed_i2c_bus *bus, unsigned long mask)
 {
 #if 0
 	unsigned long current_mask;
@@ -65,7 +62,7 @@ void aspeed_i2c_disable_interrupt(struct aspeed_i2c_bus *bus,
 #endif
 }
 
-void aspeed_set_ssif_bmc_status(struct ssif_bmc_ctx *ssif_bmc, unsigned int status)
+static void aspeed_set_ssif_bmc_status(struct ssif_bmc_ctx *ssif_bmc, unsigned int status)
 {
 	struct aspeed_i2c_bus *bus;
 	unsigned long flags;
@@ -92,12 +89,11 @@ void aspeed_set_ssif_bmc_status(struct ssif_bmc_ctx *ssif_bmc, unsigned int stat
 	spin_unlock_irqrestore(&bus->lock, flags);
 }
 
-static int ssif_bmc_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ssif_bmc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct ssif_bmc_ctx *ssif_bmc;
 
-	ssif_bmc = ssif_bmc_alloc(client, sizeof (struct aspeed_i2c_bus));
+	ssif_bmc = ssif_bmc_alloc(client, sizeof(struct aspeed_i2c_bus));
 	if (IS_ERR(ssif_bmc))
 		return PTR_ERR(ssif_bmc);
 

@@ -135,16 +135,26 @@ config ASPEED_BT_IPMI_BMC
 
 config SSIF_IPMI_BMC
 	tristate "SSIF IPMI BMC driver"
+	select I2C
+	select I2C_SLAVE
+	help
+	  This enables the IPMI SMBus system interface (SSIF) at the
+	  management (BMC) side.
+
+	  The driver implements the BMC side of the SMBus system
+	  interface (SSIF).
 
 config ASPEED_SSIF_IPMI_BMC
 	depends on ARCH_ASPEED || COMPILE_TEST
-	depends on I2C
 	select SSIF_IPMI_BMC
-	select I2C_SLAVE
 	tristate "Aspeed SSIF IPMI BMC driver"
 	help
 	  Provides a driver for the SSIF IPMI interface found on
 	  Aspeed AST2500 SoC.
+
+	  The driver implements the BMC side of the SMBus system
+	  interface (SSIF), specific for Aspeed AST2500 SoC.
+
 
 	  The driver implements the BMC side of
 	  the IPMI over SSIF interface.

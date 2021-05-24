@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * The driver for BMC side of SSIF interface
  *
@@ -22,6 +22,8 @@
 
 #define DEVICE_NAME				"ipmi-ssif-host"
 
+#define GET_8BIT_ADDR(addr_7bit)		(((addr_7bit) << 1) & 0xff)
+
 #define MSG_PAYLOAD_LEN_MAX			252
 
 /* A standard SMBus Transaction is limited to 32 data bytes */
@@ -30,11 +32,13 @@
 #define MAX_IPMI_DATA_PER_START_TRANSACTION	30
 #define MAX_IPMI_DATA_PER_MIDDLE_TRANSACTION	31
 
-#define	SSIF_IPMI_REQUEST			0x2
-#define	SSIF_IPMI_MULTI_PART_REQUEST_START	0x6
-#define	SSIF_IPMI_MULTI_PART_REQUEST_MIDDLE	0x7
-#define	SSIF_IPMI_RESPONSE			0x3
-#define	SSIF_IPMI_MULTI_PART_RESPONSE_MIDDLE	0x9
+#define SSIF_IPMI_SINGLEPART_WRITE		0x2
+#define SSIF_IPMI_SINGLEPART_READ		0x3
+#define SSIF_IPMI_MULTIPART_WRITE_START		0x6
+#define SSIF_IPMI_MULTIPART_WRITE_MIDDLE	0x7
+#define SSIF_IPMI_MULTIPART_WRITE_END		0x8
+#define SSIF_IPMI_MULTIPART_READ_START		0x3
+#define SSIF_IPMI_MULTIPART_READ_MIDDLE		0x9
 
 struct ssif_msg {
 	u8 len;
@@ -60,18 +64,21 @@ struct ssif_bmc_ctx {
 	struct ssif_msg		response;
 	bool			response_in_progress;
 	/* Response buffer for Multi-part Read Transaction */
-	u8			response_buffer[MAX_PAYLOAD_PER_TRANSACTION];
+	u8			response_buf[MAX_PAYLOAD_PER_TRANSACTION];
 	/* Flag to identify a Multi-part Read Transaction */
-	bool			is_multi_part_read;
-	u8			num_bytes_processed;
-	u8			remain_data_len;
+	bool			is_singlepart_read;
+	u8			nbytes_processed;
+	u8			remain_len;
+	u8			recv_len;
 	/* Block Number of a Multi-part Read Transaction */
 	u8			block_num;
 	size_t			msg_idx;
+	enum i2c_slave_event	last_event;
+	bool			pec_support;
 	spinlock_t		lock;
 	wait_queue_head_t	wait_queue;
 	struct mutex		file_mutex;
-	void (*set_ssif_bmc_status)(struct ssif_bmc_ctx *, unsigned int );
+	void (*set_ssif_bmc_status)(struct ssif_bmc_ctx *ssif_bmc, unsigned int flags);
 	void			*priv;
 };
 

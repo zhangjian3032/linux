@@ -138,6 +138,7 @@ s32 __i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 /* Now follow the 'nice' access routines. These also document the calling
    conventions of i2c_smbus_xfer. */
 
+u8 i2c_smbus_pec(u8 crc, u8 *p, size_t count);
 extern s32 i2c_smbus_read_byte(const struct i2c_client *client);
 extern s32 i2c_smbus_write_byte(const struct i2c_client *client, u8 value);
 extern s32 i2c_smbus_read_byte_data(const struct i2c_client *client,
