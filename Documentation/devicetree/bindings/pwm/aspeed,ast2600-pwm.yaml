@@ -34,7 +34,6 @@ properties:
   pinctrl-names:
     const: default
 
-
 required:
   - compatible
   - "#pwm-cells"
@@ -49,14 +48,17 @@ additionalProperties:
       description:
         The pwm channel index.
       maxItems: 1
+
     aspeed,wdt-reload-enable:
       type: boolean
       description:
         Enable the function of wdt reset reload duty point.
+
     aspeed,wdt-reload-duty-point:
       description:
         Define the duty point after wdt reset, 0 = 100%
       minimum: 0
       maximum: 255
+
   required:
     - reg

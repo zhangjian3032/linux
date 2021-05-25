@@ -31,7 +31,6 @@ properties:
   pinctrl-names:
     const: default
 
-
 required:
   - compatible
   - "#address-cells"
@@ -44,16 +43,19 @@ additionalProperties:
       description:
         The tach channel used for this fan.
       maxItems: 1
+
     aspeed,min-rpm:
       description:
         define the minimal revolutions per minute of the measure fan
         used to calculate the sample period of tach
       default: 1000
+
     aspeed,pulse-pr:
       description:
         Value specifying the number of pulses per revolution of the
         monitored FAN.
       default: 2
+
     aspeed,tach-div:
       description:
         define the tachometer clock divider as an integer. Formula of
@@ -62,5 +64,6 @@ additionalProperties:
       maximum: 15
       # The value that should be used if the property is not present
       default: 5
+
   required:
     - reg
