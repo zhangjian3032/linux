@@ -35,58 +35,30 @@ struct aspeed_i2c_bus {
 	spinlock_t                      lock;
 };
 
-#define ASPEED_I2C_INTR_CTRL_REG	0x0c
-#define ASPEED_I2CD_INTR_SLAVE_MATCH	BIT(7)
-#define ASPEED_I2CD_INTR_RX_DONE	BIT(2)
-static void aspeed_i2c_enable_interrupt(struct aspeed_i2c_bus *bus, unsigned long mask)
-{
-#if 0
-	unsigned long current_mask;
-
-	current_mask = readl(bus->base + ASPEED_I2C_INTR_CTRL_REG);
-	writel(current_mask | mask, bus->base + ASPEED_I2C_INTR_CTRL_REG);
-#else
-	printk("enable i2c interrupt \n");
-#endif
-}
-
-static void aspeed_i2c_disable_interrupt(struct aspeed_i2c_bus *bus, unsigned long mask)
-{
-#if 0
-	unsigned long current_mask;
-
-	current_mask = readl(bus->base + ASPEED_I2C_INTR_CTRL_REG);
-	writel(current_mask & ~mask, bus->base + ASPEED_I2C_INTR_CTRL_REG);
-#else
-	printk("disable i2c interrupt \n");
-#endif
-}
+#define ASPEED_I2C_FUN_CTRL_REG				0x00
+#define ASPEED_I2CD_SLAVE_EN				BIT(1)
 
 static void aspeed_set_ssif_bmc_status(struct ssif_bmc_ctx *ssif_bmc, unsigned int status)
 {
 	struct aspeed_i2c_bus *bus;
-	unsigned long flags;
-
-	printk("aspeed_set_ssif_bmc_status === \n");
+	unsigned long current_config;
 
 	bus = (struct aspeed_i2c_bus *)ssif_bmc->priv;
 	if (!bus)
 		return;
 
-	spin_lock_irqsave(&bus->lock, flags);
-
 	if (status & SSIF_BMC_BUSY) {
-		/* TODO set auto nack */
-		/* Ignore RX_DONE and SLAVE_MATCH when slave busy processing */
-		aspeed_i2c_disable_interrupt(bus, ASPEED_I2CD_INTR_RX_DONE);
-		aspeed_i2c_disable_interrupt(bus, ASPEED_I2CD_INTR_SLAVE_MATCH);
+		/* Disable Slave */
+		current_config = readl(bus->base + ASPEED_I2C_FUN_CTRL_REG);
+		current_config &= ~ASPEED_I2CD_SLAVE_EN;
+		writel(current_config, bus->base + ASPEED_I2C_FUN_CTRL_REG);
+
 	} else if (status & SSIF_BMC_READY) {
-		/* Enable RX_DONE and SLAVE_MATCH when slave ready */
-		aspeed_i2c_enable_interrupt(bus, ASPEED_I2CD_INTR_RX_DONE);
-		aspeed_i2c_enable_interrupt(bus, ASPEED_I2CD_INTR_SLAVE_MATCH);
+		current_config = readl(bus->base + ASPEED_I2C_FUN_CTRL_REG);
+		current_config |= ASPEED_I2CD_SLAVE_EN;
+		writel(current_config, bus->base + ASPEED_I2C_FUN_CTRL_REG);
 	}
 
-	spin_unlock_irqrestore(&bus->lock, flags);
 }
 
 static int ssif_bmc_probe(struct i2c_client *client, const struct i2c_device_id *id)
