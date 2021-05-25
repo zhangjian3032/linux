@@ -373,6 +373,7 @@ enum xfer_mode {
 };
 
 struct aspeed_new_i2c_bus {
+	struct i2c_adapter	adap;
 	struct device		*dev;
 	void __iomem		*reg_base;
 	struct regmap		*global_reg;
@@ -387,7 +388,6 @@ struct aspeed_new_i2c_bus {
 	/*I2C xfer mode state matchine */
 	u32					state;
 	u32					bus_recover;
-	struct i2c_adapter	adap;
 	/* smbus alert */
 	int					alert_enable;
 	struct i2c_smbus_alert_setup alert_data;
