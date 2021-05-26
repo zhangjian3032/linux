@@ -37,6 +37,19 @@ struct aspeed_i2c_bus {
 #define ASPEED_I2CD_SLAVE_EN				BIT(1)
 
 #define AST_I2CS_CMD_STS		0x28
+#define AST_I2CS_ACTIVE_ALL				(0x3 << 17)
+#define AST_I2CS_PKT_MODE_EN			BIT(16)
+#define AST_I2CS_AUTO_NAK_NOADDR		BIT(15)
+#define AST_I2CS_AUTO_NAK_EN			BIT(14)
+
+#define AST_I2CS_ALT_EN					BIT(10)
+#define AST_I2CS_RX_DMA_EN				BIT(9)
+#define AST_I2CS_TX_DMA_EN				BIT(8)
+#define AST_I2CS_RX_BUFF_EN				BIT(7)
+#define AST_I2CS_TX_BUFF_EN				BIT(6)
+#define AST_I2CS_RX_CMD_LAST			BIT(4)
+
+#define AST_I2CS_TX_CMD					BIT(2)
 
 static void aspeed_set_ssif_bmc_status(struct ssif_bmc_ctx *ssif_bmc, unsigned int status)
 {
@@ -48,25 +61,16 @@ static void aspeed_set_ssif_bmc_status(struct ssif_bmc_ctx *ssif_bmc, unsigned i
 		return;
 
 	if (status & SSIF_BMC_BUSY) {
-#ifdef CONFIG_I2C_NEW_ASPEED
-		current_config = readl(bus->base + AST_I2CS_CMD_STS);
-		current_config |= BIT(17);
-		writel(current_config, bus->base + ASPEED_I2C_FUN_CTRL_REG);
-#else
 		/* Disable Slave */
 		current_config = readl(bus->base + ASPEED_I2C_FUN_CTRL_REG);
 		current_config &= ~ASPEED_I2CD_SLAVE_EN;
 		writel(current_config, bus->base + ASPEED_I2C_FUN_CTRL_REG);
-#endif
 	} else if (status & SSIF_BMC_READY) {
-#ifdef CONFIG_I2C_NEW_ASPEED
-		current_config = readl(bus->base + AST_I2CS_CMD_STS);
-		current_config &= ~BIT(17);
-		writel(current_config, bus->base + ASPEED_I2C_FUN_CTRL_REG);
-#else
 		current_config = readl(bus->base + ASPEED_I2C_FUN_CTRL_REG);
 		current_config |= ASPEED_I2CD_SLAVE_EN;
 		writel(current_config, bus->base + ASPEED_I2C_FUN_CTRL_REG);
+#ifdef CONFIG_I2C_NEW_ASPEED
+		writel(AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_RX_DMA_EN, bus->base + AST_I2CS_CMD_STS);
 #endif
 	}
 
