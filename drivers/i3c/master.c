@@ -1411,6 +1411,11 @@ static int i3c_master_attach_i3c_dev(struct i3c_master_controller *master,
 	if (!dev->info.static_addr && !dev->info.dyn_addr)
 		return 0;
 
+	if (master->jdec_spd)
+		i3c_bus_set_addr_slot_status(&master->bus,
+					     dev->info.static_addr,
+					     I3C_ADDR_SLOT_FREE);
+
 	ret = i3c_master_get_i3c_addrs(dev);
 	if (ret)
 		return ret;
@@ -1516,10 +1521,13 @@ static int i3c_master_early_i3c_dev_add(struct i3c_master_controller *master,
 	if (ret)
 		goto err_free_dev;
 
-	ret = i3c_master_setdasa_locked(master, i3cdev->info.static_addr,
-					i3cdev->boardinfo->init_dyn_addr);
-	if (ret)
-		goto err_detach_dev;
+	if (master->jdec_spd == 0) {
+		ret = i3c_master_setdasa_locked(
+			master, i3cdev->info.static_addr,
+			i3cdev->boardinfo->init_dyn_addr);
+		if (ret)
+			goto err_detach_dev;
+	}
 
 	i3cdev->info.dyn_addr = i3cdev->boardinfo->init_dyn_addr;
 	ret = i3c_master_reattach_i3c_dev(i3cdev, 0);
@@ -1842,8 +1850,10 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 		 * addressable.
 		 */
 
-		if (i3cboardinfo->static_addr)
+		if (i3cboardinfo->static_addr) {
 			i3c_master_early_i3c_dev_add(master, i3cboardinfo);
+			n_i3cdev++;
+		}
 	}
 
 	/*
