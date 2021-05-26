@@ -755,7 +755,7 @@ i3c_master_alloc_i3c_dev(struct i3c_master_controller *master,
 	return dev;
 }
 
-static int i3c_master_rstdaa_locked(struct i3c_master_controller *master,
+int i3c_master_rstdaa_locked(struct i3c_master_controller *master,
 				    u8 addr)
 {
 	enum i3c_addr_slot_status addrstat;
@@ -779,6 +779,7 @@ static int i3c_master_rstdaa_locked(struct i3c_master_controller *master,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(i3c_master_rstdaa_locked);
 
 /**
  * i3c_master_entdaa_locked() - start a DAA (Dynamic Address Assignment)
