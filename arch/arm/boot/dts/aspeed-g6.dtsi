@@ -572,7 +572,7 @@
 			};
 
 			pcie_ep:pcie_ep@1e6ed000 {
-				compatible = "aspeed,aspeed-pcie", "syscon";
+				compatible = "aspeed,ast2600-pcie-ep", "syscon";
 				reg = <0x1e6ed000 0x100>;
 
 				resets = <&syscon ASPEED_RESET_PCIE_DEV_O>;
@@ -636,8 +636,8 @@
 				reg = <0x1e6e8000 0x30>;
 	 			interrupts-extended = <&gic GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_AST2500_SCU_IC_PCIE_RESET_LO_TO_HI>;
 				interrupt-names = "mctp", "pcie";
-				no-reset-on-reboot;
 				resets = <&syscon ASPEED_RESET_DEV_MCTP>;
+				aspeed,scu = <&syscon>;
 				status = "disabled";
 			};
 
@@ -646,7 +646,9 @@
 				reg = <0x1e6f9000 0x30>;
 	 			interrupts-extended = <&scu_ic0 ASPEED_AST2500_SCU_IC_PCIE_RESET_LO_TO_HI>;
 				interrupt-names = "pcie";
+				pcie_rc;
 				resets = <&syscon ASPEED_RESET_RC_MCTP>;
+				aspeed,scu = <&syscon>;
 				status = "disabled";
 			};
 
