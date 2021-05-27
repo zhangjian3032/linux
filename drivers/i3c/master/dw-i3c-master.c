@@ -199,6 +199,9 @@
 #define SLAVE_CONFIG			0xec
 
 #define DEV_ADDR_TABLE_LEGACY_I2C_DEV	BIT(31)
+#define DEV_ADDR_TABLE_DEV_NACK_RETRY(x) (((x) << 29) & GENMASK(30, 29))
+#define DEV_ADDR_TABLE_MR_REJECT	BIT(14)
+#define DEV_ADDR_TABLE_SIR_REJECT	BIT(13)
 #define DEV_ADDR_TABLE_IBI_WITH_DATA	BIT(12)
 #define DEV_ADDR_TABLE_IBI_PEC_EN	BIT(11)
 #ifdef CONFIG_ASPEED_I3C_IBI
@@ -260,6 +263,10 @@ struct dw_i3c_master {
 		struct dw_i3c_xfer *cur;
 		spinlock_t lock;
 	} xferqueue;
+	struct {
+		struct i3c_dev_desc *slots[MAX_DEVS];
+		spinlock_t lock;
+	} ibi;
 	struct dw_i3c_master_caps caps;
 	void __iomem *regs;
 	struct reset_control *core_rst;
@@ -270,7 +277,9 @@ struct dw_i3c_master {
 };
 
 struct dw_i3c_i2c_dev_data {
+	struct i3c_generic_ibi_pool *ibi_pool;
 	u8 index;
+	s8 ibi;
 };
 
 static u8 even_parity(u8 p)
@@ -1307,6 +1316,133 @@ static irqreturn_t dw_i3c_master_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int dw_i3c_master_disable_ibi(struct i3c_dev_desc *dev)
+{
+	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+	struct dw_i3c_master *master = to_dw_i3c_master(m);
+	struct dw_i3c_i2c_dev_data *data = i3c_dev_get_master_data(dev);
+	unsigned long flags;
+	u32 sirmap, dat;
+	int ret, pos, dat_loc;
+
+	ret = i3c_master_disec_locked(m, dev->info.dyn_addr,
+				      I3C_CCC_EVENT_SIR);
+	if (ret)
+		return ret;
+
+	spin_lock_irqsave(&master->ibi.lock, flags);
+	sirmap = readl(master->regs + IBI_SIR_REQ_REJECT);
+	sirmap |= BIT(data->ibi);
+	writel(sirmap, master->regs + IBI_SIR_REQ_REJECT);
+
+	pos = dw_i3c_master_get_addr_pos(master, dev->info.dyn_addr);
+	dat_loc = DEV_ADDR_TABLE_LOC(master->datstartaddr, pos);
+	dat = readl(master->regs + dat_loc);
+	dat |= DEV_ADDR_TABLE_SIR_REJECT;
+	dat &= ~DEV_ADDR_TABLE_IBI_WITH_DATA;
+	writel(dat, master->regs + dat_loc);
+
+	spin_unlock_irqrestore(&master->ibi.lock, flags);
+
+	return ret;
+}
+
+static int dw_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
+{
+	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+	struct dw_i3c_master *master = to_dw_i3c_master(m);
+	struct dw_i3c_i2c_dev_data *data = i3c_dev_get_master_data(dev);
+	unsigned long flags;
+	u32 sirmap, dat;
+	int ret, pos, dat_loc;
+
+	spin_lock_irqsave(&master->ibi.lock, flags);
+	sirmap = readl(master->regs + IBI_SIR_REQ_REJECT);
+	sirmap &= ~BIT(data->ibi);
+	writel(sirmap, master->regs + IBI_SIR_REQ_REJECT);
+
+	pos = dw_i3c_master_get_addr_pos(master, dev->info.dyn_addr);
+	dat_loc = DEV_ADDR_TABLE_LOC(master->datstartaddr, pos);
+	dat = readl(master->regs + dat_loc);
+	dat &= ~DEV_ADDR_TABLE_SIR_REJECT;
+	dat |= DEV_ADDR_TABLE_IBI_WITH_DATA;
+	writel(dat, master->regs + dat_loc);
+	spin_unlock_irqrestore(&master->ibi.lock, flags);
+
+	ret = i3c_master_enec_locked(m, dev->info.dyn_addr,
+				     I3C_CCC_EVENT_SIR);
+
+	if (ret) {
+		spin_lock_irqsave(&master->ibi.lock, flags);
+		sirmap = readl(master->regs + IBI_SIR_REQ_REJECT);
+		sirmap |= BIT(data->ibi);
+		writel(sirmap, master->regs + IBI_SIR_REQ_REJECT);
+
+		dat = readl(master->regs + dat_loc);
+		dat |= DEV_ADDR_TABLE_SIR_REJECT;
+		dat &= ~DEV_ADDR_TABLE_IBI_WITH_DATA;
+		writel(dat, master->regs + dat_loc);
+		spin_unlock_irqrestore(&master->ibi.lock, flags);
+	}
+
+	return ret;
+}
+
+static int dw_i3c_master_request_ibi(struct i3c_dev_desc *dev,
+				       const struct i3c_ibi_setup *req)
+{
+	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+	struct dw_i3c_master *master = to_dw_i3c_master(m);
+	struct dw_i3c_i2c_dev_data *data = i3c_dev_get_master_data(dev);
+	unsigned long flags;
+	unsigned int i;
+
+	data->ibi_pool = i3c_generic_ibi_alloc_pool(dev, req);
+	if (IS_ERR(data->ibi_pool))
+		return PTR_ERR(data->ibi_pool);
+
+	spin_lock_irqsave(&master->ibi.lock, flags);
+	for (i = 0; i < master->maxdevs; i++) {
+		if (!master->ibi.slots[i]) {
+			data->ibi = i;
+			master->ibi.slots[i] = dev;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&master->ibi.lock, flags);
+
+	if (i < master->maxdevs)
+		return 0;
+
+	i3c_generic_ibi_free_pool(data->ibi_pool);
+	data->ibi_pool = NULL;
+
+	return -ENOSPC;
+}
+
+static void dw_i3c_master_free_ibi(struct i3c_dev_desc *dev)
+{
+	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+	struct dw_i3c_master *master = to_dw_i3c_master(m);
+	struct dw_i3c_i2c_dev_data *data = i3c_dev_get_master_data(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&master->ibi.lock, flags);
+	master->ibi.slots[data->ibi] = NULL;
+	data->ibi = -1;
+	spin_unlock_irqrestore(&master->ibi.lock, flags);
+
+	i3c_generic_ibi_free_pool(data->ibi_pool);
+}
+
+static void dw_i3c_master_recycle_ibi_slot(struct i3c_dev_desc *dev,
+					     struct i3c_ibi_slot *slot)
+{
+	struct dw_i3c_i2c_dev_data *data = i3c_dev_get_master_data(dev);
+
+	i3c_generic_ibi_recycle_slot(data->ibi_pool, slot);
+}
+
 static const struct i3c_master_controller_ops dw_mipi_i3c_ops = {
 	.bus_init = dw_i3c_master_bus_init,
 	.bus_cleanup = dw_i3c_master_bus_cleanup,
@@ -1320,6 +1456,11 @@ static const struct i3c_master_controller_ops dw_mipi_i3c_ops = {
 	.attach_i2c_dev = dw_i3c_master_attach_i2c_dev,
 	.detach_i2c_dev = dw_i3c_master_detach_i2c_dev,
 	.i2c_xfers = dw_i3c_master_i2c_xfers,
+	.enable_ibi = dw_i3c_master_enable_ibi,
+	.disable_ibi = dw_i3c_master_disable_ibi,
+	.request_ibi = dw_i3c_master_request_ibi,
+	.free_ibi = dw_i3c_master_free_ibi,
+	.recycle_ibi_slot = dw_i3c_master_recycle_ibi_slot,
 };
 
 static int dw_i3c_probe(struct platform_device *pdev)
