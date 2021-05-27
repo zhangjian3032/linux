@@ -449,21 +449,18 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 		base_clk3 = (i2c_bus->apb_clk*10) / (((((clk_div_reg >> 16) & 0xff) + 2) * 10) / 2);
 		base_clk4 = (i2c_bus->apb_clk*10) / (((((clk_div_reg >> 24) & 0xff) + 2) * 10)/ 2);
 //		printk("base_clk1 %ld, base_clk2 %ld, base_clk3 %ld, base_clk4 %ld\n", base_clk1, base_clk2, base_clk3, base_clk4);
-		if ((i2c_bus->apb_clk / i2c_bus->bus_frequency) <= 32) {
-			div = 0; 
-			divider_ratio = i2c_bus->apb_clk / i2c_bus->bus_frequency;
-		} else if(i2c_bus->bus_frequency <= 100000) {
+		if (i2c_bus->bus_frequency <= base_clk1) {
 			div = 1; 
 			divider_ratio = base_clk1 / i2c_bus->bus_frequency;
-		} else if ((i2c_bus->bus_frequency > 100000) && (i2c_bus->bus_frequency <= 400000)) {
+		} else if ((i2c_bus->bus_frequency > base_clk1) && (i2c_bus->bus_frequency <= base_clk2)) {
 			div = 2;
 			divider_ratio = base_clk2 / i2c_bus->bus_frequency;
-		} else if ((i2c_bus->bus_frequency > 400000) && (i2c_bus->bus_frequency <= 1000000)) {
+		} else if ((i2c_bus->bus_frequency > base_clk2) && (i2c_bus->bus_frequency <= base_clk3)) {
 			div = 3;
 			divider_ratio = base_clk3 / i2c_bus->bus_frequency;
-		} else {
+		} else if ((i2c_bus->bus_frequency > base_clk3) && (i2c_bus->bus_frequency <= base_clk4)) {
 			div = 4;
-			divider_ratio = base_clk4 / i2c_bus->bus_frequency;
+			divider_ratio = (base_clk4 / i2c_bus->bus_frequency) - 1;
 			inc = 0;
 			while ((divider_ratio + inc) > 32) {
 				inc |= divider_ratio & 0x1;
@@ -471,6 +468,10 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 				div++;
 			}
 			divider_ratio += inc;
+		} else {
+			div = 0;
+			divider_ratio = i2c_bus->apb_clk / i2c_bus->bus_frequency;
+			divider_ratio = 5;
 		}
 		div &= 0xf;
 		scl_low = ((divider_ratio >> 1) - 1) & 0xf;
@@ -490,6 +491,7 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 	}
 	return data;
 }
+
 
 static u8 aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 {
