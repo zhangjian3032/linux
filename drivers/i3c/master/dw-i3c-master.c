@@ -1491,6 +1491,7 @@ static int dw_i3c_probe(struct platform_device *pdev)
 
 	reset_control_deassert(master->core_rst);
 
+	spin_lock_init(&master->ibi.lock);
 	spin_lock_init(&master->xferqueue.lock);
 	INIT_LIST_HEAD(&master->xferqueue.list);
 
