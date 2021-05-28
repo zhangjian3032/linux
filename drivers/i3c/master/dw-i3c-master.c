@@ -274,6 +274,7 @@ struct dw_i3c_master {
 	char version[5];
 	char type[5];
 	u8 addrs[MAX_DEVS];
+	u8 is_aspeed;
 };
 
 struct dw_i3c_i2c_dev_data {
@@ -900,6 +901,39 @@ static int dw_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 	return ret;
 }
 
+#define PID_MANUF_ID_ASPEED		0x03f6
+#define PID_PART_ID_AST2600_SERIES	0x0500
+#define PID_PART_ID_AST1030_A0		0x0800
+
+#define IS_MANUF_ID_ASPEED(x) (I3C_PID_MANUF_ID(x) == PID_MANUF_ID_ASPEED)
+#define IS_PART_ID_AST2600_SERIES(x)                                           \
+	((I3C_PID_PART_ID(x) & PID_PART_ID_AST2600_SERIES) ==                  \
+	 PID_PART_ID_AST2600_SERIES)
+#define IS_PART_ID_AST1030_A0(x)                                               \
+	((I3C_PID_PART_ID(x) & PID_PART_ID_AST1030_A0) ==                      \
+	 PID_PART_ID_AST1030_A0)
+
+static int aspeed_i3c_master_extend_ibi_payload(struct i3c_master_controller *m)
+{
+	struct i3c_dev_desc *i3cdev, *i3ctmp;
+	u64 pid;
+	int ret = 0;
+
+	list_for_each_entry_safe(i3cdev, i3ctmp, &m->bus.devs.i3c,
+				  common.node) {
+		pid = i3cdev->info.pid;
+		if (IS_MANUF_ID_ASPEED(pid) &&
+		    (IS_PART_ID_AST2600_SERIES(pid) ||
+		     IS_PART_ID_AST1030_A0(pid))) {
+			ret = i3c_master_setmrl_locked(
+				m, i3cdev->info.dyn_addr, CONFIG_ASPEED_I3C_MRL,
+				CONFIG_ASPEED_I3C_IBI_MAX_PAYLOAD);
+		}
+	}
+
+	return ret;
+}
+
 static int dw_i3c_master_daa(struct i3c_master_controller *m)
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
@@ -960,6 +994,9 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 #ifdef CONFIG_ASPEED_I3C_IBI
 	ret = i3c_master_enec_locked(m, I3C_BROADCAST_ADDR,
 				     I3C_CCC_EVENT_SIR);
+
+	if (master->is_aspeed)
+		aspeed_i3c_master_extend_ibi_payload(m);
 #endif
 
 	return 0;
@@ -1466,6 +1503,7 @@ static const struct i3c_master_controller_ops dw_mipi_i3c_ops = {
 static int dw_i3c_probe(struct platform_device *pdev)
 {
 	struct dw_i3c_master *master;
+	struct device_node *np;
 	int ret, irq;
 
 	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
@@ -1504,6 +1542,12 @@ static int dw_i3c_probe(struct platform_device *pdev)
 		goto err_assert_rst;
 
 	platform_set_drvdata(pdev, master);
+
+	np = pdev->dev.of_node;
+	if (np && (of_device_is_compatible(np, "aspeed,ast2600-i3c")))
+		master->is_aspeed = 1;
+	else
+		master->is_aspeed = 0;
 
 	/* Information regarding the FIFOs/QUEUEs depth */
 	ret = readl(master->regs + QUEUE_STATUS_LEVEL);
