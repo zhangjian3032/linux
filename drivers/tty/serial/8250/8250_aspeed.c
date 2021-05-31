@@ -443,6 +443,7 @@ static int ast8250_probe(struct platform_device *pdev)
 	port->startup = ast8250_startup;
 	port->shutdown = ast8250_shutdown;
 	port->private_data = data;
+	uart.bugs |= UART_BUG_TXRACE;
 
 	data->line = serial8250_register_8250_port(&uart);
 	if (data->line < 0) {
