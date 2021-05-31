@@ -1699,7 +1699,7 @@
 		#interrupt-cells = <1>;
 
 		reg = <0x2000 0x1000>;
-		compatible = "snps,dw-i3c-master-1.00a";
+		compatible = "snps,dw-i3c-master-1.00a", "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C0CLK>;
 		resets = <&syscon ASPEED_RESET_I3C0>;
 		i2c-scl-hz = <400000>;
@@ -1717,7 +1717,7 @@
 		#interrupt-cells = <1>;
 
 		reg = <0x3000 0x1000>;
-		compatible = "snps,dw-i3c-master-1.00a";
+		compatible = "snps,dw-i3c-master-1.00a", "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C1CLK>;
 		resets = <&syscon ASPEED_RESET_I3C1>;
 		i2c-scl-hz = <400000>;
@@ -1735,7 +1735,7 @@
 		#interrupt-cells = <1>;
 
 		reg = <0x4000 0x1000>;
-		compatible = "snps,dw-i3c-master-1.00a";
+		compatible = "snps,dw-i3c-master-1.00a", "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C2CLK>;
 		resets = <&syscon ASPEED_RESET_I3C2>;
 		i2c-scl-hz = <400000>;
@@ -1751,7 +1751,7 @@
 		#interrupt-cells = <1>;
 
 		reg = <0x5000 0x1000>;
-		compatible = "snps,dw-i3c-master-1.00a";
+		compatible = "snps,dw-i3c-master-1.00a", "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C3CLK>;
 		resets = <&syscon ASPEED_RESET_I3C3>;
 		i2c-scl-hz = <400000>;
@@ -1767,7 +1767,7 @@
 		#interrupt-cells = <1>;
 
 		reg = <0x6000 0x1000>;
-		compatible = "snps,dw-i3c-master-1.00a";
+		compatible = "snps,dw-i3c-master-1.00a", "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C4CLK>;
 		resets = <&syscon ASPEED_RESET_I3C4>;
 		i2c-scl-hz = <400000>;
@@ -1785,7 +1785,7 @@
 		#interrupt-cells = <1>;
 
 		reg = <0x7000 0x1000>;
-		compatible = "snps,dw-i3c-master-1.00a";
+		compatible = "snps,dw-i3c-master-1.00a", "aspeed,ast2600-i3c";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C5CLK>;
 		resets = <&syscon ASPEED_RESET_I3C5>;
 		i2c-scl-hz = <400000>;
