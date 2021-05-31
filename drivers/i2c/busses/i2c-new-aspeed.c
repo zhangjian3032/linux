@@ -592,7 +592,7 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 		case AST_I2CS_SLAVE_MATCH | AST_I2CS_STOP:
 			dev_dbg(i2c_bus->dev, "S : Sw|P\n");
 			i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);
-			cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+			cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_AUTO_NAK_EN;
 			if (i2c_bus->mode == DMA_MODE) {
 				cmd |= AST_I2CS_RX_DMA_EN;
 				aspeed_i2c_write(
@@ -635,7 +635,7 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 						I2C_SLAVE_WRITE_REQUESTED,
 						&value);
 
-			cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+			cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_AUTO_NAK_EN;
 			if (i2c_bus->mode == DMA_MODE) {
 				cmd |= AST_I2CS_RX_DMA_EN;
 				slave_rx_len =
@@ -700,7 +700,7 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 						I2C_SLAVE_WRITE_REQUESTED,
 						&value);
 
-			cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+			cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_AUTO_NAK_EN;
 			if (i2c_bus->mode == DMA_MODE) {
 				cmd |= AST_I2CS_TX_DMA_EN;
 				slave_rx_len =
@@ -770,7 +770,7 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 			//First Start read
 			dev_dbg(i2c_bus->dev,
 				"S: AST_I2CS_SLAVE_MATCH | AST_I2CS_Wait_TX_DMA\n");
-			cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+			cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_AUTO_NAK_EN;
 			if (i2c_bus->mode == DMA_MODE) {
 				cmd |= AST_I2CS_TX_DMA_EN;
 				i2c_slave_event(i2c_bus->slave,
@@ -848,7 +848,7 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 		case AST_I2CS_Wait_TX_DMA:
 			//it should be next start read
 			dev_dbg(i2c_bus->dev, "S: AST_I2CS_Wait_TX_DMA\n");
-			cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+			cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_AUTO_NAK_EN;
 			if (i2c_bus->mode == DMA_MODE) {
 				cmd |= AST_I2CS_TX_DMA_EN;
 				i2c_slave_event(i2c_bus->slave,
@@ -889,7 +889,7 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 			//it just tx complete
 			dev_dbg(i2c_bus->dev,
 				"S: AST_I2CS_TX_NAK | AST_I2CS_STOP\n");
-			cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+			cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_AUTO_NAK_EN;
 			i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);
 			if (i2c_bus->mode == DMA_MODE) {
 				cmd |= AST_I2CS_RX_DMA_EN;
@@ -1688,7 +1688,7 @@ static void aspeed_new_i2c_init(struct aspeed_new_i2c_bus *i2c_bus)
 static int aspeed_new_i2c_reg_slave(struct i2c_client *client)
 {
 	struct aspeed_new_i2c_bus *i2c_bus = i2c_get_adapdata(client->adapter);
-	u32 cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+	u32 cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_AUTO_NAK_EN;
 
 	if (i2c_bus->slave)
 		return -EINVAL;
