@@ -12,7 +12,7 @@
 #define BUF_SIZE			16777216
 
 #define PCI_VENDOR_ID_ASPEED		0x1a03
-#define PCI_DEVICE_ID_AST2500_VGA	0x2402
+#define PCI_DEVICE_ID_ASPEED_VGA	0x2402
 
 struct ast_bmc_addr {
 	dma_addr_t dma;
@@ -121,7 +121,7 @@ static int ast_bmc_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, ctx);
 
-	dev_info(&pdev->dev, "PCI DMA addr: %016llx\n", ctx->mem.dma);
+	dev_info(&pdev->dev, "PCI DMA addr: %08x\n", ctx->mem.dma);
 
 	ctx->misc.minor = MISC_DYNAMIC_MINOR;
 	ctx->misc.fops = &ast_bmc_pci_fops;
@@ -153,7 +153,7 @@ static void ast_bmc_pci_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id ast_bmc_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ASPEED, PCI_DEVICE_ID_AST2500_VGA) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ASPEED, PCI_DEVICE_ID_ASPEED_VGA) },
 	{ },
 };
 MODULE_DEVICE_TABLE(pci, ast_bmc_pci_table);
