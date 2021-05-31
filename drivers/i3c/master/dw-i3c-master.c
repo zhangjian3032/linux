@@ -913,22 +913,18 @@ static int dw_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 	((I3C_PID_PART_ID(x) & PID_PART_ID_AST1030_A0) ==                      \
 	 PID_PART_ID_AST1030_A0)
 
-static int aspeed_i3c_master_extend_ibi_payload(struct i3c_master_controller *m)
+static int aspeed_i3c_master_extend_ibi_payload(struct i3c_master_controller *m,
+						struct i3c_dev_desc *i3cdev)
 {
-	struct i3c_dev_desc *i3cdev, *i3ctmp;
 	u64 pid;
 	int ret = 0;
 
-	list_for_each_entry_safe(i3cdev, i3ctmp, &m->bus.devs.i3c,
-				  common.node) {
-		pid = i3cdev->info.pid;
-		if (IS_MANUF_ID_ASPEED(pid) &&
-		    (IS_PART_ID_AST2600_SERIES(pid) ||
-		     IS_PART_ID_AST1030_A0(pid))) {
-			ret = i3c_master_setmrl_locked(
-				m, i3cdev->info.dyn_addr, CONFIG_ASPEED_I3C_MRL,
-				CONFIG_ASPEED_I3C_IBI_MAX_PAYLOAD);
-		}
+	pid = i3cdev->info.pid;
+	if (IS_MANUF_ID_ASPEED(pid) &&
+	    (IS_PART_ID_AST2600_SERIES(pid) || IS_PART_ID_AST1030_A0(pid))) {
+		ret = i3c_master_setmrl_locked(
+			m, i3cdev->info.dyn_addr, CONFIG_ASPEED_I3C_MRL,
+			CONFIG_ASPEED_I3C_IBI_MAX_PAYLOAD);
 	}
 
 	return ret;
@@ -991,13 +987,6 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 	}
 
 	dw_i3c_master_free_xfer(xfer);
-#ifdef CONFIG_ASPEED_I3C_IBI
-	ret = i3c_master_enec_locked(m, I3C_BROADCAST_ADDR,
-				     I3C_CCC_EVENT_SIR);
-
-	if (master->is_aspeed)
-		aspeed_i3c_master_extend_ibi_payload(m);
-#endif
 
 	return 0;
 }
@@ -1408,6 +1397,9 @@ static int dw_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 
 	ret = i3c_master_enec_locked(m, dev->info.dyn_addr,
 				     I3C_CCC_EVENT_SIR);
+
+	if (master->is_aspeed)
+		aspeed_i3c_master_extend_ibi_payload(m, dev);
 
 	if (ret) {
 		spin_lock_irqsave(&master->ibi.lock, flags);
