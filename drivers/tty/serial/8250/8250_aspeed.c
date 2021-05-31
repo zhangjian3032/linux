@@ -25,12 +25,12 @@
 
 /* offsets for the aspeed virtual uart registers */
 #define VUART_GCRA	0x20
-#define 	VUART_GCRA_VUART_EN			BIT(0)
-#define 	VUART_GCRA_SIRQ_POLARITY			BIT(1)
-#define 	VUART_GCRA_DISABLE_HOST_TX_DISCARD	BIT(5)
+#define   VUART_GCRA_VUART_EN			BIT(0)
+#define   VUART_GCRA_SIRQ_POLARITY		BIT(1)
+#define   VUART_GCRA_DISABLE_HOST_TX_DISCARD	BIT(5)
 #define VUART_GCRB	0x24
-#define 	VUART_GCRB_HOST_SIRQ_MASK		GENMASK(7, 4)
-#define 	VUART_GCRB_HOST_SIRQ_SHIFT		4
+#define   VUART_GCRB_HOST_SIRQ_MASK		GENMASK(7, 4)
+#define   VUART_GCRB_HOST_SIRQ_SHIFT		4
 #define VUART_ADDRL	0x28
 #define VUART_ADDRH	0x2c
 
@@ -429,7 +429,7 @@ static int ast8250_probe(struct platform_device *pdev)
 
 	spin_lock_init(&port->lock);
 	port->dev = dev;
-	port->type = PORT_16550;
+	port->type = PORT_16550A;
 	port->irq = irq;
 	port->line = of_alias_get_id(dev->of_node, "serial");
 	port->handle_irq = ast8250_handle_irq;
@@ -439,7 +439,7 @@ static int ast8250_probe(struct platform_device *pdev)
 	port->uartclk = clk_get_rate(data->clk);
 	port->regshift = 2;
 	port->iotype = UPIO_MEM32;
-	port->flags = UPF_FIXED_PORT | UPF_SHARE_IRQ;
+	port->flags = UPF_FIXED_TYPE | UPF_FIXED_PORT | UPF_SHARE_IRQ;
 	port->startup = ast8250_startup;
 	port->shutdown = ast8250_shutdown;
 	port->private_data = data;
