@@ -76,9 +76,19 @@
 
 #define RX_TX_DATA_PORT			0x14
 #define IBI_QUEUE_STATUS		0x18
+#define IBI_STS_RSP_NACK		BIT(31)
+#define IBI_STS_RSP_PEC_ERR		BIT(30)
+#define IBI_QUEUE_IBI_ID(x)		(((x)&GENMASK(15, 8)) >> 8)
+#define IBI_QUEUE_IBI_ADDR(x)		(IBI_QUEUE_IBI_ID(x) >> 1)
+#define IBI_TYPE_MR(x)                                                         \
+	((IBI_QUEUE_IBI_ADDR(x) != I3C_HOT_JOIN_ADDR) && !((x) & BIT(8)))
+#define IBI_TYPE_HJ(x)                                                         \
+	((IBI_QUEUE_IBI_ADDR(x) == I3C_HOT_JOIN_ADDR) && !((x) & BIT(8)))
+#define IBI_TYPE_SIR(x)                                                        \
+	((IBI_QUEUE_IBI_ADDR(x) != I3C_HOT_JOIN_ADDR) && ((x) & BIT(8)))
+#define IBI_DATA_LENGTH(x)		((x) & GENMASK(7, 0))
+
 #define IBI_QUEUE_DATA			0x18
-#define IBI_QUEUE_DATA_STATUS_MASK	GENMASK(31, 28)
-#define IBI_QUEUE_DATA_PAYLOAD_MASK	GENMASK(15, 8)
 #define QUEUE_THLD_CTRL			0x1c
 #define QUEUE_THLD_CTRL_IBI_STA_MASK	GENMASK(31, 24)
 #define QUEUE_THLD_CTRL_IBI_STA(x)	(((x) - 1) << 24)
@@ -489,30 +499,97 @@ static void dw_i3c_master_dequeue_xfer(struct dw_i3c_master *master,
 	spin_unlock_irqrestore(&master->xferqueue.lock, flags);
 }
 
+static void dw_i3c_master_sir_handler(struct dw_i3c_master *master, u8 addr,
+				      u8 length)
+{
+	struct dw_i3c_i2c_dev_data *data;
+	struct i3c_dev_desc *dev;
+	struct i3c_ibi_slot *slot;
+	u8 pos;
+	u8 *buf;
+	bool data_consumed = false;
+
+	pos = dw_i3c_master_get_addr_pos(master, addr);
+	if (pos < 0) {
+		pr_warn("no matching dat: %02x\n", pos);
+		goto out;
+	}
+
+	dev = master->ibi.slots[pos];
+	if (!dev) {
+		pr_warn("no matching dev\n");
+		goto out;
+	}
+
+	spin_lock(&master->ibi.lock);
+	data = i3c_dev_get_master_data(dev);
+	slot = i3c_generic_ibi_get_free_slot(data->ibi_pool);
+	if (!slot) {
+		pr_err("no free ibi slot\n");
+		goto out_unlock;
+	}
+	buf = slot->data;
+	dw_i3c_master_read_ibi_fifo(master, buf, length);
+	slot->len = length;
+	i3c_master_queue_ibi(dev, slot);
+	data_consumed = true;
+out_unlock:
+	spin_unlock(&master->ibi.lock);
+
+out:
+	/* Consume data from the FIFO if it's not been done already. */
+	if (!data_consumed) {
+		int nwords = (length + 3) >> 2;
+		int i;
+
+		for (i = 0; i < nwords; i++)
+			readl(master->regs + IBI_QUEUE_DATA);
+	}
+}
+
+static void dw_i3c_master_demux_ibis(struct dw_i3c_master *master)
+{
+	u32 nibi, nbytes, ibi_status;
+	int i;
+	u8 addr;
+
+	nibi = readl(master->regs + QUEUE_STATUS_LEVEL);
+	nibi = QUEUE_STATUS_IBI_STATUS_CNT(nibi);
+	if (!nibi)
+		return;
+
+	for (i = 0; i < nibi; i++) {
+		ibi_status = readl(master->regs + IBI_QUEUE_STATUS);
+
+		/* FIXME: how to handle the unrecognized slave? */
+		if (ibi_status & IBI_STS_RSP_NACK)
+			pr_warn_once("ibi from unrecognized slave %02x\n",
+				     addr);
+
+		if (ibi_status & IBI_STS_RSP_PEC_ERR)
+			pr_warn("ibi crc/pec error\n");
+
+		addr = IBI_QUEUE_IBI_ADDR(ibi_status);
+		if (IBI_TYPE_SIR(ibi_status)) {
+			pr_info("get sir from %02x\n", addr);
+			nbytes = IBI_DATA_LENGTH(ibi_status);
+			dw_i3c_master_sir_handler(master, addr, nbytes);
+		}
+
+		if (IBI_TYPE_HJ(ibi_status))
+			pr_info("get hj\n");
+
+		if (IBI_TYPE_MR(ibi_status))
+			pr_info("get mr from %02x\n", addr);
+	}
+	writel(RESET_CTRL_IBI_QUEUE, master->regs + RESET_CTRL);
+}
+
 static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 {
 	struct dw_i3c_xfer *xfer = master->xferqueue.cur;
 	int i, ret = 0;
 	u32 nresp;
-
-#ifdef CONFIG_ASPEED_I3C_IBI
-	int j = 0;
-	u32 nibi;
-
-	/* consume the IBI data */
-	nibi = readl(master->regs + QUEUE_STATUS_LEVEL);
-	nibi = QUEUE_STATUS_IBI_BUF_BLR(nibi);
-
-	if ((isr & INTR_IBI_THLD_STAT) && nibi) {
-		u32 ibi;
-		for (i = 0; i < nibi; i++) {
-			ibi = readl(master->regs + IBI_QUEUE_DATA);
-			for (j = 0; j < (ibi & 0xff); j += 4)
-				dev_dbg(master->dev, "ibi: %08x\n", readl(master->regs + IBI_QUEUE_DATA));
-		}
-		writel(RESET_CTRL_IBI_QUEUE, master->regs + RESET_CTRL);
-	}
-#endif
 
 	if (!xfer)
 		return;
@@ -885,6 +962,8 @@ static int dw_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 	    (ccc->id == I3C_CCC_DEVCTRL)) {
 		writel(i3c_od_timing, master->regs + SCL_I3C_PP_TIMING);
 	}
+
+	dev_dbg(master->dev, "ccc-id %02x rnw=%d\n", ccc->id, ccc->rnw);
 
 	if (ccc->rnw)
 		ret = dw_i3c_ccc_get(master, ccc);
@@ -1335,6 +1414,9 @@ static irqreturn_t dw_i3c_master_irq_handler(int irq, void *dev_id)
 	if (status & INTR_TRANSFER_ERR_STAT)
 		writel(INTR_TRANSFER_ERR_STAT, master->regs + INTR_STATUS);
 	spin_unlock(&master->xferqueue.lock);
+
+	if (status & INTR_IBI_THLD_STAT)
+		dw_i3c_master_demux_ibis(master);
 
 	return IRQ_HANDLED;
 }
