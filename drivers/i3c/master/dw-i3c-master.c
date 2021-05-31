@@ -134,14 +134,9 @@
 					INTR_IBI_THLD_STAT |		\
 					INTR_TX_THLD_STAT |		\
 					INTR_RX_THLD_STAT)
-#ifdef CONFIG_ASPEED_I3C_IBI
 #define INTR_MASTER_MASK		(INTR_TRANSFER_ERR_STAT |	\
 					 INTR_RESP_READY_STAT	|	\
 					 INTR_IBI_THLD_STAT)
-#else
-#define INTR_MASTER_MASK		(INTR_TRANSFER_ERR_STAT |	\
-					 INTR_RESP_READY_STAT)
-#endif					 
 
 #define QUEUE_STATUS_LEVEL		0x4c
 #define QUEUE_STATUS_IBI_STATUS_CNT(x)	(((x) & GENMASK(28, 24)) >> 24)
@@ -204,12 +199,7 @@
 #define DEV_ADDR_TABLE_SIR_REJECT	BIT(13)
 #define DEV_ADDR_TABLE_IBI_WITH_DATA	BIT(12)
 #define DEV_ADDR_TABLE_IBI_PEC_EN	BIT(11)
-#ifdef CONFIG_ASPEED_I3C_IBI
-#define DEV_ADDR_TABLE_DYNAMIC_ADDR(x)                                         \
-	((((x) << 16) & GENMASK(23, 16)) | DEV_ADDR_TABLE_IBI_WITH_DATA)
-#else
 #define DEV_ADDR_TABLE_DYNAMIC_ADDR(x)	(((x) << 16) & GENMASK(23, 16))
-#endif
 #define DEV_ADDR_TABLE_STATIC_ADDR(x)	((x) & GENMASK(6, 0))
 #define DEV_ADDR_TABLE_LOC(start, idx)	((start) + ((idx) << 2))
 
@@ -745,7 +735,6 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_ASPEED_I3C_IBI
 	thld_ctrl = readl(master->regs + QUEUE_THLD_CTRL);
 	thld_ctrl &=
 		~(QUEUE_THLD_CTRL_IBI_STA_MASK | QUEUE_THLD_CTRL_IBI_DAT_MASK);
@@ -754,12 +743,8 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 		QUEUE_THLD_CTRL_IBI_DAT(CONFIG_ASPEED_I3C_IBI_MAX_PAYLOAD >> 2);
 	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
 
-	writel(0, master->regs + IBI_SIR_REQ_REJECT);
-	writel(0, master->regs + IBI_MR_REQ_REJECT);
-#else
 	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_SIR_REQ_REJECT);
 	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_MR_REQ_REJECT);
-#endif
 
 	/* For now don't support Hot-Join */
 	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_HOT_JOIN_NACK,
