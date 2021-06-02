@@ -656,4 +656,11 @@ void i3c_master_queue_ibi(struct i3c_dev_desc *dev, struct i3c_ibi_slot *slot);
 
 struct i3c_ibi_slot *i3c_master_get_free_ibi_slot(struct i3c_dev_desc *dev);
 
+#ifdef CONFIG_I3C_IBI_MQUEUE
+/*
+ * IBI message queue driver API
+ */
+int i3c_ibi_mqueue_probe(struct i3c_device *i3cdev);
+int i3c_ibi_mqueue_remove(struct i3c_device *i3cdev);
+#endif	/* end of "#ifdef CONFIG_I3C_IBI_MQUEUE" */
 #endif /* I3C_MASTER_H */
