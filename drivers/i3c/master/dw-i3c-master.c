@@ -213,7 +213,8 @@
 #define DEV_ADDR_TABLE_STATIC_ADDR(x)	((x) & GENMASK(6, 0))
 #define DEV_ADDR_TABLE_LOC(start, idx)	((start) + ((idx) << 2))
 
-#define MAX_DEVS 32
+#define MAX_DEVS			32
+#define MAX_IBI_FRAG_SIZE		124
 
 #define I3C_BUS_SDR1_SCL_RATE		8000000
 #define I3C_BUS_SDR2_SCL_RATE		6000000
@@ -828,8 +829,7 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	thld_ctrl &=
 		~(QUEUE_THLD_CTRL_IBI_STA_MASK | QUEUE_THLD_CTRL_IBI_DAT_MASK);
 	thld_ctrl |= QUEUE_THLD_CTRL_IBI_STA(1);
-	thld_ctrl |=
-		QUEUE_THLD_CTRL_IBI_DAT(CONFIG_ASPEED_I3C_IBI_MAX_PAYLOAD >> 2);
+	thld_ctrl |= QUEUE_THLD_CTRL_IBI_DAT(MAX_IBI_FRAG_SIZE >> 2);
 	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
 
 	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_SIR_REQ_REJECT);
