@@ -535,8 +535,12 @@ static void dw_i3c_master_sir_handler(struct dw_i3c_master *master,
 		goto out_unlock;
 	}
 	buf = slot->data;
+	/* prepend ibi status */
+	memcpy(buf, &ibi_status, sizeof(ibi_status));
+	buf += sizeof(ibi_status);
+
 	dw_i3c_master_read_ibi_fifo(master, buf, length);
-	slot->len = length;
+	slot->len = length + sizeof(ibi_status);
 	i3c_master_queue_ibi(dev, slot);
 	data_consumed = true;
 out_unlock:

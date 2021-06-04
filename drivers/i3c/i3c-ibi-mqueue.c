@@ -16,6 +16,8 @@
 #define MQ_QUEUE_SIZE		4
 #define MQ_QUEUE_NEXT(x)	(((x) + 1) & (MQ_QUEUE_SIZE - 1))
 
+#define IBI_STATUS_LAST_FRAG	BIT(24)
+
 struct mq_msg {
 	int len;
 	u8 *buf;
@@ -40,19 +42,28 @@ static void i3c_ibi_mqueue_callback(struct i3c_device *dev,
 	struct mq_queue *mq = dev_get_drvdata(&dev->dev);
 	struct mq_msg *msg = mq->curr;
 	u8 *buf = (u8 *)payload->data;
+	u32 status;
 
-	spin_lock(&mq->lock);
-	msg->len = payload->len;
-	memcpy(msg->buf, buf, payload->len);
+	/* first DW is IBI status */
+	memcpy(&status, buf, sizeof(status));
 
-	mq->in = MQ_QUEUE_NEXT(mq->in);
-	mq->curr = &mq->queue[mq->in];
-	mq->curr->len = 0;
+	/* then the raw data */
+	buf += sizeof(status);
+	memcpy(&msg->buf[msg->len], buf, payload->len - sizeof(status));
+	msg->len += payload->len - sizeof(status);
 
-	if (mq->out == mq->in)
-		mq->out = MQ_QUEUE_NEXT(mq->out);
-	spin_unlock(&mq->lock);
-	kernfs_notify(mq->kn);
+	/* if last fragment, notidy and update pointers */
+	if (status & IBI_STATUS_LAST_FRAG) {
+		spin_lock(&mq->lock);
+		mq->in = MQ_QUEUE_NEXT(mq->in);
+		mq->curr = &mq->queue[mq->in];
+		mq->curr->len = 0;
+
+		if (mq->out == mq->in)
+			mq->out = MQ_QUEUE_NEXT(mq->out);
+		spin_unlock(&mq->lock);
+		kernfs_notify(mq->kn);
+	}
 }
 
 static ssize_t i3c_ibi_mqueue_bin_read(struct file *filp, struct kobject *kobj,
@@ -109,8 +120,10 @@ int i3c_ibi_mqueue_probe(struct i3c_device *i3cdev)
 	if (!buf)
 		return -ENOMEM;
 
-	for (i = 0; i < MQ_QUEUE_SIZE; i++)
+	for (i = 0; i < MQ_QUEUE_SIZE; i++) {
 		mq->queue[i].buf = buf + i * MQ_MSGBUF_SIZE;
+		mq->queue[i].len = 0;
+	}
 
 	dev_set_drvdata(dev, &mq->bin);
 
