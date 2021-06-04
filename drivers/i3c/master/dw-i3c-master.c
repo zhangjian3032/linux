@@ -76,17 +76,20 @@
 
 #define RX_TX_DATA_PORT			0x14
 #define IBI_QUEUE_STATUS		0x18
-#define IBI_STS_RSP_NACK		BIT(31)
-#define IBI_STS_RSP_PEC_ERR		BIT(30)
-#define IBI_QUEUE_IBI_ID(x)		(((x)&GENMASK(15, 8)) >> 8)
-#define IBI_QUEUE_IBI_ADDR(x)		(IBI_QUEUE_IBI_ID(x) >> 1)
+#define IBI_QUEUE_STATUS_RSP_NACK	BIT(31)
+#define IBI_QUEUE_STATUS_PEC_ERR	BIT(30)
+#define IBI_QUEUE_STATUS_LAST_FRAG	BIT(24)
+#define IBI_QUEUE_STATUS_IBI_ID(x)	(((x) & GENMASK(15, 8)) >> 8)
+#define IBI_QUEUE_STATUS_DATA_LEN(x)	((x) & GENMASK(7, 0))
+
+#define IBI_QUEUE_IBI_ADDR(x)		(IBI_QUEUE_STATUS_IBI_ID(x) >> 1)
+#define IBI_QUEUE_IBI_RNW(x)		(IBI_QUEUE_STATUS_IBI_ID(x) & BIT(0))
 #define IBI_TYPE_MR(x)                                                         \
-	((IBI_QUEUE_IBI_ADDR(x) != I3C_HOT_JOIN_ADDR) && !((x) & BIT(8)))
+	((IBI_QUEUE_IBI_ADDR(x) != I3C_HOT_JOIN_ADDR) && !IBI_QUEUE_IBI_RNW(x))
 #define IBI_TYPE_HJ(x)                                                         \
-	((IBI_QUEUE_IBI_ADDR(x) == I3C_HOT_JOIN_ADDR) && !((x) & BIT(8)))
+	((IBI_QUEUE_IBI_ADDR(x) == I3C_HOT_JOIN_ADDR) && !IBI_QUEUE_IBI_RNW(x))
 #define IBI_TYPE_SIR(x)                                                        \
-	((IBI_QUEUE_IBI_ADDR(x) != I3C_HOT_JOIN_ADDR) && ((x) & BIT(8)))
-#define IBI_DATA_LENGTH(x)		((x) & GENMASK(7, 0))
+	((IBI_QUEUE_IBI_ADDR(x) != I3C_HOT_JOIN_ADDR) && IBI_QUEUE_IBI_RNW(x))
 
 #define IBI_QUEUE_DATA			0x18
 #define QUEUE_THLD_CTRL			0x1c
@@ -500,12 +503,14 @@ static void dw_i3c_master_dequeue_xfer(struct dw_i3c_master *master,
 	spin_unlock_irqrestore(&master->xferqueue.lock, flags);
 }
 
-static void dw_i3c_master_sir_handler(struct dw_i3c_master *master, u8 addr,
-				      u8 length)
+static void dw_i3c_master_sir_handler(struct dw_i3c_master *master,
+				      u32 ibi_status)
 {
 	struct dw_i3c_i2c_dev_data *data;
 	struct i3c_dev_desc *dev;
 	struct i3c_ibi_slot *slot;
+	u8 addr = IBI_QUEUE_IBI_ADDR(ibi_status);
+	u8 length = IBI_QUEUE_STATUS_DATA_LEN(ibi_status);
 	u8 pos;
 	u8 *buf;
 	bool data_consumed = false;
@@ -550,7 +555,7 @@ out:
 
 static void dw_i3c_master_demux_ibis(struct dw_i3c_master *master)
 {
-	u32 nibi, nbytes, ibi_status;
+	u32 nibi, status;
 	int i;
 	u8 addr;
 
@@ -560,27 +565,24 @@ static void dw_i3c_master_demux_ibis(struct dw_i3c_master *master)
 		return;
 
 	for (i = 0; i < nibi; i++) {
-		ibi_status = readl(master->regs + IBI_QUEUE_STATUS);
+		status = readl(master->regs + IBI_QUEUE_STATUS);
+		addr = IBI_QUEUE_IBI_ADDR(status);
 
 		/* FIXME: how to handle the unrecognized slave? */
-		if (ibi_status & IBI_STS_RSP_NACK)
+		if (status & IBI_QUEUE_STATUS_RSP_NACK)
 			pr_warn_once("ibi from unrecognized slave %02x\n",
 				     addr);
 
-		if (ibi_status & IBI_STS_RSP_PEC_ERR)
+		if (status & IBI_QUEUE_STATUS_PEC_ERR)
 			pr_warn("ibi crc/pec error\n");
 
-		addr = IBI_QUEUE_IBI_ADDR(ibi_status);
-		if (IBI_TYPE_SIR(ibi_status)) {
-			pr_info("get sir from %02x\n", addr);
-			nbytes = IBI_DATA_LENGTH(ibi_status);
-			dw_i3c_master_sir_handler(master, addr, nbytes);
-		}
+		if (IBI_TYPE_SIR(status))
+			dw_i3c_master_sir_handler(master, status);
 
-		if (IBI_TYPE_HJ(ibi_status))
+		if (IBI_TYPE_HJ(status))
 			pr_info("get hj\n");
 
-		if (IBI_TYPE_MR(ibi_status))
+		if (IBI_TYPE_MR(status))
 			pr_info("get mr from %02x\n", addr);
 	}
 	writel(RESET_CTRL_IBI_QUEUE, master->regs + RESET_CTRL);
