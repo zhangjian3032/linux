@@ -585,7 +585,6 @@ static void dw_i3c_master_demux_ibis(struct dw_i3c_master *master)
 		if (IBI_TYPE_MR(status))
 			pr_info("get mr from %02x\n", addr);
 	}
-	writel(RESET_CTRL_IBI_QUEUE, master->regs + RESET_CTRL);
 }
 
 static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
