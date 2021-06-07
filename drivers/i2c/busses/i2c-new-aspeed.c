@@ -492,7 +492,6 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 	return data;
 }
 
-
 static u8 aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 {
 	u32 ctrl, state;
@@ -584,6 +583,16 @@ int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 		sts &= ~(AST_I2CS_PKT_DONE | AST_I2CS_PKT_ERROR);
 		aspeed_i2c_write(i2c_bus, AST_I2CS_PKT_DONE, AST_I2CS_ISR);
 		switch (sts) {
+		case 0:
+			cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_AUTO_NAK_EN;
+			if (i2c_bus->mode == DMA_MODE)
+				cmd |= AST_I2CS_RX_DMA_EN;
+			else if (i2c_bus->mode == BUFF_MODE)
+				cmd |= AST_I2CS_RX_BUFF_EN;
+			else
+				cmd &= ~AST_I2CS_PKT_MODE_EN;
+			aspeed_i2c_write(i2c_bus, cmd, AST_I2CS_CMD_STS);
+			break;
 		case AST_I2CS_SLAVE_MATCH:
 		dev_dbg(i2c_bus->dev, "S : Sw\n");
 		i2c_slave_event(i2c_bus->slave,
@@ -1725,7 +1734,7 @@ static int aspeed_new_i2c_reg_slave(struct i2c_client *client)
 		cmd &= ~AST_I2CS_PKT_MODE_EN;
 	}
 
-	aspeed_i2c_write(i2c_bus, AST_I2CS_AUTO_NAK_EN, AST_I2CS_CMD_STS);
+	aspeed_i2c_write(i2c_bus, cmd, AST_I2CS_CMD_STS);
 	dev_dbg(i2c_bus->dev, "cmd sts %x\n",
 		aspeed_i2c_read(i2c_bus, AST_I2CS_CMD_STS));
 	aspeed_i2c_write(i2c_bus,
