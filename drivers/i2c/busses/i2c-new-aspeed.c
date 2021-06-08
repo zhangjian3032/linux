@@ -1707,12 +1707,11 @@ static int aspeed_new_i2c_reg_slave(struct i2c_client *client)
 	dev_dbg(i2c_bus->dev, "slave addr %x\n",
 		client->addr);
 
-	/* Set slave addr. */
+	aspeed_i2c_write(i2c_bus, 0, AST_I2CS_ADDR_CTRL);
 	aspeed_i2c_write(i2c_bus,
-			 client->addr |
-				 (aspeed_i2c_read(i2c_bus, AST_I2CS_ADDR_CTRL) &
-				  ~AST_I2CS_ADDR1_MASK),
-			 AST_I2CS_ADDR_CTRL);
+			 AST_I2CC_SLAVE_EN |
+				 aspeed_i2c_read(i2c_bus, AST_I2CC_FUN_CTRL),
+			 AST_I2CC_FUN_CTRL);
 
 	//trigger rx buffer
 	if (i2c_bus->mode == DMA_MODE) {
@@ -1735,15 +1734,9 @@ static int aspeed_new_i2c_reg_slave(struct i2c_client *client)
 	}
 
 	aspeed_i2c_write(i2c_bus, cmd, AST_I2CS_CMD_STS);
-	dev_dbg(i2c_bus->dev, "cmd sts %x\n",
-		aspeed_i2c_read(i2c_bus, AST_I2CS_CMD_STS));
-	aspeed_i2c_write(i2c_bus,
-			 AST_I2CC_SLAVE_EN |
-				 aspeed_i2c_read(i2c_bus, AST_I2CC_FUN_CTRL),
-			 AST_I2CC_FUN_CTRL);
-	aspeed_i2c_write(i2c_bus, cmd, AST_I2CS_CMD_STS);
-
 	i2c_bus->slave = client;
+	/* Set slave addr. */
+	aspeed_i2c_write(i2c_bus, client->addr | AST_I2CS_ADDR1_ENABLE, AST_I2CS_ADDR_CTRL);
 
 	return 0;
 }
