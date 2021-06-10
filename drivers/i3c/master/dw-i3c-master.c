@@ -984,7 +984,7 @@ static int dw_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 
 #define PID_MANUF_ID_ASPEED		0x03f6
 #define PID_PART_ID_AST2600_SERIES	0x0500
-#define PID_PART_ID_AST1030_A0		0x0800
+#define PID_PART_ID_AST1030_A0		0x8000
 
 #define IS_MANUF_ID_ASPEED(x) (I3C_PID_MANUF_ID(x) == PID_MANUF_ID_ASPEED)
 #define IS_PART_ID_AST2600_SERIES(x)                                           \
