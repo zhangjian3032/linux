@@ -1529,20 +1529,6 @@ static void aspeed_new_i2c_init(struct aspeed_new_i2c_bus *i2c_bus)
 	//Clear Interrupt
 	writel(0xfffffff, i2c_bus->reg_base + AST_I2CM_ISR);
 
-	/* Set interrupt generation of I2C master controller */
-	if (of_property_read_bool(pdev->dev.of_node, "smbus-alert")) {
-		i2c_bus->alert_enable = 1;
-		i2c_bus->ara = i2c_setup_smbus_alert(&i2c_bus->adap,
-						     &i2c_bus->alert_data);
-		writel(AST_I2CM_PKT_DONE | AST_I2CM_BUS_RECOVER |
-				AST_I2CM_SMBUS_ALT,
-				i2c_bus->reg_base + AST_I2CM_IER);
-	} else {
-		i2c_bus->alert_enable = 0;
-		writel(AST_I2CM_PKT_DONE | AST_I2CM_BUS_RECOVER,
-				i2c_bus->reg_base + AST_I2CM_IER);
-	}
-
 #ifdef CONFIG_I2C_SLAVE
 	//for memory buffer initial
 	if (i2c_bus->mode == DMA_MODE) {
@@ -1771,6 +1757,23 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 	ret = i2c_add_adapter(&i2c_bus->adap);
 	if (ret < 0)
 		goto free_irq;
+
+	if (of_property_read_bool(pdev->dev.of_node, "smbus-alert")) {
+		i2c_bus->alert_enable = 1;
+		i2c_bus->ara = i2c_setup_smbus_alert(&i2c_bus->adap,
+							 &i2c_bus->alert_data);
+		if (!i2c_bus->ara)
+			dev_warn(i2c_bus->dev, "Failed to register ARA client\n");
+
+		writel(AST_I2CM_PKT_DONE | AST_I2CM_BUS_RECOVER |
+				AST_I2CM_SMBUS_ALT,
+				i2c_bus->reg_base + AST_I2CM_IER);
+	} else {
+		i2c_bus->alert_enable = 0;
+		/* Set interrupt generation of I2C master controller */
+		writel(AST_I2CM_PKT_DONE | AST_I2CM_BUS_RECOVER,
+					i2c_bus->reg_base + AST_I2CM_IER);
+	}
 
 	dev_info(i2c_bus->dev, "NEW-I2C: %s [%d]: adapter [%d khz] mode [%d]\n",
 		 pdev->dev.of_node->name, i2c_bus->adap.nr,
