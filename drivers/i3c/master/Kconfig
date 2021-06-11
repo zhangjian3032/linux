@@ -34,7 +34,7 @@ config ASPEED_I3C_MASTER
 if ASPEED_I3C_MASTER
 config ASPEED_I3C_IBI_MAX_PAYLOAD
 	int "Max IBI payload size"
-	default 124
+	default 255
 
 config ASPEED_I3C_MRL
 	int "Max read length"
