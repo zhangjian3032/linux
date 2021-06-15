@@ -508,7 +508,9 @@ aspeed_spi_decode_range_config(struct aspeed_spi_controller *ast_ctrl,
 		else
 			start_addr_phy = pre_end_addr_phy;
 
-		if ((ast_ctrl->flag & SPI_DMA_READ) == SPI_DMA_READ) {
+		if ((ast_ctrl->flag & SPI_DMA_READ) == SPI_DMA_READ ||
+			(ast_ctrl->flag & SPI_MODE_USER) == SPI_MODE_USER) {
+			/* only small decoded range is needed for DMA and user mode */
 			chip[cs].ahb_base = devm_ioremap(ast_ctrl->dev, start_addr_phy,
 						 FIXED_REMAPPED_MEM_SZ);
 		} else {
@@ -1074,29 +1076,27 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_IN) {
 		/* record original decode size */
-		if (!((ast_ctrl->flag & SPI_MODE_USER) == SPI_MODE_USER)) {
-			for (cs = 0; cs < ast_ctrl->num_cs; cs++) {
-				reg_val = readl(ast_ctrl->regs +
-						OFFSET_CE0_DECODE_RANGE_REG + cs * 4);
-				decode_sz_arr[cs] =
-					info->segment_end(ast_ctrl, reg_val) -
-					info->segment_start(ast_ctrl, reg_val);
-			}
-
-			decode_sz_arr[target_cs] = desc->info.length;
-
-			if (info->adjust_decode_sz)
-				info->adjust_decode_sz(decode_sz_arr, ast_ctrl->num_cs);
-
-			for (cs = 0; cs < ast_ctrl->num_cs; cs++) {
-				dev_dbg(dev, "cs: %d, sz: 0x%x\n", cs,
-					decode_sz_arr[cs]);
-			}
-
-			ret = aspeed_spi_decode_range_config(ast_ctrl, decode_sz_arr);
-			if (ret)
-				return ret;
+		for (cs = 0; cs < ast_ctrl->num_cs; cs++) {
+			reg_val = readl(ast_ctrl->regs +
+					OFFSET_CE0_DECODE_RANGE_REG + cs * 4);
+			decode_sz_arr[cs] =
+				info->segment_end(ast_ctrl, reg_val) -
+				info->segment_start(ast_ctrl, reg_val);
 		}
+
+		decode_sz_arr[target_cs] = desc->info.length;
+
+		if (info->adjust_decode_sz)
+			info->adjust_decode_sz(decode_sz_arr, ast_ctrl->num_cs);
+
+		for (cs = 0; cs < ast_ctrl->num_cs; cs++) {
+			dev_dbg(dev, "cs: %d, sz: 0x%x\n", cs,
+				decode_sz_arr[cs]);
+		}
+
+		ret = aspeed_spi_decode_range_config(ast_ctrl, decode_sz_arr);
+		if (ret)
+			return ret;
 
 		reg_val = readl(ast_ctrl->regs + OFFSET_CE0_CTRL_REG +
 				target_cs * 4) &
