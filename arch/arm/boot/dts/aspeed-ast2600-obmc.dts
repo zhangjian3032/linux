@@ -624,7 +624,7 @@
 
 &emmc_controller {
 	status = "okay";
-	timing-phase = <0x300FF>;
+	timing-phase = <0x00c6375f>;
 };
 
 &emmc {
@@ -653,7 +653,7 @@
 	bus-width = <4>;
 	max-frequency = <100000000>;
 	sdhci-drive-type = /bits/ 8 <3>;
-	/* DDR50 bits in CAPA2 is not supported */
+	/* DDR50 bit in CAPA2 is not supported */
 	sdhci-caps-mask = <0x4 0x0>;
 	sdhci,wp-inverted;
 };
