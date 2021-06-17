@@ -19,6 +19,8 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #define CCC_WORKAROUND
 #define DEVICE_CTRL			0x0
@@ -168,8 +170,20 @@
 
 #define DEV_CHAR_TABLE_POINTER		0x60
 #define VENDOR_SPECIFIC_REG_POINTER	0x6c
+#define SLV_MIPI_PID_VALUE		0x70
+#define PID_MANUF_ID_ASPEED		0x03f6
+
 #define SLV_PID_VALUE			0x74
+#define SLV_PID_PART_ID(x)		(((x) << 16) & GENMASK(31, 16))
+#define SLV_PID_INST_ID(x)		(((x) << 12) & GENMASK(15, 12))
+#define SLV_PID_DCR(x)			((x) & GENMASK(11, 0))
+
+#define PID_PART_ID_AST2600_SERIES	0x0500
+#define PID_PART_ID_AST1030_A0		0x8000
+
 #define SLV_CHAR_CTRL			0x78
+#define SLV_CHAR_GET_DCR(x)		(((x) & GENMASK(15, 8)) >> 8)
+#define SLV_CHAR_GET_BCR(x)		(((x) & GENMASK(7, 0)) >> 0)
 #define SLV_MAX_LEN			0x7c
 #define MAX_READ_TURNAROUND		0x80
 #define MAX_DATA_SPEED			0x84
@@ -797,6 +811,34 @@ static int dw_i2c_clk_cfg(struct dw_i3c_master *master)
 	return 0;
 }
 
+static void aspeed_i3c_master_set_info(struct dw_i3c_master *master,
+				       struct i3c_device_info *info)
+{
+#define ASPEED_SCU_REV_ID_REG 0x14
+#define ASPEED_HW_REV(x) (((x)&GENMASK(31, 16)) >> 16)
+
+	struct regmap *scu;
+	unsigned int reg;
+	u32 part_id, inst_id;
+
+	writel(PID_MANUF_ID_ASPEED << 1, master->regs + SLV_MIPI_PID_VALUE);
+
+	scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
+	regmap_read(scu, ASPEED_SCU_REV_ID_REG, &reg);
+	part_id = ASPEED_HW_REV(reg);
+	inst_id = master->base.bus.id;
+
+	reg = SLV_PID_PART_ID(part_id) | SLV_PID_INST_ID(inst_id) |
+	      SLV_PID_DCR(0);
+	writel(reg, master->regs + SLV_PID_VALUE);
+
+	reg = readl(master->regs + SLV_CHAR_CTRL);
+	info->dcr = SLV_CHAR_GET_DCR(reg);
+	info->bcr = SLV_CHAR_GET_BCR(reg);
+	info->pid = (u64)readl(master->regs + SLV_MIPI_PID_VALUE) << 32;
+	info->pid |= readl(master->regs + SLV_PID_VALUE);
+};
+
 static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
@@ -834,6 +876,11 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	writel(INTR_MASTER_MASK, master->regs + INTR_SIGNAL_EN);
 
 	dw_i3c_master_set_role(master);
+
+	memset(&info, 0, sizeof(info));
+	if (master->is_aspeed)
+		aspeed_i3c_master_set_info(master, &info);
+
 	ret = i3c_master_get_free_addr(m, 0);
 	if (ret < 0)
 		return ret;
@@ -841,7 +888,6 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	writel(DEV_ADDR_DYNAMIC_ADDR_VALID | DEV_ADDR_DYNAMIC(ret),
 	       master->regs + DEVICE_ADDR);
 
-	memset(&info, 0, sizeof(info));
 	info.dyn_addr = ret;
 
 	ret = i3c_master_set_info(&master->base, &info);
@@ -999,10 +1045,6 @@ static int dw_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 
 	return ret;
 }
-
-#define PID_MANUF_ID_ASPEED		0x03f6
-#define PID_PART_ID_AST2600_SERIES	0x0500
-#define PID_PART_ID_AST1030_A0		0x8000
 
 #define IS_MANUF_ID_ASPEED(x) (I3C_PID_MANUF_ID(x) == PID_MANUF_ID_ASPEED)
 #define IS_PART_ID_AST2600_SERIES(x)                                           \
