@@ -648,7 +648,7 @@
 
 &sdc {
 	status = "okay";
-	timing-phase = <0xc6ffff>;
+	timing-phase = <0x01084747>;
 };
 
 &sdhci0 {
@@ -657,8 +657,8 @@
 	bus-width = <4>;
 	max-frequency = <100000000>;
 	sdhci-drive-type = /bits/ 8 <3>;
-	/* SDR104/DDR50/SDR50 bits in CAPA2 is not supported */
-	sdhci-caps-mask = <0x7 0x580000>;
+	/* DDR50 bit in CAPA2 is not supported */
+	sdhci-caps-mask = <0x4 0x580000>;
 	sdhci,wp-inverted;
 };
 
@@ -668,7 +668,7 @@
 	bus-width = <4>;
 	max-frequency = <100000000>;
 	sdhci-drive-type = /bits/ 8 <3>;
-	sdhci-caps-mask = <0x7 0x580000>;
+	sdhci-caps-mask = <0x4 0x580000>;
 	sdhci,wp-inverted;
 };
 
