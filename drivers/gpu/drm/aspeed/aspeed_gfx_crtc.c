@@ -23,6 +23,30 @@ drm_pipe_to_aspeed_gfx(struct drm_simple_display_pipe *pipe)
 	return container_of(pipe, struct aspeed_gfx, pipe);
 }
 
+static void aspeed_gfx_set_clock_source(struct aspeed_gfx *priv)
+{
+	regmap_update_bits(priv->scu, 0x300, CLK_SOURCE_MASK, 0x0);
+	regmap_update_bits(priv->scu, 0x308, CLK_DIV_MASK, 0x0);
+
+	switch (priv->mode_width) {
+	case 1024:
+		/* hpll div 16 = 75Mhz */
+		regmap_update_bits(priv->scu, 0x300, CLK_SOURCE_MASK, (BIT(10)|BIT(9)|BIT(8)));
+		regmap_update_bits(priv->scu, 0x308, CLK_DIV_MASK, (BIT(16)|BIT(15)|BIT(13)|BIT(12)));
+		break;
+	case 1280:
+		/* dp div2 = 135Mhz */
+		regmap_update_bits(priv->scu, 0x300, CLK_SOURCE_MASK, BIT(10));
+		regmap_update_bits(priv->scu, 0x308, CLK_DIV_MASK, BIT(12));
+		break;
+	case 800:
+	default:
+		/* usb 40Mhz */
+		regmap_update_bits(priv->scu, 0x300, CLK_SOURCE_MASK, BIT(9));
+		break;
+	}
+}
+
 static int aspeed_gfx_set_pixel_fmt(struct aspeed_gfx *priv, u32 *bpp)
 {
 	struct drm_crtc *crtc = &priv->pipe.crtc;
@@ -60,11 +84,14 @@ static void aspeed_gfx_enable_controller(struct aspeed_gfx *priv)
 	u32 ctrl2 = readl(priv->base + CRT_CTRL2);
 
 	/* SCU2C: set DAC source for display output to Graphics CRT (GFX) */
-	if(priv->version == GFX_AST2600)
+	/* SCU2C: set DP source for display output to Graphics (GFX) */
+	if (priv->version == GFX_AST2600) {
 		regmap_update_bits(priv->scu, 0xc0, BIT(16), BIT(16));
+		if (priv->dp_support)
+			regmap_update_bits(priv->scu, 0xc0, BIT(18), BIT(18));
+	}
 	else
 		regmap_update_bits(priv->scu, 0x2c, BIT(16), BIT(16));
-
 
 	writel(ctrl1 | CRT_CTRL_EN, priv->base + CRT_CTRL1);
 	writel(ctrl2 | CRT_CTRL_DAC_EN, priv->base + CRT_CTRL2);
@@ -78,10 +105,32 @@ static void aspeed_gfx_disable_controller(struct aspeed_gfx *priv)
 	writel(ctrl1 & ~CRT_CTRL_EN, priv->base + CRT_CTRL1);
 	writel(ctrl2 & ~CRT_CTRL_DAC_EN, priv->base + CRT_CTRL2);
 
-	if(priv->version == GFX_AST2600)
+	if (priv->version == GFX_AST2600) {
 		regmap_update_bits(priv->scu, 0xc0, BIT(16), 0);
+		if (priv->dp_support)
+			regmap_update_bits(priv->scu, 0xc0, BIT(18), 0);
+	}
 	else 
 		regmap_update_bits(priv->scu, 0x2c, BIT(16), 0);
+}
+
+static void aspeed_gfx_dp_mode_set(struct aspeed_gfx *priv)
+{
+	switch (priv->mode_width) {
+	case 1024:
+		/* hpll div 16 = 75Mhz */
+		regmap_write(priv->dpmcu, 0xde0, DP_1024);
+		break;
+	case 1280:
+		/* dp div2 = 135Mhz */
+		regmap_write(priv->dpmcu, 0xde0, DP_1280);
+		break;
+	case 800:
+	default:
+		/* usb 40Mhz */
+		regmap_write(priv->dpmcu, 0xde0, DP_800);
+		break;
+	}
 }
 
 static void aspeed_gfx_crtc_mode_set_nofb(struct aspeed_gfx *priv)
@@ -94,11 +143,16 @@ static void aspeed_gfx_crtc_mode_set_nofb(struct aspeed_gfx *priv)
 	if (err)
 		return;
 
+	priv->mode_width = m->hdisplay;
+
 #if 0
 	/* TODO: we have only been able to test with the 40MHz USB clock. The
 	 * clock is fixed, so we cannot adjust it here. */
 	clk_set_rate(priv->pixel_clk, m->crtc_clock * 1000);
 #endif
+
+	if (priv->version == GFX_AST2600)
+		aspeed_gfx_set_clock_source(priv);
 
 	ctrl1 = readl(priv->base + CRT_CTRL1);
 	ctrl1 &= ~(CRT_CTRL_INTERLACED |
@@ -153,7 +207,7 @@ static void aspeed_gfx_crtc_mode_set_nofb(struct aspeed_gfx *priv)
 	} else {
 		writel(CRT_THROD_VAL, priv->base + CRT_THROD);
 	}
-	
+
 }
 
 static void aspeed_gfx_pipe_enable(struct drm_simple_display_pipe *pipe,
@@ -164,8 +218,13 @@ static void aspeed_gfx_pipe_enable(struct drm_simple_display_pipe *pipe,
 	struct drm_crtc *crtc = &pipe->crtc;
 
 	aspeed_gfx_crtc_mode_set_nofb(priv);
+
+	if (priv->dp_support)
+		aspeed_gfx_dp_mode_set(priv);
+
 	aspeed_gfx_enable_controller(priv);
 	drm_crtc_vblank_on(crtc);
+
 }
 
 static void aspeed_gfx_pipe_disable(struct drm_simple_display_pipe *pipe)
@@ -175,6 +234,7 @@ static void aspeed_gfx_pipe_disable(struct drm_simple_display_pipe *pipe)
 
 	drm_crtc_vblank_off(crtc);
 	aspeed_gfx_disable_controller(priv);
+
 }
 
 static void aspeed_gfx_pipe_update(struct drm_simple_display_pipe *pipe,
@@ -205,6 +265,7 @@ static void aspeed_gfx_pipe_update(struct drm_simple_display_pipe *pipe,
 	if (!gem)
 		return;
 	writel(gem->paddr, priv->base + CRT_ADDR);
+
 }
 
 static int aspeed_gfx_enable_vblank(struct drm_simple_display_pipe *pipe)

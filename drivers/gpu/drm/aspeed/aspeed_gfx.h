@@ -11,6 +11,10 @@ struct aspeed_gfx {
 	struct reset_control		*crt_rst;
 	struct reset_control		*engine_rst;
 	struct regmap			*scu;
+	struct regmap			*dp;
+	struct regmap			*dpmcu;
+	u8						dp_support;
+	int						mode_width;
 
 	struct drm_simple_display_pipe	pipe;
 	struct drm_connector		connector;
@@ -61,6 +65,17 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define OSD_COLOR6		0xF4 /* OSD Color Palette Index 11 & 10 */
 #define OSD_COLOR7		0xF8 /* OSD Color Palette Index 13 & 12 */
 #define OSD_COLOR8		0xFC /* OSD Color Palette Index 15 & 14 */
+
+#define DP_EXECUTE		0x2E /* DP Status */
+#define CLK_SOURCE_MASK	(BIT(10)|BIT(9)|BIT(8)) /* CLK Source Mask SCU300[10:8] */
+#define CLK_DIV_MASK		0x3F000 /* CLK Divided Mask SCU308[17:12]*/
+
+#define DP_800			0x01050020 /* 800 x 600 60Hz */
+#define DP_1024			0x01050020 /* 1024 x 768 70Hz */
+#define DP_1280			0x010e0020 /* 1280 x 1024 75Hz */
+
+#define DP_CP_NAME		"aspeed,ast2600-displayport"
+#define DP_MCU_CP_NAME	"aspeed,ast2600-displayport-mcu"
 
 /* CTRL1 */
 #define CRT_CTRL_EN			BIT(0)

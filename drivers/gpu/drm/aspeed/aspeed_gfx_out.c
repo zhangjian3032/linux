@@ -13,24 +13,26 @@ static int aspeed_gfx_get_modes(struct drm_connector *connector)
 {
 	struct aspeed_gfx *priv = container_of(connector, struct aspeed_gfx, connector);
 
-	if(priv->version == GFX_AST2600) {
-		u32 clk_src;
-		regmap_read(priv->scu, 0x300, &clk_src);
-		if (((clk_src >> 8) & 0x7) == 0x2)
-			//usb 40Mhz
-			return drm_add_modes_noedid(connector, 800, 600);
-		else if (((clk_src >> 8) & 0x7) == 0x7)
-			//hpll div 16 = 75Mhz
+	if (priv->version == GFX_AST2600) {
+		u32 dp_plug;
+
+		/* chekc dp clock is executed when DP is plug in */
+		regmap_read(priv->dpmcu, 0xd00, &dp_plug);
+
+		if (priv->dp_support) {
+			if ((dp_plug & (BIT(0)|BIT(24))) ==  (BIT(0)|BIT(24)))
+				return drm_add_modes_noedid(connector, 1280, 1024);
+			else
+				return drm_add_modes_noedid(connector, 1024, 768);
+		} else {
 			return drm_add_modes_noedid(connector, 1024, 768);
-		else if (((clk_src >> 8) & 0x7) == 0x4)
-			//dp div2 = 135Mhz
-			return drm_add_modes_noedid(connector, 1280, 1024);
-		else {
-			printk("unknow clk source \n");
-			return drm_add_modes_noedid(connector, 800, 600);
 		}
+
+		drm_set_preferred_mode(connector, 1024, 768);
+
 	} else
 		return drm_add_modes_noedid(connector, 800, 600);
+
 }
 
 static const struct
@@ -58,5 +60,6 @@ int aspeed_gfx_create_output(struct drm_device *drm)
 	ret = drm_connector_init(drm, &priv->connector,
 				 &aspeed_gfx_connector_funcs,
 				 DRM_MODE_CONNECTOR_Unknown);
+
 	return ret;
 }

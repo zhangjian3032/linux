@@ -70,29 +70,17 @@ static void aspeed_gfx_setup_mode_config(struct drm_device *drm)
 	struct aspeed_gfx *priv = drm->dev_private;
 
 	drm_mode_config_init(drm);	
-	
+
 	drm->mode_config.min_width = 0;
 	drm->mode_config.min_height = 0;
 
-	if(priv->version == GFX_AST2600) {
-		u32 clk_src;
-		regmap_read(priv->scu, 0x300, &clk_src);
-		if (((clk_src >> 8) & 0x7) == 0x2) {
-			//usb 40Mhz
-			drm->mode_config.max_width = 800;
-			drm->mode_config.max_height = 600;
-		} else if (((clk_src >> 8) & 0x7) == 0x7) {
-			//hpll div 16 = 75Mhz
-			drm->mode_config.max_width = 1024;
-			drm->mode_config.max_height = 768;
-		} else if (((clk_src >> 8) & 0x7) == 0x4) {
-			//dp div2 = 135Mhz
+	if (priv->version == GFX_AST2600) {
+		if (priv->dp_support) {
 			drm->mode_config.max_width = 1280;
 			drm->mode_config.max_height = 1024;
 		} else {
-			printk("unknow clk source \n");
-			drm->mode_config.max_width = 800;
-			drm->mode_config.max_height = 600;			
+			drm->mode_config.max_width = 1024;
+			drm->mode_config.max_height = 768;
 		}
 	} else {
 		drm->mode_config.max_width = 800;
@@ -135,6 +123,7 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	struct aspeed_gfx *priv;
 	struct resource *res;
 	int ret;
+	u32 reg = 0;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -146,12 +135,12 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-
 	dev_id = of_match_device(aspeed_gfx_match, &pdev->dev);
 	if (!dev_id)
 		return -EINVAL;
-	
+
 	priv->version = (int)dev_id->data;
+
 	priv->scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
 	if (IS_ERR(priv->scu)) {
 		dev_err(&pdev->dev, "failed to find SCU regmap\n");
@@ -197,6 +186,35 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	}
 	clk_prepare_enable(priv->clk);
 
+	if (priv->version == GFX_AST2600) {
+
+		/* check AST DP is executed or not*/
+		ret = regmap_read(priv->scu, 0x100, &reg);
+
+		if (((reg>>8) & DP_EXECUTE) == DP_EXECUTE) {
+			priv->dp_support = 0x1;
+
+			priv->dp = syscon_regmap_lookup_by_compatible(DP_CP_NAME);
+			if (IS_ERR(priv->dp)) {
+				dev_err(&pdev->dev, "failed to find DP regmap\n");
+				return PTR_ERR(priv->dp);
+			}
+
+			priv->dpmcu = syscon_regmap_lookup_by_compatible(DP_MCU_CP_NAME);
+			if (IS_ERR(priv->dpmcu)) {
+				dev_err(&pdev->dev, "failed to find DP MCU regmap\n");
+				return PTR_ERR(priv->dpmcu);
+			}
+
+			/* change the dp setting is coming from soc display */
+			regmap_update_bits(priv->dp, 0xb8, (BIT(24)|BIT(28)), (BIT(24)|BIT(28)));
+		} else {
+			priv->dp_support = 0x0;
+			priv->dp = NULL;
+			priv->dpmcu = NULL;
+		}
+	}
+
 	/* Sanitize control registers */
 	writel(0, priv->base + CRT_CTRL1);
 	writel(0, priv->base + CRT_CTRL2);
@@ -237,6 +255,12 @@ static int aspeed_gfx_load(struct drm_device *drm)
 
 static void aspeed_gfx_unload(struct drm_device *drm)
 {
+	struct aspeed_gfx *priv = drm->dev_private;
+
+	/* change the dp setting is coming from host side */
+	if (priv->dp_support)
+		regmap_update_bits(priv->dp, 0xb8, (BIT(24)|BIT(28)), 0);
+
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
 
@@ -290,7 +314,7 @@ static ssize_t dac_mux_show(struct device *dev, struct device_attribute *attr, c
 		rc = regmap_read(priv->scu, 0xc0, &reg);
 	else 
 		rc = regmap_read(priv->scu, 0x2c, &reg);
-	
+
 	if (rc)
 		return rc;
 
