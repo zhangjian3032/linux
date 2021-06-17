@@ -188,7 +188,7 @@
 
 &sdc {
 	status = "okay";
-	timing-phase = <0xc6ffff>;
+	timing-phase = <0x01084747>;
 };
 
 &sdhci0 {
