@@ -176,6 +176,9 @@
 #define SLV_DEBUG_STATUS		0x88
 #define SLV_INTR_REQ			0x8c
 #define DEVICE_CTRL_EXTENDED		0xb0
+#define DEVICE_CTRL_ROLE_MASK		GENMASK(1, 0)
+#define DEVICE_CTRL_ROLE_MASTER		0
+#define DEVICE_CTRL_ROLE_SLAVE		1
 #define SCL_I3C_OD_TIMING		0xb4
 #define SCL_I3C_PP_TIMING		0xb8
 #define SCL_I3C_TIMING_HCNT(x)		(((x) << 16) & GENMASK(23, 16))
@@ -279,6 +282,7 @@ struct dw_i3c_master {
 	char type[5];
 	u8 addrs[MAX_DEVS];
 	u8 is_aspeed;
+	bool secondary;
 };
 
 struct dw_i3c_i2c_dev_data {
@@ -350,6 +354,19 @@ static void dw_i3c_master_enable(struct dw_i3c_master *master)
 {
 	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_ENABLE,
 	       master->regs + DEVICE_CTRL);
+}
+
+static void dw_i3c_master_set_role(struct dw_i3c_master *master)
+{
+	u32 reg;
+	u32 role = DEVICE_CTRL_ROLE_MASTER;
+
+	if (master->secondary)
+		role = DEVICE_CTRL_ROLE_SLAVE;
+
+	reg = readl(master->regs + DEVICE_CTRL_EXTENDED);
+	reg = (reg & ~DEVICE_CTRL_ROLE_MASK) | role;
+	writel(reg, master->regs + DEVICE_CTRL_EXTENDED);
 }
 
 static int dw_i3c_master_get_addr_pos(struct dw_i3c_master *master, u8 addr)
@@ -816,6 +833,7 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	writel(INTR_MASTER_MASK, master->regs + INTR_STATUS_EN);
 	writel(INTR_MASTER_MASK, master->regs + INTR_SIGNAL_EN);
 
+	dw_i3c_master_set_role(master);
 	ret = i3c_master_get_free_addr(m, 0);
 	if (ret < 0)
 		return ret;
@@ -1625,6 +1643,11 @@ static int dw_i3c_probe(struct platform_device *pdev)
 	else
 		master->is_aspeed = 0;
 
+	if (of_get_property(np, "secondary", NULL))
+		master->secondary = true;
+	else
+		master->secondary = false;
+
 	/* Information regarding the FIFOs/QUEUEs depth */
 	ret = readl(master->regs + QUEUE_STATUS_LEVEL);
 	master->caps.cmdfifodepth = QUEUE_STATUS_LEVEL_CMD(ret);
@@ -1645,7 +1668,7 @@ static int dw_i3c_probe(struct platform_device *pdev)
 #endif
 	master->dev = &pdev->dev;
 	ret = i3c_master_register(&master->base, &pdev->dev,
-				  &dw_mipi_i3c_ops, false);
+				  &dw_mipi_i3c_ops, master->secondary);
 	if (ret)
 		goto err_assert_rst;
 
