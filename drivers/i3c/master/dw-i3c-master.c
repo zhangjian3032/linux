@@ -914,7 +914,8 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	 * for a dummy ccc and resume before accessing. Hide this workarond here
 	 * and later the i3c subsystem code will do the rstdaa again.
 	 */
-	i3c_master_rstdaa_locked(m, I3C_BROADCAST_ADDR);
+	if (!master->secondary)
+		i3c_master_rstdaa_locked(m, I3C_BROADCAST_ADDR);
 
 	return 0;
 }
