@@ -26,6 +26,7 @@
 #define DEVICE_CTRL			0x0
 #define DEV_CTRL_ENABLE			BIT(31)
 #define DEV_CTRL_RESUME			BIT(30)
+#define DEV_CTRL_AUTO_HJ_DISABLE	BIT(27)
 #define DEV_CRTL_IBI_PAYLOAD_EN		BIT(9)
 #define DEV_CTRL_HOT_JOIN_NACK		BIT(8)
 #define DEV_CTRL_I2C_SLAVE_PRESENT	BIT(7)
@@ -250,6 +251,9 @@
 #define I3C_BUS_PP_THIGH_MIN_NS		35
 
 #define XFER_TIMEOUT (msecs_to_jiffies(1000))
+
+#define dw_setbits(x, set)		writel(readl(x) | (set), x)
+#define dw_clrsetbits(x, clr, set)	writel((readl(x) & ~(clr)) | (set), x)
 
 struct dw_i3c_master_caps {
 	u8 cmdfifodepth;
@@ -916,8 +920,8 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_MR_REQ_REJECT);
 
 	/* For now don't support Hot-Join */
-	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_HOT_JOIN_NACK,
-	       master->regs + DEVICE_CTRL);
+	dw_setbits(master->regs + DEVICE_CTRL,
+		   DEV_CTRL_AUTO_HJ_DISABLE | DEV_CTRL_HOT_JOIN_NACK);
 
 	dw_i3c_master_enable(master);
 
