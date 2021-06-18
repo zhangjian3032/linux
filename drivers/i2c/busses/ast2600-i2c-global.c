@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Aspeed I2C Interrupt Controller.
+ * Aspeed I2C Interrupt Controller.
  *
- *  Copyright (C) 2012-2017 ASPEED Technology Inc.
- *  Copyright 2017 IBM Corporation
- *  Copyright 2017 Google, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
+ * Copyright (C) ASPEED Technology Inc.
+ * Ryan Chen <ryan_chen@aspeedtech.com>
  */
 #include <linux/clk.h>
 #include <linux/irq.h>
@@ -31,36 +27,37 @@ struct aspeed_i2c_ic {
 	u32			i2c_irq_mask;
 	struct reset_control	*rst;
 	struct irq_domain	*irq_domain;
-	int			bus_num;	
+	int			bus_num;
 };
 
 static const struct of_device_id aspeed_i2c_ic_of_match[] = {
-	{ .compatible = "aspeed,ast2600-i2c-global", .data = (void *) 0},	
-	{},
+	{ .compatible = "aspeed,ast2600-i2c-global", .data = (void *)0},
+	{ }
 };
+MODULE_DEVICE_TABLE(of, aspeed_i2c_ic_of_match);
 
 struct aspeed_i2c_base_clk {
 	const char	*name;
 	unsigned long	base_freq;
 };
 
-/* assign 4 base clock 
- * [31:24] base clk4 : 1M for 1KHz
- * [23:16] base clk3 : 4M for 400KHz	 
- * [15:08] base clk2 : 10M for 1MHz  
- * [00:07] base clk1 : 35M for 3.4MHz	 
-*/
+/* assign 4 base clock
+ * [31:24] base clk4 : 1M for 100KHz
+ * [23:16] base clk3 : 4M for 400KHz
+ * [15:08] base clk2 : 10M for 1MHz
+ * [00:07] base clk1 : 35M for 3.4MHz
+ */
 #define BASE_CLK_COUNT 4
 
 static const struct aspeed_i2c_base_clk i2c_base_clk[BASE_CLK_COUNT] = {
 	/* name	target_freq */
-	{  "base_clk0",	1000000 },	//1M
-	{  "base_clk1",	4000000 },	//4M
-	{  "base_clk2",	10000000 },	//10M
-	{  "base_clk3",	40000000 },	//40M
+	{  "base_clk0",	1000000 },	/* 1M */
+	{  "base_clk1",	4000000 },	/* 4M */
+	{  "base_clk2",	10000000 },	/* 10M */
+	{  "base_clk3",	40000000 },	/* 40M */
 };
 
-static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long	base_clk, struct device_node *node)
+static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long base_clk, struct device_node *node)
 {
 	struct clk_hw_onecell_data *onecell;
 	struct clk_hw *hw;
@@ -69,18 +66,21 @@ static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long	base_clk, struct devi
 	int i, j;
 	unsigned long base_freq;
 
-	onecell = kzalloc(sizeof(*onecell) + (BASE_CLK_COUNT * sizeof(struct clk_hw *)), GFP_KERNEL);
+	onecell = kzalloc(sizeof(*onecell) +
+			  (BASE_CLK_COUNT * sizeof(struct clk_hw *)),
+			  GFP_KERNEL);
+
 	if (!onecell) {
-		pr_err("allocate clk_hw \n");		
+		pr_err("allocate clk_hw\n");
 		return 0;
 	}
 
 	onecell->num = BASE_CLK_COUNT;
 
-//	printk("base_clk %ld \n", base_clk);
-	for(j = 0; j < BASE_CLK_COUNT; j++) {
-//		printk("target clk : %ld \n", i2c_base_clk[j].base_freq);		
-		for(i = 0; i < 0xff; i++) {
+	pr_debug("base_clk %ld\n", base_clk);
+	for (j = 0; j < BASE_CLK_COUNT; j++) {
+		pr_debug("target clk : %ld\n", i2c_base_clk[j].base_freq);
+		for (i = 0; i < 0xff; i++) {
 			/*
 			 * i maps to div:
 			 * 0x00: div 1
@@ -93,10 +93,10 @@ static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long	base_clk, struct devi
 			 * 0xFF: div 128.5
 			 */
 			base_freq = base_clk * 2 / (2 + i);
-			if(base_freq <= i2c_base_clk[j].base_freq)
+			if (base_freq <= i2c_base_clk[j].base_freq)
 				break;
 		}
-		printk("i2cg - %s : %ld \n", i2c_base_clk[j].name, base_freq);
+		pr_info("i2cg - %s : %ld\n", i2c_base_clk[j].name, base_freq);
 		hw = clk_hw_register_fixed_rate(NULL, i2c_base_clk[j].name, NULL, 0, base_freq);
 		if (IS_ERR(hw)) {
 			pr_err("failed to register input clock: %ld\n", PTR_ERR(hw));
@@ -107,10 +107,9 @@ static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long	base_clk, struct devi
 	}
 
 	err = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, onecell);
-	if (err) {
+	if (err)
 		pr_err("failed to add i2c base clk provider: %d\n", err);
-	}
-	
+
 	return clk_divider;
 }
 
@@ -118,59 +117,58 @@ static int aspeed_i2c_global_probe(struct platform_device *pdev)
 {
 	struct aspeed_i2c_ic *i2c_ic;
 	struct device_node *node = pdev->dev.of_node;
-	const struct of_device_id *match;
-	struct clk *parent_clk;	
+	struct clk *parent_clk;
 	unsigned long	parent_clk_frequency;
+	struct resource *res;
 	u32 clk_divider;
 	int ret = 0;
 
-	match = of_match_node(aspeed_i2c_ic_of_match, node);
-	if (!match)
-		return -ENOMEM;
-
-	i2c_ic = kzalloc(sizeof(*i2c_ic), GFP_KERNEL);
+	i2c_ic = devm_kzalloc(&pdev->dev, sizeof(*i2c_ic),
+			      GFP_KERNEL);
 	if (!i2c_ic)
 		return -ENOMEM;
 
-	i2c_ic->base = of_iomap(node, 0);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	i2c_ic->base = devm_ioremap_resource(&pdev->dev, res);
 	if (!i2c_ic->base) {
 		ret = -ENOMEM;
 		goto err_free_ic;
 	}
 
-	i2c_ic->bus_num = (int) match->data;
-
+	i2c_ic->bus_num = (int)device_get_match_data(&pdev->dev);
 	if (i2c_ic->bus_num) {
-		i2c_ic->parent_irq = irq_of_parse_and_map(node, 0);
+		i2c_ic->parent_irq = platform_get_irq(pdev, 0);
 		if (i2c_ic->parent_irq < 0) {
 			ret = i2c_ic->parent_irq;
 			goto err_iounmap;
 		}
-	} 
+	}
 
 	i2c_ic->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-
 	if (IS_ERR(i2c_ic->rst)) {
 		dev_dbg(&pdev->dev,
 			"missing or invalid reset controller device tree entry");
 	} else {
-		//SCU I2C Reset 
+		/* SCU I2C Reset */
 		reset_control_assert(i2c_ic->rst);
 		udelay(3);
 		reset_control_deassert(i2c_ic->rst);
 	}
-	
+
 	/* ast2600 init */
-	writel(ASPEED_I2CG_SLAVE_PKT_NAK | ASPEED_I2CG_CTRL_NEW_REG | ASPEED_I2CG_CTRL_NEW_CLK_DIV, i2c_ic->base + ASPEED_I2CG_CTRL);
+	writel(ASPEED_I2CG_SLAVE_PKT_NAK |
+	       ASPEED_I2CG_CTRL_NEW_REG |
+	       ASPEED_I2CG_CTRL_NEW_CLK_DIV,
+	       i2c_ic->base + ASPEED_I2CG_CTRL);
 	parent_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(parent_clk))
 		return PTR_ERR(parent_clk);
 	parent_clk_frequency = clk_get_rate(parent_clk);
-//	printk("parent_clk_frequency %ld \n", parent_clk_frequency);
+	pr_debug("parent_clk_frequency %ld\n", parent_clk_frequency);
 	clk_divider = aspeed_i2c_ic_get_new_clk_divider(parent_clk_frequency, node);
 	writel(clk_divider, i2c_ic->base + ASPEED_I2CG_CLK_DIV_CTRL);
 
-	pr_info("i2c global registered \n");
+	pr_info("i2c global registered\n");
 
 	return 0;
 

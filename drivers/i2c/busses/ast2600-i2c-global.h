@@ -1,14 +1,13 @@
-/* ------------------------------------------------------------------------- */
-/* ast2600-i2c-global.h          */
-/* ------------------------------------------------------------------------- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *		Copyright (C) ASPEED Technology Inc.
- *		Ryan Chen <ryan_chen@aspeedtech.com>
- * ------------------------------------------------------------------------- */
-
+ *	Copyright (C) ASPEED Technology Inc.
+ *	Ryan Chen <ryan_chen@aspeedtech.com>
+ */
 
 #ifndef AST2600_I2C_GLOBAL_H
-#define AST2600_I2C_GLOBAL_H 1
+#define AST2600_I2C_GLOBAL_H
+
+#include <linux/bits.h>
 
 #define ASPEED_I2CG_ISR				0x00
 #define ASPEED_I2CG_SLAVE_ISR		0x04	/* ast2600 */
@@ -19,7 +18,7 @@
 /* 0x0C : I2CG SRAM Buffer Enable  */
 #define ASPEED_I2CG_SRAM_BUFFER_ENABLE		BIT(0)
 
-/*ast2600 */
+/* ast2600 */
 #define ASPEED_I2CG_SLAVE_PKT_NAK		BIT(4)
 #define ASPEED_I2CG_M_S_SEPARATE_INTR	BIT(3)
 #define ASPEED_I2CG_CTRL_NEW_REG		BIT(2)

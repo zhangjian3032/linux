@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * i2c-new-aspeed.c - I2C driver for the Aspeed SoC
+ * I2C driver for the Aspeed SoC
  *
  * Copyright (C) ASPEED Technology Inc.
  * Ryan Chen <ryan_chen@aspeedtech.com>
- *
  */
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -373,7 +372,6 @@ enum xfer_mode {
 	BYTE_MODE = 0,
 	BUFF_MODE,
 	DMA_MODE,
-
 };
 
 struct aspeed_new_i2c_bus {
@@ -543,7 +541,7 @@ static u8 aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 }
 
 #ifdef CONFIG_I2C_SLAVE
-void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
+static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
 {
 	u32 cmd = 0;
 	u8 value;
@@ -844,7 +842,7 @@ void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
 
 }
 
-void aspeed_i2c_slave_byte_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
+static void aspeed_i2c_slave_byte_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
 {
 	u8 value;
 	u8 byte_data;
@@ -901,7 +899,7 @@ void aspeed_i2c_slave_byte_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
 
 }
 
-int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
+static int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 {
 	u32 ier = readl(i2c_bus->reg_base + AST_I2CS_IER);
 	u32 sts = readl(i2c_bus->reg_base + AST_I2CS_ISR);
@@ -1107,7 +1105,7 @@ static int aspeed_new_i2c_is_irq_error(u32 irq_status)
 	return 0;
 }
 
-void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
+static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
 {
 	int i;
 	int xfer_len;
@@ -1372,7 +1370,7 @@ void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
 
 }
 
-int aspeed_new_i2c_master_irq(struct aspeed_new_i2c_bus *i2c_bus)
+static int aspeed_new_i2c_master_irq(struct aspeed_new_i2c_bus *i2c_bus)
 {
 	u32 sts = readl(i2c_bus->reg_base + AST_I2CM_ISR);
 
