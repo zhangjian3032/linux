@@ -215,6 +215,7 @@
 
 #define SCL_EXT_TERMN_LCNT_TIMING	0xcc
 #define BUS_FREE_TIMING			0xd4
+#define BUS_I3C_AVAILABLE_TIME(x)	(((x) << 16) & GENMASK(31, 16))
 #define BUS_I3C_MST_FREE(x)		((x) & GENMASK(15, 0))
 
 #define BUS_IDLE_TIMING			0xd8
@@ -726,8 +727,12 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 		scl_timing = SCL_I2C_FMP_TIMING_HCNT(hcnt) | SCL_I2C_FMP_TIMING_LCNT(lcnt);
 		writel(scl_timing, master->regs + SCL_I2C_FMP_TIMING);
 
-		if (!(readl(master->regs + DEVICE_CTRL) & DEV_CTRL_I2C_SLAVE_PRESENT))
-			writel(BUS_I3C_MST_FREE(lcnt), master->regs + BUS_FREE_TIMING);
+		if (!(readl(master->regs + DEVICE_CTRL) &
+		      DEV_CTRL_I2C_SLAVE_PRESENT)) {
+			scl_timing = BUS_I3C_AVAILABLE_TIME(0xffff);
+			scl_timing |= BUS_I3C_MST_FREE(lcnt);
+			writel(scl_timing, master->regs + BUS_FREE_TIMING);
+		}
 
 		/* set push-pull timing according to I3C SCL frequency */
 		if (master->base.bus.scl_rate.i3c) {
@@ -759,8 +764,12 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 		scl_timing = SCL_I3C_TIMING_HCNT(hcnt) | SCL_I3C_TIMING_LCNT(lcnt);
 		writel(scl_timing, master->regs + SCL_I3C_PP_TIMING);
 
-		if (!(readl(master->regs + DEVICE_CTRL) & DEV_CTRL_I2C_SLAVE_PRESENT))
-			writel(BUS_I3C_MST_FREE(lcnt), master->regs + BUS_FREE_TIMING);
+		if (!(readl(master->regs + DEVICE_CTRL) &
+		      DEV_CTRL_I2C_SLAVE_PRESENT)) {
+			scl_timing = BUS_I3C_AVAILABLE_TIME(0xffff);
+			scl_timing |= BUS_I3C_MST_FREE(lcnt);
+			writel(scl_timing, master->regs + BUS_FREE_TIMING);
+		}
 
 		lcnt = DIV_ROUND_UP(I3C_BUS_TLOW_OD_MIN_NS, core_period);
 		scl_timing = SCL_I3C_TIMING_HCNT(hcnt) | SCL_I3C_TIMING_LCNT(lcnt);
@@ -804,7 +813,9 @@ static int dw_i2c_clk_cfg(struct dw_i3c_master *master)
 		     SCL_I2C_FM_TIMING_LCNT(lcnt);
 	writel(scl_timing, master->regs + SCL_I2C_FM_TIMING);
 
-	writel(BUS_I3C_MST_FREE(lcnt), master->regs + BUS_FREE_TIMING);
+	scl_timing = BUS_I3C_AVAILABLE_TIME(0xffff);
+	scl_timing |= BUS_I3C_MST_FREE(lcnt);
+	writel(scl_timing, master->regs + BUS_FREE_TIMING);
 	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_I2C_SLAVE_PRESENT,
 	       master->regs + DEVICE_CTRL);
 
