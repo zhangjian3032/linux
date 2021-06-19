@@ -1115,9 +1115,11 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 	sts &= ~AST_I2CM_PKT_DONE;
 	writel(AST_I2CM_PKT_DONE, i2c_bus->reg_base + AST_I2CM_ISR);
 	switch (sts) {
+	case AST_I2CM_PKT_ERROR:
+		dev_dbg(i2c_bus->dev, "M : ERROR only\n");
+		fallthrough;
 	case AST_I2CM_PKT_ERROR | AST_I2CM_TX_NAK: //a0 fix for issue
-		//dev_dbg(i2c_bus->dev, "a0 workaround for M TX NAK [%x]\n",
-		//	readl(i2c_bus->reg_base + AST_I2CC_STS_AND_BUFF));
+		fallthrough;
 	case AST_I2CM_PKT_ERROR | AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP:
 		dev_dbg(i2c_bus->dev, "M : TX NAK | NORMAL STOP\n");
 		i2c_bus->cmd_err = -ENXIO;
