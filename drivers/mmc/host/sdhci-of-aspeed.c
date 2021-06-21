@@ -223,10 +223,12 @@ static struct sdhci_ops aspeed_sdhci_ops = {
 };
 
 static struct sdhci_pltfm_data aspeed_sdhci_pdata = {
-	.ops = &aspeed_sdhci_ops,
 #ifndef CONFIG_MACH_ASPEED_G6
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN | SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
+#else
+	.ops = &aspeed_sdhci_ops,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 #endif
 };
 
