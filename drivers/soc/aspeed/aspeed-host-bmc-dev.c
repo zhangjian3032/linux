@@ -142,7 +142,7 @@ static ssize_t aspeed_pci_bmc_dev_queue1_rx(struct file *filp, struct kobject *k
 
 //	printk("aspeed_pci_bmc_dev_queue1_rx \n");
 
-	if(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_Q1) & BMC2HOST_Q1_EMPTY)
+	if (readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS) & BMC2HOST_Q1_EMPTY)
 		return 0;
 	else {
 		data[0] = readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_Q1);
@@ -159,7 +159,7 @@ static ssize_t aspeed_pci_bmc_dev_queue2_rx(struct file *filp, struct kobject *k
 
 //	printk("aspeed_pci_bmc_dev_queue2_rx \n");
 
-	if(!(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_Q2) & BMC2HOST_Q2_EMPTY)) {
+	if (!(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS) & BMC2HOST_Q2_EMPTY)) {
 		data[0] = readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_Q2);
 //		printk("Got BMC2HOST_Q2 [%x] \n", data[0]);
 		return 4;
@@ -257,10 +257,10 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 		goto out_err;
 	}
 
-#if BMC_MSI_INT
 	/* set PCI host mastering  */
 	pci_set_master(pdev);
 
+#if BMC_MSI_INT
 	rc = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (rc < 0)
 		printk("cannot allocate PCI MSI, rc=%d\n", rc);
