@@ -28,13 +28,15 @@
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 
-#include <uapi/linux/aspeed-espi.h>
+#include "aspeed-espi.h"
 #include "aspeed-espi-ctrl.h"
 #include "aspeed-espi-perif.h"
 #include "aspeed-espi-mmbi.h"
 
 #define AST_SCU_HW_STRAP2	(0x510)
 #define ENABLE_LPC_MODE		BIT(6)
+#define AST_SCU_DBG_CTRL2	(0xD8)
+#define FORCE_DISABLE_ESPI_TO_AHB_BRIDGE	BIT(0)
 #define MAX_APP_INSTANCES	(8)
 
 struct aspeed_espi_mmbi_data {
@@ -448,12 +450,10 @@ static int aspeed_espi_mmbi_probe(struct platform_device *pdev)
 	}
 
 	// peripheral channel memory W/R cycle enable
-	val = aspeed_espi_mmbi_read(aspeed_espi_mmbi,ESPI_CTRL2);
-	val &= ~ESPI_CTRL2_MEMCYC_RD_DIS;
-	val &= ~ESPI_CTRL2_MEMCYC_WR_DIS;
-	aspeed_espi_mmbi_write(aspeed_espi_mmbi, val, ESPI_CTRL2);
-	ESPI_MMBI_DBUG("aspeed_espi_mmbi  ASPEED_ESPI_CTRL2=0x%x\n", val);
-
+	regmap_read(scu, AST_SCU_DBG_CTRL2, &val);
+	val &= ~FORCE_DISABLE_ESPI_TO_AHB_BRIDGE;
+	regmap_write(scu, AST_SCU_DBG_CTRL2, val);
+	ESPI_MMBI_DBUG("aspeed_espi_mmbi  AST_SCU_DBG_CTRL2=0x%x\n", val);
 	ESPI_MMBI_DBUG("platform get irq");
 	aspeed_espi_mmbi->irq = platform_get_irq(pdev, 0);
 	if (aspeed_espi_mmbi->irq < 0) {
@@ -525,4 +525,3 @@ module_platform_driver(aspeed_espi_mmbi_driver);
 MODULE_AUTHOR("Yunlin Tang <yunlin.tang@aspeedtech.com>");
 MODULE_DESCRIPTION("AST eSPI MMBI driver");
 MODULE_LICENSE("GPL");
-
