@@ -477,11 +477,12 @@ static ssize_t current_master_show(struct device *dev,
 				   char *buf)
 {
 	struct i3c_bus *i3cbus = dev_to_i3cbus(dev);
-	ssize_t ret;
+	ssize_t ret = 0;
 
 	i3c_bus_normaluse_lock(i3cbus);
-	ret = sprintf(buf, "%d-%llx\n", i3cbus->id,
-		      i3cbus->cur_master->info.pid);
+	if (i3cbus->cur_master)
+		ret = sprintf(buf, "%d-%llx\n", i3cbus->id,
+			      i3cbus->cur_master->info.pid);
 	i3c_bus_normaluse_unlock(i3cbus);
 
 	return ret;
@@ -1673,7 +1674,10 @@ int i3c_master_set_info(struct i3c_master_controller *master,
 		return PTR_ERR(i3cdev);
 
 	master->this = i3cdev;
-	master->bus.cur_master = master->this;
+	if (master->secondary)
+		master->bus.cur_master = NULL;
+	else
+		master->bus.cur_master = master->this;
 
 	ret = i3c_master_attach_i3c_dev(master, i3cdev);
 	if (ret)
