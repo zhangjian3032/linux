@@ -24,12 +24,12 @@
 #include "ast2600-i2c-global.h"
 
 /***************************************************************************/
-//AST2600 reg
+/* AST2600 reg */
 /* 0x00 : I2CC Master/Slave Function Control Register  */
 #define AST_I2CC_FUN_CTRL		0x00
 #define AST_I2CC_SLAVE_ADDR_RX_EN		BIT(20)
-#define AST_I2CC_MASTER_RETRY_MASK		(0x3 << 18)
-#define AST_I2CC_MASTER_RETRY(x)		((x & 0x3) << 18)
+#define AST_I2CC_MASTER_RETRY_MASK		GENMASK(19, 18)
+#define AST_I2CC_MASTER_RETRY(x)		(((x) & GENMASK(1, 0)) << 18)
 #define AST_I2CC_BUS_AUTO_RELEASE		BIT(17)
 #define AST_I2CC_M_SDA_LOCK_EN			BIT(16)
 #define AST_I2CC_MULTI_MASTER_DIS		BIT(15)
@@ -44,17 +44,17 @@
 
 /* 0x04 : I2CC Master/Slave Clock and AC Timing Control Register #1 */
 #define AST_I2CC_AC_TIMING		0x04
-#define AST_I2CC_tTIMEOUT(x)			((x & 0x1f) << 24)
-#define AST_I2CC_tCKHIGHMin(x)			((x & 0xf) << 20)
-#define AST_I2CC_tCKHIGH(x)			((x & 0xf) << 16)
-#define AST_I2CC_tCKLOW(x)			((x & 0xf) << 12)
-#define AST_I2CC_tHDDAT(x)			((x & 0x3) << 10)
-#define AST_I2CC_toutBaseCLK(x)			((x & 0x3) << 8)
-#define AST_I2CC_tBaseCLK(x)			(x & 0xf)
+#define AST_I2CC_tTIMEOUT(x)			(((x) & GENMASK(4, 0)) << 24)
+#define AST_I2CC_tCKHIGHMin(x)			(((x) & GENMASK(3, 0)) << 20)
+#define AST_I2CC_tCKHIGH(x)			(((x) & GENMASK(3, 0)) << 16)
+#define AST_I2CC_tCKLOW(x)			(((x) & GENMASK(3, 0)) << 12)
+#define AST_I2CC_tHDDAT(x)			(((x) & GENMASK(1, 0)) << 10)
+#define AST_I2CC_toutBaseCLK(x)			(((x) & GENMASK(1, 0)) << 8)
+#define AST_I2CC_tBaseCLK(x)			((x) & GENMASK(3, 0))
 
 /* 0x08 : I2CC Master/Slave Transmit/Receive Byte Buffer Register */
 #define AST_I2CC_STS_AND_BUFF		0x08
-#define AST_I2CC_TX_DIR_MASK			(0x7 << 29)
+#define AST_I2CC_TX_DIR_MASK			GENMASK(31, 29)
 #define AST_I2CC_SDA_OE				BIT(28)
 #define AST_I2CC_SDA_O				BIT(27)
 #define AST_I2CC_SCL_OE				BIT(26)
@@ -64,14 +64,14 @@
 #define AST_I2CC_SDA_LINE_STS			BIT(17)
 #define AST_I2CC_BUS_BUSY_STS			BIT(16)
 
-#define AST_I2CC_GET_RX_BUFF(x)			((x >> 8) & 0xff)
+#define AST_I2CC_GET_RX_BUFF(x)			(((x) >> 8) & GENMASK(7, 0))
 
 /* 0x0C : I2CC Master/Slave Pool Buffer Control Register  */
 #define AST_I2CC_BUFF_CTRL		0x0C
-#define AST_I2CC_GET_RX_BUF_LEN(x)		((x >> 24) & 0x3f)
-#define AST_I2CC_SET_RX_BUF_LEN(x)		(((x - 1) & 0x1f) << 16)
-#define AST_I2CC_SET_TX_BUF_LEN(x)		(((x - 1) & 0x1f) << 8)
-#define AST_I2CC_GET_TX_BUF_LEN(x)		(((x >> 8) & 0x1f) + 1)
+#define AST_I2CC_GET_RX_BUF_LEN(x)		(((x) >> 24) & GENMASK(5, 0))
+#define AST_I2CC_SET_RX_BUF_LEN(x)		((((x) - 1) & GENMASK(4, 0)) << 16)
+#define AST_I2CC_SET_TX_BUF_LEN(x)		((((x) - 1) & GENMASK(4, 0)) << 8)
+#define AST_I2CC_GET_TX_BUF_LEN(x)		((((x) >> 8) & GENMASK(4, 0)) + 1)
 
 /* 0x10 : I2CM Master Interrupt Control Register */
 #define AST_I2CM_IER			0x10
@@ -97,7 +97,7 @@
 
 /* 0x18 : I2CM Master Command/Status Register   */
 #define AST_I2CM_CMD_STS		0x18
-#define AST_I2CM_PKT_ADDR(x)			((x & 0x7f) << 24)
+#define AST_I2CM_PKT_ADDR(x)			(((x) & GENMASK(6, 0)) << 24)
 #define AST_I2CM_PKT_EN				BIT(16)
 #define AST_I2CM_SDA_OE_OUT_DIR			BIT(15)
 #define AST_I2CM_SDA_O_OUT_DIR			BIT(14)
@@ -123,32 +123,30 @@
 /* 0x1C : I2CM Master DMA Transfer Length Register	 */
 #define AST_I2CM_DMA_LEN		0x1C
 /* Tx Rx support length 1 ~ 4096 */
-#define AST_I2CM_SET_RX_DMA_LEN(x)	((((x) & 0xfff) << 16) | BIT(31))
-#define AST_I2CM_SET_TX_DMA_LEN(x)	(((x) & 0xfff) | BIT(15))
+#define AST_I2CM_SET_RX_DMA_LEN(x)	((((x) & GENMASK(11, 0)) << 16) | BIT(31))
+#define AST_I2CM_SET_TX_DMA_LEN(x)	(((x) & GENMASK(11, 0)) | BIT(15))
 
 /* 0x20 : I2CS Slave Interrupt Control Register   */
 #define AST_I2CS_IER			0x20
 /* 0x24 : I2CS Slave Interrupt Status Register	 */
 #define AST_I2CS_ISR			0x24
 
-#define AST_I2CS_ADDR_INDICAT_MASK	(3 << 30)
+#define AST_I2CS_ADDR_INDICATE_MASK	GENMASK(31, 30)
 #define AST_I2CS_SLAVE_PENDING			BIT(29)
 
 #define AST_I2CS_Wait_TX_DMA			BIT(25)
 #define AST_I2CS_Wait_RX_DMA			BIT(24)
 
-
 #define AST_I2CS_ADDR3_NAK			BIT(22)
 #define AST_I2CS_ADDR2_NAK			BIT(21)
 #define AST_I2CS_ADDR1_NAK			BIT(20)
 
-#define AST_I2CS_ADDR_MASK			(3 << 18)
+#define AST_I2CS_ADDR_MASK			GENMASK(19, 18)
 #define AST_I2CS_PKT_ERROR			BIT(17)
 #define AST_I2CS_PKT_DONE			BIT(16)
 #define AST_I2CS_INACTIVE_TO			BIT(15)
-//
+
 #define AST_I2CS_SLAVE_MATCH			BIT(7)
-//
 #define AST_I2CS_ABNOR_STOP			BIT(5)
 #define AST_I2CS_STOP				BIT(4)
 #define AST_I2CS_RX_DONE_NAK			BIT(3)
@@ -158,7 +156,7 @@
 
 /* 0x28 : I2CS Slave CMD/Status Register   */
 #define AST_I2CS_CMD_STS		0x28
-#define AST_I2CS_ACTIVE_ALL			(0x3 << 17)
+#define AST_I2CS_ACTIVE_ALL			GENMASK(18, 17)
 #define AST_I2CS_PKT_MODE_EN			BIT(16)
 #define AST_I2CS_AUTO_NAK_NOADDR		BIT(15)
 #define AST_I2CS_AUTO_NAK_EN			BIT(14)
@@ -173,11 +171,11 @@
 #define AST_I2CS_TX_CMD				BIT(2)
 
 #define AST_I2CS_DMA_LEN		0x2C
-#define AST_I2CS_SET_RX_DMA_LEN(x)	((((x - 1) & 0xfff) << 16) | BIT(31))
-#define AST_I2CS_RX_DMA_LEN_MASK	(0xfff << 16)
+#define AST_I2CS_SET_RX_DMA_LEN(x)	(((((x) - 1) & GENMASK(11, 0)) << 16) | BIT(31))
+#define AST_I2CS_RX_DMA_LEN_MASK	(GENMASK(11, 0) << 16)
 
-#define AST_I2CS_SET_TX_DMA_LEN(x)	(((x - 1) & 0xfff) | BIT(15))
-#define AST_I2CS_TX_DMA_LEN_MASK	0xfff
+#define AST_I2CS_SET_TX_DMA_LEN(x)	((((x) - 1) & GENMASK(11, 0)) | BIT(15))
+#define AST_I2CS_TX_DMA_LEN_MASK	GENMASK(11, 0)
 
 /* I2CM Master DMA Tx Buffer Register   */
 #define AST_I2CM_TX_DMA			0x30
@@ -190,23 +188,22 @@
 
 #define AST_I2CS_ADDR_CTRL		0x40
 
-#define	AST_I2CS_ADDR3_MASK		(0x7f << 16)
-#define	AST_I2CS_ADDR2_MASK		(0x7f << 8)
-#define	AST_I2CS_ADDR1_MASK		0x7f
-
+#define	AST_I2CS_ADDR3_MASK		GENMASK(22, 16)
+#define	AST_I2CS_ADDR2_MASK		GENMASK(14, 8)
+#define	AST_I2CS_ADDR1_MASK		GENMASK(6, 0)
 
 #define AST_I2CM_DMA_LEN_STS		0x48
 #define AST_I2CS_DMA_LEN_STS		0x4C
 
-#define AST_I2C_GET_TX_DMA_LEN(x)		(x & 0x1fff)
-#define AST_I2C_GET_RX_DMA_LEN(x)		((x >> 16) & 0x1fff)
+#define AST_I2C_GET_TX_DMA_LEN(x)		((x) & GENMASK(12, 0))
+#define AST_I2C_GET_RX_DMA_LEN(x)		(((x) >> 16) & GENMASK(12, 0))
 
 /* 0x40 : Slave Device Address Register */
 #define AST_I2CS_ADDR3_ENABLE			BIT(23)
-#define AST_I2CS_ADDR3(x)			(x << 16)
+#define AST_I2CS_ADDR3(x)			((x) << 16)
 
 #define AST_I2CS_ADDR2_ENABLE			BIT(15)
-#define AST_I2CS_ADDR2(x)			(x << 8)
+#define AST_I2CS_ADDR2(x)			((x) << 8)
 #define AST_I2CS_ADDR1_ENABLE			BIT(7)
 #define AST_I2CS_ADDR1(x)			(x)
 
@@ -398,11 +395,11 @@ struct aspeed_new_i2c_bus {
 	/* master structure */
 	int					cmd_err;
 	struct completion	cmd_complete;
-	struct i2c_msg		*msgs;	//cur xfer msgs
-	size_t				buf_index;	//buffer mode idx
+	struct i2c_msg		*msgs;	/* cur xfer msgs */
+	size_t				buf_index;	/* buffer mode idx */
 	/* cur xfer msgs index*/
 	int					msgs_index;
-	int					msgs_count;	//total msgs
+	int					msgs_count;	/* total msgs */
 	dma_addr_t			master_dma_addr;
 	/*total xfer count */
 	int					master_xfer_cnt;
@@ -421,39 +418,43 @@ struct aspeed_new_i2c_bus {
 
 static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 {
-	int i;
-	u32 data;
-	int div = 0;
+	unsigned long base_clk1;
+	unsigned long base_clk2;
+	unsigned long base_clk3;
+	unsigned long base_clk4;
 	int divider_ratio = 0;
 	u32 clk_div_reg;
+	u32 scl_low;
+	u32 scl_high;
+	int div = 0;
 	int inc = 0;
-	unsigned long base_clk1, base_clk2, base_clk3, base_clk4;
-	u32 scl_low, scl_high;
+	u32 data;
+	int i;
 
 	if (i2c_bus->clk_div_mode) {
 		regmap_read(i2c_bus->global_reg, ASPEED_I2CG_CLK_DIV_CTRL,
 			    &clk_div_reg);
-		base_clk1 = (i2c_bus->apb_clk*10) /
+		base_clk1 = (i2c_bus->apb_clk * 10) /
 				((((clk_div_reg & 0xff) + 2) * 10) / 2);
-		base_clk2 = (i2c_bus->apb_clk*10) /
+		base_clk2 = (i2c_bus->apb_clk * 10) /
 				(((((clk_div_reg >> 8) & 0xff) + 2) * 10) / 2);
-		base_clk3 = (i2c_bus->apb_clk*10) /
+		base_clk3 = (i2c_bus->apb_clk * 10) /
 				(((((clk_div_reg >> 16) & 0xff) + 2) * 10) / 2);
-		base_clk4 = (i2c_bus->apb_clk*10) /
+		base_clk4 = (i2c_bus->apb_clk * 10) /
 				(((((clk_div_reg >> 24) & 0xff) + 2) * 10) / 2);
-		if (i2c_bus->bus_frequency <= (base_clk1/10)) {
+		if (i2c_bus->bus_frequency <= (base_clk1 / 10)) {
 			div = 1;
 			divider_ratio = base_clk1 / i2c_bus->bus_frequency;
-		} else if ((i2c_bus->bus_frequency > (base_clk1/10)) &&
-				(i2c_bus->bus_frequency <= (base_clk2/10))) {
+		} else if ((i2c_bus->bus_frequency > (base_clk1 / 10)) &&
+				(i2c_bus->bus_frequency <= (base_clk2 / 10))) {
 			div = 2;
 			divider_ratio = base_clk2 / i2c_bus->bus_frequency;
-		} else if ((i2c_bus->bus_frequency > (base_clk2/10)) &&
-				(i2c_bus->bus_frequency <= (base_clk3/10))) {
+		} else if ((i2c_bus->bus_frequency > (base_clk2 / 10)) &&
+				(i2c_bus->bus_frequency <= (base_clk3 / 10))) {
 			div = 3;
 			divider_ratio = base_clk3 / i2c_bus->bus_frequency;
-		} else if ((i2c_bus->bus_frequency > (base_clk3/10)) &&
-				(i2c_bus->bus_frequency <= (base_clk4/10))) {
+		} else if ((i2c_bus->bus_frequency > (base_clk3 / 10)) &&
+				(i2c_bus->bus_frequency <= (base_clk4 / 10))) {
 			div = 4;
 			divider_ratio = base_clk4 / i2c_bus->bus_frequency;
 			inc = 0;
@@ -467,7 +468,6 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 			div = 0;
 			divider_ratio = i2c_bus->apb_clk /
 					i2c_bus->bus_frequency;
-			divider_ratio = 5;
 		}
 		div &= 0xf;
 		scl_low = ((divider_ratio >> 1) - 1) & 0xf;
@@ -490,9 +490,10 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 
 static u8 aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 {
-	u32 ctrl, state;
-	int r;
 	int ret = 0;
+	u32 ctrl;
+	u32 state;
+	int r;
 
 	dev_dbg(i2c_bus->dev, "%d-bus recovery bus [%x]\n",
 		i2c_bus->adap.nr,
@@ -501,22 +502,22 @@ static u8 aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 	ctrl = readl(i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
 
 	writel(ctrl & ~(AST_I2CC_MASTER_EN | AST_I2CC_SLAVE_EN),
-			i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
+	       i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
 
 	writel(readl(i2c_bus->reg_base + AST_I2CC_FUN_CTRL) |
-			AST_I2CC_MASTER_EN,
-			i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
+	       AST_I2CC_MASTER_EN,
+	       i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
 
-	//Let's retry 10 times
+	/* Let's retry 10 times */
 	reinit_completion(&i2c_bus->cmd_complete);
 	i2c_bus->cmd_err = 0;
 
-	//Check 0x14's SDA and SCL status
+	/* Check 0x14's SDA and SCL status */
 	state = readl(i2c_bus->reg_base + AST_I2CC_STS_AND_BUFF);
 	if (!(state & AST_I2CC_SDA_LINE_STS) &&
 	    (state & AST_I2CC_SCL_LINE_STS)) {
 		writel(AST_I2CM_RECOVER_CMD_EN,
-				i2c_bus->reg_base + AST_I2CM_CMD_STS);
+		       i2c_bus->reg_base + AST_I2CM_CMD_STS);
 		r = wait_for_completion_timeout(&i2c_bus->cmd_complete,
 						i2c_bus->adap.timeout);
 		if (r == 0) {
@@ -543,11 +544,11 @@ static u8 aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 #ifdef CONFIG_I2C_SLAVE
 static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
 {
+	int slave_rx_len;
+	u8 byte_data;
 	u32 cmd = 0;
 	u8 value;
-	u8 byte_data;
 	int i = 0;
-	int slave_rx_len;
 
 	sts &= ~(AST_I2CS_PKT_DONE | AST_I2CS_PKT_ERROR);
 	writel(AST_I2CS_PKT_DONE, i2c_bus->reg_base + AST_I2CS_ISR);
@@ -574,14 +575,12 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 		cmd = SLAVE_TRIGGER_CMD;
 		if (i2c_bus->mode == DMA_MODE) {
 			cmd |= AST_I2CS_RX_DMA_EN;
-			writel(AST_I2CS_SET_RX_DMA_LEN(
-				I2C_SLAVE_MSG_BUF_SIZE),
-				i2c_bus->reg_base + AST_I2CS_DMA_LEN);
+			writel(AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE),
+			       i2c_bus->reg_base + AST_I2CS_DMA_LEN);
 		} else if (i2c_bus->mode == BUFF_MODE) {
 			cmd |= AST_I2CS_RX_BUFF_EN;
-			writel(AST_I2CC_SET_RX_BUF_LEN(
-				i2c_bus->buf_size),
-				i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
+			writel(AST_I2CC_SET_RX_BUF_LEN(i2c_bus->buf_size),
+			       i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
 		} else {
 			cmd &= ~AST_I2CS_PKT_MODE_EN;
 		}
@@ -604,8 +603,9 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 				dev_dbg(i2c_bus->dev, "S : Sw|D|P\n");
 			else
 				dev_dbg(i2c_bus->dev, "S : D|P\n");
-		} else
+		} else {
 			dev_dbg(i2c_bus->dev, "S : Sw|D\n");
+		}
 
 		if (sts & AST_I2CS_SLAVE_MATCH)
 			i2c_slave_event(i2c_bus->slave,
@@ -615,38 +615,34 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 		if (i2c_bus->mode == DMA_MODE) {
 			cmd |= AST_I2CS_RX_DMA_EN;
 			slave_rx_len =
-			AST_I2C_GET_RX_DMA_LEN(
-			readl(i2c_bus->reg_base + AST_I2CS_DMA_LEN_STS));
-			dev_dbg(i2c_bus->dev, "rx len %d\n",
-						slave_rx_len);
+			AST_I2C_GET_RX_DMA_LEN(readl(i2c_bus->reg_base +
+					       AST_I2CS_DMA_LEN_STS));
+			dev_dbg(i2c_bus->dev, "rx len %d\n", slave_rx_len);
 			for (i = 0; i < slave_rx_len; i++) {
 				i2c_slave_event(i2c_bus->slave,
-					I2C_SLAVE_WRITE_RECEIVED,
-					&i2c_bus->slave_dma_buf[i]);
+						I2C_SLAVE_WRITE_RECEIVED,
+						&i2c_bus->slave_dma_buf[i]);
 			}
-			writel(AST_I2CS_SET_RX_DMA_LEN(
-				I2C_SLAVE_MSG_BUF_SIZE),
-				i2c_bus->reg_base + AST_I2CS_DMA_LEN);
+			writel(AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE),
+			       i2c_bus->reg_base + AST_I2CS_DMA_LEN);
 		} else if (i2c_bus->mode == BUFF_MODE) {
 			cmd |= AST_I2CS_RX_BUFF_EN;
 			slave_rx_len =
-				AST_I2CC_GET_RX_BUF_LEN(
-				readl(i2c_bus->reg_base + AST_I2CC_BUFF_CTRL));
+				AST_I2CC_GET_RX_BUF_LEN(readl(i2c_bus->reg_base +
+							AST_I2CC_BUFF_CTRL));
 			for (i = 0; i < slave_rx_len; i++) {
 				value = readb(i2c_bus->buf_base + i);
 				dev_dbg(i2c_bus->dev, "[%02x]", value);
 				i2c_slave_event(i2c_bus->slave,
-					I2C_SLAVE_WRITE_RECEIVED,
-					&value);
+						I2C_SLAVE_WRITE_RECEIVED,
+						&value);
 			}
-			writel(AST_I2CC_SET_RX_BUF_LEN(
-				i2c_bus->buf_size),
-				i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
+			writel(AST_I2CC_SET_RX_BUF_LEN(i2c_bus->buf_size),
+			       i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
 		} else {
 			cmd &= ~AST_I2CS_PKT_MODE_EN;
-			byte_data = AST_I2CC_GET_RX_BUFF(
-					readl(i2c_bus->reg_base +
-					AST_I2CC_STS_AND_BUFF));
+			byte_data = AST_I2CC_GET_RX_BUFF(readl(i2c_bus->reg_base +
+							 AST_I2CC_STS_AND_BUFF));
 			dev_dbg(i2c_bus->dev, "[%02x]", byte_data);
 			i2c_slave_event(i2c_bus->slave,
 					I2C_SLAVE_WRITE_RECEIVED,
@@ -658,10 +654,10 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 		writel(cmd, i2c_bus->reg_base + AST_I2CS_CMD_STS);
 		break;
 
-	//it is Mw data Mr coming -> it need send tx
+	/* it is Mw data Mr coming -> it need send tx */
 	case AST_I2CS_RX_DONE | AST_I2CS_Wait_TX_DMA:
 	case AST_I2CS_SLAVE_MATCH | AST_I2CS_RX_DONE | AST_I2CS_Wait_TX_DMA:
-		//it should be repeat start read
+		/* it should be repeat start read */
 		if (sts & AST_I2CS_SLAVE_MATCH)
 			dev_dbg(i2c_bus->dev,
 				"S: AST_I2CS_Wait_TX_DMA | AST_I2CS_SLAVE_MATCH | AST_I2CS_RX_DONE\n");
@@ -678,16 +674,14 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 		if (i2c_bus->mode == DMA_MODE) {
 			cmd |= AST_I2CS_TX_DMA_EN;
 			slave_rx_len =
-				AST_I2C_GET_RX_DMA_LEN(
-				readl(i2c_bus->reg_base +
-					AST_I2CS_DMA_LEN_STS));
+				AST_I2C_GET_RX_DMA_LEN(readl(i2c_bus->reg_base +
+						       AST_I2CS_DMA_LEN_STS));
 			for (i = 0; i < slave_rx_len; i++) {
 				dev_dbg(i2c_bus->dev, "rx [%02x]",
 					i2c_bus->slave_dma_buf[i]);
-				i2c_slave_event(
-					i2c_bus->slave,
-					I2C_SLAVE_WRITE_RECEIVED,
-					&i2c_bus->slave_dma_buf[i]);
+				i2c_slave_event(i2c_bus->slave,
+						I2C_SLAVE_WRITE_RECEIVED,
+						&i2c_bus->slave_dma_buf[i]);
 			}
 			i2c_slave_event(i2c_bus->slave,
 					I2C_SLAVE_READ_REQUESTED,
@@ -696,20 +690,19 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 				i2c_bus->slave_dma_buf[0]);
 			writel(0, i2c_bus->reg_base + AST_I2CS_DMA_LEN_STS);
 			writel(AST_I2CS_SET_TX_DMA_LEN(1),
-					i2c_bus->reg_base + AST_I2CS_DMA_LEN);
+			       i2c_bus->reg_base + AST_I2CS_DMA_LEN);
 		} else if (i2c_bus->mode == BUFF_MODE) {
 			cmd |= AST_I2CS_TX_BUFF_EN;
 			slave_rx_len =
-				AST_I2CC_GET_RX_BUF_LEN(
-				readl(i2c_bus->reg_base + AST_I2CC_BUFF_CTRL));
+				AST_I2CC_GET_RX_BUF_LEN(readl(i2c_bus->reg_base +
+							AST_I2CC_BUFF_CTRL));
 			for (i = 0; i < slave_rx_len; i++) {
 				value = readb(i2c_bus->buf_base + i);
 				dev_dbg(i2c_bus->dev, "rx : [%02x]",
 					value);
-				i2c_slave_event(
-					i2c_bus->slave,
-					I2C_SLAVE_WRITE_RECEIVED,
-					&value);
+				i2c_slave_event(i2c_bus->slave,
+						I2C_SLAVE_WRITE_RECEIVED,
+						&value);
 			}
 			i2c_slave_event(i2c_bus->slave,
 					I2C_SLAVE_READ_REQUESTED,
@@ -717,13 +710,12 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 			dev_dbg(i2c_bus->dev, "tx : [%02x]", value);
 			writeb(value, i2c_bus->buf_base);
 			writel(AST_I2CC_SET_TX_BUF_LEN(1),
-					i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
+			       i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
 		} else {
 			cmd &= ~AST_I2CS_PKT_MODE_EN;
 			cmd |= AST_I2CS_TX_CMD;
-			byte_data = AST_I2CC_GET_RX_BUFF(
-				readl(i2c_bus->reg_base +
-					AST_I2CC_STS_AND_BUFF));
+			byte_data = AST_I2CC_GET_RX_BUFF(readl(i2c_bus->reg_base +
+							 AST_I2CC_STS_AND_BUFF));
 			dev_dbg(i2c_bus->dev, "rx : [%02x]", byte_data);
 			i2c_slave_event(i2c_bus->slave,
 					I2C_SLAVE_WRITE_RECEIVED,
@@ -733,13 +725,13 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 					&byte_data);
 			dev_dbg(i2c_bus->dev, "tx : [%02x]", byte_data);
 			writel(byte_data, i2c_bus->reg_base +
-					AST_I2CC_STS_AND_BUFF);
+			       AST_I2CC_STS_AND_BUFF);
 		}
 		writel(cmd, i2c_bus->reg_base + AST_I2CS_CMD_STS);
 		break;
 
 	case AST_I2CS_SLAVE_MATCH | AST_I2CS_Wait_TX_DMA:
-		//First Start read
+		/* First Start read */
 		dev_dbg(i2c_bus->dev,
 			"S: AST_I2CS_SLAVE_MATCH | AST_I2CS_Wait_TX_DMA\n");
 		cmd = SLAVE_TRIGGER_CMD;
@@ -751,7 +743,7 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 			dev_dbg(i2c_bus->dev, "tx: [%x]\n",
 				i2c_bus->slave_dma_buf[0]);
 			writel(AST_I2CS_SET_TX_DMA_LEN(1),
-				i2c_bus->reg_base + AST_I2CS_DMA_LEN);
+			       i2c_bus->reg_base + AST_I2CS_DMA_LEN);
 		} else if (i2c_bus->mode == BUFF_MODE) {
 			cmd |= AST_I2CS_TX_BUFF_EN;
 			i2c_slave_event(i2c_bus->slave,
@@ -760,7 +752,7 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 			dev_dbg(i2c_bus->dev, "tx : [%02x]", byte_data);
 			writeb(byte_data, i2c_bus->buf_base);
 			writel(AST_I2CC_SET_TX_BUF_LEN(1),
-				i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
+			       i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
 		} else {
 			cmd &= ~AST_I2CS_PKT_MODE_EN;
 			cmd |= AST_I2CS_TX_CMD;
@@ -774,7 +766,7 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 		break;
 
 	case AST_I2CS_Wait_TX_DMA:
-		//it should be next start read
+		/* it should be next start read */
 		dev_dbg(i2c_bus->dev, "S: AST_I2CS_Wait_TX_DMA\n");
 		cmd = SLAVE_TRIGGER_CMD;
 		if (i2c_bus->mode == DMA_MODE) {
@@ -786,7 +778,7 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 				i2c_bus->slave_dma_buf[0]);
 			writel(0, i2c_bus->reg_base + AST_I2CS_DMA_LEN_STS);
 			writel(AST_I2CS_SET_TX_DMA_LEN(1),
-					i2c_bus->reg_base + AST_I2CS_DMA_LEN);
+			       i2c_bus->reg_base + AST_I2CS_DMA_LEN);
 		} else if (i2c_bus->mode == BUFF_MODE) {
 			cmd |= AST_I2CS_TX_BUFF_EN;
 			i2c_slave_event(i2c_bus->slave,
@@ -795,7 +787,7 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 			dev_dbg(i2c_bus->dev, "tx: [%02x]\n", value);
 			writeb(value, i2c_bus->buf_base);
 			writel(AST_I2CC_SET_TX_BUF_LEN(1),
-					i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
+			       i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
 		} else {
 			cmd &= ~AST_I2CS_PKT_MODE_EN;
 			cmd |= AST_I2CS_TX_CMD;
@@ -811,7 +803,7 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 		break;
 
 	case AST_I2CS_TX_NAK | AST_I2CS_STOP:
-		//it just tx complete
+		/* it just tx complete */
 		dev_dbg(i2c_bus->dev,
 			"S: AST_I2CS_TX_NAK | AST_I2CS_STOP\n");
 		cmd = SLAVE_TRIGGER_CMD;
@@ -819,14 +811,12 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 		if (i2c_bus->mode == DMA_MODE) {
 			cmd |= AST_I2CS_RX_DMA_EN;
 			writel(0, i2c_bus->reg_base + AST_I2CS_DMA_LEN_STS);
-			writel(AST_I2CS_SET_RX_DMA_LEN(
-				I2C_SLAVE_MSG_BUF_SIZE),
-				i2c_bus->reg_base + AST_I2CS_DMA_LEN);
+			writel(AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE),
+			       i2c_bus->reg_base + AST_I2CS_DMA_LEN);
 		} else if (i2c_bus->mode == BUFF_MODE) {
 			cmd |= AST_I2CS_RX_BUFF_EN;
-			writel(AST_I2CC_SET_RX_BUF_LEN(
-				i2c_bus->buf_size),
-				i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
+			writel(AST_I2CC_SET_RX_BUF_LEN(i2c_bus->buf_size),
+			       i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
 		} else {
 			cmd &= ~AST_I2CS_PKT_MODE_EN;
 		}
@@ -835,33 +825,32 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 
 	default:
 		dev_dbg(i2c_bus->dev,
-				"todo slave sts case %x, now %x\n", sts,
-				readl(i2c_bus->reg_base + AST_I2CS_ISR));
+			"todo slave sts case %x, now %x\n", sts,
+			readl(i2c_bus->reg_base + AST_I2CS_ISR));
 		break;
 	}
-
 }
 
 static void aspeed_i2c_slave_byte_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
 {
-	u8 value;
-	u8 byte_data;
 	u32 cmd = AST_I2CS_ACTIVE_ALL;
+	u8 byte_data;
+	u8 value;
 
 	switch (sts) {
 	case AST_I2CS_SLAVE_MATCH | AST_I2CS_RX_DONE | AST_I2CS_Wait_RX_DMA:
 		dev_dbg(i2c_bus->dev, "S : Sw|D\n");
 		i2c_slave_event(i2c_bus->slave,
 				I2C_SLAVE_WRITE_REQUESTED, &value);
-		//first address match is address
-		byte_data = AST_I2CC_GET_RX_BUFF(
-			readl(i2c_bus->reg_base + AST_I2CC_STS_AND_BUFF));
+		/* first address match is address */
+		byte_data = AST_I2CC_GET_RX_BUFF(readl(i2c_bus->reg_base +
+						 AST_I2CC_STS_AND_BUFF));
 		dev_dbg(i2c_bus->dev, "addr [%x]", byte_data);
 		break;
 	case AST_I2CS_RX_DONE | AST_I2CS_Wait_RX_DMA:
 		dev_dbg(i2c_bus->dev, "S : D\n");
-		byte_data = AST_I2CC_GET_RX_BUFF(
-			readl(i2c_bus->reg_base + AST_I2CC_STS_AND_BUFF));
+		byte_data = AST_I2CC_GET_RX_BUFF(readl(i2c_bus->reg_base +
+						 AST_I2CC_STS_AND_BUFF));
 		dev_dbg(i2c_bus->dev, "rx [%x]", byte_data);
 		i2c_slave_event(i2c_bus->slave,
 				I2C_SLAVE_WRITE_RECEIVED, &byte_data);
@@ -869,8 +858,8 @@ static void aspeed_i2c_slave_byte_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 st
 	case AST_I2CS_SLAVE_MATCH | AST_I2CS_RX_DONE | AST_I2CS_Wait_TX_DMA:
 		cmd |= AST_I2CS_TX_CMD;
 		dev_dbg(i2c_bus->dev, "S : Sr|D\n");
-		byte_data = AST_I2CC_GET_RX_BUFF(
-			readl(i2c_bus->reg_base + AST_I2CC_STS_AND_BUFF));
+		byte_data = AST_I2CC_GET_RX_BUFF(readl(i2c_bus->reg_base +
+						 AST_I2CC_STS_AND_BUFF));
 		dev_dbg(i2c_bus->dev, "addr : [%02x]", byte_data);
 		i2c_slave_event(i2c_bus->slave,
 				I2C_SLAVE_READ_REQUESTED, &byte_data);
@@ -896,7 +885,6 @@ static void aspeed_i2c_slave_byte_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 st
 	}
 	writel(cmd, i2c_bus->reg_base + AST_I2CS_CMD_STS);
 	writel(sts, i2c_bus->reg_base + AST_I2CS_ISR);
-
 }
 
 static int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
@@ -908,7 +896,7 @@ static int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 		return 0;
 	dev_dbg(i2c_bus->dev, "slave irq sts %x\n", sts);
 
-	sts &= ~(AST_I2CS_ADDR_INDICAT_MASK | AST_I2CS_SLAVE_PENDING);
+	sts &= ~(AST_I2CS_ADDR_INDICATE_MASK | AST_I2CS_SLAVE_PENDING);
 
 	if (AST_I2CS_ADDR1_NAK & sts)
 		sts &= ~AST_I2CS_ADDR1_NAK;
@@ -933,13 +921,15 @@ static int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 
 static void aspeed_new_i2c_do_start(struct aspeed_new_i2c_bus *i2c_bus)
 {
-	int i = 0;
-	int xfer_len = 0;
 	struct i2c_msg *msg = &i2c_bus->msgs[i2c_bus->msgs_index];
-	u32 cmd = AST_I2CM_PKT_EN | AST_I2CM_PKT_ADDR(msg->addr) |
-		  AST_I2CM_START_CMD;
+	int xfer_len = 0;
+	int i = 0;
+	u32 cmd;
 
-	//send start
+	cmd = AST_I2CM_PKT_EN | AST_I2CM_PKT_ADDR(msg->addr)
+		| AST_I2CM_START_CMD;
+
+	/* send start */
 	dev_dbg(i2c_bus->dev, "[%d] %sing %d byte%s %s 0x%02x\n",
 		i2c_bus->msgs_index, msg->flags & I2C_M_RD ? "read" : "write",
 		msg->len, msg->len > 1 ? "s" : "",
@@ -951,7 +941,7 @@ static void aspeed_new_i2c_do_start(struct aspeed_new_i2c_bus *i2c_bus)
 	if (msg->flags & I2C_M_RD) {
 		cmd |= AST_I2CM_RX_CMD;
 		if (i2c_bus->mode == DMA_MODE) {
-			//dma mode
+			/* dma mode */
 			cmd |= AST_I2CM_RX_DMA_EN;
 
 			if (msg->flags & I2C_M_RECV_LEN) {
@@ -972,14 +962,14 @@ static void aspeed_new_i2c_do_start(struct aspeed_new_i2c_bus *i2c_bus)
 				}
 			}
 			writel(AST_I2CM_SET_RX_DMA_LEN(xfer_len - 1),
-					i2c_bus->reg_base + AST_I2CM_DMA_LEN);
+			       i2c_bus->reg_base + AST_I2CM_DMA_LEN);
 			i2c_bus->master_dma_addr =
 				dma_map_single(i2c_bus->dev,
-					msg->buf, msg->len, DMA_FROM_DEVICE);
+					       msg->buf, msg->len, DMA_FROM_DEVICE);
 			writel(i2c_bus->master_dma_addr,
-					i2c_bus->reg_base + AST_I2CM_RX_DMA);
+			       i2c_bus->reg_base + AST_I2CM_RX_DMA);
 		} else if (i2c_bus->mode == BUFF_MODE) {
-			//buff mode
+			/* buff mode */
 			cmd |= AST_I2CM_RX_BUFF_EN;
 			if (msg->flags & I2C_M_RECV_LEN) {
 				dev_dbg(i2c_bus->dev, "smbus read\n");
@@ -999,25 +989,25 @@ static void aspeed_new_i2c_do_start(struct aspeed_new_i2c_bus *i2c_bus)
 				}
 			}
 			writel(AST_I2CC_SET_RX_BUF_LEN(xfer_len),
-					i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
+			       i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
 		} else {
-			//byte mode
+			/* byte mode */
 			xfer_len = 1;
 			if (msg->flags & I2C_M_RECV_LEN) {
 				dev_dbg(i2c_bus->dev, "smbus read\n");
 			} else {
-				if ((i2c_bus->msgs_index + 1 ==
-				     i2c_bus->msgs_count) &&
-				    (msg->len == 1)) {
-					dev_dbg(i2c_bus->dev, "last stop\n");
-					cmd |= AST_I2CM_RX_CMD_LAST |
-					       AST_I2CM_STOP_CMD;
+				if (i2c_bus->msgs_index + 1 == i2c_bus->msgs_count) {
+					if (msg->len == 1) {
+						dev_dbg(i2c_bus->dev, "last stop\n");
+						cmd |= AST_I2CM_RX_CMD_LAST |
+							AST_I2CM_STOP_CMD;
+					}
 				}
 			}
 		}
 	} else {
 		if (i2c_bus->mode == DMA_MODE) {
-			//dma mode
+			/* dma mode */
 			if (msg->len > ASPEED_I2C_DMA_SIZE) {
 				xfer_len = ASPEED_I2C_DMA_SIZE;
 			} else {
@@ -1032,16 +1022,16 @@ static void aspeed_new_i2c_do_start(struct aspeed_new_i2c_bus *i2c_bus)
 			if (xfer_len) {
 				cmd |= AST_I2CM_TX_DMA_EN | AST_I2CM_TX_CMD;
 				writel(AST_I2CM_SET_TX_DMA_LEN(xfer_len - 1),
-					i2c_bus->reg_base + AST_I2CM_DMA_LEN);
+				       i2c_bus->reg_base + AST_I2CM_DMA_LEN);
 				i2c_bus->master_dma_addr =
 					dma_map_single(i2c_bus->dev, msg->buf,
 						       msg->len, DMA_TO_DEVICE);
 				writel(i2c_bus->master_dma_addr,
-					i2c_bus->reg_base + AST_I2CM_TX_DMA);
+				       i2c_bus->reg_base + AST_I2CM_TX_DMA);
 			}
 		} else if (i2c_bus->mode == BUFF_MODE) {
 			u8 wbuf[4];
-			//buff mode
+			/* buff mode */
 			if (msg->len > i2c_bus->buf_size) {
 				xfer_len = i2c_bus->buf_size;
 			} else {
@@ -1055,7 +1045,7 @@ static void aspeed_new_i2c_do_start(struct aspeed_new_i2c_bus *i2c_bus)
 			if (xfer_len) {
 				cmd |= AST_I2CM_TX_BUFF_EN | AST_I2CM_TX_CMD;
 				writel(AST_I2CC_SET_TX_BUF_LEN(xfer_len),
-					i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
+				       i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
 				for (i = 0; i < xfer_len; i++) {
 					wbuf[i % 4] = msg->buf[i];
 					if (i % 4 == 3)
@@ -1070,11 +1060,12 @@ static void aspeed_new_i2c_do_start(struct aspeed_new_i2c_bus *i2c_bus)
 					       i2c_bus->buf_base + i - (i % 4));
 			}
 		} else {
-			//byte mode
-			if ((i2c_bus->msgs_index + 1 == i2c_bus->msgs_count) &&
-			    (msg->len <= 1)) {
-				dev_dbg(i2c_bus->dev, "with stop\n");
-				cmd |= AST_I2CM_STOP_CMD;
+			/* byte mode */
+			if (i2c_bus->msgs_index + 1 == i2c_bus->msgs_count) {
+				if (msg->len <= 1) {
+					dev_dbg(i2c_bus->dev, "with stop\n");
+					cmd |= AST_I2CM_STOP_CMD;
+				}
 			}
 
 			if (msg->len) {
@@ -1083,10 +1074,11 @@ static void aspeed_new_i2c_do_start(struct aspeed_new_i2c_bus *i2c_bus)
 				dev_dbg(i2c_bus->dev, "w [0] : %02x\n",
 					msg->buf[0]);
 				writel(msg->buf[0],
-					i2c_bus->reg_base +
-					AST_I2CC_STS_AND_BUFF);
-			} else
+				       i2c_bus->reg_base +
+				       AST_I2CC_STS_AND_BUFF);
+			} else {
 				xfer_len = 0;
+			}
 		}
 	}
 	dev_dbg(i2c_bus->dev, "len %d , cmd %x\n", xfer_len, cmd);
@@ -1107,10 +1099,10 @@ static int aspeed_new_i2c_is_irq_error(u32 irq_status)
 
 static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
 {
-	int i;
-	int xfer_len;
-	u32 cmd = AST_I2CM_PKT_EN;
 	struct i2c_msg *msg = &i2c_bus->msgs[i2c_bus->msgs_index];
+	u32 cmd = AST_I2CM_PKT_EN;
+	int xfer_len;
+	int i;
 
 	sts &= ~AST_I2CM_PKT_DONE;
 	writel(AST_I2CM_PKT_DONE, i2c_bus->reg_base + AST_I2CM_ISR);
@@ -1118,7 +1110,7 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 	case AST_I2CM_PKT_ERROR:
 		dev_dbg(i2c_bus->dev, "M : ERROR only\n");
 		fallthrough;
-	case AST_I2CM_PKT_ERROR | AST_I2CM_TX_NAK: //a0 fix for issue
+	case AST_I2CM_PKT_ERROR | AST_I2CM_TX_NAK: /* a0 fix for issue */
 		fallthrough;
 	case AST_I2CM_PKT_ERROR | AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP:
 		dev_dbg(i2c_bus->dev, "M : TX NAK | NORMAL STOP\n");
@@ -1126,7 +1118,7 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 		complete(&i2c_bus->cmd_complete);
 		break;
 	case AST_I2CM_NORMAL_STOP:
-		//write 0 byte only have stop isr
+		/* write 0 byte only have stop isr */
 		dev_dbg(i2c_bus->dev,
 			"M clear isr: AST_I2CM_NORMAL_STOP = %x\n", sts);
 		i2c_bus->msgs_index++;
@@ -1141,13 +1133,12 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 			sts);
 
 		if (i2c_bus->mode == DMA_MODE) {
-			xfer_len = AST_I2C_GET_TX_DMA_LEN(
-				readl(i2c_bus->reg_base +
-					AST_I2CM_DMA_LEN_STS));
+			xfer_len = AST_I2C_GET_TX_DMA_LEN(readl(i2c_bus->reg_base +
+							  AST_I2CM_DMA_LEN_STS));
 		} else if (i2c_bus->mode == BUFF_MODE) {
 			xfer_len =
-				AST_I2CC_GET_TX_BUF_LEN(
-				readl(i2c_bus->reg_base + AST_I2CC_BUFF_CTRL));
+				AST_I2CC_GET_TX_BUF_LEN(readl(i2c_bus->reg_base +
+							AST_I2CC_BUFF_CTRL));
 		} else {
 			xfer_len = 1;
 		}
@@ -1156,18 +1147,19 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 		if (i2c_bus->master_xfer_cnt == msg->len) {
 			if (i2c_bus->mode == DMA_MODE)
 				dma_unmap_single(i2c_bus->dev,
-					i2c_bus->master_dma_addr,
-					msg->len, DMA_TO_DEVICE);
+						 i2c_bus->master_dma_addr,
+						 msg->len, DMA_TO_DEVICE);
 
 			i2c_bus->msgs_index++;
 			if (i2c_bus->msgs_index ==
 				i2c_bus->msgs_count) {
 				i2c_bus->cmd_err = i2c_bus->msgs_index;
 				complete(&i2c_bus->cmd_complete);
-			} else
+			} else {
 				aspeed_new_i2c_do_start(i2c_bus);
+			}
 		} else {
-			//do next tx
+			/* do next tx */
 			cmd |= AST_I2CM_TX_CMD;
 			if (i2c_bus->mode == DMA_MODE) {
 				cmd |= AST_I2CS_TX_DMA_EN;
@@ -1184,7 +1176,7 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 					}
 				}
 				writel(AST_I2CM_SET_TX_DMA_LEN(xfer_len - 1),
-					i2c_bus->reg_base + AST_I2CM_DMA_LEN);
+				       i2c_bus->reg_base + AST_I2CM_DMA_LEN);
 				dev_dbg(i2c_bus->dev,
 					"next tx xfer_len: %d, offset %d\n",
 					xfer_len,
@@ -1210,26 +1202,24 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 				}
 				for (i = 0; i < xfer_len; i++) {
 					wbuf[i % 4] =
-						msg->buf[
-						i2c_bus->master_xfer_cnt + i];
+						msg->buf[i2c_bus->master_xfer_cnt + i];
 					if (i % 4 == 3)
 						writel(*(u32 *)wbuf,
-							   i2c_bus->buf_base +
-								   i - 3);
+						       i2c_bus->buf_base +
+						       i - 3);
 					dev_dbg(i2c_bus->dev,
 						"[%02x]\n",
-						msg->buf[
-						i2c_bus->master_xfer_cnt + i]);
+						msg->buf[i2c_bus->master_xfer_cnt + i]);
 				}
 				if (--i % 4 != 3)
 					writel(*(u32 *)wbuf,
-						   i2c_bus->buf_base + i -
-							   (i % 4));
+					       i2c_bus->buf_base + i -
+					       (i % 4));
 
 				writel(AST_I2CC_SET_TX_BUF_LEN(xfer_len),
-					i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
+				       i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
 			} else {
-				//byte
+				/* byte */
 				if ((i2c_bus->msgs_index + 1 ==
 					 i2c_bus->msgs_count) &&
 					((i2c_bus->master_xfer_cnt + 1) ==
@@ -1241,8 +1231,8 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 				dev_dbg(i2c_bus->dev, "tx buff[%x]\n",
 					msg->buf[i2c_bus->master_xfer_cnt]);
 				writel(msg->buf[i2c_bus->master_xfer_cnt],
-					i2c_bus->reg_base +
-					AST_I2CC_STS_AND_BUFF);
+				       i2c_bus->reg_base +
+				       AST_I2CC_STS_AND_BUFF);
 			}
 			dev_dbg(i2c_bus->dev, "next tx cmd: %x\n", cmd);
 			writel(cmd, i2c_bus->reg_base + AST_I2CM_CMD_STS);
@@ -1254,25 +1244,23 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 		dev_dbg(i2c_bus->dev,
 			"M : AST_I2CM_RX_DONE | AST_I2CM_NORMAL_STOP = %x\n",
 			sts);
-		//do next rx
+		/* do next rx */
 		if (i2c_bus->mode == DMA_MODE) {
 			xfer_len =
-				AST_I2C_GET_RX_DMA_LEN(
-				readl(i2c_bus->reg_base +
-					AST_I2CM_DMA_LEN_STS));
+				AST_I2C_GET_RX_DMA_LEN(readl(i2c_bus->reg_base +
+						       AST_I2CM_DMA_LEN_STS));
 		} else if (i2c_bus->mode == BUFF_MODE) {
 			xfer_len =
-				AST_I2CC_GET_RX_BUF_LEN(
-				readl(i2c_bus->reg_base + AST_I2CC_BUFF_CTRL));
+				AST_I2CC_GET_RX_BUF_LEN(readl(i2c_bus->reg_base +
+							AST_I2CC_BUFF_CTRL));
 			for (i = 0; i < xfer_len; i++)
 				msg->buf[i2c_bus->master_xfer_cnt + i] =
 					readb(i2c_bus->buf_base + i);
 		} else {
 			xfer_len = 1;
 			msg->buf[i2c_bus->master_xfer_cnt] =
-				AST_I2CC_GET_RX_BUFF(
-				readl(i2c_bus->reg_base +
-					AST_I2CC_STS_AND_BUFF));
+				AST_I2CC_GET_RX_BUFF(readl(i2c_bus->reg_base +
+						     AST_I2CC_STS_AND_BUFF));
 		}
 
 		if (msg->flags & I2C_M_RECV_LEN) {
@@ -1289,10 +1277,9 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 
 		if (i2c_bus->master_xfer_cnt == msg->len) {
 			if (i2c_bus->mode == DMA_MODE)
-				dma_unmap_single(
-					i2c_bus->dev,
-					i2c_bus->master_dma_addr,
-					msg->len, DMA_FROM_DEVICE);
+				dma_unmap_single(i2c_bus->dev,
+						 i2c_bus->master_dma_addr,
+						 msg->len, DMA_FROM_DEVICE);
 
 			for (i = 0; i < msg->len; i++) {
 				dev_dbg(i2c_bus->dev, "M: r %d:[%x]\n",
@@ -1303,10 +1290,11 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 				i2c_bus->msgs_count) {
 				i2c_bus->cmd_err = i2c_bus->msgs_index;
 				complete(&i2c_bus->cmd_complete);
-			} else
+			} else {
 				aspeed_new_i2c_do_start(i2c_bus);
+			}
 		} else {
-			//next rx
+			/* next rx */
 			cmd |= AST_I2CM_RX_CMD;
 			if (i2c_bus->mode == DMA_MODE) {
 				cmd |= AST_I2CM_RX_DMA_EN;
@@ -1327,10 +1315,10 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 					"M: next rx len [%d/%d] , cmd %x\n",
 					xfer_len, msg->len, cmd);
 				writel(AST_I2CM_SET_RX_DMA_LEN(xfer_len - 1),
-					i2c_bus->reg_base + AST_I2CM_DMA_LEN);
+				       i2c_bus->reg_base + AST_I2CM_DMA_LEN);
 				writel(i2c_bus->master_dma_addr +
-					i2c_bus->master_xfer_cnt,
-					i2c_bus->reg_base + AST_I2CM_RX_DMA);
+				       i2c_bus->master_xfer_cnt,
+				       i2c_bus->reg_base + AST_I2CM_RX_DMA);
 			} else if (i2c_bus->mode == BUFF_MODE) {
 				cmd |= AST_I2CM_RX_BUFF_EN;
 				xfer_len = msg->len -
@@ -1347,7 +1335,7 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 					}
 				}
 				writel(AST_I2CC_SET_RX_BUF_LEN(xfer_len),
-					i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
+				       i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
 			} else {
 				if ((i2c_bus->msgs_index + 1 ==
 					 i2c_bus->msgs_count) &&
@@ -1369,7 +1357,6 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 		dev_dbg(i2c_bus->dev, "todo care sts %x\n", sts);
 		break;
 	}
-
 }
 
 static int aspeed_new_i2c_master_irq(struct aspeed_new_i2c_bus *i2c_bus)
@@ -1384,7 +1371,7 @@ static int aspeed_new_i2c_master_irq(struct aspeed_new_i2c_bus *i2c_bus)
 		dev_dbg(i2c_bus->dev,
 			"M clear isr: AST_I2CM_BUS_RECOVER_FAIL= %x\n", sts);
 		writel(AST_I2CM_BUS_RECOVER_FAIL,
-				i2c_bus->reg_base + AST_I2CM_ISR);
+		       i2c_bus->reg_base + AST_I2CM_ISR);
 		i2c_bus->cmd_err = -EPROTO;
 		complete(&i2c_bus->cmd_complete);
 		return 1;
@@ -1404,13 +1391,13 @@ static int aspeed_new_i2c_master_irq(struct aspeed_new_i2c_bus *i2c_bus)
 		    AST_I2CM_SMBUS_ALT) {
 			dev_dbg(i2c_bus->dev,
 				"M clear isr: AST_I2CM_SMBUS_ALT= %x\n", sts);
-			//Disable ALT INT
+			/* Disable ALT INT */
 			writel(readl(i2c_bus->reg_base + AST_I2CM_IER) &
 					~AST_I2CM_SMBUS_ALT,
 					i2c_bus->reg_base + AST_I2CM_IER);
 			i2c_handle_smbus_alert(i2c_bus->ara);
 			writel(AST_I2CM_SMBUS_ALT,
-					i2c_bus->reg_base + AST_I2CM_ISR);
+			       i2c_bus->reg_base + AST_I2CM_ISR);
 			dev_err(i2c_bus->dev,
 				"TODO aspeed_master_alert_recv bus id %d, Disable Alt, Please Imple\n",
 				i2c_bus->adap.nr);
@@ -1434,9 +1421,9 @@ static int aspeed_new_i2c_master_irq(struct aspeed_new_i2c_bus *i2c_bus)
 
 	if (readl(i2c_bus->reg_base + AST_I2CM_ISR)) {
 		dev_dbg(i2c_bus->dev, "master TODO care sts %x\n",
-		       readl(i2c_bus->reg_base + AST_I2CM_ISR));
+			readl(i2c_bus->reg_base + AST_I2CM_ISR));
 		writel(readl(i2c_bus->reg_base + AST_I2CM_ISR),
-				i2c_bus->reg_base + AST_I2CM_ISR);
+		       i2c_bus->reg_base + AST_I2CM_ISR);
 	}
 
 	return 0;
@@ -1511,7 +1498,7 @@ static void aspeed_new_i2c_init(struct aspeed_new_i2c_bus *i2c_bus)
 	struct platform_device *pdev = to_platform_device(i2c_bus->dev);
 	u32 fun_ctrl = AST_I2CC_BUS_AUTO_RELEASE | AST_I2CC_MASTER_EN;
 
-	//I2C Reset
+	/* I2C Reset */
 	writel(0, i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
 
 	if (of_property_read_bool(pdev->dev.of_node, "multi-master"))
@@ -1524,13 +1511,13 @@ static void aspeed_new_i2c_init(struct aspeed_new_i2c_bus *i2c_bus)
 
 	/* Set AC Timing */
 	writel(aspeed_select_i2c_clock(i2c_bus),
-			i2c_bus->reg_base + AST_I2CC_AC_TIMING);
+	       i2c_bus->reg_base + AST_I2CC_AC_TIMING);
 
-	//Clear Interrupt
+	/* Clear Interrupt */
 	writel(0xfffffff, i2c_bus->reg_base + AST_I2CM_ISR);
 
 #ifdef CONFIG_I2C_SLAVE
-	//for memory buffer initial
+	/* for memory buffer initial */
 	if (i2c_bus->mode == DMA_MODE) {
 		i2c_bus->slave_dma_buf =
 			dma_alloc_coherent(i2c_bus->dev, I2C_SLAVE_MSG_BUF_SIZE,
@@ -1539,9 +1526,10 @@ static void aspeed_new_i2c_init(struct aspeed_new_i2c_bus *i2c_bus)
 		if (!i2c_bus->slave_dma_buf) {
 			dev_err(i2c_bus->dev,
 				"unable to allocate tx Buffer memory\n");
-		} else
+		} else {
 			memset(i2c_bus->slave_dma_buf, 0,
 			       I2C_SLAVE_MSG_BUF_SIZE);
+		}
 
 		dev_dbg(i2c_bus->dev,
 			"dma enable slave_dma_buf = [0x%x] slave_dma_addr = [0x%x], please check 4byte boundary\n",
@@ -1576,19 +1564,19 @@ static int aspeed_new_i2c_reg_slave(struct i2c_client *client)
 			readl(i2c_bus->reg_base + AST_I2CC_FUN_CTRL),
 			i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
 
-	//trigger rx buffer
+	/* trigger rx buffer */
 	if (i2c_bus->mode == DMA_MODE) {
 		cmd |= AST_I2CS_RX_DMA_EN;
 		writel(i2c_bus->slave_dma_addr,
-				i2c_bus->reg_base + AST_I2CS_RX_DMA);
+		       i2c_bus->reg_base + AST_I2CS_RX_DMA);
 		writel(i2c_bus->slave_dma_addr,
-				i2c_bus->reg_base + AST_I2CS_TX_DMA);
+		       i2c_bus->reg_base + AST_I2CS_TX_DMA);
 		writel(AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE),
-			i2c_bus->reg_base + AST_I2CS_DMA_LEN);
+		       i2c_bus->reg_base + AST_I2CS_DMA_LEN);
 	} else if (i2c_bus->mode == BUFF_MODE) {
 		cmd |= AST_I2CS_RX_BUFF_EN;
 		writel(AST_I2CC_SET_RX_BUF_LEN(i2c_bus->buf_size),
-				i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
+		       i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
 	} else {
 		cmd &= ~AST_I2CS_PKT_MODE_EN;
 	}
@@ -1597,7 +1585,7 @@ static int aspeed_new_i2c_reg_slave(struct i2c_client *client)
 	i2c_bus->slave = client;
 	/* Set slave addr. */
 	writel(client->addr | AST_I2CS_ADDR1_ENABLE,
-			i2c_bus->reg_base + AST_I2CS_ADDR_CTRL);
+	       i2c_bus->reg_base + AST_I2CS_ADDR_CTRL);
 
 	return 0;
 }
@@ -1647,8 +1635,8 @@ MODULE_DEVICE_TABLE(of, aspeed_new_i2c_bus_of_table);
 
 static int aspeed_new_i2c_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct aspeed_new_i2c_bus *i2c_bus;
+	const struct of_device_id *match;
 	u32 global_ctrl;
 	int ret = 0;
 
@@ -1666,7 +1654,7 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 		goto free_mem;
 	}
 
-	//get global control register
+	/* get global control register */
 	regmap_read(i2c_bus->global_reg, ASPEED_I2CG_CTRL, &global_ctrl);
 
 	if (global_ctrl & ASPEED_I2CG_CTRL_NEW_CLK_DIV)
@@ -1744,7 +1732,7 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 	i2c_bus->adap.dev.parent = i2c_bus->dev;
 	i2c_bus->adap.dev.of_node = pdev->dev.of_node;
 	i2c_bus->adap.algo_data = i2c_bus;
-	strlcpy(i2c_bus->adap.name, pdev->name, sizeof(i2c_bus->adap.name));
+	strscpy(i2c_bus->adap.name, pdev->name, sizeof(i2c_bus->adap.name));
 	i2c_set_adapdata(&i2c_bus->adap, i2c_bus);
 
 	aspeed_new_i2c_init(i2c_bus);
@@ -1761,7 +1749,7 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 	if (of_property_read_bool(pdev->dev.of_node, "smbus-alert")) {
 		i2c_bus->alert_enable = 1;
 		i2c_bus->ara = i2c_setup_smbus_alert(&i2c_bus->adap,
-							 &i2c_bus->alert_data);
+						     &i2c_bus->alert_data);
 		if (!i2c_bus->ara)
 			dev_warn(i2c_bus->dev, "Failed to register ARA client\n");
 
@@ -1772,7 +1760,7 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 		i2c_bus->alert_enable = 0;
 		/* Set interrupt generation of I2C master controller */
 		writel(AST_I2CM_PKT_DONE | AST_I2CM_BUS_RECOVER,
-					i2c_bus->reg_base + AST_I2CM_IER);
+		       i2c_bus->reg_base + AST_I2CM_IER);
 	}
 
 	dev_info(i2c_bus->dev, "NEW-I2C: %s [%d]: adapter [%d khz] mode [%d]\n",

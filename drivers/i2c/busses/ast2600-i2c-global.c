@@ -60,11 +60,12 @@ static const struct aspeed_i2c_base_clk i2c_base_clk[BASE_CLK_COUNT] = {
 static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long base_clk, struct device_node *node)
 {
 	struct clk_hw_onecell_data *onecell;
+	unsigned long base_freq;
+	u32 clk_divider = 0;
 	struct clk_hw *hw;
 	int err;
-	u32 clk_divider = 0;
-	int i, j;
-	unsigned long base_freq;
+	int i;
+	int j;
 
 	onecell = kzalloc(sizeof(*onecell) +
 			  (BASE_CLK_COUNT * sizeof(struct clk_hw *)),
@@ -115,10 +116,10 @@ static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long base_clk, struct devi
 
 static int aspeed_i2c_global_probe(struct platform_device *pdev)
 {
-	struct aspeed_i2c_ic *i2c_ic;
 	struct device_node *node = pdev->dev.of_node;
-	struct clk *parent_clk;
 	unsigned long	parent_clk_frequency;
+	struct aspeed_i2c_ic *i2c_ic;
+	struct clk *parent_clk;
 	struct resource *res;
 	u32 clk_divider;
 	int ret = 0;
