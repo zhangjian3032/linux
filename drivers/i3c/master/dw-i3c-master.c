@@ -909,23 +909,6 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	if (ret)
 		return ret;
 
-	/*
-	 * Generally, the device data space is created in the common code
-	 * i3c_master_attach_i3c_dev.  But that function does not create the
-	 * space for the master device itself.  For secondary master, it needs
-	 * for this data memory to store the slave message info, so we manually
-	 * create the space here.
-	 */
-	if (master->secondary) {
-		struct dw_i3c_i2c_dev_data *data;
-
-		data = kzalloc(sizeof(*data), GFP_KERNEL);
-		if (!data)
-			return -ENOMEM;
-
-		i3c_dev_set_master_data(m->this, data);
-	}
-
 	thld_ctrl = readl(master->regs + QUEUE_THLD_CTRL);
 	thld_ctrl &=
 		~(QUEUE_THLD_CTRL_IBI_STA_MASK | QUEUE_THLD_CTRL_IBI_DAT_MASK);
