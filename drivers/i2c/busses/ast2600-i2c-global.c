@@ -122,27 +122,21 @@ static int aspeed_i2c_global_probe(struct platform_device *pdev)
 	struct clk *parent_clk;
 	struct resource *res;
 	u32 clk_divider;
-	int ret = 0;
 
-	i2c_ic = devm_kzalloc(&pdev->dev, sizeof(*i2c_ic),
-			      GFP_KERNEL);
-	if (!i2c_ic)
-		return -ENOMEM;
+	i2c_ic = devm_kzalloc(&pdev->dev, sizeof(*i2c_ic), GFP_KERNEL);
+	if (IS_ERR(i2c_ic))
+		return PTR_ERR(i2c_ic);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	i2c_ic->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!i2c_ic->base) {
-		ret = -ENOMEM;
-		goto err_free_ic;
-	}
+	if (IS_ERR(i2c_ic->base))
+		return PTR_ERR(i2c_ic->base);
 
 	i2c_ic->bus_num = (int)device_get_match_data(&pdev->dev);
 	if (i2c_ic->bus_num) {
 		i2c_ic->parent_irq = platform_get_irq(pdev, 0);
-		if (i2c_ic->parent_irq < 0) {
-			ret = i2c_ic->parent_irq;
-			goto err_iounmap;
-		}
+		if (i2c_ic->parent_irq < 0)
+			return i2c_ic->parent_irq;
 	}
 
 	i2c_ic->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
@@ -157,9 +151,7 @@ static int aspeed_i2c_global_probe(struct platform_device *pdev)
 	}
 
 	/* ast2600 init */
-	writel(ASPEED_I2CG_SLAVE_PKT_NAK |
-	       ASPEED_I2CG_CTRL_NEW_REG |
-	       ASPEED_I2CG_CTRL_NEW_CLK_DIV,
+	writel(ASPEED_I2CG_SLAVE_PKT_NAK | ASPEED_I2CG_CTRL_NEW_REG | ASPEED_I2CG_CTRL_NEW_CLK_DIV,
 	       i2c_ic->base + ASPEED_I2CG_CTRL);
 	parent_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(parent_clk))
@@ -172,12 +164,6 @@ static int aspeed_i2c_global_probe(struct platform_device *pdev)
 	pr_info("i2c global registered\n");
 
 	return 0;
-
-err_iounmap:
-	iounmap(i2c_ic->base);
-err_free_ic:
-	kfree(i2c_ic);
-	return ret;
 }
 
 static struct platform_driver aspeed_i2c_ic_driver = {
