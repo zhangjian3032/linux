@@ -317,6 +317,11 @@ struct dw_i3c_master {
 	u8 addrs[MAX_DEVS];
 	u8 is_aspeed;
 	bool secondary;
+	struct {
+		u32 *buf;
+		void (*callback)(struct i3c_master_controller *m,
+				 const struct i3c_slave_payload *payload);
+	} slave_data;
 };
 
 struct dw_i3c_i2c_dev_data {
@@ -1676,6 +1681,32 @@ static void dw_i3c_master_recycle_ibi_slot(struct i3c_dev_desc *dev,
 	i3c_generic_ibi_recycle_slot(data->ibi_pool, slot);
 }
 
+static int dw_i3c_master_register_slave(struct i3c_master_controller *m,
+			      const struct i3c_slave_setup *req)
+{
+	struct dw_i3c_master *master = to_dw_i3c_master(m);
+	u32 *buf;
+
+	buf = kzalloc(req->max_payload_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	master->slave_data.callback = req->handler;
+	master->slave_data.buf = buf;
+
+	return 0;
+}
+
+static int dw_i3c_master_unregister_slave(struct i3c_master_controller *m)
+{
+	struct dw_i3c_master *master = to_dw_i3c_master(m);
+
+	master->slave_data.callback = NULL;
+	kfree(master->slave_data.buf);
+
+	return 0;
+}
+
 static const struct i3c_master_controller_ops dw_mipi_i3c_ops = {
 	.bus_init = dw_i3c_master_bus_init,
 	.bus_cleanup = dw_i3c_master_bus_cleanup,
@@ -1694,6 +1725,8 @@ static const struct i3c_master_controller_ops dw_mipi_i3c_ops = {
 	.request_ibi = dw_i3c_master_request_ibi,
 	.free_ibi = dw_i3c_master_free_ibi,
 	.recycle_ibi_slot = dw_i3c_master_recycle_ibi_slot,
+	.register_slave = dw_i3c_master_register_slave,
+	.unregister_slave = dw_i3c_master_unregister_slave,
 };
 
 static int dw_i3c_probe(struct platform_device *pdev)

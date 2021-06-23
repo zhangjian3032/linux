@@ -2798,6 +2798,23 @@ void i3c_dev_free_ibi_locked(struct i3c_dev_desc *dev)
 	dev->ibi = NULL;
 }
 
+int i3c_master_register_slave(struct i3c_master_controller *master,
+			      const struct i3c_slave_setup *req)
+{
+	if (!master->ops->register_slave)
+		return -ENOTSUPP;
+
+	return master->ops->register_slave(master, req);
+}
+
+int i3c_master_unregister_slave(struct i3c_master_controller *master)
+{
+	if (!master->ops->unregister_slave)
+		return -ENOTSUPP;
+
+	return master->ops->unregister_slave(master);
+}
+
 int i3c_for_each_dev(void *data, int (*fn)(struct device *, void *))
 {
 	int res;
