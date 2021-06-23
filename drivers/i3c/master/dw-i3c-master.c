@@ -734,7 +734,7 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 					     master->base.bus.scl_rate.i2c) >> 1;
 		} else {
 			/* default: I2C SCL = 400kHz (fast mode) */
-			scl_period_h = scl_period_l = 
+			scl_period_h = scl_period_l =
 				DIV_ROUND_UP(1000000000, 400000) >> 1;
 		}
 
@@ -765,7 +765,7 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 					     master->base.bus.scl_rate.i3c) >> 1;
 		} else {
 			/* default: I3C SCL = 12.5MHz */
-			scl_period_h = scl_period_l = 
+			scl_period_h = scl_period_l =
 				DIV_ROUND_UP(1000000000, 12500000) >> 1;
 		}
 		if (scl_period_h < I3C_BUS_PP_THIGH_MIN_NS)
@@ -1169,7 +1169,7 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 }
 #ifdef CCC_WORKAROUND
 /**
- * Provide an interface for sending CCC from userspace.  Especially for the 
+ * Provide an interface for sending CCC from userspace.  Especially for the
  * transfers with PEC and direct CCC.
 */
 static int dw_i3c_master_ccc_xfers(struct i3c_dev_desc *dev,
@@ -1242,7 +1242,7 @@ static int dw_i3c_master_ccc_xfers(struct i3c_dev_desc *dev,
 
 	ret = xfer->ret;
 	dw_i3c_master_free_xfer(xfer);
-	
+
 	return ret;
 }
 #endif
@@ -1274,7 +1274,7 @@ static int dw_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 	    nrxwords > master->caps.datafifodepth)
 		return -ENOTSUPP;
 
-#ifdef CCC_WORKAROUND	
+#ifdef CCC_WORKAROUND
 	if (0 == i3c_xfers[0].rnw) {
 		/* write command: check if hit special address */
 		u8 tmp;
@@ -1282,7 +1282,7 @@ static int dw_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 		if (0xff == tmp)
 			return dw_i3c_master_ccc_xfers(dev, i3c_xfers, i3c_nxfers);
 	}
-#endif	
+#endif
 
 	xfer = dw_i3c_master_alloc_xfer(master, i3c_nxfers);
 	if (!xfer)
@@ -1798,7 +1798,7 @@ static int dw_i3c_probe(struct platform_device *pdev)
 	master->datstartaddr = ret;
 	master->maxdevs = ret >> 16;
 	master->free_pos = GENMASK(master->maxdevs - 1, 0);
-#ifdef CCC_WORKAROUND	
+#ifdef CCC_WORKAROUND
 	master->free_pos &= ~BIT(master->maxdevs - 1);
 	ret = (even_parity(I3C_BROADCAST_ADDR) << 7) | I3C_BROADCAST_ADDR;
 	master->addrs[master->maxdevs - 1] = ret;
