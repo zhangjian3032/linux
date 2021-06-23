@@ -422,18 +422,18 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 	unsigned long base_clk2;
 	unsigned long base_clk3;
 	unsigned long base_clk4;
-	int divider_ratio = 0;
+	int baseclk_idx;
 	u32 clk_div_reg;
 	u32 scl_low;
 	u32 scl_high;
-	int div = 0;
+	int divisor;
 	int inc = 0;
 	u32 data;
 	int i;
 
 	if (i2c_bus->clk_div_mode) {
 		regmap_read(i2c_bus->global_reg, ASPEED_I2CG_CLK_DIV_CTRL,
-			    &clk_div_reg);
+				&clk_div_reg);
 		base_clk1 = (i2c_bus->apb_clk * 10) /
 				((((clk_div_reg & 0xff) + 2) * 10) / 2);
 		base_clk2 = (i2c_bus->apb_clk * 10) /
@@ -442,39 +442,38 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 				(((((clk_div_reg >> 16) & 0xff) + 2) * 10) / 2);
 		base_clk4 = (i2c_bus->apb_clk * 10) /
 				(((((clk_div_reg >> 24) & 0xff) + 2) * 10) / 2);
-		if (i2c_bus->bus_frequency <= (base_clk1 / 10)) {
-			div = 1;
-			divider_ratio = base_clk1 / i2c_bus->bus_frequency;
+		if (i2c_bus->bus_frequency <= (base_clk1/10)) {
+			baseclk_idx = 1;
+			divisor = DIV_ROUND_UP(base_clk1, i2c_bus->bus_frequency);
 		} else if ((i2c_bus->bus_frequency > (base_clk1 / 10)) &&
 				(i2c_bus->bus_frequency <= (base_clk2 / 10))) {
-			div = 2;
-			divider_ratio = base_clk2 / i2c_bus->bus_frequency;
+			baseclk_idx = 2;
+			divisor = DIV_ROUND_UP(base_clk2, i2c_bus->bus_frequency);
 		} else if ((i2c_bus->bus_frequency > (base_clk2 / 10)) &&
 				(i2c_bus->bus_frequency <= (base_clk3 / 10))) {
-			div = 3;
-			divider_ratio = base_clk3 / i2c_bus->bus_frequency;
+			baseclk_idx = 3;
+			divisor = DIV_ROUND_UP(base_clk3, i2c_bus->bus_frequency);
 		} else if ((i2c_bus->bus_frequency > (base_clk3 / 10)) &&
 				(i2c_bus->bus_frequency <= (base_clk4 / 10))) {
-			div = 4;
-			divider_ratio = base_clk4 / i2c_bus->bus_frequency;
+			baseclk_idx = 4;
+			divisor = DIV_ROUND_UP(base_clk4, i2c_bus->bus_frequency);
 			inc = 0;
-			while ((divider_ratio + inc) > 32) {
-				inc |= divider_ratio & 0x1;
-				divider_ratio >>= 1;
-				div++;
+			while ((divisor + inc) > 32) {
+				inc |= divisor & 0x1;
+				divisor >>= 1;
+				baseclk_idx++;
 			}
-			divider_ratio += inc;
+			divisor += inc;
 		} else {
-			div = 0;
-			divider_ratio = i2c_bus->apb_clk /
-					i2c_bus->bus_frequency;
+			baseclk_idx = 0;
+			divisor = DIV_ROUND_UP(i2c_bus->apb_clk, i2c_bus->bus_frequency);
 		}
-		div &= 0xf;
-		scl_low = ((divider_ratio >> 1) - 1) & 0xf;
-		scl_high = (divider_ratio - scl_low - 2) & 0xf;
+		baseclk_idx &= 0xf;
+		scl_low = ((divisor >> 1) - 1) & 0xf;
+		scl_high = (divisor - scl_low - 2) & 0xf;
 		/* Divisor : Base Clock : tCKHighMin : tCK High : tCK Low  */
 		data = ((scl_high - 1) << 20) | (scl_high << 16) |
-				(scl_low << 12) | (div);
+				(scl_low << 12) | (baseclk_idx);
 	} else {
 		for (i = 0; i < ARRAY_SIZE(aspeed_old_i2c_timing_table); i++) {
 			if ((i2c_bus->apb_clk /
@@ -495,29 +494,26 @@ static u8 aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 	u32 state;
 	int r;
 
-	dev_dbg(i2c_bus->dev, "%d-bus recovery bus [%x]\n",
-		i2c_bus->adap.nr,
+	dev_dbg(i2c_bus->dev, "%d-bus recovery bus [%x]\n", i2c_bus->adap.nr,
 		readl(i2c_bus->reg_base + AST_I2CC_STS_AND_BUFF));
 
 	ctrl = readl(i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
 
 	writel(ctrl & ~(AST_I2CC_MASTER_EN | AST_I2CC_SLAVE_EN),
-	       i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
+			i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
 
-	writel(readl(i2c_bus->reg_base + AST_I2CC_FUN_CTRL) |
-	       AST_I2CC_MASTER_EN,
-	       i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
+	writel(readl(i2c_bus->reg_base + AST_I2CC_FUN_CTRL) | AST_I2CC_MASTER_EN,
+			i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
 
-	/* Let's retry 10 times */
 	reinit_completion(&i2c_bus->cmd_complete);
 	i2c_bus->cmd_err = 0;
 
-	/* Check 0x14's SDA and SCL status */
+	//Check 0x14's SDA and SCL status
 	state = readl(i2c_bus->reg_base + AST_I2CC_STS_AND_BUFF);
 	if (!(state & AST_I2CC_SDA_LINE_STS) &&
 	    (state & AST_I2CC_SCL_LINE_STS)) {
 		writel(AST_I2CM_RECOVER_CMD_EN,
-		       i2c_bus->reg_base + AST_I2CM_CMD_STS);
+				i2c_bus->reg_base + AST_I2CM_CMD_STS);
 		r = wait_for_completion_timeout(&i2c_bus->cmd_complete,
 						i2c_bus->adap.timeout);
 		if (r == 0) {
@@ -529,14 +525,37 @@ static u8 aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 				ret = -EPROTO;
 			}
 		}
-	} else {
-		dev_dbg(i2c_bus->dev, "can't recovery this situation\n");
-		ret = -EPROTO;
 	}
+
 	dev_dbg(i2c_bus->dev, "Recovery done [%x]\n",
 		readl(i2c_bus->reg_base + AST_I2CC_STS_AND_BUFF));
+	if (readl(i2c_bus->reg_base + AST_I2CC_STS_AND_BUFF) &
+		AST_I2CC_BUS_BUSY_STS) {
+		dev_dbg(i2c_bus->dev, "Can't recovery bus [%x]\n",
+			readl(i2c_bus->reg_base + AST_I2CC_STS_AND_BUFF));
+	}
 
 	writel(ctrl, i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
+	if (ctrl & AST_I2CC_SLAVE_EN) {
+		u32 cmd = SLAVE_TRIGGER_CMD;
+
+		if (i2c_bus->mode == DMA_MODE) {
+			cmd |= AST_I2CS_RX_DMA_EN;
+			writel(i2c_bus->slave_dma_addr,
+					i2c_bus->reg_base + AST_I2CS_RX_DMA);
+			writel(i2c_bus->slave_dma_addr,
+					i2c_bus->reg_base + AST_I2CS_TX_DMA);
+			writel(AST_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE),
+				i2c_bus->reg_base + AST_I2CS_DMA_LEN);
+		} else if (i2c_bus->mode == BUFF_MODE) {
+			cmd |= AST_I2CS_RX_BUFF_EN;
+			writel(AST_I2CC_SET_RX_BUF_LEN(i2c_bus->buf_size),
+					i2c_bus->reg_base + AST_I2CC_BUFF_CTRL);
+		} else {
+			cmd &= ~AST_I2CS_PKT_MODE_EN;
+		}
+		writel(cmd, i2c_bus->reg_base + AST_I2CS_CMD_STS);
+	}
 
 	return ret;
 }
@@ -1061,11 +1080,10 @@ static void aspeed_new_i2c_do_start(struct aspeed_new_i2c_bus *i2c_bus)
 			}
 		} else {
 			/* byte mode */
-			if (i2c_bus->msgs_index + 1 == i2c_bus->msgs_count) {
-				if (msg->len <= 1) {
-					dev_dbg(i2c_bus->dev, "with stop\n");
-					cmd |= AST_I2CM_STOP_CMD;
-				}
+			if ((i2c_bus->msgs_index + 1 == i2c_bus->msgs_count) &&
+			    (msg->len <= 1)) {
+				dev_dbg(i2c_bus->dev, "with stop\n");
+				cmd |= AST_I2CM_STOP_CMD;
 			}
 
 			if (msg->len) {
@@ -1474,16 +1492,12 @@ static int aspeed_new_i2c_master_xfer(struct i2c_adapter *adap,
 	if (timeout == 0) {
 		int isr = readl(i2c_bus->reg_base + AST_I2CM_ISR);
 
-		if (isr)
-			return aspeed_new_i2c_is_irq_error(isr);
-		/*
-		 * If timed out and bus is still busy in a multi master
-		 * environment, attempt recovery at here.
-		 */
-		if (i2c_bus->multi_master &&
-		    (readl(i2c_bus->reg_base + AST_I2CC_STS_AND_BUFF) &
-		     AST_I2CC_BUS_BUSY_STS))
+		dev_dbg(i2c_bus->dev, "timeout\n");
+		if (isr) {
+			dev_dbg(i2c_bus->dev, "recovery situation isr %x\n", isr);
 			aspeed_new_i2c_recover_bus(i2c_bus);
+			return aspeed_new_i2c_is_irq_error(isr);
+		}
 		return -ETIMEDOUT;
 	}
 
