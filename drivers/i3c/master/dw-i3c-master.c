@@ -35,6 +35,8 @@
 #define DEVICE_ADDR			0x4
 #define DEV_ADDR_DYNAMIC_ADDR_VALID	BIT(31)
 #define DEV_ADDR_DYNAMIC(x)		(((x) << 16) & GENMASK(22, 16))
+#define DEV_ADDR_STATIC_ADDR_VALID	BIT(15)
+#define DEV_ADDR_STATIC(x)		(((x) << 0) & GENMASK(6, 0))
 
 #define HW_CAPABILITY			0x8
 #define COMMAND_QUEUE_PORT		0xc
@@ -882,6 +884,8 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	u32 thld_ctrl;
 	int ret;
 
+	dw_i3c_master_set_role(master);
+
 	switch (bus->mode) {
 	case I3C_BUS_MODE_MIXED_FAST:
 	case I3C_BUS_MODE_MIXED_LIMITED:
@@ -920,8 +924,12 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	if (ret < 0)
 		return ret;
 
-	writel(DEV_ADDR_DYNAMIC_ADDR_VALID | DEV_ADDR_DYNAMIC(ret),
-	       master->regs + DEVICE_ADDR);
+	if (master->secondary)
+		writel(DEV_ADDR_STATIC_ADDR_VALID | DEV_ADDR_STATIC(ret),
+		       master->regs + DEVICE_ADDR);
+	else
+		writel(DEV_ADDR_DYNAMIC_ADDR_VALID | DEV_ADDR_DYNAMIC(ret),
+		       master->regs + DEVICE_ADDR);
 
 	info.dyn_addr = ret;
 
