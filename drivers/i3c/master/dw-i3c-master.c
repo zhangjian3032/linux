@@ -167,7 +167,10 @@
 #define INTR_MASTER_MASK		(INTR_TRANSFER_ERR_STAT |	\
 					 INTR_RESP_READY_STAT	|	\
 					 INTR_IBI_THLD_STAT)
-
+#define INTR_2ND_MASTER_MASK		(INTR_TRANSFER_ERR_STAT |	\
+					 INTR_RESP_READY_STAT	|	\
+					 INTR_IBI_UPDATED_STAT  |	\
+					 INTR_CCC_UPDATED_STAT)
 #define QUEUE_STATUS_LEVEL		0x4c
 #define QUEUE_STATUS_IBI_STATUS_CNT(x)	(((x) & GENMASK(28, 24)) >> 24)
 #define QUEUE_STATUS_IBI_BUF_BLR(x)	(((x) & GENMASK(23, 16)) >> 16)
@@ -911,10 +914,13 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	writel(thld_ctrl, master->regs + DATA_BUFFER_THLD_CTRL);
 
 	writel(INTR_ALL, master->regs + INTR_STATUS);
-	writel(INTR_MASTER_MASK, master->regs + INTR_STATUS_EN);
-	writel(INTR_MASTER_MASK, master->regs + INTR_SIGNAL_EN);
-
-	dw_i3c_master_set_role(master);
+	if (master->secondary) {
+		writel(INTR_2ND_MASTER_MASK, master->regs + INTR_STATUS_EN);
+		writel(INTR_2ND_MASTER_MASK, master->regs + INTR_SIGNAL_EN);
+	} else {
+		writel(INTR_MASTER_MASK, master->regs + INTR_STATUS_EN);
+		writel(INTR_MASTER_MASK, master->regs + INTR_SIGNAL_EN);
+	}
 
 	memset(&info, 0, sizeof(info));
 	if (master->is_aspeed)
@@ -1543,10 +1549,34 @@ static irqreturn_t dw_i3c_master_irq_handler(int irq, void *dev_id)
 	}
 
 	spin_lock(&master->xferqueue.lock);
-	dw_i3c_master_end_xfer_locked(master, status);
+	if (!master->secondary)
+		dw_i3c_master_end_xfer_locked(master, status);
 	if (status & INTR_TRANSFER_ERR_STAT)
 		writel(INTR_TRANSFER_ERR_STAT, master->regs + INTR_STATUS);
 	spin_unlock(&master->xferqueue.lock);
+
+	if (master->secondary && (status & INTR_RESP_READY_STAT)) {
+		int i, j;
+		u32 resp, nbytes, nwords;
+		u32 nresp = QUEUE_STATUS_LEVEL_RESP(
+			readl(master->regs + QUEUE_STATUS_LEVEL));
+		u32 *buf = master->slave_data.buf;
+		struct i3c_slave_payload payload;
+
+		for (i = 0; i < nresp; i++) {
+			resp = readl(master->regs + RESPONSE_QUEUE_PORT);
+			nbytes = RESPONSE_PORT_DATA_LEN(resp);
+			nwords = (nbytes + 3) >> 2;
+			for (j = 0; j < nwords; j++)
+				buf[j] = readl(master->regs + RX_TX_DATA_PORT);
+
+			payload.len = nbytes;
+			payload.data = buf;
+			if (master->slave_data.callback)
+				master->slave_data.callback(&master->base,
+							    &payload);
+		}
+	}
 
 	if (status & INTR_IBI_THLD_STAT)
 		dw_i3c_master_demux_ibis(master);
