@@ -118,8 +118,20 @@
 #define RESET_CTRL_RESP_QUEUE		BIT(2)
 #define RESET_CTRL_CMD_QUEUE		BIT(1)
 #define RESET_CTRL_SOFT			BIT(0)
+#define RESET_CTRL_ALL                  (RESET_CTRL_IBI_QUEUE	              |\
+					 RESET_CTRL_RX_FIFO	              |\
+					 RESET_CTRL_TX_FIFO	              |\
+					 RESET_CTRL_RESP_QUEUE	              |\
+					 RESET_CTRL_CMD_QUEUE	              |\
+					 RESET_CTRL_SOFT)
 
 #define SLV_EVENT_CTRL			0x38
+#define SLV_EVENT_CTRL_MWL_UPD		BIT(7)
+#define SLV_EVENT_CTRL_MRL_UPD		BIT(6)
+#define SLV_EVENT_CTRL_SIR_EN		BIT(0)
+#define SLV_EVETN_CTRL_W1C_MASK		(SLV_EVENT_CTRL_MWL_UPD |\
+					 SLV_EVENT_CTRL_MRL_UPD)
+
 #define INTR_STATUS			0x3c
 #define INTR_STATUS_EN			0x40
 #define INTR_SIGNAL_EN			0x44
@@ -164,6 +176,9 @@
 #define DATA_BUFFER_STATUS_LEVEL_TX(x)	((x) & GENMASK(7, 0))
 
 #define PRESENT_STATE			0x54
+#define PRESENT_STATE_CM_ST_STS(x)	(((x) & GENMASK(13, 8)) >> 8)
+#define CM_ST_STS_HALT			0x6
+
 #define CCC_DEVICE_STATUS		0x58
 #define DEVICE_ADDR_TABLE_POINTER	0x5c
 #define DEVICE_ADDR_TABLE_DEPTH(x)	(((x) & GENMASK(31, 16)) >> 16)
@@ -1478,6 +1493,30 @@ static void dw_i3c_master_detach_i2c_dev(struct i2c_dev_desc *dev)
 	kfree(data);
 }
 
+static void dw_i3c_master_slave_event_handler(struct dw_i3c_master *master)
+{
+	u32 event = readl(master->regs + SLV_EVENT_CTRL);
+	u32 cm_state =
+		PRESENT_STATE_CM_ST_STS(readl(master->regs + PRESENT_STATE));
+
+	if (cm_state == CM_ST_STS_HALT) {
+		dev_dbg(master->dev, "slave in halt state\n");
+		writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_RESUME,
+		       master->regs + DEVICE_CTRL);
+	}
+
+	dev_dbg(master->dev, "slave event=%08x\n", event);
+	if (event & SLV_EVENT_CTRL_MRL_UPD)
+		dev_dbg(master->dev, "isr: master set mrl=%d\n",
+			readl(master->regs + SLV_MAX_LEN) >> 16);
+
+	if (event & SLV_EVENT_CTRL_MWL_UPD)
+		dev_dbg(master->dev, "isr: master set mwl=%ld\n",
+			readl(master->regs + SLV_MAX_LEN) & GENMASK(15, 0));
+
+	writel(event, master->regs + SLV_EVENT_CTRL);
+}
+
 static irqreturn_t dw_i3c_master_irq_handler(int irq, void *dev_id)
 {
 	struct dw_i3c_master *master = dev_id;
@@ -1498,6 +1537,11 @@ static irqreturn_t dw_i3c_master_irq_handler(int irq, void *dev_id)
 
 	if (status & INTR_IBI_THLD_STAT)
 		dw_i3c_master_demux_ibis(master);
+
+	if (status & INTR_CCC_UPDATED_STAT)
+		dw_i3c_master_slave_event_handler(master);
+
+	writel(status, master->regs + INTR_STATUS);
 
 	return IRQ_HANDLED;
 }
@@ -1684,6 +1728,10 @@ static int dw_i3c_probe(struct platform_device *pdev)
 	spin_lock_init(&master->ibi.lock);
 	spin_lock_init(&master->xferqueue.lock);
 	INIT_LIST_HEAD(&master->xferqueue.list);
+
+	writel(RESET_CTRL_ALL, master->regs + RESET_CTRL);
+	while (readl(master->regs + RESET_CTRL))
+		;
 
 	writel(INTR_ALL, master->regs + INTR_STATUS);
 	irq = platform_get_irq(pdev, 0);
