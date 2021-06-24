@@ -27,6 +27,7 @@ struct i3c_bus;
 struct i2c_device;
 struct i3c_device;
 struct i3c_slave_setup;
+struct i3c_slave_payload;
 
 /**
  * struct i3c_i2c_dev_desc - Common part of the I3C/I2C device descriptor
@@ -456,6 +457,8 @@ struct i3c_master_controller_ops {
 	int (*register_slave)(struct i3c_master_controller *master,
 			      const struct i3c_slave_setup *req);
 	int (*unregister_slave)(struct i3c_master_controller *master);
+	int (*send_sir)(struct i3c_master_controller *master,
+			struct i3c_slave_payload *payload);
 };
 
 /**
@@ -675,6 +678,8 @@ struct i3c_ibi_slot *i3c_master_get_free_ibi_slot(struct i3c_dev_desc *dev);
 int i3c_master_register_slave(struct i3c_master_controller *master,
 			      const struct i3c_slave_setup *req);
 int i3c_master_unregister_slave(struct i3c_master_controller *master);
+int i3c_master_send_sir(struct i3c_master_controller *master,
+			struct i3c_slave_payload *payload);
 /*
  * IBI message queue driver API
  */

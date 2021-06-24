@@ -2816,6 +2816,15 @@ int i3c_master_unregister_slave(struct i3c_master_controller *master)
 	return master->ops->unregister_slave(master);
 }
 
+int i3c_master_send_sir(struct i3c_master_controller *master,
+			struct i3c_slave_payload *payload)
+{
+	if (!master->ops->send_sir)
+		return -ENOTSUPP;
+
+	return master->ops->send_sir(master, payload);
+}
+
 int i3c_for_each_dev(void *data, int (*fn)(struct device *, void *))
 {
 	int res;
