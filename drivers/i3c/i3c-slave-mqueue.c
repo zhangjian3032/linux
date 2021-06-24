@@ -23,6 +23,10 @@ struct mq_msg {
 };
 
 struct mq_queue {
+	struct bin_attribute bin;
+	struct kernfs_node *kn;
+
+	spinlock_t lock;
 	int in;
 	int out;
 
@@ -31,41 +35,31 @@ struct mq_queue {
 	struct mq_msg queue[MQ_QUEUE_SIZE];
 };
 
-struct mq_data {
-	struct bin_attribute bin;
-	struct kernfs_node *kn;
-
-	spinlock_t lock;
-	struct mq_queue rd;
-	struct mq_queue wr;
-};
-
 static void i3c_slave_mqueue_callback(struct i3c_master_controller *master,
 				      const struct i3c_slave_payload *payload)
 {
-	struct mq_data *mq = dev_get_drvdata(&master->dev);
-	struct mq_msg *msg = mq->rd.curr;
+	struct mq_queue *mq = dev_get_drvdata(&master->dev);
+	struct mq_msg *msg = mq->curr;
 
 	memcpy(msg->buf, (u8 *)payload->data, payload->len);
 	msg->len = payload->len;
 
 	spin_lock(&mq->lock);
-	mq->rd.in = MQ_QUEUE_NEXT(mq->rd.in);
-	mq->rd.curr = &mq->rd.queue[mq->rd.in];
-	mq->rd.curr->len = 0;
+	mq->in = MQ_QUEUE_NEXT(mq->in);
+	mq->curr = &mq->queue[mq->in];
+	mq->curr->len = 0;
 
-	if (mq->rd.out == mq->rd.in)
-		mq->rd.out = MQ_QUEUE_NEXT(mq->rd.out);
+	if (mq->out == mq->in)
+		mq->out = MQ_QUEUE_NEXT(mq->out);
 	spin_unlock(&mq->lock);
 	kernfs_notify(mq->kn);
 }
 
-static ssize_t i3c_slave_mqueue_bin_read(struct file *filp,
-					 struct kobject *kobj,
-					 struct bin_attribute *attr, char *buf,
-					 loff_t pos, size_t count)
+static ssize_t i3c_slave_mqueue_bin_read(struct file *filp, struct kobject *kobj,
+				       struct bin_attribute *attr, char *buf,
+				       loff_t pos, size_t count)
 {
-	struct mq_data *mq;
+	struct mq_queue *mq;
 	struct mq_msg *msg;
 	unsigned long flags;
 	bool more = false;
@@ -74,8 +68,8 @@ static ssize_t i3c_slave_mqueue_bin_read(struct file *filp,
 	mq = dev_get_drvdata(container_of(kobj, struct device, kobj));
 
 	spin_lock_irqsave(&mq->lock, flags);
-	if (mq->rd.out != mq->rd.in) {
-		msg = &mq->rd.queue[mq->rd.out];
+	if (mq->out != mq->in) {
+		msg = &mq->queue[mq->out];
 
 		if (msg->len <= count) {
 			ret = msg->len;
@@ -84,8 +78,8 @@ static ssize_t i3c_slave_mqueue_bin_read(struct file *filp,
 			ret = -EOVERFLOW; /* Drop this HUGE one. */
 		}
 
-		mq->rd.out = MQ_QUEUE_NEXT(mq->rd.out);
-		if (mq->rd.out != mq->rd.in)
+		mq->out = MQ_QUEUE_NEXT(mq->out);
+		if (mq->out != mq->in)
 			more = true;
 	}
 	spin_unlock_irqrestore(&mq->lock, flags);
@@ -96,18 +90,9 @@ static ssize_t i3c_slave_mqueue_bin_read(struct file *filp,
 	return ret;
 }
 
-static ssize_t i3c_slave_mqueue_bin_write(struct file *filp,
-					  struct kobject *kobj,
-					  struct bin_attribute *attr, char *buf,
-					  loff_t pos, size_t count)
-{
-	pr_warn("Not supported feature\n");
-	return count;
-}
-
 int i3c_slave_mqueue_probe(struct i3c_master_controller *master)
 {
-	struct mq_data *mq;
+	struct mq_queue *mq;
 	int ret, i;
 	void *buf;
 	struct i3c_slave_setup req = {};
@@ -119,31 +104,26 @@ int i3c_slave_mqueue_probe(struct i3c_master_controller *master)
 
 	BUILD_BUG_ON(!is_power_of_2(MQ_QUEUE_SIZE));
 
-	buf = devm_kmalloc_array(dev, MQ_QUEUE_SIZE * 2, MQ_MSGBUF_SIZE,
+	buf = devm_kmalloc_array(dev, MQ_QUEUE_SIZE, MQ_MSGBUF_SIZE,
 				 GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	for (i = 0; i < MQ_QUEUE_SIZE; i++) {
-		mq->rd.queue[i].buf = buf + i * MQ_MSGBUF_SIZE;
-		mq->rd.queue[i].len = 0;
-		mq->wr.queue[i].buf =
-			buf + (MQ_QUEUE_SIZE + i) * MQ_MSGBUF_SIZE;
-		mq->wr.queue[i].len = 0;
+		mq->queue[i].buf = buf + i * MQ_MSGBUF_SIZE;
+		mq->queue[i].len = 0;
 	}
 
 	dev_set_drvdata(dev, &mq->bin);
 
 	spin_lock_init(&mq->lock);
-	mq->rd.curr = &mq->rd.queue[0];
-	mq->wr.curr = &mq->wr.queue[0];
+	mq->curr = &mq->queue[0];
 
 	sysfs_bin_attr_init(&mq->bin);
 	mq->bin.attr.name = "slave-mqueue";
-	mq->bin.attr.mode = 0600;
+	mq->bin.attr.mode = 0400;
 	mq->bin.read = i3c_slave_mqueue_bin_read;
-	mq->bin.write = i3c_slave_mqueue_bin_write;
-	mq->bin.size = MQ_MSGBUF_SIZE * MQ_QUEUE_SIZE * 2;
+	mq->bin.size = MQ_MSGBUF_SIZE * MQ_QUEUE_SIZE;
 
 	ret = sysfs_create_bin_file(&dev->kobj, &mq->bin);
 	if (ret)
@@ -173,7 +153,7 @@ int i3c_slave_mqueue_probe(struct i3c_master_controller *master)
 int i3c_slave_mqueue_remove(struct i3c_master_controller *master)
 {
 	struct device *dev = &master->dev;
-	struct mq_data *mq = dev_get_drvdata(dev);
+	struct mq_queue *mq = dev_get_drvdata(dev);
 
 	i3c_master_unregister_slave(master);
 
