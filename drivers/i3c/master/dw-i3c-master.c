@@ -955,7 +955,9 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 
 	/* For now don't support Hot-Join */
 	dw_setbits(master->regs + DEVICE_CTRL,
-		   DEV_CTRL_AUTO_HJ_DISABLE | DEV_CTRL_HOT_JOIN_NACK);
+		   DEV_CTRL_AUTO_HJ_DISABLE |
+		   DEV_CTRL_HOT_JOIN_NACK |
+		   DEV_CRTL_IBI_PAYLOAD_EN);
 
 	dw_i3c_master_enable(master);
 
