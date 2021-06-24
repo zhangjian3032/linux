@@ -33,6 +33,8 @@ struct mq_queue {
 	struct mq_msg *curr;
 	int truncated;
 	struct mq_msg queue[MQ_QUEUE_SIZE];
+
+	struct i3c_master_controller *i3c_controller;
 };
 
 static void i3c_slave_mqueue_callback(struct i3c_master_controller *master,
@@ -90,6 +92,26 @@ static ssize_t i3c_slave_mqueue_bin_read(struct file *filp, struct kobject *kobj
 	return ret;
 }
 
+static ssize_t i3c_slave_mqueue_bin_write(struct file *filp,
+					  struct kobject *kobj,
+					  struct bin_attribute *attr, char *buf,
+					  loff_t pos, size_t count)
+{
+	struct mq_queue *mq;
+	unsigned long flags;
+	struct i3c_slave_payload payload;
+
+	payload.data = buf;
+	payload.len = count;
+	mq = dev_get_drvdata(container_of(kobj, struct device, kobj));
+
+	spin_lock_irqsave(&mq->lock, flags);
+	i3c_master_send_sir(mq->i3c_controller, &payload);
+	spin_unlock_irqrestore(&mq->lock, flags);
+
+	return count;
+}
+
 int i3c_slave_mqueue_probe(struct i3c_master_controller *master)
 {
 	struct mq_queue *mq;
@@ -121,9 +143,12 @@ int i3c_slave_mqueue_probe(struct i3c_master_controller *master)
 
 	sysfs_bin_attr_init(&mq->bin);
 	mq->bin.attr.name = "slave-mqueue";
-	mq->bin.attr.mode = 0400;
+	mq->bin.attr.mode = 0600;
 	mq->bin.read = i3c_slave_mqueue_bin_read;
+	mq->bin.write = i3c_slave_mqueue_bin_write;
 	mq->bin.size = MQ_MSGBUF_SIZE * MQ_QUEUE_SIZE;
+
+	mq->i3c_controller = master;
 
 	ret = sysfs_create_bin_file(&dev->kobj, &mq->bin);
 	if (ret)
