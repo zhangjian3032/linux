@@ -210,6 +210,9 @@
 #define MAX_DATA_SPEED			0x84
 #define SLV_DEBUG_STATUS		0x88
 #define SLV_INTR_REQ			0x8c
+#define SLV_INTR_REQ_IBI_STS(x)		((x) & GENMASK(9, 8) >> 8)
+#define SLV_IBI_STS_OK			0x1
+
 #define DEVICE_CTRL_EXTENDED		0xb0
 #define DEVICE_CTRL_ROLE_MASK		GENMASK(1, 0)
 #define DEVICE_CTRL_ROLE_MASTER		0
@@ -327,6 +330,7 @@ struct dw_i3c_master {
 		void (*callback)(struct i3c_master_controller *m,
 				 const struct i3c_slave_payload *payload);
 	} slave_data;
+	struct completion sir_complete;
 };
 
 struct dw_i3c_i2c_dev_data {
@@ -1557,6 +1561,9 @@ static irqreturn_t dw_i3c_master_irq_handler(int irq, void *dev_id)
 		writel(INTR_TRANSFER_ERR_STAT, master->regs + INTR_STATUS);
 	spin_unlock(&master->xferqueue.lock);
 
+	if (status & INTR_IBI_UPDATED_STAT)
+		complete(&master->sir_complete);
+
 	if (master->secondary && (status & INTR_RESP_READY_STAT)) {
 		int i, j;
 		u32 resp, nbytes, nwords;
@@ -1747,6 +1754,49 @@ static int dw_i3c_master_unregister_slave(struct i3c_master_controller *m)
 	return 0;
 }
 
+static int dw_i3c_maser_send_sir(struct i3c_master_controller *m,
+				 struct i3c_slave_payload *payload)
+{
+	struct dw_i3c_master *master = to_dw_i3c_master(m);
+	uint32_t slv_event, intr_req, act_len;
+
+	slv_event = readl(master->regs + SLV_EVENT_CTRL);
+	if ((slv_event & SLV_EVENT_CTRL_SIR_EN) == 0)
+		return -EPERM;
+
+	init_completion(&master->sir_complete);
+
+	act_len = payload->len;
+	if (master->is_aspeed) {
+		/*
+		 * AST2600 HW does not export the max ibi payload length to the
+		 * software interface, so we can only send fixed length SIR.
+		 *
+		 * Another consideration is if the bus main master is AST2600,
+		 * it cannot receive IBI with data length (4n + 1) including the
+		 * MDB.  Which means the length of the user payload must not be
+		 * 4n bytes.  Thus we pad 3 bytes for workaround.
+		 */
+		act_len = CONFIG_ASPEED_I3C_IBI_MAX_PAYLOAD;
+		if ((act_len & 0x3) == 0x0)
+			act_len += 3;
+	}
+
+	dw_i3c_master_wr_tx_fifo(master, payload->data, act_len);
+	writel(1, master->regs + SLV_INTR_REQ);
+	wait_for_completion(&master->sir_complete);
+
+	intr_req = readl(master->regs + SLV_INTR_REQ);
+	if (SLV_INTR_REQ_IBI_STS(intr_req) != SLV_IBI_STS_OK) {
+		slv_event = readl(master->regs + SLV_EVENT_CTRL);
+		if ((slv_event & SLV_EVENT_CTRL_SIR_EN) == 0)
+			pr_warn("sir is disabled by master\n");
+		return -EACCES;
+	}
+
+	return 0;
+}
+
 static const struct i3c_master_controller_ops dw_mipi_i3c_ops = {
 	.bus_init = dw_i3c_master_bus_init,
 	.bus_cleanup = dw_i3c_master_bus_cleanup,
@@ -1767,6 +1817,7 @@ static const struct i3c_master_controller_ops dw_mipi_i3c_ops = {
 	.recycle_ibi_slot = dw_i3c_master_recycle_ibi_slot,
 	.register_slave = dw_i3c_master_register_slave,
 	.unregister_slave = dw_i3c_master_unregister_slave,
+	.send_sir = dw_i3c_maser_send_sir,
 };
 
 static int dw_i3c_probe(struct platform_device *pdev)
