@@ -81,6 +81,7 @@ enum i3c_dcr {
 	I3C_DCR_SPD_HUB = 218,
 	I3C_DCR_RCD = 219,
 	I3C_DCR_PMIC_THIRD = 220,
+	I3C_DCR_MAX = 228,
 };
 
 #define I3C_PID_MANUF_ID(pid)		(((pid) & GENMASK_ULL(47, 33)) >> 33)
