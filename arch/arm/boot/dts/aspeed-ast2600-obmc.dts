@@ -653,8 +653,8 @@
 	bus-width = <4>;
 	max-frequency = <100000000>;
 	sdhci-drive-type = /bits/ 8 <3>;
-	/* DDR50 bit in CAPA2 is not supported */
-	sdhci-caps-mask = <0x4 0x0>;
+	/* SDR104/DDR50 bits in CAPA2 is not supported */
+	sdhci-caps-mask = <0x6 0x0>;
 	sdhci,wp-inverted;
 };
 
@@ -664,7 +664,7 @@
 	bus-width = <4>;
 	max-frequency = <100000000>;
 	sdhci-drive-type = /bits/ 8 <3>;
-	sdhci-caps-mask = <0x4 0x0>;
+	sdhci-caps-mask = <0x6 0x0>;
 	sdhci,wp-inverted;
 };
 
