@@ -237,39 +237,39 @@ static umode_t fan_dev_is_visible(struct kobject *kobj, struct attribute *a,
 	return a->mode;
 }
 
-static SENSOR_DEVICE_ATTR(fan0, 0444, show_rpm, NULL, 0);
-static SENSOR_DEVICE_ATTR(fan1, 0444, show_rpm, NULL, 1);
-static SENSOR_DEVICE_ATTR(fan2, 0444, show_rpm, NULL, 2);
-static SENSOR_DEVICE_ATTR(fan3, 0444, show_rpm, NULL, 3);
-static SENSOR_DEVICE_ATTR(fan4, 0444, show_rpm, NULL, 4);
-static SENSOR_DEVICE_ATTR(fan5, 0444, show_rpm, NULL, 5);
-static SENSOR_DEVICE_ATTR(fan6, 0444, show_rpm, NULL, 6);
-static SENSOR_DEVICE_ATTR(fan7, 0444, show_rpm, NULL, 7);
-static SENSOR_DEVICE_ATTR(fan8, 0444, show_rpm, NULL, 8);
-static SENSOR_DEVICE_ATTR(fan9, 0444, show_rpm, NULL, 9);
-static SENSOR_DEVICE_ATTR(fan10, 0444, show_rpm, NULL, 10);
-static SENSOR_DEVICE_ATTR(fan11, 0444, show_rpm, NULL, 11);
-static SENSOR_DEVICE_ATTR(fan12, 0444, show_rpm, NULL, 12);
-static SENSOR_DEVICE_ATTR(fan13, 0444, show_rpm, NULL, 13);
-static SENSOR_DEVICE_ATTR(fan14, 0444, show_rpm, NULL, 14);
-static SENSOR_DEVICE_ATTR(fan15, 0444, show_rpm, NULL, 15);
+static SENSOR_DEVICE_ATTR(fan1_input, 0444, show_rpm, NULL, 0);
+static SENSOR_DEVICE_ATTR(fan2_input, 0444, show_rpm, NULL, 1);
+static SENSOR_DEVICE_ATTR(fan3_input, 0444, show_rpm, NULL, 2);
+static SENSOR_DEVICE_ATTR(fan4_input, 0444, show_rpm, NULL, 3);
+static SENSOR_DEVICE_ATTR(fan5_input, 0444, show_rpm, NULL, 4);
+static SENSOR_DEVICE_ATTR(fan6_input, 0444, show_rpm, NULL, 5);
+static SENSOR_DEVICE_ATTR(fan7_input, 0444, show_rpm, NULL, 6);
+static SENSOR_DEVICE_ATTR(fan8_input, 0444, show_rpm, NULL, 7);
+static SENSOR_DEVICE_ATTR(fan9_input, 0444, show_rpm, NULL, 8);
+static SENSOR_DEVICE_ATTR(fan10_input, 0444, show_rpm, NULL, 9);
+static SENSOR_DEVICE_ATTR(fan11_input, 0444, show_rpm, NULL, 10);
+static SENSOR_DEVICE_ATTR(fan12_input, 0444, show_rpm, NULL, 11);
+static SENSOR_DEVICE_ATTR(fan13_input, 0444, show_rpm, NULL, 12);
+static SENSOR_DEVICE_ATTR(fan14_input, 0444, show_rpm, NULL, 13);
+static SENSOR_DEVICE_ATTR(fan15_input, 0444, show_rpm, NULL, 14);
+static SENSOR_DEVICE_ATTR(fan16_input, 0444, show_rpm, NULL, 15);
 static struct attribute *fan_dev_attrs[] = {
-	&sensor_dev_attr_fan0.dev_attr.attr,
-	&sensor_dev_attr_fan1.dev_attr.attr,
-	&sensor_dev_attr_fan2.dev_attr.attr,
-	&sensor_dev_attr_fan3.dev_attr.attr,
-	&sensor_dev_attr_fan4.dev_attr.attr,
-	&sensor_dev_attr_fan5.dev_attr.attr,
-	&sensor_dev_attr_fan6.dev_attr.attr,
-	&sensor_dev_attr_fan7.dev_attr.attr,
-	&sensor_dev_attr_fan8.dev_attr.attr,
-	&sensor_dev_attr_fan9.dev_attr.attr,
-	&sensor_dev_attr_fan10.dev_attr.attr,
-	&sensor_dev_attr_fan11.dev_attr.attr,
-	&sensor_dev_attr_fan12.dev_attr.attr,
-	&sensor_dev_attr_fan13.dev_attr.attr,
-	&sensor_dev_attr_fan14.dev_attr.attr,
-	&sensor_dev_attr_fan15.dev_attr.attr,
+	&sensor_dev_attr_fan1_input.dev_attr.attr,
+	&sensor_dev_attr_fan2_input.dev_attr.attr,
+	&sensor_dev_attr_fan3_input.dev_attr.attr,
+	&sensor_dev_attr_fan4_input.dev_attr.attr,
+	&sensor_dev_attr_fan5_input.dev_attr.attr,
+	&sensor_dev_attr_fan6_input.dev_attr.attr,
+	&sensor_dev_attr_fan7_input.dev_attr.attr,
+	&sensor_dev_attr_fan8_input.dev_attr.attr,
+	&sensor_dev_attr_fan9_input.dev_attr.attr,
+	&sensor_dev_attr_fan10_input.dev_attr.attr,
+	&sensor_dev_attr_fan11_input.dev_attr.attr,
+	&sensor_dev_attr_fan12_input.dev_attr.attr,
+	&sensor_dev_attr_fan13_input.dev_attr.attr,
+	&sensor_dev_attr_fan14_input.dev_attr.attr,
+	&sensor_dev_attr_fan15_input.dev_attr.attr,
+	&sensor_dev_attr_fan16_input.dev_attr.attr,
 	NULL
 };
 
