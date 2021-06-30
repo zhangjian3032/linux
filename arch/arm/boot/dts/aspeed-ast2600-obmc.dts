@@ -89,6 +89,14 @@
 				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
 	};
 
+	fan0: pwm-fan0 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 0 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 25 128 255>;
+	};
 };
 
 &trng {
