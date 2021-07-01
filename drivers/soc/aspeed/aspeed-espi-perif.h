@@ -247,7 +247,7 @@ static long aspeed_espi_perif_np_put_tx(struct file *fp,
 	 * part is written to HW registers
 	 */
 	if (espi_perif->dma_mode) {
-		memcpy(espi_perif->dma.pc_tx_virt, hdr + 1,
+		memcpy(espi_perif->dma.np_tx_virt, hdr + 1,
 		       ioc->pkt_len - sizeof(*hdr));
 		dma_wmb();
 	}
