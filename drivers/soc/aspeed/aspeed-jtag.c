@@ -519,10 +519,10 @@ static int aspeed_hw_dr_scan(struct aspeed_jtag_info *aspeed_jtag, enum jtag_end
 					JTAG_DATA_EN, ASPEED_JTAG_CTRL);
 		} else {
 			aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN |
-					JTAG_SET_INST_LEN(shift_bits),
+					JTAG_DATA_LEN(shift_bits),
 					ASPEED_JTAG_CTRL);
 			aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN |
-					JTAG_SET_INST_LEN(shift_bits) |
+					JTAG_DATA_LEN(shift_bits) |
 					JTAG_DATA_EN, ASPEED_JTAG_CTRL);
 		}
 		aspeed_jtag_wait_data_pause_complete(aspeed_jtag);
