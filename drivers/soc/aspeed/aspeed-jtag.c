@@ -288,30 +288,34 @@ static int aspeed_jtag_sw_set_tap_state(struct aspeed_jtag_info *aspeed_jtag,
 /******************************************************************************/
 static void aspeed_jtag_wait_instruction_pause_complete(struct aspeed_jtag_info *aspeed_jtag)
 {
-	wait_event_interruptible(aspeed_jtag->jtag_wq, (aspeed_jtag->flag == JTAG_INST_PAUSE));
+	wait_event_interruptible(aspeed_jtag->jtag_wq,
+				 (aspeed_jtag->flag & JTAG_INST_PAUSE));
 	JTAG_DBUG("\n");
-	aspeed_jtag->flag = 0;
+	aspeed_jtag->flag &= ~JTAG_INST_PAUSE;
 }
 
 static void aspeed_jtag_wait_instruction_complete(struct aspeed_jtag_info *aspeed_jtag)
 {
-	wait_event_interruptible(aspeed_jtag->jtag_wq, (aspeed_jtag->flag == JTAG_INST_COMPLETE));
+	wait_event_interruptible(aspeed_jtag->jtag_wq,
+				 (aspeed_jtag->flag & JTAG_INST_COMPLETE));
 	JTAG_DBUG("\n");
-	aspeed_jtag->flag = 0;
+	aspeed_jtag->flag &= ~JTAG_INST_COMPLETE;
 }
 
 static void aspeed_jtag_wait_data_pause_complete(struct aspeed_jtag_info *aspeed_jtag)
 {
-	wait_event_interruptible(aspeed_jtag->jtag_wq, (aspeed_jtag->flag == JTAG_DATA_PAUSE));
+	wait_event_interruptible(aspeed_jtag->jtag_wq,
+				 (aspeed_jtag->flag & JTAG_DATA_PAUSE));
 	JTAG_DBUG("\n");
-	aspeed_jtag->flag = 0;
+	aspeed_jtag->flag &= ~JTAG_DATA_PAUSE;
 }
 
 static void aspeed_jtag_wait_data_complete(struct aspeed_jtag_info *aspeed_jtag)
 {
-	wait_event_interruptible(aspeed_jtag->jtag_wq, (aspeed_jtag->flag == JTAG_DATA_COMPLETE));
+	wait_event_interruptible(aspeed_jtag->jtag_wq,
+				 (aspeed_jtag->flag & JTAG_DATA_COMPLETE));
 	JTAG_DBUG("\n");
-	aspeed_jtag->flag = 0;
+	aspeed_jtag->flag &= ~JTAG_DATA_COMPLETE;
 }
 
 static int aspeed_jtag_run_to_tlr(struct aspeed_jtag_info *aspeed_jtag)
@@ -469,12 +473,19 @@ static int aspeed_hw_ir_scan(struct aspeed_jtag_info *aspeed_jtag, enum jtag_end
 					JTAG_G6_SET_XFER_LEN(shift_bits) |
 					JTAG_G6_INST_EN, ASPEED_JTAG_CTRL);
 		} else {
+			if (aspeed_jtag->sts == JTAG_PAUSEDR)
+				aspeed_jtag_write(aspeed_jtag,
+						  JTAG_INST_PAUSE_EN |
+							  JTAG_DATA_COMPLETE_EN,
+						  ASPEED_JTAG_ISR);
 			aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN |
 					JTAG_SET_INST_LEN(shift_bits),
 					ASPEED_JTAG_CTRL);
 			aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN |
 					JTAG_SET_INST_LEN(shift_bits) |
 					JTAG_INST_EN, ASPEED_JTAG_CTRL);
+			if (aspeed_jtag->sts == JTAG_PAUSEDR)
+				aspeed_jtag_wait_data_complete(aspeed_jtag);
 		}
 		aspeed_jtag_wait_instruction_pause_complete(aspeed_jtag);
 		aspeed_jtag->sts = JTAG_PAUSEIR;
@@ -518,12 +529,20 @@ static int aspeed_hw_dr_scan(struct aspeed_jtag_info *aspeed_jtag, enum jtag_end
 					JTAG_G6_SET_XFER_LEN(shift_bits) |
 					JTAG_DATA_EN, ASPEED_JTAG_CTRL);
 		} else {
+			if (aspeed_jtag->sts == JTAG_PAUSEIR)
+				aspeed_jtag_write(aspeed_jtag,
+						  JTAG_DATA_PAUSE_EN |
+							  JTAG_INST_COMPLETE_EN,
+						  ASPEED_JTAG_ISR);
 			aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN |
 					JTAG_DATA_LEN(shift_bits),
 					ASPEED_JTAG_CTRL);
 			aspeed_jtag_write(aspeed_jtag, JTAG_ENG_EN | JTAG_ENG_OUT_EN |
 					JTAG_DATA_LEN(shift_bits) |
 					JTAG_DATA_EN, ASPEED_JTAG_CTRL);
+			if (aspeed_jtag->sts == JTAG_PAUSEIR)
+				aspeed_jtag_wait_instruction_complete(
+					aspeed_jtag);
 		}
 		aspeed_jtag_wait_data_pause_complete(aspeed_jtag);
 		aspeed_jtag->sts = JTAG_PAUSEDR;
@@ -631,26 +650,25 @@ static irqreturn_t aspeed_jtag_isr(int this_irq, void *dev_id)
 
 	status = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_ISR);
 	JTAG_DBUG("sts %x \n", status);
-	status = status & (status << 16);
 
 	if (status & JTAG_INST_PAUSE) {
 		aspeed_jtag_write(aspeed_jtag, JTAG_INST_PAUSE | (status & 0xf), ASPEED_JTAG_ISR);
-		aspeed_jtag->flag = JTAG_INST_PAUSE;
+		aspeed_jtag->flag |= JTAG_INST_PAUSE;
 	}
 
 	if (status & JTAG_INST_COMPLETE) {
 		aspeed_jtag_write(aspeed_jtag, JTAG_INST_COMPLETE | (status & 0xf), ASPEED_JTAG_ISR);
-		aspeed_jtag->flag = JTAG_INST_COMPLETE;
+		aspeed_jtag->flag |= JTAG_INST_COMPLETE;
 	}
 
 	if (status & JTAG_DATA_PAUSE) {
 		aspeed_jtag_write(aspeed_jtag, JTAG_DATA_PAUSE | (status & 0xf), ASPEED_JTAG_ISR);
-		aspeed_jtag->flag = JTAG_DATA_PAUSE;
+		aspeed_jtag->flag |= JTAG_DATA_PAUSE;
 	}
 
 	if (status & JTAG_DATA_COMPLETE) {
 		aspeed_jtag_write(aspeed_jtag, JTAG_DATA_COMPLETE | (status & 0xf), ASPEED_JTAG_ISR);
-		aspeed_jtag->flag = JTAG_DATA_COMPLETE;
+		aspeed_jtag->flag |= JTAG_DATA_COMPLETE;
 	}
 
 	if (aspeed_jtag->flag) {
