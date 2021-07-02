@@ -250,6 +250,9 @@
 
 #define DEV_ADDR_TABLE_LEGACY_I2C_DEV	BIT(31)
 #define DEV_ADDR_TABLE_DEV_NACK_RETRY(x) (((x) << 29) & GENMASK(30, 29))
+#define DEV_ADDR_TABLE_IBI_ADDR_MASK	GENMASK(25, 24)
+#define IBI_ADDR_MASK_LAST_3BITS	((1 << 24) & GENMASK(25, 24))
+#define IBI_ADDR_MASK_LAST_4BITS	((2 << 24) & GENMASK(25, 24))
 #define DEV_ADDR_TABLE_MR_REJECT	BIT(14)
 #define DEV_ADDR_TABLE_SIR_REJECT	BIT(13)
 #define DEV_ADDR_TABLE_IBI_WITH_DATA	BIT(12)
@@ -258,7 +261,7 @@
 #define DEV_ADDR_TABLE_STATIC_ADDR(x)	((x) & GENMASK(6, 0))
 #define DEV_ADDR_TABLE_LOC(start, idx)	((start) + ((idx) << 2))
 
-#define MAX_DEVS			32
+#define MAX_DEVS			128
 #define MAX_IBI_FRAG_SIZE		124
 
 #define I3C_BUS_SDR1_SCL_RATE		8000000
@@ -313,6 +316,10 @@ struct dw_i3c_dev_group {
 	u32 dat[8];
 	u32 free_pos;
 	int hw_index;
+	struct {
+		u32 set;
+		u32 clr;
+	} mask;
 };
 
 struct dw_i3c_master {
@@ -432,18 +439,6 @@ static void dw_i3c_master_set_role(struct dw_i3c_master *master)
 	writel(reg, master->regs + DEVICE_CTRL_EXTENDED);
 }
 
-static int dw_i3c_master_get_addr_pos(struct dw_i3c_master *master, u8 addr)
-{
-	int pos;
-
-	for (pos = 0; pos < master->maxdevs; pos++) {
-		if (addr == master->addrs[pos])
-			return pos;
-	}
-
-	return -EINVAL;
-}
-
 static int dw_i3c_master_get_free_pos(struct dw_i3c_master *master)
 {
 	if (!(master->free_pos & GENMASK(master->maxdevs - 1, 0)))
@@ -456,14 +451,28 @@ static void dw_i3c_master_init_group_dat(struct dw_i3c_master *master)
 {
 	struct dw_i3c_dev_group *dev_grp;
 	int i, j;
+	u32 def_set, def_clr;
+
+	def_clr = DEV_ADDR_TABLE_IBI_ADDR_MASK;
+
+	/* For now don't support Hot-Join */
+	def_set = DEV_ADDR_TABLE_MR_REJECT | DEV_ADDR_TABLE_SIR_REJECT |
+		  IBI_ADDR_MASK_LAST_3BITS;
 
 	for (i = 0; i < MAX_GROUPS; i++) {
 		dev_grp = &master->dev_group[i];
 		dev_grp->hw_index = -1;
 		dev_grp->free_pos = ALL_DEVS_IN_GROUP_ARE_FREE;
+		dev_grp->mask.set = def_set;
+		dev_grp->mask.clr = def_clr;
 		for (j = 0; j < MAX_DEVS_IN_GROUP; j++)
 			dev_grp->dat[j] = 0;
 	}
+
+	for (i = 0; i < master->maxdevs; i++)
+		writel(def_set,
+		       master->regs +
+			       DEV_ADDR_TABLE_LOC(master->datstartaddr, i));
 }
 
 static int dw_i3c_master_set_group_dat(struct dw_i3c_master *master, u8 addr,
@@ -525,6 +534,12 @@ static int dw_i3c_master_get_group_hw_index(struct dw_i3c_master *master,
 	return dev_grp->hw_index;
 }
 
+static struct dw_i3c_dev_group *
+dw_i3c_master_get_group(struct dw_i3c_master *master, u8 addr)
+{
+	return &master->dev_group[ADDR_GRP(addr)];
+}
+
 static int dw_i3c_master_sync_hw_dat(struct dw_i3c_master *master, u8 addr)
 {
 	struct dw_i3c_dev_group *dev_grp = &master->dev_group[ADDR_GRP(addr)];
@@ -534,6 +549,8 @@ static int dw_i3c_master_sync_hw_dat(struct dw_i3c_master *master, u8 addr)
 	if (!dat || hw_index < 0)
 		return -1;
 
+	dat &= ~dev_grp->mask.clr;
+	dat |= dev_grp->mask.set;
 	writel(dat, master->regs +
 			    DEV_ADDR_TABLE_LOC(master->datstartaddr, hw_index));
 	return hw_index;
@@ -678,17 +695,10 @@ static void dw_i3c_master_sir_handler(struct dw_i3c_master *master,
 	struct i3c_ibi_slot *slot;
 	u8 addr = IBI_QUEUE_IBI_ADDR(ibi_status);
 	u8 length = IBI_QUEUE_STATUS_DATA_LEN(ibi_status);
-	u8 pos;
 	u8 *buf;
 	bool data_consumed = false;
 
-	pos = dw_i3c_master_get_addr_pos(master, addr);
-	if (pos < 0) {
-		pr_warn("no matching dat: %02x\n", pos);
-		goto out;
-	}
-
-	dev = master->ibi.slots[pos];
+	dev = master->ibi.slots[addr];
 	if (!dev) {
 		pr_warn("no matching dev\n");
 		goto out;
@@ -1699,9 +1709,12 @@ static int dw_i3c_master_disable_ibi(struct i3c_dev_desc *dev)
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	struct dw_i3c_i2c_dev_data *data = i3c_dev_get_master_data(dev);
+	struct dw_i3c_dev_group *dev_grp =
+		dw_i3c_master_get_group(master, dev->info.dyn_addr);
 	unsigned long flags;
 	u32 sirmap, dat;
-	int ret;
+	int ret, i;
+	bool ibi_enable = false;
 
 	ret = i3c_master_disec_locked(m, dev->info.dyn_addr,
 				      I3C_CCC_EVENT_SIR);
@@ -1709,15 +1722,32 @@ static int dw_i3c_master_disable_ibi(struct i3c_dev_desc *dev)
 		return ret;
 
 	spin_lock_irqsave(&master->ibi.lock, flags);
-	sirmap = readl(master->regs + IBI_SIR_REQ_REJECT);
-	sirmap |= BIT(data->ibi);
-	writel(sirmap, master->regs + IBI_SIR_REQ_REJECT);
-
 	dat = dw_i3c_master_get_group_dat(master, dev->info.dyn_addr);
 	dat |= DEV_ADDR_TABLE_SIR_REJECT;
 	dat &= ~DEV_ADDR_TABLE_IBI_WITH_DATA;
 	dw_i3c_master_set_group_dat(master, dev->info.dyn_addr, dat);
 
+	/*
+	 * if any available device in this group still needs to enable ibi, then
+	 * just keep the hw setting until all of the devices agree to disable ibi
+	 */
+	for (i = 0; i < MAX_DEVS_IN_GROUP; i++) {
+		if ((!(dev_grp->free_pos & BIT(i))) &&
+		    (!(dev_grp->dat[i] & DEV_ADDR_TABLE_SIR_REJECT))) {
+			ibi_enable = true;
+			break;
+		}
+	}
+
+	if (!ibi_enable) {
+		sirmap = readl(master->regs + IBI_SIR_REQ_REJECT);
+		sirmap |= BIT(data->ibi);
+		writel(sirmap, master->regs + IBI_SIR_REQ_REJECT);
+
+		dev_grp->mask.clr |= DEV_ADDR_TABLE_IBI_WITH_DATA;
+		dev_grp->mask.set &= ~DEV_ADDR_TABLE_IBI_WITH_DATA;
+		dev_grp->mask.set |= DEV_ADDR_TABLE_SIR_REJECT;
+	}
 	spin_unlock_irqrestore(&master->ibi.lock, flags);
 
 	return ret;
@@ -1728,6 +1758,8 @@ static int dw_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	struct dw_i3c_i2c_dev_data *data = i3c_dev_get_master_data(dev);
+	struct dw_i3c_dev_group *dev_grp =
+		dw_i3c_master_get_group(master, dev->info.dyn_addr);
 	unsigned long flags;
 	u32 sirmap, dat;
 	int ret;
@@ -1737,11 +1769,16 @@ static int dw_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 	sirmap &= ~BIT(data->ibi);
 	writel(sirmap, master->regs + IBI_SIR_REQ_REJECT);
 
-	dat = dw_i3c_master_get_group_dat(master, dev->info.dyn_addr);
-	dat &= ~DEV_ADDR_TABLE_SIR_REJECT;
-	dat |= DEV_ADDR_TABLE_IBI_WITH_DATA;
-	dw_i3c_master_set_group_dat(master, dev->info.dyn_addr, dat);
+	dev_grp->mask.clr |= DEV_ADDR_TABLE_SIR_REJECT;
+	dev_grp->mask.set &= ~DEV_ADDR_TABLE_SIR_REJECT;
+	if (dev->info.bcr & I3C_BCR_IBI_PAYLOAD)
+		dev_grp->mask.set |= DEV_ADDR_TABLE_IBI_WITH_DATA;
+
 	spin_unlock_irqrestore(&master->ibi.lock, flags);
+
+	dev_dbg(master->dev, "addr:%x, hw_index:%d, data->ibi:%d, mask: %08x %08x\n",
+		dev->info.dyn_addr, dev_grp->hw_index, data->ibi, dev_grp->mask.set,
+		dev_grp->mask.clr);
 
 	ret = i3c_master_enec_locked(m, dev->info.dyn_addr,
 				     I3C_CCC_EVENT_SIR);
@@ -1780,16 +1817,12 @@ static int dw_i3c_master_request_ibi(struct i3c_dev_desc *dev,
 		return PTR_ERR(data->ibi_pool);
 
 	spin_lock_irqsave(&master->ibi.lock, flags);
-	for (i = 0; i < master->maxdevs; i++) {
-		if (!master->ibi.slots[i]) {
-			data->ibi = i;
-			master->ibi.slots[i] = dev;
-			break;
-		}
-	}
+	master->ibi.slots[dev->info.dyn_addr & 0x7f] = dev;
+	data->ibi =
+		dw_i3c_master_get_group_hw_index(master, dev->info.dyn_addr);
 	spin_unlock_irqrestore(&master->ibi.lock, flags);
 
-	if (i < master->maxdevs)
+	if (i < MAX_DEVS)
 		return 0;
 
 	i3c_generic_ibi_free_pool(data->ibi_pool);
@@ -1806,7 +1839,7 @@ static void dw_i3c_master_free_ibi(struct i3c_dev_desc *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&master->ibi.lock, flags);
-	master->ibi.slots[data->ibi] = NULL;
+	master->ibi.slots[dev->info.dyn_addr] = NULL;
 	data->ibi = -1;
 	spin_unlock_irqrestore(&master->ibi.lock, flags);
 
