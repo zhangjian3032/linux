@@ -1415,11 +1415,6 @@ static int i3c_master_attach_i3c_dev(struct i3c_master_controller *master,
 	if (!dev->info.static_addr && !dev->info.dyn_addr)
 		return 0;
 
-	if (master->jdec_spd)
-		i3c_bus_set_addr_slot_status(&master->bus,
-					     dev->info.static_addr,
-					     I3C_ADDR_SLOT_FREE);
-
 	ret = i3c_master_get_i3c_addrs(dev);
 	if (ret)
 		return ret;
@@ -1850,9 +1845,15 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 			goto err_rstdaa;
 		}
 
-		i3c_bus_set_addr_slot_status(&master->bus,
-					     i3cboardinfo->init_dyn_addr,
-					     I3C_ADDR_SLOT_I3C_DEV);
+		/*
+		 * If the static address equals to the assigned dynamic address,
+		 * don't reserve the address slot here, it will be set after the
+		 * DA has been assigned.
+		 */
+		if (i3cboardinfo->static_addr != i3cboardinfo->init_dyn_addr)
+			i3c_bus_set_addr_slot_status(
+				&master->bus, i3cboardinfo->init_dyn_addr,
+				I3C_ADDR_SLOT_I3C_DEV);
 
 		/*
 		 * Only try to create/attach devices that have a static
