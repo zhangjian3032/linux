@@ -260,6 +260,9 @@
 #define DEV_ADDR_TABLE_DYNAMIC_ADDR(x)	(((x) << 16) & GENMASK(23, 16))
 #define DEV_ADDR_TABLE_STATIC_ADDR(x)	((x) & GENMASK(6, 0))
 #define DEV_ADDR_TABLE_LOC(start, idx)	((start) + ((idx) << 2))
+#define GET_DYNAMIC_ADDR_FROM_DAT(x)	(((x)&GENMASK(22, 16)) >> 16)
+#define GET_DAT_FROM_POS(_master, _pos)                                        \
+	(readl(_master->regs + DEV_ADDR_TABLE_LOC(_master->datstartaddr, _pos)))
 
 #define MAX_DEVS			128
 #define MAX_IBI_FRAG_SIZE		124
@@ -1246,9 +1249,10 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 	struct dw_i3c_cmd *cmd;
 	u32 olddevs, newdevs;
 	u8 p, last_addr = 0;
-	int ret, pos;
+	int ret, pos, ndevs;
 
 	olddevs = ~(master->free_pos);
+	ndevs = 0;
 
 	/* Prepare DAT before launching DAA. */
 	for (pos = 0; pos < master->maxdevs; pos++) {
@@ -1257,7 +1261,9 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 
 		ret = i3c_master_get_free_addr(m, last_addr + 1);
 		if (ret < 0)
-			return -ENOSPC;
+			break;
+
+		ndevs++;
 
 		master->addrs[pos] = ret;
 		p = even_parity(ret);
@@ -1269,6 +1275,9 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 		       DEV_ADDR_TABLE_LOC(master->datstartaddr, pos));
 	}
 
+	if (!ndevs)
+		return -ENOSPC;
+
 	xfer = dw_i3c_master_alloc_xfer(master, 1);
 	if (!xfer)
 		return -ENOMEM;
@@ -1276,7 +1285,7 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 	pos = dw_i3c_master_get_free_pos(master);
 	cmd = &xfer->cmds[0];
 	cmd->cmd_hi = 0x1;
-	cmd->cmd_lo = COMMAND_PORT_DEV_COUNT(master->maxdevs - pos) |
+	cmd->cmd_lo = COMMAND_PORT_DEV_COUNT(ndevs) |
 		      COMMAND_PORT_DEV_INDEX(pos) |
 		      COMMAND_PORT_CMD(I3C_CCC_ENTDAA) |
 		      COMMAND_PORT_ADDR_ASSGN_CMD |
@@ -1287,12 +1296,15 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
 		dw_i3c_master_dequeue_xfer(master, xfer);
 
-	newdevs = GENMASK(master->maxdevs - cmd->rx_len - 1, 0);
-	newdevs &= ~olddevs;
-
+	newdevs = GENMASK(ndevs - cmd->rx_len - 1, 0) << pos;
 	for (pos = 0; pos < master->maxdevs; pos++) {
-		if (newdevs & BIT(pos))
-			i3c_master_add_i3c_dev_locked(m, master->addrs[pos]);
+		if (newdevs & BIT(pos)) {
+			u32 dat = GET_DAT_FROM_POS(master, pos);
+			u32 addr = GET_DYNAMIC_ADDR_FROM_DAT(dat);
+
+			dw_i3c_master_set_group_dat(master, addr, dat);
+			i3c_master_add_i3c_dev_locked(m, addr);
+		}
 	}
 
 	dw_i3c_master_free_xfer(xfer);
