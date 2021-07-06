@@ -242,8 +242,8 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 {
 #ifdef CONFIG_IPMI_SI
 	struct si_sm_io kcs_io;
-	struct uart_8250_port uart;
 #endif
+	struct uart_8250_port uart;
 	struct aspeed_pci_bmc_dev *pci_bmc_dev;
 	struct device *dev = &pdev->dev;
 	u16 config_cmd_val;
@@ -261,7 +261,7 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 	pci_set_master(pdev);
 
 #if BMC_MSI_INT
-	rc = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	rc = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
 	if (rc < 0)
 		printk("cannot allocate PCI MSI, rc=%d\n", rc);
 
@@ -399,6 +399,7 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 	rc = ipmi_si_add_smi(&kcs_io);
 	if (rc)
 		dev_err(dev, "cannot setup IPMI-KCS@%xh over PCIe, rc=%d\n", ioport_kcs, rc);
+#endif
 
 	/* setup VUART */
 	memset(&uart, 0, sizeof(uart));
@@ -420,7 +421,6 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 	rc = serial8250_register_8250_port(&uart);
 	if (rc < 0)
 		dev_err(dev, "cannot setup VUART@%xh over PCIe, rc=%d\n", ioport_vuart, rc);
-#endif
 	return 0;
 
 out_unreg:
