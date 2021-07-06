@@ -220,7 +220,22 @@ static void aspeed_jtag_set_freq(struct aspeed_jtag_info *aspeed_jtag, unsigned 
 	}
 	JTAG_DBUG("set div = %x \n", div);
 
+	/*
+	 * At ast2500: Change clock divider may cause hardware logic confusion.
+	 * Enable software mode to assert the jtag hw logical before change
+	 * clock divider.
+	 */
+	if (aspeed_jtag->config->jtag_version == 0)
+		aspeed_jtag_write(aspeed_jtag,
+				  JTAG_SW_MODE_EN |
+					  aspeed_jtag_read(aspeed_jtag,
+							   ASPEED_JTAG_SW),
+				  ASPEED_JTAG_SW);
 	aspeed_jtag_write(aspeed_jtag, ((aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_TCK) & ~JTAG_TCK_DIVISOR_MASK) | div),  ASPEED_JTAG_TCK);
+	if (aspeed_jtag->config->jtag_version == 0) {
+		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_SW);
+		aspeed_jtag->sts = JTAG_IDLE;
+	}
 }
 
 static unsigned int aspeed_jtag_get_freq(struct aspeed_jtag_info *aspeed_jtag)
