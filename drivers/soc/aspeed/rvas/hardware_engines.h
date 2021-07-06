@@ -409,6 +409,7 @@ typedef struct tagAstRVAS {
 	struct completion  video_capture_complete;
 	struct clk 			*vclk;
 	struct clk 			*eclk;
+	struct clk			*rvasclk;
 } AstRVAS;
 
 //

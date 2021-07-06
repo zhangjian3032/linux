@@ -300,22 +300,11 @@ static int video_open(struct inode* pin, struct file* pf)
 	u32 dw_val = 0;
 
 	VIDEO_DBG("video_open() Called\n");
-	regmap_read(pAstRVAS->scu, SCU000_Protection_Key_Register, &dw_val);
 
-	if (dw_val == 0x0) {
-		regmap_write(pAstRVAS->scu, SCU000_Protection_Key_Register,
-						SCU_UNLOCK_PWD);
-	}
+	// make sure the rvas clk is running.
+	//	 if it's already enabled, clk_enable will just return.
+	clk_enable(pAstRVAS->rvasclk);
 
-	regmap_read(pAstRVAS->scu, SCU080_Clock_Stop_Control_Register_Set_1,
-					&dw_val);
-
-	if (dw_val & SCU_RVAS_STOP_CLOCK_BIT) {
-		VIDEO_DBG("enable rvas clock running\n");
-		regmap_write(pAstRVAS->scu,
-		SCU084_Clock_Stop_Control_Clear_Register,
-						SCU_RVAS_STOP_CLOCK_BIT);
-	}
 	return 0;
 }
 
@@ -996,157 +985,43 @@ long video_os_sleep_on_timeout(Video_OsSleepStruct *Sleep, u8 *Var, long msecs)
 
 void disable_video_engines(AstRVAS *pAstRVAS)
 {
-	u32 dw_val = 0;
-
-	regmap_read(pAstRVAS->scu, SCU000_Protection_Key_Register, &dw_val);
-
-	if (dw_val == 0x0) {
-		regmap_write(pAstRVAS->scu, SCU000_Protection_Key_Register,
-				SCU_UNLOCK_PWD);
-	}
-
-	// make sure it's not in reset state???
-	regmap_write(pAstRVAS->scu, SCU084_Clock_Stop_Control_Clear_Register,
-			SCU_VIDEO_CAPTURE_STOP_CLOCK_BIT);
-
-	regmap_write(pAstRVAS->scu, SCU084_Clock_Stop_Control_Clear_Register,
-			SCU_VIDEO_ENGINE_STOP_CLOCK_BIT);
+	clk_disable(pAstRVAS->eclk);
+	clk_disable(pAstRVAS->vclk);
 }
 
 void enable_video_engines(AstRVAS *pAstRVAS)
 {
-	u32 dw_val = 0;
-
-	regmap_read(pAstRVAS->scu, SCU000_Protection_Key_Register, &dw_val);
-
-	if (dw_val == 0x0) {
-		regmap_write(pAstRVAS->scu, SCU000_Protection_Key_Register,
-		        SCU_UNLOCK_PWD);
-	}
-	regmap_read(pAstRVAS->scu,
-	        SCU040_Module_Reset_Control_Register_Set_1, &dw_val);
-	VIDEO_DBG("before SCU040: %#x\n", dw_val);
-
-	regmap_read(pAstRVAS->scu, SCU080_Clock_Stop_Control_Register_Set_1,
-	        &dw_val);
-	VIDEO_DBG("before SCU080: %#x\n", dw_val);
-
-	if (dw_val & (SCU_VIDEO_CAPTURE_STOP_CLOCK_BIT | SCU_VIDEO_ENGINE_STOP_CLOCK_BIT)) {
-		printk("set scu40 to reset.....\n");
-		regmap_write(pAstRVAS->scu,
-				SCU040_Module_Reset_Control_Register_Set_1,
-				  SCU_VIDEO_ENGINE_BIT);
-		udelay(100);
-		regmap_write(pAstRVAS->scu,
-		SCU084_Clock_Stop_Control_Clear_Register,
-			(SCU_VIDEO_CAPTURE_STOP_CLOCK_BIT | SCU_VIDEO_ENGINE_STOP_CLOCK_BIT));
-
-		mdelay(10);
-	}
-
-	regmap_read(pAstRVAS->scu,
-	        SCU040_Module_Reset_Control_Register_Set_1, &dw_val);
-	VIDEO_DBG("after set 1  SCU040: %#x\n", dw_val);
-
-	if (dw_val & SCU_VIDEO_ENGINE_BIT) {
-		regmap_write(pAstRVAS->scu,
-		        SCU044_Module_Reset_Control_Clear_Register_1,
-				  SCU_VIDEO_ENGINE_BIT);
-	}
-
-	regmap_read(pAstRVAS->scu, SCU040_Module_Reset_Control_Register_Set_1,
-	        &dw_val);
-	VIDEO_DBG("after clear SCU040: %#x\n", dw_val);
-	if ((dw_val & SCU_VIDEO_ENGINE_BIT) != 0) {
-		printk("Video Engine cannot be unlocked\n");
-	}
+	clk_enable(pAstRVAS->eclk);
+	clk_enable(pAstRVAS->vclk);
 }
 
 
 void disable_rvas_engines(AstRVAS *pAstRVAS)
 {
-	u32 dw_val = 0;
-
-	regmap_read(pAstRVAS->scu, SCU000_Protection_Key_Register, &dw_val);
-
-	if (dw_val == 0x0) {
-		regmap_write(pAstRVAS->scu, SCU000_Protection_Key_Register,
-				SCU_UNLOCK_PWD);
-	}
-
-	regmap_write(pAstRVAS->scu, SCU084_Clock_Stop_Control_Clear_Register,
-			SCU_RVAS_STOP_CLOCK_BIT);
-
+	clk_disable(pAstRVAS->rvasclk);
 }
 
 void enable_rvas_engines(AstRVAS *pAstRVAS)
 {
-	u32 dw_val = 0;
-
-	regmap_read(pAstRVAS->scu, SCU000_Protection_Key_Register, &dw_val);
-
-	if (dw_val == 0x0) {
-		regmap_write(pAstRVAS->scu, SCU000_Protection_Key_Register,
-		        SCU_UNLOCK_PWD);
-	}
-
-	regmap_read(pAstRVAS->scu, SCU080_Clock_Stop_Control_Register_Set_1,
-	        &dw_val);
-
-	if (dw_val & SCU_RVAS_STOP_CLOCK_BIT) {
-		regmap_write(pAstRVAS->scu,
-		        SCU040_Module_Reset_Control_Register_Set_1,
-		        SCU_RVAS_ENGINE_BIT);
-		udelay(100);
-		regmap_write(pAstRVAS->scu,
-		SCU084_Clock_Stop_Control_Clear_Register,
-		        SCU_RVAS_STOP_CLOCK_BIT);
-		mdelay(10);
-	}
-
-	regmap_read(pAstRVAS->scu,
-	        SCU040_Module_Reset_Control_Register_Set_1, &dw_val);
-
-	if (dw_val & SCU_RVAS_ENGINE_BIT) {
-		regmap_write(pAstRVAS->scu,
-		        SCU044_Module_Reset_Control_Clear_Register_1,
-		        SCU_RVAS_ENGINE_BIT);
-	}
-
-	regmap_read(pAstRVAS->scu, SCU040_Module_Reset_Control_Register_Set_1,
-	        &dw_val);
-
-	if ((dw_val & SCU_RVAS_ENGINE_BIT) != 0) {
-		printk("RVAS Engine cannot be unlocked\n");
-	} else {
-		setup_lmem(pAstRVAS);
-	}
+	// clk enable does
+	//	reset engine reset at SCU040
+	//	delay 100 us
+	//	enable clock at SCU080
+	//	delay 10ms
+	//	disable engine reset at SCU040
+	clk_enable(pAstRVAS->rvasclk);
 }
 
 
 static void reset_rvas_engine(AstRVAS *pAstRVAS){
 	disable_rvas_engines(pAstRVAS);
-
-   reset_control_assert(pAstRVAS->rvas_reset);
-	udelay(100);
-	reset_control_deassert(pAstRVAS->rvas_reset);
-
 	enable_rvas_engines(pAstRVAS);
-
 	rvas_init();
 }
 
 static void reset_video_engine(AstRVAS *pAstRVAS){
 	disable_video_engines(pAstRVAS);
-
-	reset_control_assert(pAstRVAS->video_engine_reset);
-	udelay(100);
-	reset_control_deassert(pAstRVAS->video_engine_reset);
-
 	enable_video_engines(pAstRVAS);
-	VIDEO_ENG_DBG("reset done VR04[%#x], VR08[%#x]\n",readl((volatile void*)(pAstRVAS->video_reg_base + AST_VIDEO_SEQ_CTRL)),
-				readl((volatile void*)(pAstRVAS->video_reg_base + AST_VIDEO_PASS_CTRL)));
-
 	video_engine_init();
 }
 
@@ -1454,6 +1329,14 @@ static int video_drv_get_clock(struct platform_device *pdev){
 	}
 
 	clk_prepare_enable(pAstRVAS->vclk);
+
+	pAstRVAS->rvasclk = devm_clk_get(&pdev->dev, "rvasclk-gate");
+	if (IS_ERR(pAstRVAS->rvasclk)) {
+		dev_err(&pdev->dev, "no rvasclk clock defined\n");
+		return PTR_ERR(pAstRVAS->rvasclk);
+	}
+
+	clk_prepare_enable(pAstRVAS->rvasclk);
 	return 0;
 }
 
@@ -1501,9 +1384,9 @@ static int video_drv_probe(struct platform_device *pdev)
 	int result = 0;
 
 	struct regmap *sdram_edac;
-   struct device_node *dp_node;
+	struct device_node *dp_node;
 
-   VIDEO_DBG("RVAS driver probe\n");
+	VIDEO_DBG("RVAS driver probe\n");
 	pAstRVAS = devm_kzalloc(&pdev->dev, sizeof(AstRVAS), GFP_KERNEL);
 	VIDEO_DBG("pAstRVAS: 0x%p\n", pAstRVAS);
 
@@ -1548,7 +1431,7 @@ static int video_drv_probe(struct platform_device *pdev)
 		return result;
 	}
 
-   dp_node = of_find_compatible_node(NULL, NULL, "aspeed,ast2600-displayport");
+	dp_node = of_find_compatible_node(NULL, NULL, "aspeed,ast2600-displayport");
 	if (!dp_node) {
 		dev_err(&pdev->dev, "cannot find dp node\n");
 	} else {
@@ -1564,8 +1447,6 @@ static int video_drv_probe(struct platform_device *pdev)
 		return PTR_ERR(sdram_edac);
 	}
 	pAstRVAS->scu = sdram_edac;
-	enable_rvas_engines(pAstRVAS);
-	//enable_video_engines(pAstRVAS);
 
 	result = misc_register(&video_misc);
 	if (result) {
