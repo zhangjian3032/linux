@@ -96,6 +96,15 @@ static int aspeed_pcie_assign_msi(void)
 	return pos;
 }
 
+static int aspeed_msi_alloc_region(int no_irqs)
+{
+	int msi;
+
+	msi = bitmap_find_free_region(msi_irq_in_use, MAX_MSI_HOST_IRQS,
+			order_base_2(no_irqs));
+	return msi;
+}
+
 /**
  * aspeed_msi_teardown_irq - Destroy the MSI
  * @chip: MSI Chip descriptor
@@ -129,15 +138,68 @@ static int aspeed_pcie_msi_setup_irq(struct msi_controller *chip,
 	if (hwirq < 0)
 		return hwirq;
 
-	irq = irq_create_mapping(pcie->msi_domain, hwirq);
-	if (!irq)
+	irq = irq_find_mapping(pcie->msi_domain, hwirq);
+	if (!irq) {
+		clear_bit(irq, msi_irq_in_use);
 		return -EINVAL;
+	}
 
 	irq_set_msi_desc(irq, desc);
 
 	msg.address_hi = 0;
 	msg.address_lo = pcie->msi_address;
-//	msg.data = irq;
+	msg.data = hwirq;
+
+	pci_write_msi_msg(irq, &msg);
+
+	return 0;
+}
+
+
+static int aspeed_pcie_msi_setup_irqs(struct msi_controller *chip,
+					struct pci_dev *pdev, int nvec, int type)
+{
+	struct aspeed_pcie *pcie = pdev->bus->sysdata;
+	struct msi_desc *desc;
+	struct msi_msg msg;
+	unsigned int irq;
+	int hwirq;
+	int i;
+
+	/* MSI-X interrupts are not supported */
+	if (type == PCI_CAP_ID_MSIX)
+		return -EINVAL;
+
+	WARN_ON(!list_is_singular(&pdev->dev.msi_list));
+	desc = list_entry(pdev->dev.msi_list.next, struct msi_desc, list);
+
+	hwirq = aspeed_msi_alloc_region(nvec);
+	if (hwirq < 0)
+		return hwirq;
+
+	irq = irq_find_mapping(pcie->msi_domain, hwirq);
+	if (!irq)
+		return -ENOSPC;
+
+	for (i = 0; i < nvec; i++) {
+		/*
+		 * irq_create_mapping() called from rcar_pcie_probe() pre-
+		 * allocates descs,  so there is no need to allocate descs here.
+		 * We can therefore assume that if irq_find_mapping() above
+		 * returns non-zero, then the descs are also successfully
+		 * allocated.
+		 */
+		if (irq_set_msi_desc_off(irq, i, desc)) {
+			/* TODO: clear */
+			return -EINVAL;
+		}
+	}
+
+	desc->nvec_used = nvec;
+	desc->msi_attrib.multiple = order_base_2(nvec);
+
+	msg.address_hi = 0;
+	msg.address_lo = pcie->msi_address;
 	msg.data = hwirq;
 
 	pci_write_msi_msg(irq, &msg);
@@ -211,6 +273,7 @@ static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
 	struct device *dev = pcie->dev;
 	struct device_node *node = dev->of_node;
 	struct device_node *pcie_intc_node;
+	int i = 0;
 
 	/* Setup INTx */
 	pcie_intc_node = of_get_next_child(node, NULL);
@@ -235,6 +298,7 @@ static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
 	/* MSI Domain operations */
 	pcie->msi_domain_ops.map = aspeed_pcie_msi_map;
 	pcie->aspeed_pcie_msi_chip.setup_irq = aspeed_pcie_msi_setup_irq;
+	pcie->aspeed_pcie_msi_chip.setup_irqs = aspeed_pcie_msi_setup_irqs;
 	pcie->aspeed_pcie_msi_chip.teardown_irq = aspeed_msi_teardown_irq;
 	pcie->aspeed_msi_irq_chip.name = "MSI";
 	pcie->aspeed_msi_irq_chip.irq_enable = pci_msi_unmask_irq;
@@ -253,6 +317,10 @@ static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
 			dev_err(dev, "unable to get a MSI IRQ domain\n");
 			return -ENODEV;
 		}
+
+		for (i = 0; i < MAX_MSI_HOST_IRQS; i++)
+			irq_create_mapping(pcie->msi_domain, i);
+
 		//enable all msi interrupt
 		aspeed_h2x_msi_enable(pcie);
 	}
