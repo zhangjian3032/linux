@@ -1305,6 +1305,12 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 			dw_i3c_master_set_group_dat(master, addr, dat);
 			i3c_master_add_i3c_dev_locked(m, addr);
 		}
+
+		/* cleanup the free HW DATs */
+		if (master->free_pos & BIT(pos))
+			writel(0, master->regs +
+					  DEV_ADDR_TABLE_LOC(
+						  master->datstartaddr, pos));
 	}
 
 	dw_i3c_master_free_xfer(xfer);
