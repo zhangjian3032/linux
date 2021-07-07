@@ -135,12 +135,12 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
+
 	dev_id = of_match_device(aspeed_gfx_match, &pdev->dev);
 	if (!dev_id)
 		return -EINVAL;
 
 	priv->version = (int)dev_id->data;
-
 	priv->scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
 	if (IS_ERR(priv->scu)) {
 		dev_err(&pdev->dev, "failed to find SCU regmap\n");
@@ -207,7 +207,7 @@ static int aspeed_gfx_load(struct drm_device *drm)
 			}
 
 			/* change the dp setting is coming from soc display */
-			regmap_update_bits(priv->dp, 0xb8, (BIT(24)|BIT(28)), (BIT(24)|BIT(28)));
+			regmap_update_bits(priv->dp, 0xb8, DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
 		} else {
 			priv->dp_support = 0x0;
 			priv->dp = NULL;
@@ -259,7 +259,7 @@ static void aspeed_gfx_unload(struct drm_device *drm)
 
 	/* change the dp setting is coming from host side */
 	if (priv->dp_support)
-		regmap_update_bits(priv->dp, 0xb8, (BIT(24)|BIT(28)), 0);
+		regmap_update_bits(priv->dp, 0xb8, DP_CONTROL_FROM_SOC, 0);
 
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);

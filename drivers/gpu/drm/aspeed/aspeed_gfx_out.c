@@ -16,7 +16,7 @@ static int aspeed_gfx_get_modes(struct drm_connector *connector)
 
 	if (priv->version == GFX_AST2600) {
 
-		mode_count = drm_add_modes_noedid(connector, 1024, 768);
+		mode_count = drm_add_modes_noedid(connector, 1280, 1024);
 		drm_set_preferred_mode(connector, 1024, 768);
 
 	} else {
@@ -53,6 +53,5 @@ int aspeed_gfx_create_output(struct drm_device *drm)
 	ret = drm_connector_init(drm, &priv->connector,
 				 &aspeed_gfx_connector_funcs,
 				 DRM_MODE_CONNECTOR_Unknown);
-
 	return ret;
 }

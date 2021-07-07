@@ -14,7 +14,6 @@ struct aspeed_gfx {
 	struct regmap			*dp;
 	struct regmap			*dpmcu;
 	u8						dp_support;
-	int						mode_width;
 
 	struct drm_simple_display_pipe	pipe;
 	struct drm_connector		connector;
@@ -71,11 +70,16 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define CLK_DIV_MASK		0x3F000 /* CLK Divided Mask SCU308[17:12]*/
 
 #define DP_800			0x01050020 /* 800 x 600 60Hz */
-#define DP_1024			0x01050020 /* 1024 x 768 70Hz */
+#define DP_1024			0x010a0020 /* 1024 x 768 70Hz */
 #define DP_1280			0x010e0020 /* 1280 x 1024 75Hz */
 
 #define DP_CP_NAME		"aspeed,ast2600-displayport"
 #define DP_MCU_CP_NAME	"aspeed,ast2600-displayport-mcu"
+
+#define DP_FROM_SOC		BIT(18)
+#define CRT_FROM_SOC	BIT(16)
+
+#define DP_CONTROL_FROM_SOC	(BIT(24)|BIT(28))
 
 /* CTRL1 */
 #define CRT_CTRL_EN			BIT(0)
