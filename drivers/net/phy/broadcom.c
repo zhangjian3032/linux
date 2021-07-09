@@ -40,6 +40,16 @@ static int bcm54210e_config_init(struct phy_device *phydev)
 		phy_write(phydev, MII_CTRL1000, val);
 	}
 
+	/* select top-misc register 00h */
+	val = bcm_phy_read_exp(phydev, BCM_54210E_TOP_MISC_MII_BUF_CNTL_0);
+
+	/* Disable problematic EEE mode */
+	val &= ~BCM_54210E_AUTOGR_EEE_EN;
+	bcm_phy_write_exp(phydev, BCM_54210E_TOP_MISC_MII_BUF_CNTL_0, val);
+
+	/* restore default exp register value */
+	phy_write(phydev, MII_BCM54XX_EXP_SEL, 0);
+
 	return 0;
 }
 
