@@ -1,23 +1,5 @@
-/*
- * BMC device driver for the Aspeed SoC
- *
- * Copyright (C) ASPEED Technology Inc.
- * Ryan Chen <ryan_chen@aspeedtech.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- */
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) ASPEED Technology Inc.
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -40,6 +22,7 @@
 #define SCU_TRIGGER_MSI
 struct aspeed_bmc_device {
 	unsigned char *host2bmc_base_virt;
+	struct device *dev;
 	struct miscdevice	miscdev;
 	void __iomem	*reg_base;
 	void __iomem	*bmc_mem_virt;
@@ -60,7 +43,15 @@ struct aspeed_bmc_device {
 
 #define BMC_MEM_BAR_SIZE		0x100000
 #define BMC_QUEUE_SIZE			(16 * 4)
-
+/* =================== SCU Define ================================================ */
+#define ASPEED_SCU04				0x04
+#define AST2600A3_SCU04	0x05030303
+#define ASPEED_SCUC20				0xC20
+#define ASPEED_SCUC24				0xC24
+#define MSI_ROUTING_MASK		GENMASK(11, 10)
+#define PCIDEV1_INTX_MSI_HOST2BMC_EN	BIT(18)
+#define MSI_ROUTING_PCIe2LPC_PCIDEV0	(0x1 << 10)
+#define MSI_ROUTING_PCIe2LPC_PCIDEV1	(0x2 << 10)
 /* ================================================================================== */
 #define ASPEED_BMC_MEM_BAR			0xF10
 #define  PCIE2PCI_MEM_BAR_ENABLE		BIT(1)
@@ -148,15 +139,16 @@ static ssize_t aspeed_host2bmc_queue1_rx(struct file *filp, struct kobject *kobj
 {
 	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	u32 *data = (u32 *) buf;
+	int rc;
 
-//	printk("aspeed_host2bmc_queue1_rx \n");
-	if(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q1_EMPTY)
-		return 0;
+	if (readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q1_EMPTY)
+		rc = 0;
 	else {
 		data[0] = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q1);
-//		printk("Got HOST2BMC_Q1 [%x] \n", data[0]);
-		return 4;
+		rc = 4;
 	}
+
+	return rc;
 }
 
 static ssize_t aspeed_host2bmc_queue2_rx(struct file *filp, struct kobject *kobj,
@@ -164,64 +156,79 @@ static ssize_t aspeed_host2bmc_queue2_rx(struct file *filp, struct kobject *kobj
 {
 	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	u32 *data = (u32 *) buf;
+	int rc;
 
-//	printk("aspeed_host2bmc_queue2_rx \n");
-	if(!(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q2_EMPTY)) {
+	if (!(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q2_EMPTY)) {
 		data[0] = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q2);
-//		printk("Got HOST2BMC_Q2 [%x] \n", data[0]);
-		return 4;
+		rc = 4;
 	} else
-		return 0;
+		rc = 0;
 
-	return count;
+	return rc;
 }
 
 static ssize_t aspeed_bmc2host_queue1_tx(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
-	u32 tx_buff;
 	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
+	u32 tx_buff;
+	u32 scu_id;
+	int rc;
 
-	if(count != 4)
-		return -1;
+	if (count != 4)
+		return -EINVAL;
 
-	if(readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS) & BMC2HOST_Q1_FULL)
-		return -1;
+	if (readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS) & BMC2HOST_Q1_FULL)
+		rc = -ENOSPC;
 	else {
 		memcpy(&tx_buff, buf, 4);
-//		printk("tx_buff %x \n", tx_buff);
 		writel(tx_buff, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_Q1);
-		//trigger to host
-#ifdef SCU_TRIGGER_MSI
-		//A0 : BIT(12) A1 : BIT(15)
-		regmap_update_bits(bmc_device->scu, 0x560, BIT(15), BIT(15));
-		regmap_update_bits(bmc_device->scu, 0x560, BIT(15), 0);
-#else
-		writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
-#endif
-		return 4;
+		/* trigger to host
+		 * Only After AST2600A3 support DoorBell MSI
+		 */
+		regmap_read(bmc_device->scu, ASPEED_SCU04, &scu_id);
+		if (scu_id == AST2600A3_SCU04) {
+			writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
+		} else {
+			//A0 : BIT(12) A1 : BIT(15)
+			regmap_update_bits(bmc_device->scu, 0x560, BIT(15), BIT(15));
+			regmap_update_bits(bmc_device->scu, 0x560, BIT(15), 0);
+		}
+		rc = 4;
 	}
+	return rc;
 }
 
 static ssize_t aspeed_bmc2host_queue2_tx(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
-	u32 tx_buff = 0;
 	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
+	u32 tx_buff = 0;
+	u32 scu_id;
+	int rc;
 
-	if(count != 4)
-		return -1;
+	if (count != 4)
+		return -EINVAL;
 
-	if(readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS) & BMC2HOST_Q2_FULL)
-		return -1;
+	if (readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS) & BMC2HOST_Q2_FULL)
+		rc = -ENOSPC;
 	else {
 		memcpy(&tx_buff, buf, 4);
-//		printk("tx_buff %x \n", tx_buff);
 		writel(tx_buff, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_Q2);
-		//trigger to host
-		writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
-		return 4;
+		/* trigger to host
+		 * Only After AST2600A3 support DoorBell MSI
+		 */
+		regmap_read(bmc_device->scu, ASPEED_SCU04, &scu_id);
+		if (scu_id == AST2600A3_SCU04) {
+			writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
+		} else {
+			//A0 : BIT(12) A1 : BIT(15)
+			regmap_update_bits(bmc_device->scu, 0x560, BIT(15), BIT(15));
+			regmap_update_bits(bmc_device->scu, 0x560, BIT(15), 0);
+		}
+		rc = 4;
 	}
+	return rc;
 }
 
 static irqreturn_t aspeed_bmc_dev_isr(int irq, void *dev_id)
@@ -232,29 +239,27 @@ static irqreturn_t aspeed_bmc_dev_isr(int irq, void *dev_id)
 
 //	printk("%s host2bmc_q_sts is %x\n", __FUNCTION__, host2bmc_q_sts);
 
-	if(host2bmc_q_sts & HOST2BMC_INT_STS_DOORBELL) {
+	if (host2bmc_q_sts & HOST2BMC_INT_STS_DOORBELL)
 		writel(HOST2BMC_INT_STS_DOORBELL, bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS);
-	}
 
-	if(host2bmc_q_sts & HOST2BMC_ENABLE_INTB) {
+	if (host2bmc_q_sts & HOST2BMC_ENABLE_INTB)
 		writel(HOST2BMC_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS);
-	}
-	if(host2bmc_q_sts & HOST2BMC_Q1_FULL) {
-	}
 
-	if(host2bmc_q_sts & HOST2BMC_Q2_FULL) {
-	}
+	if (host2bmc_q_sts & HOST2BMC_Q1_FULL)
+		dev_info(bmc_device->dev, "Q1 Full\n");
+
+	if (host2bmc_q_sts & HOST2BMC_Q2_FULL)
+		dev_info(bmc_device->dev, "Q2 Full\n");
 
 	return IRQ_HANDLED;
 }
 
 static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 {
-//	printk("aspeed_bmc_device_init \n");
-
-	//enable bmc device mmio
 	u32 pcie_config_ctl = SCU_PCIE_CONF_BMC_DEV_EN_IRQ | SCU_PCIE_CONF_BMC_DEV_EN_MMIO | SCU_PCIE_CONF_BMC_DEV_EN;
-	if(bmc_device->pcie2lpc)
+	u32 scu_id;
+
+	if (bmc_device->pcie2lpc)
 		pcie_config_ctl |= SCU_PCIE_CONF_BMC_DEV_EN_E2L | SCU_PCIE_CONF_BMC_DEV_EN_LPC_DECODE;
 
 	regmap_update_bits(bmc_device->scu, ASPEED_SCU_PCIE_CONF_CTRL, pcie_config_ctl,
@@ -265,8 +270,15 @@ static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 
 #ifdef SCU_TRIGGER_MSI
 	//SCUC24[17]: Enable PCI device 1 INTx/MSI from SCU560[15]. Will be added in next version
-	regmap_update_bits(bmc_device->scu, 0xc20, BIT(11) | BIT(14), BIT(11) | BIT(14));
-	regmap_update_bits(bmc_device->scu, 0xc24, BIT(17) | BIT(14) | BIT(11), BIT(17) | BIT(14) | BIT(11));
+	regmap_update_bits(bmc_device->scu, ASPEED_SCUC20, BIT(11) | BIT(14), BIT(11) | BIT(14));
+
+	regmap_read(bmc_device->scu, ASPEED_SCU04, &scu_id);
+	if (scu_id == AST2600A3_SCU04)
+		regmap_update_bits(bmc_device->scu, ASPEED_SCUC24,
+				PCIDEV1_INTX_MSI_HOST2BMC_EN | MSI_ROUTING_MASK,
+				PCIDEV1_INTX_MSI_HOST2BMC_EN | MSI_ROUTING_PCIe2LPC_PCIDEV1);
+	else
+		regmap_update_bits(bmc_device->scu, ASPEED_SCUC24, BIT(17) | BIT(14) | BIT(11), BIT(17) | BIT(14) | BIT(11));
 #else
 	//SCUC24[18]: Enable PCI device 1 INTx/MSI from Host-to-BMC controller. Will be added in next version
 	regmap_update_bits(bmc_device->scu, 0xc24, BIT(18) | BIT(14), BIT(18) | BIT(14));
@@ -276,8 +288,8 @@ static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 	writel(bmc_device->bmc_mem_phy, bmc_device->reg_base + ASPEED_BMC_MEM_BAR_REMAP);
 
 	//Setting BMC to Host Q register
-	writel(BMC2HOST_Q2_FULL_UNMASK| BMC2HOST_Q1_FULL_UNMASK | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
-	writel(HOST2BMC_Q2_FULL_UNMASK| HOST2BMC_Q1_FULL_UNMASK | HOST2BMC_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS);
+	writel(BMC2HOST_Q2_FULL_UNMASK | BMC2HOST_Q1_FULL_UNMASK | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
+	writel(HOST2BMC_Q2_FULL_UNMASK | HOST2BMC_Q1_FULL_UNMASK | HOST2BMC_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS);
 }
 
 static const struct of_device_id aspeed_bmc_device_of_matches[] = {
@@ -288,14 +300,15 @@ MODULE_DEVICE_TABLE(of, aspeed_bmc_device_of_matches);
 
 static int aspeed_bmc_device_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
 	struct aspeed_bmc_device *bmc_device;
+	struct device *dev = &pdev->dev;
 	int ret = 0;
 
 	bmc_device = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_bmc_device), GFP_KERNEL);
 	if (!bmc_device)
 		return -ENOMEM;
 
+	bmc_device->dev = dev;
 	bmc_device->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bmc_device->reg_base))
 		goto out_region;
@@ -318,14 +331,14 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 	sysfs_bin_attr_init(&bmc_device->bin1);
 
 	bmc_device->bin0.attr.name = "bmc-dev-queue1";
-	bmc_device->bin0.attr.mode = S_IRUSR | S_IWUSR;
+	bmc_device->bin0.attr.mode = 0600;
 	bmc_device->bin0.read = aspeed_host2bmc_queue1_rx;
 	bmc_device->bin0.write = aspeed_bmc2host_queue1_tx;
 	bmc_device->bin0.size = 4;
 
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &bmc_device->bin0);
 	if (ret) {
-		printk("error for bin file ");
+		dev_err(dev, "error for bin file\n");
 		goto out_dma;
 	}
 
@@ -336,14 +349,14 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 	}
 
 	bmc_device->bin1.attr.name = "bmc-dev-queue2";
-	bmc_device->bin1.attr.mode = S_IRUSR | S_IWUSR;
+	bmc_device->bin1.attr.mode = 0600;
 	bmc_device->bin1.read = aspeed_host2bmc_queue2_rx;
 	bmc_device->bin1.write = aspeed_bmc2host_queue2_tx;
 	bmc_device->bin1.size = 4;
 
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &bmc_device->bin1);
 	if (ret) {
-		printk("error for bin file ");
+		dev_err(dev, "error for bin file ");
 		goto out_dma;
 	}
 
@@ -357,16 +370,16 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 
 	aspeed_bmc_device_init(bmc_device);
 
-	bmc_device->irq =  platform_get_irq(pdev,0);
-	if(bmc_device->irq < 0) {
-		dev_err(&pdev->dev,"platform get of irq[=%d] failed!\n", bmc_device->irq);
+	bmc_device->irq =  platform_get_irq(pdev, 0);
+	if (bmc_device->irq < 0) {
+		dev_err(&pdev->dev, "platform get of irq[=%d] failed!\n", bmc_device->irq);
 		goto out_unmap;
 	}
 
 	ret = devm_request_irq(&pdev->dev, bmc_device->irq, aspeed_bmc_dev_isr,
 							0, dev_name(&pdev->dev), bmc_device);
 	if (ret) {
-		printk("aspeed bmc device Unable to get IRQ");
+		dev_err(dev, "aspeed bmc device Unable to get IRQ");
 		goto out_unmap;
 	}
 
@@ -380,7 +393,7 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 		goto out_irq;
 	}
 
-	printk(KERN_INFO "aspeed bmc device: driver successfully loaded.\n");
+	dev_info(dev, "aspeed bmc device: driver successfully loaded.\n");
 
 	return 0;
 
@@ -395,12 +408,11 @@ out_dma:
 
 out_region:
 	devm_kfree(&pdev->dev, bmc_device);
-
-	printk(KERN_WARNING "aspeed bmc device: driver init failed (ret=%d)!\n", ret);
+	dev_warn(dev, "aspeed bmc device: driver init failed (ret=%d)!\n", ret);
 	return ret;
 }
 
-static int  aspeed_bmc_device_remove( struct platform_device *pdev)
+static int  aspeed_bmc_device_remove(struct platform_device *pdev)
 {
 	struct aspeed_bmc_device *bmc_device = platform_get_drvdata(pdev);
 
@@ -414,7 +426,7 @@ static int  aspeed_bmc_device_remove( struct platform_device *pdev)
 
 	devm_kfree(&pdev->dev, bmc_device);
 
-    return 0;
+	return 0;
 }
 
 
