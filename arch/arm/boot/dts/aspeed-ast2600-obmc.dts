@@ -615,6 +615,11 @@
 	status = "okay";
 };
 
+&pcie_kcs1 {
+	kcs_addr = <0x3a2>;
+	status = "okay";
+};
+
 &espi_ctrl {
 	status = "okay";
 
@@ -817,6 +822,7 @@
 &bmc_dev {
 	status = "okay";
 	memory-region = <&bmc_dev_memory>;
+	pcie2lpc;
 };
 
 #if 0
