@@ -17,19 +17,6 @@
 #include <linux/sysfs.h>
 #include <linux/interrupt.h>
 /******************************************************************************/
-/* ASPEED_INTRUSION_CTRL */
-#define INTRUSION_STATUS_CLEAR BIT(0)
-#define INTRUSION_INT_ENABLE BIT(1)
-#define INTRUSION_STATUS BIT(2)
-#define BATTERY_POWER_GOOD BIT(3)
-#define CHASIS_RAW_STATUS BIT(4)
-#define CORE_POWER_STATUS_CLEAR BIT(8)
-#define CORE_POWER_INT_ENABLE BIT(9)
-#define CORE_POWER_STATUS BIT(10)
-#define IO_POWER_STATUS_CLEAR BIT(16)
-#define IO_POWER_INT_ENABLE BIT(17)
-#define IO_POWER_STATUS BIT(18)
-
 union chasis_ctrl_register {
 	uint32_t value;
 	struct {
@@ -56,6 +43,66 @@ struct aspeed_chasis {
 	int irq;
 	/* for hwmon */
 	const struct attribute_group *groups[2];
+};
+
+static ssize_t
+intrusion_store(struct device *dev, struct device_attribute *attr,
+		       const char *buf, size_t count)
+{
+	unsigned long val;
+	struct aspeed_chasis *chasis = dev_get_drvdata(dev);
+	union chasis_ctrl_register chasis_ctrl;
+
+	if (kstrtoul(buf, 10, &val) < 0 || val != 0)
+		return -EINVAL;
+
+	chasis_ctrl.value = readl(chasis->base);
+	chasis_ctrl.fields.intrusion_status_clear = 1;
+	writel(chasis_ctrl.value, chasis->base);
+	chasis_ctrl.fields.intrusion_status_clear = 0;
+	writel(chasis_ctrl.value, chasis->base);
+	return count;
+}
+
+static ssize_t intrusion_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int index = sensor_attr->index;
+	struct aspeed_chasis *chasis = dev_get_drvdata(dev);
+	union chasis_ctrl_register chasis_ctrl;
+	uint8_t ret;
+
+	chasis_ctrl.value = readl(chasis->base);
+
+	switch (index) {
+	case 0:
+		ret = chasis_ctrl.fields.core_power_status;
+		break;
+	case 1:
+		ret = chasis_ctrl.fields.io_power_status;
+		break;
+	case 2:
+		ret = chasis_ctrl.fields.intrusion_status;
+		break;
+	}
+
+	return sprintf(buf, "%d\n", ret);
+}
+
+static SENSOR_DEVICE_ATTR_RO(core_power, intrusion, 0);
+static SENSOR_DEVICE_ATTR_RO(io_power, intrusion, 1);
+static SENSOR_DEVICE_ATTR_RW(intrusion0_alarm, intrusion, 2);
+
+static struct attribute *intrusion_dev_attrs[] = {
+	&sensor_dev_attr_core_power.dev_attr.attr,
+	&sensor_dev_attr_io_power.dev_attr.attr,
+	&sensor_dev_attr_intrusion0_alarm.dev_attr.attr, NULL
+};
+
+static const struct attribute_group intrusion_dev_group = {
+	.attrs = intrusion_dev_attrs,
+	.is_visible = NULL,
 };
 
 static void aspeed_chasis_status_check(struct aspeed_chasis *chasis)
@@ -88,47 +135,6 @@ static void aspeed_chasis_status_check(struct aspeed_chasis *chasis)
 		writel(chasis_ctrl.value, chasis->base);
 	}
 }
-
-static ssize_t show_state(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	int index = sensor_attr->index;
-	struct aspeed_chasis *chasis = dev_get_drvdata(dev);
-	union chasis_ctrl_register chasis_ctrl;
-	uint8_t ret;
-
-	chasis_ctrl.value = readl(chasis->base);
-
-	switch (index) {
-	case 0:
-		ret = chasis_ctrl.fields.core_power_status;
-		break;
-	case 1:
-		ret = chasis_ctrl.fields.io_power_status;
-		break;
-	case 2:
-		ret = chasis_ctrl.fields.chasis_raw_status;
-		break;
-	}
-
-	return sprintf(buf, "%d\n", ret);
-}
-
-static SENSOR_DEVICE_ATTR(core_power, 0444, show_state, NULL, 0);
-static SENSOR_DEVICE_ATTR(io_power, 0444, show_state, NULL, 1);
-static SENSOR_DEVICE_ATTR(chasis, 0444, show_state, NULL, 2);
-
-static struct attribute *intrusion_dev_attrs[] = {
-	&sensor_dev_attr_core_power.dev_attr.attr,
-	&sensor_dev_attr_io_power.dev_attr.attr,
-	&sensor_dev_attr_chasis.dev_attr.attr, NULL
-};
-
-static const struct attribute_group intrusion_dev_group = {
-	.attrs = intrusion_dev_attrs,
-	.is_visible = NULL,
-};
 
 static irqreturn_t aspeed_chasis_isr(int this_irq, void *dev_id)
 {
@@ -175,8 +181,6 @@ static int aspeed_chasis_probe(struct platform_device *pdev)
 		dev_err(dev, "Chasis Unable to get IRQ");
 		return ret;
 	}
-
-	aspeed_chasis_status_check(priv);
 
 	priv->groups[0] = &intrusion_dev_group;
 	priv->groups[1] = NULL;
