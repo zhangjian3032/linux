@@ -617,7 +617,8 @@ poll_timeout_error:
 reset_error:
 	clk_hw_unregister_divider(data->clk_scaler);
 scaler_error:
-	clk_hw_unregister_divider(data->clk_prescaler);
+	if (strcmp(model_data->model_name, "ast2600-adc"))
+		clk_hw_unregister_divider(data->clk_prescaler);
 	return ret;
 }
 
