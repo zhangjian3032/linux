@@ -95,6 +95,10 @@ config ASPEED_MCTP
 	  SOCs. The MCTP Engine receives Msg which carries MCTP packet through 
 	  PCIe from Host or sends it to Host.
 
+config ASPEED_OTP
+	tristate "Aspeed OTP Driver"
+	depends on MACH_ASPEED_G6
+
 config ASPEED_UDMA
 	tristate "Aspeed UDMA Engine Driver"
 	depends on SOC_ASPEED && REGMAP && MFD_SYSCON && HAS_DMA

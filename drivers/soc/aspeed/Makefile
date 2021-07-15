@@ -27,3 +27,4 @@ obj-$(CONFIG_ASPEED_SSP)        += aspeed-ssp.o
 obj-$(CONFIG_ASPEED_UART_ROUTING)	+= aspeed-uart-routing.o
 obj-$(CONFIG_ASPEED_RVAS)		+= rvas/
 obj-$(CONFIG_ASPEED_VGA_SHAREDMEM)	+= aspeed-vga-sharedmem.o
+obj-$(CONFIG_ASPEED_OTP)	+= aspeed-otp.o
