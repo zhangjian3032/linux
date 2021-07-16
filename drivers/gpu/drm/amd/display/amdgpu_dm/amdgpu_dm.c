@@ -1093,8 +1093,8 @@ static void emulated_link_detect(struct dc_link *link)
 	link->type = dc_connection_none;
 	prev_sink = link->local_sink;
 
-	if (prev_sink != NULL)
-		dc_sink_retain(prev_sink);
+	if (prev_sink)
+		dc_sink_release(prev_sink);
 
 	switch (link->connector_signal) {
 	case SIGNAL_TYPE_HDMI_TYPE_A: {
@@ -1417,8 +1417,10 @@ amdgpu_dm_update_connector_after_detect(struct amdgpu_dm_connector *aconnector)
 		 * TODO: check if we still need the S3 mode update workaround.
 		 * If yes, put it here.
 		 */
-		if (aconnector->dc_sink)
+		if (aconnector->dc_sink) {
 			amdgpu_dm_update_freesync_caps(connector, NULL);
+			dc_sink_release(aconnector->dc_sink);
+		}
 
 		aconnector->dc_sink = sink;
 		dc_sink_retain(aconnector->dc_sink);
@@ -1434,8 +1436,6 @@ amdgpu_dm_update_connector_after_detect(struct amdgpu_dm_connector *aconnector)
 
 			drm_connector_update_edid_property(connector,
 							   aconnector->edid);
-			drm_add_edid_modes(connector, aconnector->edid);
-
 			if (aconnector->dc_link->aux_mode)
 				drm_dp_cec_set_edid(&aconnector->dm_dp_aux.aux,
 						    aconnector->edid);
@@ -2043,12 +2043,18 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 				    &dm_atomic_state_funcs);
 
 	r = amdgpu_display_modeset_create_props(adev);
-	if (r)
+	if (r) {
+		dc_release_state(state->context);
+		kfree(state);
 		return r;
+	}
 
 	r = amdgpu_dm_audio_init(adev);
-	if (r)
+	if (r) {
+		dc_release_state(state->context);
+		kfree(state);
 		return r;
+	}
 
 	return 0;
 }
@@ -2063,6 +2069,8 @@ static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm)
 {
 #if defined(CONFIG_ACPI)
 	struct amdgpu_dm_backlight_caps caps;
+
+	memset(&caps, 0, sizeof(caps));
 
 	if (dm->backlight_caps.caps_valid)
 		return;
@@ -2623,6 +2631,23 @@ static int fill_dc_scaling_info(const struct drm_plane_state *state,
 	/* Source is fixed 16.16 but we ignore mantissa for now... */
 	scaling_info->src_rect.x = state->src_x >> 16;
 	scaling_info->src_rect.y = state->src_y >> 16;
+
+	/*
+	 * For reasons we don't (yet) fully understand a non-zero
+	 * src_y coordinate into an NV12 buffer can cause a
+	 * system hang. To avoid hangs (and maybe be overly cautious)
+	 * let's reject both non-zero src_x and src_y.
+	 *
+	 * We currently know of only one use-case to reproduce a
+	 * scenario with non-zero src_x and src_y for NV12, which
+	 * is to gesture the YouTube Android app into full screen
+	 * on ChromeOS.
+	 */
+	if (state->fb &&
+	    state->fb->format->format == DRM_FORMAT_NV12 &&
+	    (scaling_info->src_rect.x != 0 ||
+	     scaling_info->src_rect.y != 0))
+		return -EINVAL;
 
 	scaling_info->src_rect.width = state->src_w >> 16;
 	if (scaling_info->src_rect.width == 0)
@@ -3948,6 +3973,13 @@ static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 	struct amdgpu_device *adev = connector->dev->dev_private;
 	struct amdgpu_display_manager *dm = &adev->dm;
 
+	/*
+	 * Call only if mst_mgr was iniitalized before since it's not done
+	 * for all connector types.
+	 */
+	if (aconnector->mst_mgr.dev)
+		drm_dp_mst_topology_mgr_destroy(&aconnector->mst_mgr);
+
 #if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) ||\
 	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
 
@@ -4291,19 +4323,6 @@ static void dm_crtc_helper_disable(struct drm_crtc *crtc)
 {
 }
 
-static bool does_crtc_have_active_cursor(struct drm_crtc_state *new_crtc_state)
-{
-	struct drm_device *dev = new_crtc_state->crtc->dev;
-	struct drm_plane *plane;
-
-	drm_for_each_plane_mask(plane, dev, new_crtc_state->plane_mask) {
-		if (plane->type == DRM_PLANE_TYPE_CURSOR)
-			return true;
-	}
-
-	return false;
-}
-
 static int count_crtc_active_planes(struct drm_crtc_state *new_crtc_state)
 {
 	struct drm_atomic_state *state = new_crtc_state->state;
@@ -4383,18 +4402,19 @@ static int dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 		return ret;
 	}
 
+	/*
+	 * We require the primary plane to be enabled whenever the CRTC is, otherwise
+	 * drm_mode_cursor_universal may end up trying to enable the cursor plane while all other
+	 * planes are disabled, which is not supported by the hardware. And there is legacy
+	 * userspace which stops using the HW cursor altogether in response to the resulting EINVAL.
+	 */
+	if (state->enable &&
+	    !(state->plane_mask & drm_plane_mask(crtc->primary)))
+		return -EINVAL;
+
 	/* In some use cases, like reset, no stream is attached */
 	if (!dm_crtc_state->stream)
 		return 0;
-
-	/*
-	 * We want at least one hardware plane enabled to use
-	 * the stream with a cursor enabled.
-	 */
-	if (state->enable && state->active &&
-	    does_crtc_have_active_cursor(state) &&
-	    dm_crtc_state->active_planes == 0)
-		return -EINVAL;
 
 	if (dc_validate_stream(dc, dm_crtc_state->stream) == DC_OK)
 		return 0;
@@ -5369,10 +5389,6 @@ static int get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
 	int x, y;
 	int xorigin = 0, yorigin = 0;
 
-	position->enable = false;
-	position->x = 0;
-	position->y = 0;
-
 	if (!crtc || !plane->state->fb)
 		return 0;
 
@@ -5424,7 +5440,7 @@ static void handle_cursor_update(struct drm_plane *plane,
 	struct dm_crtc_state *crtc_state = crtc ? to_dm_crtc_state(crtc->state) : NULL;
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	uint64_t address = afb ? afb->address : 0;
-	struct dc_cursor_position position;
+	struct dc_cursor_position position = {0};
 	struct dc_cursor_attributes attributes;
 	int ret;
 
@@ -6462,14 +6478,14 @@ static int dm_force_atomic_commit(struct drm_connector *connector)
 
 	ret = PTR_ERR_OR_ZERO(conn_state);
 	if (ret)
-		goto err;
+		goto out;
 
 	/* Attach crtc to drm_atomic_state*/
 	crtc_state = drm_atomic_get_crtc_state(state, &disconnected_acrtc->base);
 
 	ret = PTR_ERR_OR_ZERO(crtc_state);
 	if (ret)
-		goto err;
+		goto out;
 
 	/* force a restore */
 	crtc_state->mode_changed = true;
@@ -6479,17 +6495,15 @@ static int dm_force_atomic_commit(struct drm_connector *connector)
 
 	ret = PTR_ERR_OR_ZERO(plane_state);
 	if (ret)
-		goto err;
-
+		goto out;
 
 	/* Call commit internally with the state we just constructed */
 	ret = drm_atomic_commit(state);
-	if (!ret)
-		return 0;
 
-err:
-	DRM_ERROR("Restoring old state failed with %i\n", ret);
+out:
 	drm_atomic_state_put(state);
+	if (ret)
+		DRM_ERROR("Restoring old state failed with %i\n", ret);
 
 	return ret;
 }
@@ -6988,8 +7002,7 @@ static int dm_update_plane_state(struct dc *dc,
 				dm_old_plane_state->dc_state,
 				dm_state->context)) {
 
-			ret = EINVAL;
-			return ret;
+			return -EINVAL;
 		}
 
 
@@ -7330,7 +7343,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	}
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (adev->asic_type >= CHIP_NAVI10) {
+	if (dc_resource_is_dsc_encoding_supported(dc)) {
 		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 			if (drm_atomic_crtc_needs_modeset(new_crtc_state)) {
 				ret = add_affected_mst_dsc_crtcs(state, crtc);
