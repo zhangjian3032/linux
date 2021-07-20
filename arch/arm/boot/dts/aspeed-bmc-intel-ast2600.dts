@@ -530,7 +530,7 @@ SGPIO Alias: (runtime alias -> net name)
 };
 
 &adc0 {
-	ref_voltage = <2500>;
+	vref = <2500>;
 	status = "okay";
 
 	pinctrl-names = "default";
@@ -541,7 +541,7 @@ SGPIO Alias: (runtime alias -> net name)
 };
 
 &adc1 {
-	ref_voltage = <2500>;
+	vref = <2500>;
 	status = "okay";
 
 	pinctrl-names = "default";

@@ -526,7 +526,7 @@
 };
 
 &adc0 {
-	ref_voltage = <2500>;
+	vref = <2500>;
 	battery-sensing;
 	status = "okay";
 
@@ -537,7 +537,7 @@
 };
 
 &adc1 {
-	ref_voltage = <2500>;
+	vref = <2500>;
 	battery-sensing;
 	status = "okay";
 
