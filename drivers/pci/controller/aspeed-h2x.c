@@ -3,8 +3,8 @@
  * H2X driver for the Aspeed SoC
  *
  */
+#include <linux/moduleparam.h>
 #include <linux/init.h>
-
 #include <linux/of_irq.h>
 #include <linux/of_pci.h>
 #include <linux/of_platform.h>
@@ -23,6 +23,12 @@
 
 #include "h2x-ast2600.h"
 #include "../pci.h"
+
+#ifdef CONFIG_HOTPLUG_PCI
+static int hotplug_event;
+module_param(hotplug_event, int, 0644);
+MODULE_PARM_DESC(hotplug_event, "Using sw flag mechanism for hot-plug events or not");
+#endif
 
 /* reg 0x24 */
 #define PCIE_TX_IDLE			BIT(31)
@@ -250,6 +256,13 @@ extern int aspeed_h2x_rd_conf(struct pci_bus *bus, unsigned int devfn,
 			*val = (*val >> ((where & 2) * 8)) & 0xffff;
 			break;
 	}
+
+#ifdef CONFIG_HOTPLUG_PCI
+	if ((where == 0x9a) && (bus->number == 0x0) &&
+		(PCI_SLOT(devfn) == 0x8) && (PCI_FUNC(devfn) == 0x0) &&
+		hotplug_event)
+		*val |= PCI_EXP_SLTSTA_ABP;
+#endif
 out:
 	aspeed_h2x->txTag++;
 	
@@ -269,6 +282,12 @@ aspeed_h2x_wr_conf(struct pci_bus *bus, unsigned int devfn,
 	u8 byte_en = 0;
 	struct aspeed_pcie *pcie = bus->sysdata;
 
+	if ((where == 0x9a) && (bus->number == 0x0) &&
+		(PCI_SLOT(devfn) == 0x8) && (PCI_FUNC(devfn) == 0x0) &&
+		hotplug_event && (val & PCI_EXP_SLTSTA_ABP)) {
+		hotplug_event = 0;
+		return PCIBIOS_SUCCESSFUL;
+	}
 	writel(BIT(4) | readl(pcie->h2x_rc_base), pcie->h2x_rc_base);
 
 	switch (size) {

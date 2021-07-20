@@ -44,8 +44,17 @@
 /*	AST_PCIE_CFG2			0x04 */
 #define PCIE_CFG_CLASS_CODE(x)	(x << 8)
 #define PCIE_CFG_REV_ID(x)		(x)
-/*	AST_PCIE_GLOBAL			0x30 */
+/*	PEHR10: Miscellaneous Control 10H Register */
+#define DATALINK_REPORT_CAPABLE	BIT(4)
+/*	PEHR14: Miscellaneous Control 14H Register */
+#define HOTPLUG_CAPABLE_ENABLE	BIT(6)
+#define HOTPLUG_SURPRISE_ENABLE	BIT(5)
+#define ATTENTION_BUTTON_ENALBE	BIT(0)
+/*	PEHR30: Miscellaneous Control 30H Register */
+/* Disable RC synchronous reset when link up to link down*/
+#define RC_SYNC_RESET_DISABLE	BIT(20)
 #define ROOT_COMPLEX_ID(x)		(x << 4)
+#define PCIE_RC_SLOT_ENABLE		BIT(1)
 /*	AST_PCIE_LOCK			0x7C */
 #define PCIE_UNLOCK				0xa8
 /*	AST_PCIE_LINK			0xC0 */
@@ -354,8 +363,13 @@ static void aspeed_pcie_init_port(struct aspeed_pcie *pcie)
 	writel(PCIE_UNLOCK, pcie->pciereg_base + ASPEED_PCIE_LOCK);
 //	writel(PCIE_CFG_CLASS_CODE(0x60000) | PCIE_CFG_REV_ID(4),
 //				pcie->pciereg_base + ASPEED_PCIE_CLASS_CODE);
+#ifdef CONFIG_HOTPLUG_PCI
+	writel(RC_SYNC_RESET_DISABLE | ROOT_COMPLEX_ID(0x3) | PCIE_RC_SLOT_ENABLE, pcie->pciereg_base + ASPEED_PCIE_GLOBAL);
+	writel(0xd7040022 | DATALINK_REPORT_CAPABLE, pcie->pciereg_base + 0x10);
+	writel(HOTPLUG_CAPABLE_ENABLE | HOTPLUG_SURPRISE_ENABLE | ATTENTION_BUTTON_ENALBE, pcie->pciereg_base + 0x14);
+#else
 	writel(ROOT_COMPLEX_ID(0x3), pcie->pciereg_base + ASPEED_PCIE_GLOBAL);
-
+#endif
 	/* Don't register host if link is down */
 	if (readl(pcie->pciereg_base + ASPEED_PCIE_LINK) & PCIE_LINK_STS) {
 		aspeed_h2x_workaround(pcie);
