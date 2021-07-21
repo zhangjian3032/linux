@@ -14,42 +14,35 @@ Required properties:
 - resets: Reset controller phandle
 - #io-channel-cells: Must be set to <1> to indicate channels are selected
                      by index.
-- trim_locate: (ast2600 only)
-	- First cell is the scu register offset
-	- Second cell is the bit field offset
-	- Third cell is bit mask (length of the trim data)
 
 Example:
 adc0: adc@1e6e9000 {
-		compatible = "aspeed,ast2600-adc";
+		compatible = "aspeed,ast2600-adc0";
 		reg = <0x1e6e9000 0x100>;
 		clocks = <&syscon ASPEED_CLK_APB2>;
 		resets = <&syscon ASPEED_RESET_ADC>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 		#io-channel-cells = <1>;
-		trim_locate = <0x5D0 0 0xf>;
 		status = "disabled"; 
 	}; 
 adc1: adc@1e6e9100 {
-	compatible = "aspeed,ast2600-adc";
+	compatible = "aspeed,ast2600-adc1";
 	reg = <0x1e6e9100 0x100>;
 	clocks = <&syscon ASPEED_CLK_APB2>;
 	resets = <&syscon ASPEED_RESET_ADC>;
 	interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 	#io-channel-cells = <1>;
-	trim_locate = <0x5D0 4 0xf>;
 	status = "disabled";
 };
 Board level dts:
 Required properties:
-- ref_voltage: (ast2600 only)
+- vref: (ast2600 only)
 	- Reference voltage in millivolts for the conversions
 - battery-sensing: (ast2600 only)
 	- Inform the driver that last channel will be used to sensor battery
 Example:
 &adc0 {
-	trim_locate = <0x5D0 0 0xf>;
-	ref_voltage = <2500>;
+	vref = <2500>;
 	status = "okay";
 	battery-sensing;
 
@@ -60,8 +53,7 @@ Example:
 };
 
 &adc1 {
-	trim_locate = <0x5D0 4 0xf>;
-	ref_voltage = <1800>;
+	vref = <1800>;
 	status = "okay";
 
 	pinctrl-0 = <&pinctrl_adc8_default &pinctrl_adc9_default
