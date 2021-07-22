@@ -628,7 +628,7 @@
 
 &emmc_controller {
 	status = "okay";
-	timing-phase = <0x000f0097>;
+	timing-phase = <0x000700bf>;
 };
 
 &emmc {
