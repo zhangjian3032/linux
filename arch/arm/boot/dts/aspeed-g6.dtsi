@@ -495,8 +495,8 @@
 				status = "disabled";
 			};
 
-			chasis: chasis@1e6ef010 {
-				compatible = "aspeed,ast2600-chasis";
+			chassis: chassis@1e6ef010 {
+				compatible = "aspeed,ast2600-chassis";
 				reg = <0x1e6ef010 0x4>;
 				interrupts = <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";

@@ -360,11 +360,11 @@ config SENSORS_ASB100
 	  This driver can also be built as a module. If so, the module
 	  will be called asb100.
 
-config SENSORS_ASPEED_CHASIS
-	tristate "ASPEED CHASIS Driver"
-	depends on SOC_ASPEED
+config SENSORS_ASPEED_CHASSIS
+	tristate "ASPEED CHASSIS Driver"
+	depends on ARCH_ASPEED || COMPILE_TEST
 	help
-	  Driver for CHASIS Driver
+	  Driver for CHASSIS Driver
 
 config SENSORS_TACH_ASPEED_G6
 	tristate "ASPEED g6 Tachometer"

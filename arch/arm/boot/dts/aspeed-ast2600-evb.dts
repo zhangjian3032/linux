@@ -263,7 +263,7 @@
 	status = "okay";
 };
 
-&chasis {
+&chassis {
 	status = "okay";
 };
 

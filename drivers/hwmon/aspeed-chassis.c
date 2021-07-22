@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2021 ASPEED Technology Inc.
  *
- * CHASIS driver for the Aspeed SoC
+ * CHASSIS driver for the Aspeed SoC
  */
 #include <linux/errno.h>
 #include <linux/delay.h>
@@ -17,14 +17,14 @@
 #include <linux/sysfs.h>
 #include <linux/interrupt.h>
 /******************************************************************************/
-union chasis_ctrl_register {
+union chassis_ctrl_register {
 	uint32_t value;
 	struct {
 		uint32_t intrusion_status_clear : 1; /*[0]*/
 		uint32_t intrusion_int_enable : 1; /*[1]*/
 		uint32_t intrusion_status : 1; /*[2]*/
 		uint32_t battery_power_good : 1; /*[3]*/
-		uint32_t chasis_raw_status : 1; /*[4]*/
+		uint32_t chassis_raw_status : 1; /*[4]*/
 		uint32_t reserved0 : 3; /*[5-7]*/
 		uint32_t io_power_status_clear : 1; /*[8]*/
 		uint32_t io_power_int_enable : 1; /*[9]*/
@@ -37,7 +37,7 @@ union chasis_ctrl_register {
 	} fields;
 };
 
-struct aspeed_chasis {
+struct aspeed_chassis {
 	struct device *dev;
 	void __iomem *base;
 	int irq;
@@ -50,17 +50,17 @@ intrusion_store(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
 {
 	unsigned long val;
-	struct aspeed_chasis *chasis = dev_get_drvdata(dev);
-	union chasis_ctrl_register chasis_ctrl;
+	struct aspeed_chassis *chassis = dev_get_drvdata(dev);
+	union chassis_ctrl_register chassis_ctrl;
 
 	if (kstrtoul(buf, 10, &val) < 0 || val != 0)
 		return -EINVAL;
 
-	chasis_ctrl.value = readl(chasis->base);
-	chasis_ctrl.fields.intrusion_status_clear = 1;
-	writel(chasis_ctrl.value, chasis->base);
-	chasis_ctrl.fields.intrusion_status_clear = 0;
-	writel(chasis_ctrl.value, chasis->base);
+	chassis_ctrl.value = readl(chassis->base);
+	chassis_ctrl.fields.intrusion_status_clear = 1;
+	writel(chassis_ctrl.value, chassis->base);
+	chassis_ctrl.fields.intrusion_status_clear = 0;
+	writel(chassis_ctrl.value, chassis->base);
 	return count;
 }
 
@@ -69,21 +69,21 @@ static ssize_t intrusion_show(struct device *dev, struct device_attribute *attr,
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int index = sensor_attr->index;
-	struct aspeed_chasis *chasis = dev_get_drvdata(dev);
-	union chasis_ctrl_register chasis_ctrl;
+	struct aspeed_chassis *chassis = dev_get_drvdata(dev);
+	union chassis_ctrl_register chassis_ctrl;
 	uint8_t ret;
 
-	chasis_ctrl.value = readl(chasis->base);
+	chassis_ctrl.value = readl(chassis->base);
 
 	switch (index) {
 	case 0:
-		ret = chasis_ctrl.fields.core_power_status;
+		ret = chassis_ctrl.fields.core_power_status;
 		break;
 	case 1:
-		ret = chasis_ctrl.fields.io_power_status;
+		ret = chassis_ctrl.fields.io_power_status;
 		break;
 	case 2:
-		ret = chasis_ctrl.fields.intrusion_status;
+		ret = chassis_ctrl.fields.intrusion_status;
 		break;
 	}
 
@@ -105,59 +105,57 @@ static const struct attribute_group intrusion_dev_group = {
 	.is_visible = NULL,
 };
 
-static void aspeed_chasis_status_check(struct aspeed_chasis *chasis)
+static void aspeed_chassis_status_check(struct aspeed_chassis *chassis)
 {
-	union chasis_ctrl_register chasis_ctrl;
+	union chassis_ctrl_register chassis_ctrl;
 
-	chasis_ctrl.value = readl(chasis->base);
-	if (chasis_ctrl.fields.intrusion_status) {
-		dev_info(chasis->dev, "CHASI# pin has been pulled low");
-		chasis_ctrl.fields.intrusion_status_clear = 1;
-		writel(chasis_ctrl.value, chasis->base);
-		chasis_ctrl.fields.intrusion_status_clear = 0;
-		writel(chasis_ctrl.value, chasis->base);
+	chassis_ctrl.value = readl(chassis->base);
+	if (chassis_ctrl.fields.intrusion_status) {
+		dev_info(chassis->dev, "CHASI# pin has been pulled low");
+		chassis_ctrl.fields.intrusion_status_clear = 1;
+		writel(chassis_ctrl.value, chassis->base);
+		chassis_ctrl.fields.intrusion_status_clear = 0;
+		writel(chassis_ctrl.value, chassis->base);
 	}
-	chasis_ctrl.value = readl(chasis->base);
-	if (chasis_ctrl.fields.core_power_status) {
-		dev_info(chasis->dev, "Core power has been pulled low");
-		chasis_ctrl.fields.core_power_status_clear = 1;
-		writel(chasis_ctrl.value, chasis->base);
-		chasis_ctrl.fields.core_power_status_clear = 0;
-		writel(chasis_ctrl.value, chasis->base);
+	chassis_ctrl.value = readl(chassis->base);
+	if (chassis_ctrl.fields.core_power_status) {
+		dev_info(chassis->dev, "Core power has been pulled low");
+		chassis_ctrl.fields.core_power_status_clear = 1;
+		writel(chassis_ctrl.value, chassis->base);
+		chassis_ctrl.fields.core_power_status_clear = 0;
+		writel(chassis_ctrl.value, chassis->base);
 	}
 
-	chasis_ctrl.value = readl(chasis->base);
-	if (chasis_ctrl.fields.io_power_status) {
-		dev_info(chasis->dev, "IO power has been pulled low");
-		chasis_ctrl.fields.io_power_status_clear = 1;
-		writel(chasis_ctrl.value, chasis->base);
-		chasis_ctrl.fields.io_power_status_clear = 0;
-		writel(chasis_ctrl.value, chasis->base);
+	chassis_ctrl.value = readl(chassis->base);
+	if (chassis_ctrl.fields.io_power_status) {
+		dev_info(chassis->dev, "IO power has been pulled low");
+		chassis_ctrl.fields.io_power_status_clear = 1;
+		writel(chassis_ctrl.value, chassis->base);
+		chassis_ctrl.fields.io_power_status_clear = 0;
+		writel(chassis_ctrl.value, chassis->base);
 	}
 }
 
-static irqreturn_t aspeed_chasis_isr(int this_irq, void *dev_id)
+static irqreturn_t aspeed_chassis_isr(int this_irq, void *dev_id)
 {
-	struct aspeed_chasis *chasis = dev_id;
+	struct aspeed_chassis *chassis = dev_id;
 
-	aspeed_chasis_status_check(chasis);
+	aspeed_chassis_status_check(chassis);
 	return IRQ_HANDLED;
 }
 
-static const struct of_device_id aspeed_chasis_of_table[] = {
-	{ .compatible = "aspeed,ast2600-chasis" },
+static const struct of_device_id aspeed_chassis_of_table[] = {
+	{ .compatible = "aspeed,ast2600-chassis" },
 	{}
 };
-MODULE_DEVICE_TABLE(of, aspeed_chasis_of_table);
+MODULE_DEVICE_TABLE(of, aspeed_chassis_of_table);
 
-static int aspeed_chasis_probe(struct platform_device *pdev)
+static int aspeed_chassis_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct aspeed_chasis *priv;
+	struct aspeed_chassis *priv;
 	struct device *hwmon;
 	int ret;
-
-	dev_info(dev, "aspeed_chasis_probe\n");
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -175,34 +173,32 @@ static int aspeed_chasis_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_request_irq(dev, priv->irq, aspeed_chasis_isr, 0,
+	ret = devm_request_irq(dev, priv->irq, aspeed_chassis_isr, 0,
 			       dev_name(dev), priv);
 	if (ret) {
-		dev_err(dev, "Chasis Unable to get IRQ");
+		dev_err(dev, "Chassis Unable to get IRQ");
 		return ret;
 	}
 
 	priv->groups[0] = &intrusion_dev_group;
 	priv->groups[1] = NULL;
 
-	hwmon = devm_hwmon_device_register_with_groups(dev, "aspeed_chasis",
+	hwmon = devm_hwmon_device_register_with_groups(dev, "aspeed_chassis",
 						       priv, priv->groups);
-
-	dev_info(dev, "chasis driver probe done.\n");
 
 	return PTR_ERR_OR_ZERO(hwmon);
 }
 
-static struct platform_driver aspeed_chasis_driver = {
-	.probe		= aspeed_chasis_probe,
+static struct platform_driver aspeed_chassis_driver = {
+	.probe		= aspeed_chassis_probe,
 	.driver		= {
 		.name	= KBUILD_MODNAME,
-		.of_match_table = aspeed_chasis_of_table,
+		.of_match_table = aspeed_chassis_of_table,
 	},
 };
 
-module_platform_driver(aspeed_chasis_driver);
+module_platform_driver(aspeed_chassis_driver);
 
 MODULE_AUTHOR("Billy Tsai<billy_tsai@aspeedtech.com>");
-MODULE_DESCRIPTION("ASPEED CHASIS Driver");
+MODULE_DESCRIPTION("ASPEED CHASSIS Driver");
 MODULE_LICENSE("GPL v2");
