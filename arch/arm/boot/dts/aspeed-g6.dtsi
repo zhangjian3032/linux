@@ -644,18 +644,10 @@
 				status = "disabled";
 			};
 
-			adc_clk: adc_clk {
-				#clock-cells = <0>;
-				compatible = "fixed-factor-clock";
-				clocks = <&syscon ASPEED_CLK_APB2>;
-				clock-mult = <1>;
-				clock-div = <2>;
-			};
-
 			adc0: adc@1e6e9000 {
 				compatible = "aspeed,ast2600-adc0";
 				reg = <0x1e6e9000 0x100>;
-				clocks = <&adc_clk>;
+				clocks = <&syscon ASPEED_CLK_APB2>;
 				resets = <&syscon ASPEED_RESET_ADC>;
 				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 				#io-channel-cells = <1>;
@@ -665,7 +657,7 @@
 			adc1: adc@1e6e9100 {
 				compatible = "aspeed,ast2600-adc1";
 				reg = <0x1e6e9100 0x100>;
-				clocks = <&adc_clk>;
+				clocks = <&syscon ASPEED_CLK_APB2>;
 				resets = <&syscon ASPEED_RESET_ADC>;
 				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 				#io-channel-cells = <1>;
