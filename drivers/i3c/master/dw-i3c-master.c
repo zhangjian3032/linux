@@ -1903,11 +1903,17 @@ static int dw_i3c_maser_send_sir(struct i3c_master_controller *m,
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	uint32_t slv_event, intr_req, act_len;
+	void *buf;
 
 	slv_event = readl(master->regs + SLV_EVENT_CTRL);
 	if ((slv_event & SLV_EVENT_CTRL_SIR_EN) == 0)
 		return -EPERM;
 
+	buf = kzalloc(CONFIG_ASPEED_I3C_IBI_MAX_PAYLOAD, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	memcpy(buf, payload->data, payload->len);
 	init_completion(&master->sir_complete);
 
 	act_len = payload->len;
@@ -1926,9 +1932,10 @@ static int dw_i3c_maser_send_sir(struct i3c_master_controller *m,
 			act_len += 3;
 	}
 
-	dw_i3c_master_wr_tx_fifo(master, payload->data, act_len);
+	dw_i3c_master_wr_tx_fifo(master, buf, act_len);
 	writel(1, master->regs + SLV_INTR_REQ);
 	wait_for_completion(&master->sir_complete);
+	kfree(buf);
 
 	intr_req = readl(master->regs + SLV_INTR_REQ);
 	if (SLV_INTR_REQ_IBI_STS(intr_req) != SLV_IBI_STS_OK) {
