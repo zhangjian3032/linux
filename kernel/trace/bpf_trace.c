@@ -1320,12 +1320,10 @@ struct bpf_raw_event_map *bpf_get_raw_tracepoint(const char *name)
 
 void bpf_put_raw_tracepoint(struct bpf_raw_event_map *btp)
 {
-	struct module *mod;
+	struct module *mod = __module_address((unsigned long)btp);
 
-	preempt_disable();
-	mod = __module_address((unsigned long)btp);
-	module_put(mod);
-	preempt_enable();
+	if (mod)
+		module_put(mod);
 }
 
 static __always_inline

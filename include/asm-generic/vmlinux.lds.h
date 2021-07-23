@@ -396,7 +396,7 @@
 	}								\
 									\
 	/* Built-in firmware blobs */					\
-	.builtin_fw : AT(ADDR(.builtin_fw) - LOAD_OFFSET) ALIGN(8) {	\
+	.builtin_fw        : AT(ADDR(.builtin_fw) - LOAD_OFFSET) {	\
 		__start_builtin_fw = .;					\
 		KEEP(*(.builtin_fw))					\
 		__end_builtin_fw = .;					\
@@ -511,15 +511,6 @@
 #define RO_DATA(align)  RO_DATA_SECTION(align)
 
 /*
- * Non-instrumentable text section
- */
-#define NOINSTR_TEXT							\
-		ALIGN_FUNCTION();					\
-		__noinstr_text_start = .;				\
-		*(.noinstr.text)					\
-		__noinstr_text_end = .;
-
-/*
  * .text section. Map to function alignment to avoid address changes
  * during second ld run in second ld pass when generating System.map
  *
@@ -529,11 +520,7 @@
  */
 #define TEXT_TEXT							\
 		ALIGN_FUNCTION();					\
-		*(.text.hot .text.hot.*)				\
-		*(TEXT_MAIN .text.fixup)				\
-		*(.text.unlikely .text.unlikely.*)			\
-		*(.text.unknown .text.unknown.*)			\
-		NOINSTR_TEXT						\
+		*(.text.hot TEXT_MAIN .text.fixup .text.unlikely)	\
 		*(.text..refcount)					\
 		*(.ref.text)						\
 	MEM_KEEP(init.text*)						\
@@ -612,7 +599,7 @@
 #define BTF								\
 	.BTF : AT(ADDR(.BTF) - LOAD_OFFSET) {				\
 		__start_BTF = .;					\
-		KEEP(*(.BTF))						\
+		*(.BTF)							\
 		__stop_BTF = .;						\
 	}
 #else
@@ -756,13 +743,8 @@
 		/* DWARF 4 */						\
 		.debug_types	0 : { *(.debug_types) }			\
 		/* DWARF 5 */						\
-		.debug_addr	0 : { *(.debug_addr) }			\
-		.debug_line_str	0 : { *(.debug_line_str) }		\
-		.debug_loclists	0 : { *(.debug_loclists) }		\
 		.debug_macro	0 : { *(.debug_macro) }			\
-		.debug_names	0 : { *(.debug_names) }			\
-		.debug_rnglists	0 : { *(.debug_rnglists) }		\
-		.debug_str_offsets	0 : { *(.debug_str_offsets) }
+		.debug_addr	0 : { *(.debug_addr) }
 
 		/* Stabs debugging sections.  */
 #define STABS_DEBUG							\

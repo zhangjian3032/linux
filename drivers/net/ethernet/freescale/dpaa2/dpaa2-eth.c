@@ -2654,10 +2654,8 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 
 	priv->cls_rules = devm_kzalloc(dev, sizeof(struct dpaa2_eth_cls_rule) *
 				       dpaa2_eth_fs_count(priv), GFP_KERNEL);
-	if (!priv->cls_rules) {
-		err = -ENOMEM;
+	if (!priv->cls_rules)
 		goto close;
-	}
 
 	return 0;
 

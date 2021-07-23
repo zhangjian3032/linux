@@ -55,8 +55,7 @@ bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
 			return false;
 		}
 
-		if (policy->flags & ~(FSCRYPT_POLICY_FLAGS_PAD_MASK |
-				      FSCRYPT_POLICY_FLAG_DIRECT_KEY)) {
+		if (policy->flags & ~FSCRYPT_POLICY_FLAGS_VALID) {
 			fscrypt_warn(inode,
 				     "Unsupported encryption flags (0x%02x)",
 				     policy->flags);
@@ -77,8 +76,7 @@ bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
 			return false;
 		}
 
-		if (policy->flags & ~(FSCRYPT_POLICY_FLAGS_PAD_MASK |
-				      FSCRYPT_POLICY_FLAG_DIRECT_KEY)) {
+		if (policy->flags & ~FSCRYPT_POLICY_FLAGS_VALID) {
 			fscrypt_warn(inode,
 				     "Unsupported encryption flags (0x%02x)",
 				     policy->flags);

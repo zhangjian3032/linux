@@ -1425,7 +1425,9 @@ static int temac_probe(struct platform_device *pdev)
 		of_node_put(dma_np);
 	} else if (pdata) {
 		/* 2nd memory resource specifies DMA registers */
-		lp->sdma_regs = devm_platform_ioremap_resource(pdev, 1);
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		lp->sdma_regs = devm_ioremap_nocache(&pdev->dev, res->start,
+						     resource_size(res));
 		if (IS_ERR(lp->sdma_regs)) {
 			dev_err(&pdev->dev,
 				"could not map DMA registers\n");

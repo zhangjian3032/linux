@@ -8,12 +8,6 @@
 int x2apic_phys;
 
 static struct apic apic_x2apic_phys;
-static u32 x2apic_max_apicid __ro_after_init;
-
-void __init x2apic_set_max_apicid(u32 apicid)
-{
-	x2apic_max_apicid = apicid;
-}
 
 static int __init set_x2apic_phys_mode(char *arg)
 {
@@ -43,8 +37,7 @@ static void x2apic_send_IPI(int cpu, int vector)
 {
 	u32 dest = per_cpu(x86_cpu_to_apicid, cpu);
 
-	/* x2apic MSRs are special and need a special fence: */
-	weak_wrmsr_fence();
+	x2apic_wrmsr_fence();
 	__x2apic_send_IPI_dest(dest, vector, APIC_DEST_PHYSICAL);
 }
 
@@ -55,8 +48,7 @@ __x2apic_send_IPI_mask(const struct cpumask *mask, int vector, int apic_dest)
 	unsigned long this_cpu;
 	unsigned long flags;
 
-	/* x2apic MSRs are special and need a special fence: */
-	weak_wrmsr_fence();
+	x2apic_wrmsr_fence();
 
 	local_irq_save(flags);
 
@@ -106,9 +98,6 @@ static int x2apic_phys_probe(void)
 /* Common x2apic functions, also used by x2apic_cluster */
 int x2apic_apic_id_valid(u32 apicid)
 {
-	if (x2apic_max_apicid && apicid > x2apic_max_apicid)
-		return 0;
-
 	return 1;
 }
 
@@ -127,8 +116,7 @@ void __x2apic_send_IPI_shorthand(int vector, u32 which)
 {
 	unsigned long cfg = __prepare_ICR(which, vector, 0);
 
-	/* x2apic MSRs are special and need a special fence: */
-	weak_wrmsr_fence();
+	x2apic_wrmsr_fence();
 	native_x2apic_icr_write(cfg, 0);
 }
 

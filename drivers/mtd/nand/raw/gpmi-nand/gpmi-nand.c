@@ -149,10 +149,8 @@ static int gpmi_init(struct gpmi_nand_data *this)
 	int ret;
 
 	ret = pm_runtime_get_sync(this->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(this->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = gpmi_reset_block(r->gpmi_regs, false);
 	if (ret)
@@ -542,10 +540,8 @@ static int bch_set_geometry(struct gpmi_nand_data *this)
 		return ret;
 
 	ret = pm_runtime_get_sync(this->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(this->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	/*
 	* Due to erratum #2847 of the MX23, the BCH cannot be soft reset on this
@@ -2408,7 +2404,7 @@ static int gpmi_nfc_exec_op(struct nand_chip *chip,
 	void *buf_read = NULL;
 	const void *buf_write = NULL;
 	bool direct = false;
-	struct completion *dma_completion, *bch_completion;
+	struct completion *completion;
 	unsigned long to;
 
 	this->ntransfers = 0;
@@ -2416,10 +2412,8 @@ static int gpmi_nfc_exec_op(struct nand_chip *chip,
 		this->transfers[i].direction = DMA_NONE;
 
 	ret = pm_runtime_get_sync(this->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(this->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	/*
 	 * This driver currently supports only one NAND chip. Plus, dies share
@@ -2502,39 +2496,27 @@ static int gpmi_nfc_exec_op(struct nand_chip *chip,
 		       this->resources.bch_regs + HW_BCH_FLASH0LAYOUT1);
 	}
 
-	desc->callback = dma_irq_callback;
-	desc->callback_param = this;
-	dma_completion = &this->dma_done;
-	bch_completion = NULL;
-
-	init_completion(dma_completion);
-
 	if (this->bch && buf_read) {
 		writel(BM_BCH_CTRL_COMPLETE_IRQ_EN,
 		       this->resources.bch_regs + HW_BCH_CTRL_SET);
-		bch_completion = &this->bch_done;
-		init_completion(bch_completion);
+		completion = &this->bch_done;
+	} else {
+		desc->callback = dma_irq_callback;
+		desc->callback_param = this;
+		completion = &this->dma_done;
 	}
+
+	init_completion(completion);
 
 	dmaengine_submit(desc);
 	dma_async_issue_pending(get_dma_chan(this));
 
-	to = wait_for_completion_timeout(dma_completion, msecs_to_jiffies(1000));
+	to = wait_for_completion_timeout(completion, msecs_to_jiffies(1000));
 	if (!to) {
 		dev_err(this->dev, "DMA timeout, last DMA\n");
 		gpmi_dump_info(this);
 		ret = -ETIMEDOUT;
 		goto unmap;
-	}
-
-	if (this->bch && buf_read) {
-		to = wait_for_completion_timeout(bch_completion, msecs_to_jiffies(1000));
-		if (!to) {
-			dev_err(this->dev, "BCH timeout, last DMA\n");
-			gpmi_dump_info(this);
-			ret = -ETIMEDOUT;
-			goto unmap;
-		}
 	}
 
 	writel(BM_BCH_CTRL_COMPLETE_IRQ_EN,
@@ -2598,7 +2580,7 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	this->bch_geometry.auxiliary_size = 128;
 	ret = gpmi_alloc_dma_buffer(this);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	nand_controller_init(&this->base);
 	this->base.ops = &gpmi_nand_controller_ops;

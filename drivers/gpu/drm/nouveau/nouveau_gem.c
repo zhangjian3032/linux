@@ -78,10 +78,8 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 		return ret;
 
 	ret = pm_runtime_get_sync(dev);
-	if (ret < 0 && ret != -EACCES) {
-		pm_runtime_put_autosuspend(dev);
+	if (ret < 0 && ret != -EACCES)
 		goto out;
-	}
 
 	ret = nouveau_vma_new(nvbo, vmm, &vma);
 	pm_runtime_mark_last_busy(dev);
@@ -197,8 +195,7 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 	 * to the caller, instead of a normal nouveau_bo ttm reference. */
 	ret = drm_gem_object_init(drm->dev, &nvbo->bo.base, size);
 	if (ret) {
-		drm_gem_object_release(&nvbo->bo.base);
-		kfree(nvbo);
+		nouveau_bo_ref(NULL, &nvbo);
 		return ret;
 	}
 

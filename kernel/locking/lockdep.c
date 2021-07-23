@@ -875,8 +875,7 @@ static bool assign_lock_key(struct lockdep_map *lock)
 		/* Debug-check: all keys must be persistent! */
 		debug_locks_off();
 		pr_err("INFO: trying to register non-static key.\n");
-		pr_err("The code is fine but needs lockdep annotation, or maybe\n");
-		pr_err("you didn't initialize this object before use?\n");
+		pr_err("the code is fine but needs lockdep annotation.\n");
 		pr_err("turning off the locking correctness validator.\n");
 		dump_stack();
 		return false;
@@ -2303,6 +2302,18 @@ static int check_irq_usage(struct task_struct *curr, struct held_lock *prev,
 	return 0;
 }
 
+static void inc_chains(void)
+{
+	if (current->hardirq_context)
+		nr_hardirq_chains++;
+	else {
+		if (current->softirq_context)
+			nr_softirq_chains++;
+		else
+			nr_process_chains++;
+	}
+}
+
 #else
 
 static inline int check_irq_usage(struct task_struct *curr,
@@ -2310,27 +2321,13 @@ static inline int check_irq_usage(struct task_struct *curr,
 {
 	return 1;
 }
+
+static inline void inc_chains(void)
+{
+	nr_process_chains++;
+}
+
 #endif /* CONFIG_TRACE_IRQFLAGS */
-
-static void inc_chains(int irq_context)
-{
-	if (irq_context & LOCK_CHAIN_HARDIRQ_CONTEXT)
-		nr_hardirq_chains++;
-	else if (irq_context & LOCK_CHAIN_SOFTIRQ_CONTEXT)
-		nr_softirq_chains++;
-	else
-		nr_process_chains++;
-}
-
-static void dec_chains(int irq_context)
-{
-	if (irq_context & LOCK_CHAIN_HARDIRQ_CONTEXT)
-		nr_hardirq_chains--;
-	else if (irq_context & LOCK_CHAIN_SOFTIRQ_CONTEXT)
-		nr_softirq_chains--;
-	else
-		nr_process_chains--;
-}
 
 static void
 print_deadlock_scenario(struct held_lock *nxt, struct held_lock *prv)
@@ -2850,7 +2847,7 @@ static inline int add_chain_cache(struct task_struct *curr,
 
 	hlist_add_head_rcu(&chain->entry, hash_head);
 	debug_atomic_inc(chain_lookup_misses);
-	inc_chains(chain->irq_context);
+	inc_chains();
 
 	return 1;
 }
@@ -3603,8 +3600,7 @@ lock_used:
 
 static inline unsigned int task_irq_context(struct task_struct *task)
 {
-	return LOCK_CHAIN_HARDIRQ_CONTEXT * !!task->hardirq_context +
-	       LOCK_CHAIN_SOFTIRQ_CONTEXT * !!task->softirq_context;
+	return 2 * !!task->hardirq_context + !!task->softirq_context;
 }
 
 static int separate_irq_context(struct task_struct *curr,
@@ -4809,8 +4805,6 @@ recalc:
 		return;
 	/* Overwrite the chain key for concurrent RCU readers. */
 	WRITE_ONCE(chain->chain_key, chain_key);
-	dec_chains(chain->irq_context);
-
 	/*
 	 * Note: calling hlist_del_rcu() from inside a
 	 * hlist_for_each_entry_rcu() loop is safe.
@@ -4832,7 +4826,6 @@ recalc:
 	}
 	*new_chain = *chain;
 	hlist_add_head_rcu(&new_chain->entry, chainhashentry(chain_key));
-	inc_chains(new_chain->irq_context);
 #endif
 }
 

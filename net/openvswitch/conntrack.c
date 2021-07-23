@@ -905,19 +905,15 @@ static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 	}
 	err = ovs_ct_nat_execute(skb, ct, ctinfo, &info->range, maniptype);
 
-	if (err == NF_ACCEPT && ct->status & IPS_DST_NAT) {
-		if (ct->status & IPS_SRC_NAT) {
-			if (maniptype == NF_NAT_MANIP_SRC)
-				maniptype = NF_NAT_MANIP_DST;
-			else
-				maniptype = NF_NAT_MANIP_SRC;
+	if (err == NF_ACCEPT &&
+	    ct->status & IPS_SRC_NAT && ct->status & IPS_DST_NAT) {
+		if (maniptype == NF_NAT_MANIP_SRC)
+			maniptype = NF_NAT_MANIP_DST;
+		else
+			maniptype = NF_NAT_MANIP_SRC;
 
-			err = ovs_ct_nat_execute(skb, ct, ctinfo, &info->range,
-						 maniptype);
-		} else if (CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL) {
-			err = ovs_ct_nat_execute(skb, ct, ctinfo, NULL,
-						 NF_NAT_MANIP_SRC);
-		}
+		err = ovs_ct_nat_execute(skb, ct, ctinfo, &info->range,
+					 maniptype);
 	}
 
 	/* Mark NAT done if successful and update the flow key. */
@@ -2019,12 +2015,16 @@ static int ovs_ct_limit_del_zone_limit(struct nlattr *nla_zone_limit,
 static int ovs_ct_limit_get_default_limit(struct ovs_ct_limit_info *info,
 					  struct sk_buff *reply)
 {
-	struct ovs_zone_limit zone_limit = {
-		.zone_id = OVS_ZONE_LIMIT_DEFAULT_ZONE,
-		.limit   = info->default_limit,
-	};
+	struct ovs_zone_limit zone_limit;
+	int err;
 
-	return nla_put_nohdr(reply, sizeof(zone_limit), &zone_limit);
+	zone_limit.zone_id = OVS_ZONE_LIMIT_DEFAULT_ZONE;
+	zone_limit.limit = info->default_limit;
+	err = nla_put_nohdr(reply, sizeof(zone_limit), &zone_limit);
+	if (err)
+		return err;
+
+	return 0;
 }
 
 static int __ovs_ct_limit_get_zone_limit(struct net *net,

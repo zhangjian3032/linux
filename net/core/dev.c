@@ -5275,11 +5275,10 @@ static void gro_normal_list(struct napi_struct *napi)
 /* Queue one GRO_NORMAL SKB up for list processing. If batch size exceeded,
  * pass the whole batch up to the stack.
  */
-static void gro_normal_one(struct napi_struct *napi, struct sk_buff *skb, int segs)
+static void gro_normal_one(struct napi_struct *napi, struct sk_buff *skb)
 {
 	list_add_tail(&skb->list, &napi->rx_list);
-	napi->rx_count += segs;
-	if (napi->rx_count >= gro_normal_batch)
+	if (++napi->rx_count >= gro_normal_batch)
 		gro_normal_list(napi);
 }
 
@@ -5318,7 +5317,7 @@ static int napi_gro_complete(struct napi_struct *napi, struct sk_buff *skb)
 	}
 
 out:
-	gro_normal_one(napi, skb, NAPI_GRO_CB(skb)->count);
+	gro_normal_one(napi, skb);
 	return NET_RX_SUCCESS;
 }
 
@@ -5395,7 +5394,7 @@ static struct list_head *gro_list_prepare(struct napi_struct *napi,
 	return head;
 }
 
-static inline void skb_gro_reset_offset(struct sk_buff *skb, u32 nhoff)
+static void skb_gro_reset_offset(struct sk_buff *skb)
 {
 	const struct skb_shared_info *pinfo = skb_shinfo(skb);
 	const skb_frag_t *frag0 = &pinfo->frags[0];
@@ -5406,8 +5405,7 @@ static inline void skb_gro_reset_offset(struct sk_buff *skb, u32 nhoff)
 
 	if (skb_mac_header(skb) == skb_tail_pointer(skb) &&
 	    pinfo->nr_frags &&
-	    !PageHighMem(skb_frag_page(frag0)) &&
-	    (!NET_IP_ALIGN || !((skb_frag_off(frag0) + nhoff) & 3))) {
+	    !PageHighMem(skb_frag_page(frag0))) {
 		NAPI_GRO_CB(skb)->frag0 = skb_frag_address(frag0);
 		NAPI_GRO_CB(skb)->frag0_len = min_t(unsigned int,
 						    skb_frag_size(frag0),
@@ -5604,13 +5602,12 @@ static void napi_skb_free_stolen_head(struct sk_buff *skb)
 	kmem_cache_free(skbuff_head_cache, skb);
 }
 
-static gro_result_t napi_skb_finish(struct napi_struct *napi,
-				    struct sk_buff *skb,
-				    gro_result_t ret)
+static gro_result_t napi_skb_finish(gro_result_t ret, struct sk_buff *skb)
 {
 	switch (ret) {
 	case GRO_NORMAL:
-		gro_normal_one(napi, skb, 1);
+		if (netif_receive_skb_internal(skb))
+			ret = GRO_DROP;
 		break;
 
 	case GRO_DROP:
@@ -5640,9 +5637,9 @@ gro_result_t napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	skb_mark_napi_id(skb, napi);
 	trace_napi_gro_receive_entry(skb);
 
-	skb_gro_reset_offset(skb, 0);
+	skb_gro_reset_offset(skb);
 
-	ret = napi_skb_finish(napi, skb, dev_gro_receive(napi, skb));
+	ret = napi_skb_finish(dev_gro_receive(napi, skb), skb);
 	trace_napi_gro_receive_exit(ret);
 
 	return ret;
@@ -5698,7 +5695,7 @@ static gro_result_t napi_frags_finish(struct napi_struct *napi,
 		__skb_push(skb, ETH_HLEN);
 		skb->protocol = eth_type_trans(skb, skb->dev);
 		if (ret == GRO_NORMAL)
-			gro_normal_one(napi, skb, 1);
+			gro_normal_one(napi, skb);
 		break;
 
 	case GRO_DROP:
@@ -5733,7 +5730,7 @@ static struct sk_buff *napi_frags_skb(struct napi_struct *napi)
 	napi->skb = NULL;
 
 	skb_reset_mac_header(skb);
-	skb_gro_reset_offset(skb, hlen);
+	skb_gro_reset_offset(skb);
 
 	if (unlikely(skb_gro_header_hard(skb, hlen))) {
 		eth = skb_gro_header_slow(skb, hlen, 0);
@@ -6233,13 +6230,12 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 		netdev_err_once(dev, "%s() called with weight %d\n", __func__,
 				weight);
 	napi->weight = weight;
+	list_add(&napi->dev_list, &dev->napi_list);
 	napi->dev = dev;
 #ifdef CONFIG_NETPOLL
 	napi->poll_owner = -1;
 #endif
 	set_bit(NAPI_STATE_SCHED, &napi->state);
-	set_bit(NAPI_STATE_NPSVC, &napi->state);
-	list_add_rcu(&napi->dev_list, &dev->napi_list);
 	napi_hash_add(napi);
 }
 EXPORT_SYMBOL(netif_napi_add);
@@ -8145,48 +8141,6 @@ int dev_set_mac_address(struct net_device *dev, struct sockaddr *sa,
 }
 EXPORT_SYMBOL(dev_set_mac_address);
 
-static DECLARE_RWSEM(dev_addr_sem);
-
-int dev_set_mac_address_user(struct net_device *dev, struct sockaddr *sa,
-			     struct netlink_ext_ack *extack)
-{
-	int ret;
-
-	down_write(&dev_addr_sem);
-	ret = dev_set_mac_address(dev, sa, extack);
-	up_write(&dev_addr_sem);
-	return ret;
-}
-EXPORT_SYMBOL(dev_set_mac_address_user);
-
-int dev_get_mac_address(struct sockaddr *sa, struct net *net, char *dev_name)
-{
-	size_t size = sizeof(sa->sa_data);
-	struct net_device *dev;
-	int ret = 0;
-
-	down_read(&dev_addr_sem);
-	rcu_read_lock();
-
-	dev = dev_get_by_name_rcu(net, dev_name);
-	if (!dev) {
-		ret = -ENODEV;
-		goto unlock;
-	}
-	if (!dev->addr_len)
-		memset(sa->sa_data, 0, size);
-	else
-		memcpy(sa->sa_data, dev->dev_addr,
-		       min_t(size_t, size, dev->addr_len));
-	sa->sa_family = dev->type;
-
-unlock:
-	rcu_read_unlock();
-	up_read(&dev_addr_sem);
-	return ret;
-}
-EXPORT_SYMBOL(dev_get_mac_address);
-
 /**
  *	dev_change_carrier - Change device carrier
  *	@dev: device
@@ -8285,7 +8239,7 @@ int dev_get_port_parent_id(struct net_device *dev,
 		if (!first.id_len)
 			first = *ppid;
 		else if (memcmp(&first, ppid, sizeof(*ppid)))
-			return -EOPNOTSUPP;
+			return -ENODATA;
 	}
 
 	return err;
@@ -8734,11 +8688,6 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 			netdev_dbg(dev, "Dropping HW-GRO feature since RX-FCS is requested.\n");
 			features &= ~NETIF_F_GRO_HW;
 		}
-	}
-
-	if ((features & NETIF_F_HW_TLS_RX) && !(features & NETIF_F_RXCSUM)) {
-		netdev_dbg(dev, "Dropping TLS RX HW offload feature since no RXCSUM feature.\n");
-		features &= ~NETIF_F_HW_TLS_RX;
 	}
 
 	return features;
@@ -10122,7 +10071,7 @@ static void __net_exit default_device_exit(struct net *net)
 			continue;
 
 		/* Leave virtual devices for the generic cleanup */
-		if (dev->rtnl_link_ops && !dev->rtnl_link_ops->netns_refund)
+		if (dev->rtnl_link_ops)
 			continue;
 
 		/* Push remaining network devices to init_net */

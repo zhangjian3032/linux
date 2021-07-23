@@ -630,12 +630,8 @@ static void __kobject_del(struct kobject *kobj)
  */
 void kobject_del(struct kobject *kobj)
 {
-	struct kobject *parent;
+	struct kobject *parent = kobj->parent;
 
-	if (!kobj)
-		return;
-
-	parent = kobj->parent;
 	__kobject_del(kobj);
 	kobject_put(parent);
 }

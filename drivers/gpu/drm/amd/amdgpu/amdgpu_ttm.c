@@ -967,7 +967,6 @@ static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 
 release_sg:
 	kfree(ttm->sg);
-	ttm->sg = NULL;
 	return r;
 }
 
@@ -984,7 +983,7 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 		DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
 
 	/* double check that we don't free the table twice */
-	if (!ttm->sg || !ttm->sg->sgl)
+	if (!ttm->sg->sgl)
 		return;
 
 	/* unmap the pages mapped to the device */

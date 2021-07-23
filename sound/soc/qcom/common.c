@@ -45,10 +45,8 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 
 	for_each_child_of_node(dev->of_node, np) {
 		dlc = devm_kzalloc(dev, 2 * sizeof(*dlc), GFP_KERNEL);
-		if (!dlc) {
-			ret = -ENOMEM;
-			goto err;
-		}
+		if (!dlc)
+			return -ENOMEM;
 
 		link->cpus	= &dlc[0];
 		link->platforms	= &dlc[1];

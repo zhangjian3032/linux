@@ -654,10 +654,8 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	 */
 	pm_runtime_enable(dev);
 	phy_usb2_ops = of_device_get_match_data(dev);
-	if (!phy_usb2_ops) {
-		ret = -EINVAL;
-		goto error;
-	}
+	if (!phy_usb2_ops)
+		return -EINVAL;
 
 	mutex_init(&channel->lock);
 	for (i = 0; i < NUM_OF_PHYS; i++) {

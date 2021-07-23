@@ -702,7 +702,6 @@ error:
 	kfree(wbuf);
 error_1:
 	kfree(wr_msg);
-	bus->defer_msg.msg = NULL;
 	return ret;
 }
 
@@ -826,10 +825,9 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 error:
 	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
 		bus = m_rt->bus;
-		if (bus->defer_msg.msg) {
-			kfree(bus->defer_msg.msg->buf);
-			kfree(bus->defer_msg.msg);
-		}
+
+		kfree(bus->defer_msg.msg->buf);
+		kfree(bus->defer_msg.msg);
 	}
 
 msg_unlock:
@@ -1357,16 +1355,8 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 	}
 
 	ret = sdw_config_stream(&slave->dev, stream, stream_config, true);
-	if (ret) {
-		/*
-		 * sdw_release_master_stream will release s_rt in slave_rt_list in
-		 * stream_error case, but s_rt is only added to slave_rt_list
-		 * when sdw_config_stream is successful, so free s_rt explicitly
-		 * when sdw_config_stream is failed.
-		 */
-		kfree(s_rt);
+	if (ret)
 		goto stream_error;
-	}
 
 	list_add_tail(&s_rt->m_rt_node, &m_rt->slave_rt_list);
 

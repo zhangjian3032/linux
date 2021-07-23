@@ -317,7 +317,7 @@ static int ip_tunnel_bind_dev(struct net_device *dev)
 	}
 
 	dev->needed_headroom = t_hlen + hlen;
-	mtu -= t_hlen;
+	mtu -= (dev->hard_header_len + t_hlen);
 
 	if (mtu < IPV4_MIN_MTU)
 		mtu = IPV4_MIN_MTU;
@@ -347,7 +347,7 @@ static struct ip_tunnel *ip_tunnel_create(struct net *net,
 	nt = netdev_priv(dev);
 	t_hlen = nt->hlen + sizeof(struct iphdr);
 	dev->min_mtu = ETH_MIN_MTU;
-	dev->max_mtu = IP_MAX_MTU - t_hlen;
+	dev->max_mtu = IP_MAX_MTU - dev->hard_header_len - t_hlen;
 	ip_tunnel_add(itn, nt);
 	return nt;
 
@@ -494,10 +494,11 @@ static int tnl_update_pmtu(struct net_device *dev, struct sk_buff *skb,
 	int mtu;
 
 	tunnel_hlen = md ? tunnel_hlen : tunnel->hlen;
-	pkt_size = skb->len - tunnel_hlen;
+	pkt_size = skb->len - tunnel_hlen - dev->hard_header_len;
 
 	if (df)
-		mtu = dst_mtu(&rt->dst) - (sizeof(struct iphdr) + tunnel_hlen);
+		mtu = dst_mtu(&rt->dst) - dev->hard_header_len
+					- sizeof(struct iphdr) - tunnel_hlen;
 	else
 		mtu = skb_valid_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
 
@@ -612,6 +613,9 @@ void ip_md_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		else
 			ttl = ip4_dst_hoplimit(&rt->dst);
 	}
+
+	if (!df && skb->protocol == htons(ETH_P_IP))
+		df = inner_iph->frag_off & htons(IP_DF);
 
 	headroom += LL_RESERVED_SPACE(rt->dst.dev) + rt->dst.header_len;
 	if (headroom > dev->needed_headroom)
@@ -764,11 +768,8 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		goto tx_error;
 	}
 
-	df = tnl_params->frag_off;
-	if (skb->protocol == htons(ETH_P_IP) && !tunnel->ignore_df)
-		df |= (inner_iph->frag_off & htons(IP_DF));
-
-	if (tnl_update_pmtu(dev, skb, rt, df, inner_iph, 0, 0, false)) {
+	if (tnl_update_pmtu(dev, skb, rt, tnl_params->frag_off, inner_iph,
+			    0, 0, false)) {
 		ip_rt_put(rt);
 		goto tx_error;
 	}
@@ -795,6 +796,10 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		else
 			ttl = ip4_dst_hoplimit(&rt->dst);
 	}
+
+	df = tnl_params->frag_off;
+	if (skb->protocol == htons(ETH_P_IP) && !tunnel->ignore_df)
+		df |= (inner_iph->frag_off&htons(IP_DF));
 
 	max_headroom = LL_RESERVED_SPACE(rt->dst.dev) + sizeof(struct iphdr)
 			+ rt->dst.header_len + ip_encap_hlen(&tunnel->encap);
@@ -963,7 +968,7 @@ int __ip_tunnel_change_mtu(struct net_device *dev, int new_mtu, bool strict)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	int t_hlen = tunnel->hlen + sizeof(struct iphdr);
-	int max_mtu = IP_MAX_MTU - t_hlen;
+	int max_mtu = IP_MAX_MTU - dev->hard_header_len - t_hlen;
 
 	if (new_mtu < ETH_MIN_MTU)
 		return -EINVAL;
@@ -1140,9 +1145,10 @@ int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 
 	mtu = ip_tunnel_bind_dev(dev);
 	if (tb[IFLA_MTU]) {
-		unsigned int max = IP_MAX_MTU - (nt->hlen + sizeof(struct iphdr));
+		unsigned int max = IP_MAX_MTU - dev->hard_header_len - nt->hlen;
 
-		mtu = clamp(dev->mtu, (unsigned int)ETH_MIN_MTU, max);
+		mtu = clamp(dev->mtu, (unsigned int)ETH_MIN_MTU,
+			    (unsigned int)(max - sizeof(struct iphdr)));
 	}
 
 	err = dev_set_mtu(dev, mtu);

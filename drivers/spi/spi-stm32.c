@@ -494,9 +494,9 @@ static u32 stm32h7_spi_prepare_fthlv(struct stm32_spi *spi, u32 xfer_len)
 
 	/* align packet size with data registers access */
 	if (spi->cur_bpw > 8)
-		fthlv += (fthlv % 2) ? 1 : 0;
+		fthlv -= (fthlv % 2); /* multiple of 2 */
 	else
-		fthlv += (fthlv % 4) ? (4 - (fthlv % 4)) : 0;
+		fthlv -= (fthlv % 4); /* multiple of 4 */
 
 	if (!fthlv)
 		fthlv = 1;
@@ -924,18 +924,14 @@ static irqreturn_t stm32h7_spi_irq_thread(int irq, void *dev_id)
 		mask |= STM32H7_SPI_SR_RXP;
 
 	if (!(sr & mask)) {
-		dev_warn(spi->dev, "spurious IT (sr=0x%08x, ier=0x%08x)\n",
-			 sr, ier);
+		dev_dbg(spi->dev, "spurious IT (sr=0x%08x, ier=0x%08x)\n",
+			sr, ier);
 		spin_unlock_irqrestore(&spi->lock, flags);
 		return IRQ_NONE;
 	}
 
 	if (sr & STM32H7_SPI_SR_SUSP) {
-		static DEFINE_RATELIMIT_STATE(rs,
-					      DEFAULT_RATELIMIT_INTERVAL * 10,
-					      1);
-		if (__ratelimit(&rs))
-			dev_dbg_ratelimited(spi->dev, "Communication suspended\n");
+		dev_warn(spi->dev, "Communication suspended\n");
 		if (!spi->cur_usedma && (spi->rx_buf && (spi->rx_len > 0)))
 			stm32h7_spi_read_rxfifo(spi, false);
 		/*
@@ -952,8 +948,15 @@ static irqreturn_t stm32h7_spi_irq_thread(int irq, void *dev_id)
 	}
 
 	if (sr & STM32H7_SPI_SR_OVR) {
-		dev_err(spi->dev, "Overrun: RX data lost\n");
-		end = true;
+		dev_warn(spi->dev, "Overrun: received value discarded\n");
+		if (!spi->cur_usedma && (spi->rx_buf && (spi->rx_len > 0)))
+			stm32h7_spi_read_rxfifo(spi, false);
+		/*
+		 * If overrun is detected while using DMA, it means that
+		 * something went wrong, so stop the current transfer
+		 */
+		if (spi->cur_usedma)
+			end = true;
 	}
 
 	if (sr & STM32H7_SPI_SR_EOT) {
@@ -1661,10 +1664,6 @@ static int stm32_spi_transfer_one(struct spi_master *master,
 	struct stm32_spi *spi = spi_master_get_devdata(master);
 	int ret;
 
-	/* Don't do anything on 0 bytes transfers */
-	if (transfer->len == 0)
-		return 0;
-
 	spi->tx_buf = transfer->tx_buf;
 	spi->rx_buf = transfer->rx_buf;
 	spi->tx_len = spi->tx_buf ? transfer->len : 0;
@@ -1926,7 +1925,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret) {
 		dev_err(&pdev->dev, "spi master registration failed: %d\n",
 			ret);
@@ -1980,7 +1979,6 @@ static int stm32_spi_remove(struct platform_device *pdev)
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct stm32_spi *spi = spi_master_get_devdata(master);
 
-	spi_unregister_master(master);
 	spi->cfg->disable(spi);
 
 	if (master->dma_tx)
@@ -2052,8 +2050,7 @@ static int stm32_spi_resume(struct device *dev)
 	}
 
 	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+	if (ret) {
 		dev_err(dev, "Unable to power device:%d\n", ret);
 		return ret;
 	}

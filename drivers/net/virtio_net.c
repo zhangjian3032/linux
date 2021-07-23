@@ -63,11 +63,6 @@ static const unsigned long guest_offloads[] = {
 	VIRTIO_NET_F_GUEST_CSUM
 };
 
-#define GUEST_OFFLOAD_LRO_MASK ((1ULL << VIRTIO_NET_F_GUEST_TSO4) | \
-				(1ULL << VIRTIO_NET_F_GUEST_TSO6) | \
-				(1ULL << VIRTIO_NET_F_GUEST_ECN)  | \
-				(1ULL << VIRTIO_NET_F_GUEST_UFO))
-
 struct virtnet_stat_desc {
 	char desc[ETH_GSTRING_LEN];
 	size_t offset;
@@ -376,7 +371,7 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 				   struct receive_queue *rq,
 				   struct page *page, unsigned int offset,
 				   unsigned int len, unsigned int truesize,
-				   bool hdr_valid, unsigned int metasize)
+				   bool hdr_valid)
 {
 	struct sk_buff *skb;
 	struct virtio_net_hdr_mrg_rxbuf *hdr;
@@ -398,7 +393,6 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 	else
 		hdr_padded_len = sizeof(struct padded_vnet_hdr);
 
-	/* hdr_valid means no XDP, so we can copy the vnet header */
 	if (hdr_valid)
 		memcpy(hdr, p, hdr_len);
 
@@ -410,11 +404,6 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 	if (copy > skb_tailroom(skb))
 		copy = skb_tailroom(skb);
 	skb_put_data(skb, p, copy);
-
-	if (metasize) {
-		__skb_pull(skb, metasize);
-		skb_metadata_set(skb, metasize);
-	}
 
 	len -= copy;
 	offset += copy;
@@ -460,6 +449,10 @@ static int __virtnet_xdp_xmit_one(struct virtnet_info *vi,
 {
 	struct virtio_net_hdr_mrg_rxbuf *hdr;
 	int err;
+
+	/* virtqueue want to use data area in-front of packet */
+	if (unlikely(xdpf->metasize > 0))
+		return -EOPNOTSUPP;
 
 	if (unlikely(xdpf->headroom < vi->hdr_len))
 		return -EOVERFLOW;
@@ -651,7 +644,6 @@ static struct sk_buff *receive_small(struct net_device *dev,
 	unsigned int delta = 0;
 	struct page *xdp_page;
 	int err;
-	unsigned int metasize = 0;
 
 	len -= vi->hdr_len;
 	stats->bytes += len;
@@ -691,8 +683,8 @@ static struct sk_buff *receive_small(struct net_device *dev,
 
 		xdp.data_hard_start = buf + VIRTNET_RX_PAD + vi->hdr_len;
 		xdp.data = xdp.data_hard_start + xdp_headroom;
+		xdp_set_data_meta_invalid(&xdp);
 		xdp.data_end = xdp.data + len;
-		xdp.data_meta = xdp.data;
 		xdp.rxq = &rq->xdp_rxq;
 		orig_data = xdp.data;
 		act = bpf_prog_run_xdp(xdp_prog, &xdp);
@@ -703,7 +695,6 @@ static struct sk_buff *receive_small(struct net_device *dev,
 			/* Recalculate length in case bpf program changed it */
 			delta = orig_data - xdp.data;
 			len = xdp.data_end - xdp.data;
-			metasize = xdp.data - xdp.data_meta;
 			break;
 		case XDP_TX:
 			stats->xdp_tx++;
@@ -749,9 +740,6 @@ static struct sk_buff *receive_small(struct net_device *dev,
 		memcpy(skb_vnet_hdr(skb), buf, vi->hdr_len);
 	} /* keep zeroed vnet hdr since packet was changed by bpf */
 
-	if (metasize)
-		skb_metadata_set(skb, metasize);
-
 err:
 	return skb;
 
@@ -772,8 +760,8 @@ static struct sk_buff *receive_big(struct net_device *dev,
 				   struct virtnet_rq_stats *stats)
 {
 	struct page *page = buf;
-	struct sk_buff *skb =
-		page_to_skb(vi, rq, page, 0, len, PAGE_SIZE, true, 0);
+	struct sk_buff *skb = page_to_skb(vi, rq, page, 0, len,
+					  PAGE_SIZE, true);
 
 	stats->bytes += len - vi->hdr_len;
 	if (unlikely(!skb))
@@ -805,7 +793,6 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 	unsigned int truesize;
 	unsigned int headroom = mergeable_ctx_to_headroom(ctx);
 	int err;
-	unsigned int metasize = 0;
 
 	head_skb = NULL;
 	stats->bytes += len - vi->hdr_len;
@@ -852,8 +839,8 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		data = page_address(xdp_page) + offset;
 		xdp.data_hard_start = data - VIRTIO_XDP_HEADROOM + vi->hdr_len;
 		xdp.data = data + vi->hdr_len;
+		xdp_set_data_meta_invalid(&xdp);
 		xdp.data_end = xdp.data + (len - vi->hdr_len);
-		xdp.data_meta = xdp.data;
 		xdp.rxq = &rq->xdp_rxq;
 
 		act = bpf_prog_run_xdp(xdp_prog, &xdp);
@@ -861,27 +848,24 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 
 		switch (act) {
 		case XDP_PASS:
-			metasize = xdp.data - xdp.data_meta;
-
 			/* recalculate offset to account for any header
-			 * adjustments and minus the metasize to copy the
-			 * metadata in page_to_skb(). Note other cases do not
-			 * build an skb and avoid using offset
+			 * adjustments. Note other cases do not build an
+			 * skb and avoid using offset
 			 */
-			offset = xdp.data - page_address(xdp_page) -
-				 vi->hdr_len - metasize;
+			offset = xdp.data -
+					page_address(xdp_page) - vi->hdr_len;
 
-			/* recalculate len if xdp.data, xdp.data_end or
-			 * xdp.data_meta were adjusted
+			/* recalculate len if xdp.data or xdp.data_end were
+			 * adjusted
 			 */
-			len = xdp.data_end - xdp.data + vi->hdr_len + metasize;
+			len = xdp.data_end - xdp.data + vi->hdr_len;
 			/* We can only create skb based on xdp_page. */
 			if (unlikely(xdp_page != page)) {
 				rcu_read_unlock();
 				put_page(page);
-				head_skb = page_to_skb(vi, rq, xdp_page, offset,
-						       len, PAGE_SIZE, false,
-						       metasize);
+				head_skb = page_to_skb(vi, rq, xdp_page,
+						       offset, len,
+						       PAGE_SIZE, false);
 				return head_skb;
 			}
 			break;
@@ -937,8 +921,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		goto err_skb;
 	}
 
-	head_skb = page_to_skb(vi, rq, page, offset, len, truesize, !xdp_prog,
-			       metasize);
+	head_skb = page_to_skb(vi, rq, page, offset, len, truesize, !xdp_prog);
 	curr_skb = head_skb;
 
 	if (unlikely(!curr_skb))
@@ -2084,16 +2067,14 @@ static int virtnet_set_channels(struct net_device *dev,
 
 	get_online_cpus();
 	err = _virtnet_set_queues(vi, queue_pairs);
-	if (err) {
-		put_online_cpus();
-		goto err;
+	if (!err) {
+		netif_set_real_num_tx_queues(dev, queue_pairs);
+		netif_set_real_num_rx_queues(dev, queue_pairs);
+
+		virtnet_set_affinity(vi);
 	}
-	virtnet_set_affinity(vi);
 	put_online_cpus();
 
-	netif_set_real_num_tx_queues(dev, queue_pairs);
-	netif_set_real_num_rx_queues(dev, queue_pairs);
- err:
 	return err;
 }
 
@@ -2591,8 +2572,7 @@ static int virtnet_set_features(struct net_device *dev,
 		if (features & NETIF_F_LRO)
 			offloads = vi->guest_offloads_capable;
 		else
-			offloads = vi->guest_offloads_capable &
-				   ~GUEST_OFFLOAD_LRO_MASK;
+			offloads = 0;
 
 		err = virtnet_set_guest_offloads(vi, offloads);
 		if (err)
@@ -3128,7 +3108,6 @@ static int virtnet_probe(struct virtio_device *vdev)
 			dev_err(&vdev->dev,
 				"device MTU appears to have changed it is now %d < %d",
 				mtu, dev->min_mtu);
-			err = -EINVAL;
 			goto free;
 		}
 

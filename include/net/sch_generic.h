@@ -1158,7 +1158,7 @@ static inline struct Qdisc *qdisc_replace(struct Qdisc *sch, struct Qdisc *new,
 	old = *pold;
 	*pold = new;
 	if (old != NULL)
-		qdisc_purge_queue(old);
+		qdisc_tree_flush_backlog(old);
 	sch_tree_unlock(sch);
 
 	return old;

@@ -7,7 +7,6 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include <linux/types.h>
@@ -149,8 +148,7 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 			 */
 			optee_cq_wait_for_completion(&optee->call_queue, &w);
 		} else if (OPTEE_SMC_RETURN_IS_RPC(res.a0)) {
-			if (need_resched())
-				cond_resched();
+			might_sleep();
 			param.a0 = res.a0;
 			param.a1 = res.a1;
 			param.a2 = res.a2;
@@ -532,8 +530,7 @@ void optee_free_pages_list(void *list, size_t num_entries)
 static bool is_normal_memory(pgprot_t p)
 {
 #if defined(CONFIG_ARM)
-	return (((pgprot_val(p) & L_PTE_MT_MASK) == L_PTE_MT_WRITEALLOC) ||
-		((pgprot_val(p) & L_PTE_MT_MASK) == L_PTE_MT_WRITEBACK));
+	return (pgprot_val(p) & L_PTE_MT_MASK) == L_PTE_MT_WRITEALLOC;
 #elif defined(CONFIG_ARM64)
 	return (pgprot_val(p) & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL);
 #else

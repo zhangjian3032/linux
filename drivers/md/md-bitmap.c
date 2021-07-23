@@ -1372,7 +1372,7 @@ __acquires(bitmap->lock)
 	if (bitmap->bp[page].hijacked ||
 	    bitmap->bp[page].map == NULL)
 		csize = ((sector_t)1) << (bitmap->chunkshift +
-					  PAGE_COUNTER_SHIFT);
+					  PAGE_COUNTER_SHIFT - 1);
 	else
 		csize = ((sector_t)1) << bitmap->chunkshift;
 	*blocks = csize - (offset & (csize - 1));
@@ -1726,8 +1726,6 @@ void md_bitmap_flush(struct mddev *mddev)
 	md_bitmap_daemon_work(mddev);
 	bitmap->daemon_lastrun -= sleep;
 	md_bitmap_daemon_work(mddev);
-	if (mddev->bitmap_info.external)
-		md_super_wait(mddev);
 	md_bitmap_update_sb(bitmap);
 }
 
@@ -1956,7 +1954,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(md_bitmap_load);
 
-/* caller need to free returned bitmap with md_bitmap_free() */
 struct bitmap *get_bitmap_from_slot(struct mddev *mddev, int slot)
 {
 	int rv = 0;
@@ -2020,7 +2017,6 @@ int md_bitmap_copy_from_slot(struct mddev *mddev, int slot,
 	md_bitmap_unplug(mddev->bitmap);
 	*low = lo;
 	*high = hi;
-	md_bitmap_free(bitmap);
 
 	return rv;
 }
@@ -2624,3 +2620,4 @@ struct attribute_group md_bitmap_group = {
 	.name = "bitmap",
 	.attrs = md_bitmap_attrs,
 };
+

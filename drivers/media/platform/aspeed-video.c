@@ -1532,12 +1532,12 @@ static int aspeed_video_setup_video(struct aspeed_video *video)
 			       V4L2_JPEG_CHROMA_SUBSAMPLING_420, mask,
 			       V4L2_JPEG_CHROMA_SUBSAMPLING_444);
 
-	rc = video->ctrl_handler.error;
-	if (rc) {
+	if (video->ctrl_handler.error) {
 		v4l2_ctrl_handler_free(&video->ctrl_handler);
 		v4l2_device_unregister(v4l2_dev);
 
-		dev_err(video->dev, "Failed to init controls: %d\n", rc);
+		dev_err(video->dev, "Failed to init controls: %d\n",
+			video->ctrl_handler.error);
 		return rc;
 	}
 

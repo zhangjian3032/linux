@@ -311,11 +311,18 @@ EXPORT_SYMBOL_GPL(unwind_get_return_address);
 
 unsigned long *unwind_get_return_address_ptr(struct unwind_state *state)
 {
+	struct task_struct *task = state->task;
+
 	if (unwind_done(state))
 		return NULL;
 
 	if (state->regs)
 		return &state->regs->ip;
+
+	if (task != current && state->sp == task->thread.sp) {
+		struct inactive_task_frame *frame = (void *)task->thread.sp;
+		return &frame->ret_addr;
+	}
 
 	if (state->sp)
 		return (unsigned long *)state->sp - 1;
@@ -357,8 +364,8 @@ static bool deref_stack_regs(struct unwind_state *state, unsigned long addr,
 	if (!stack_access_ok(state, addr, sizeof(struct pt_regs)))
 		return false;
 
-	*ip = READ_ONCE_NOCHECK(regs->ip);
-	*sp = READ_ONCE_NOCHECK(regs->sp);
+	*ip = regs->ip;
+	*sp = regs->sp;
 	return true;
 }
 
@@ -370,8 +377,8 @@ static bool deref_stack_iret_regs(struct unwind_state *state, unsigned long addr
 	if (!stack_access_ok(state, addr, IRET_FRAME_SIZE))
 		return false;
 
-	*ip = READ_ONCE_NOCHECK(regs->ip);
-	*sp = READ_ONCE_NOCHECK(regs->sp);
+	*ip = regs->ip;
+	*sp = regs->sp;
 	return true;
 }
 
@@ -392,12 +399,12 @@ static bool get_reg(struct unwind_state *state, unsigned int reg_off,
 		return false;
 
 	if (state->full_regs) {
-		*val = READ_ONCE_NOCHECK(((unsigned long *)state->regs)[reg]);
+		*val = ((unsigned long *)state->regs)[reg];
 		return true;
 	}
 
 	if (state->prev_regs) {
-		*val = READ_ONCE_NOCHECK(((unsigned long *)state->prev_regs)[reg]);
+		*val = ((unsigned long *)state->prev_regs)[reg];
 		return true;
 	}
 
@@ -646,7 +653,7 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	} else {
 		struct inactive_task_frame *frame = (void *)task->thread.sp;
 
-		state->sp = task->thread.sp + sizeof(*frame);
+		state->sp = task->thread.sp;
 		state->bp = READ_ONCE_NOCHECK(frame->bp);
 		state->ip = READ_ONCE_NOCHECK(frame->ret_addr);
 		state->signal = (void *)state->ip == ret_from_fork;

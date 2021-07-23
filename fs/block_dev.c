@@ -246,8 +246,6 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 		bio.bi_opf = dio_bio_write_op(iocb);
 		task_io_account_write(ret);
 	}
-	if (iocb->ki_flags & IOCB_NOWAIT)
-		bio.bi_opf |= REQ_NOWAIT;
 	if (iocb->ki_flags & IOCB_HIPRI)
 		bio_set_polled(&bio, iocb);
 
@@ -401,8 +399,6 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 			bio->bi_opf = dio_bio_write_op(iocb);
 			task_io_account_write(bio->bi_iter.bi_size);
 		}
-		if (iocb->ki_flags & IOCB_NOWAIT)
-			bio->bi_opf |= REQ_NOWAIT;
 
 		dio->size += bio->bi_iter.bi_size;
 		pos += bio->bi_iter.bi_size;
@@ -1860,16 +1856,6 @@ static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 {
 	struct gendisk *disk = bdev->bd_disk;
 	struct block_device *victim = NULL;
-
-	/*
-	 * Sync early if it looks like we're the last one.  If someone else
-	 * opens the block device between now and the decrement of bd_openers
-	 * then we did a sync that we didn't need to, but that's not the end
-	 * of the world and we want to avoid long (could be several minute)
-	 * syncs while holding the mutex.
-	 */
-	if (bdev->bd_openers == 1)
-		sync_blockdev(bdev);
 
 	mutex_lock_nested(&bdev->bd_mutex, for_part);
 	if (for_part)

@@ -647,7 +647,9 @@ alloc_extent_state_atomic(struct extent_state *prealloc)
 
 static void extent_io_tree_panic(struct extent_io_tree *tree, int err)
 {
-	btrfs_panic(tree->fs_info, err,
+	struct inode *inode = tree->private_data;
+
+	btrfs_panic(btrfs_sb(inode->i_sb), err,
 	"locking error: extent tree was modified by another thread while locked");
 }
 
@@ -5605,9 +5607,9 @@ void read_extent_buffer(const struct extent_buffer *eb, void *dstv,
 	}
 }
 
-int read_extent_buffer_to_user_nofault(const struct extent_buffer *eb,
-				       void __user *dstv,
-				       unsigned long start, unsigned long len)
+int read_extent_buffer_to_user(const struct extent_buffer *eb,
+			       void __user *dstv,
+			       unsigned long start, unsigned long len)
 {
 	size_t cur;
 	size_t offset;
@@ -5628,7 +5630,7 @@ int read_extent_buffer_to_user_nofault(const struct extent_buffer *eb,
 
 		cur = min(len, (PAGE_SIZE - offset));
 		kaddr = page_address(page);
-		if (probe_user_write(dst, kaddr + offset, cur)) {
+		if (copy_to_user(dst, kaddr + offset, cur)) {
 			ret = -EFAULT;
 			break;
 		}
