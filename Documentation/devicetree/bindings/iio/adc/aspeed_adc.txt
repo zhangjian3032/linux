@@ -40,6 +40,12 @@ Required properties:
 	- Reference voltage in millivolts for the conversions
 - battery-sensing: (ast2600 only)
 	- Inform the driver that last channel will be used to sensor battery
+- aspeed,trim-data-valid:
+	- type: boolean
+	- description:
+	The ADC reference voltage can be calibrated to obtain the trimming
+	data which will be stored in otp. This property informs the driver that
+	the data store in the otp is valid.
 Example:
 &adc0 {
 	vref = <2500>;
