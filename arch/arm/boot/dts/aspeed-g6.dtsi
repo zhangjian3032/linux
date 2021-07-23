@@ -1336,6 +1336,7 @@
 				reg = <0x1e7e0000 0xB000>;
 				interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
 				aspeed,scu = <&syscon>;
+				pcie2lpc;
 				status = "disabled";
 			};
 
