@@ -45,7 +45,7 @@ static void i3c_ibi_mqueue_callback(struct i3c_device *dev,
 	u32 status;
 
 	/* first DW is IBI status */
-	memcpy(&status, buf, sizeof(status));
+	status = *(u32 *)buf;
 
 	/* then the raw data */
 	buf += sizeof(status);
