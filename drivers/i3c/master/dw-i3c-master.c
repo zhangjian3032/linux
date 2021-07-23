@@ -278,6 +278,7 @@
 #define I3C_BUS_OP_THIGH_MIN_NS		260
 #define I3C_BUS_PP_TLOW_MIN_NS		35
 #define I3C_BUS_PP_THIGH_MIN_NS		35
+#define I3C_BUS_EXT_TERMN_CNT		4
 
 #define XFER_TIMEOUT (msecs_to_jiffies(1000))
 
@@ -933,6 +934,9 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 	lcnt = DIV_ROUND_UP(core_rate, I3C_BUS_SDR4_SCL_RATE) - hcnt;
 	scl_timing |= SCL_EXT_LCNT_4(lcnt);
 	writel(scl_timing, master->regs + SCL_EXT_LCNT_TIMING);
+
+	dw_clrsetbits(master->regs + SCL_EXT_TERMN_LCNT_TIMING, GENMASK(3, 0),
+		      I3C_BUS_EXT_TERMN_CNT);
 
 	return 0;
 }
