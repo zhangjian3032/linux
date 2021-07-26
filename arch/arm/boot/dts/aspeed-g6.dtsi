@@ -404,9 +404,10 @@
 			status = "disabled";
 		};
 
-		uphya: uphya@1e6a0800 {
-			compatible = "aspeed,ast2600-usb-phya";
-			reg = <0x1e6a0800 0x20>;
+		uphy: uphy@1e6a0800 {
+			compatible = "aspeed,ast2600-usb-phy";
+			reg = <0x1e6a0800 0x20>,
+			      <0x1e6a2800 0x10>;
 		};
 
 		udc: udc@1e6a2000 {
