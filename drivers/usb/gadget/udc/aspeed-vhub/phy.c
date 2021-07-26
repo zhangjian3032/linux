@@ -7,27 +7,30 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/regmap.h>
 #include <asm/io.h>
 
 static int ast_phy_probe(struct platform_device *pdev)
 {
-	struct resource *res;
-	void __iomem *reg;
+	struct device_node *node = pdev->dev.of_node;
+	void __iomem *uphya_reg;
+	void __iomem *uphyb_reg;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg = devm_ioremap_resource(&pdev->dev, res);
+	uphya_reg = of_iomap(node, 0);
+	uphyb_reg = of_iomap(node, 1);
 
-	writel(readl(reg) | BIT(10), reg);
+	writel(readl(uphya_reg) | BIT(10), uphya_reg);
+	writel(readl(uphyb_reg) | BIT(8), uphyb_reg);
 
-	dev_info(&pdev->dev, "Initialized USB PHYA\n");
+	dev_info(&pdev->dev, "Initialized USB PHYA/B\n");
 
 	return 0;
 }
 
 static const struct of_device_id ast_phy_dt_ids[] = {
 	{
-		.compatible = "aspeed,ast2600-usb-phya",
+		.compatible = "aspeed,ast2600-usb-phy",
 	},
 };
 
