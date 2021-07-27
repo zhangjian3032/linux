@@ -525,6 +525,7 @@
 			otp: otp@1e6f2000 {
 				compatible = "aspeed,ast2600-otp";
 				reg = <0x1e6f2000 0x200>;
+				aspeed,scu = <&syscon>;
 			};
 
 			hid: hid@1e6e1000 {
