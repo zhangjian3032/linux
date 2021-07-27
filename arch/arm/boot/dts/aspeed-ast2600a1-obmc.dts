@@ -91,7 +91,7 @@
 
 };
 
-&rng {
+&trng {
 	status = "okay";
 };
 
