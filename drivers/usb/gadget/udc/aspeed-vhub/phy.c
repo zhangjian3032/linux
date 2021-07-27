@@ -11,37 +11,52 @@
 #include <linux/regmap.h>
 #include <asm/io.h>
 
-static int ast_phy_probe(struct platform_device *pdev)
+struct usb_phy_ctrl {
+	u32 offset;
+	u32 set_bit;
+};
+
+static int aspeed_usb_phy_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
-	void __iomem *uphya_reg;
-	void __iomem *uphyb_reg;
+	struct usb_phy_ctrl *ctrl_data;
+	void __iomem *base;
+	int ret;
 
-	uphya_reg = of_iomap(node, 0);
-	uphyb_reg = of_iomap(node, 1);
+	ctrl_data = devm_kzalloc(&pdev->dev, sizeof(struct usb_phy_ctrl), GFP_KERNEL);
+	if (!ctrl_data)
+		return -ENOMEM;
 
-	writel(readl(uphya_reg) | BIT(10), uphya_reg);
-	writel(readl(uphyb_reg) | BIT(8), uphyb_reg);
+	base = of_iomap(node, 0);
 
-	dev_info(&pdev->dev, "Initialized USB PHYA/B\n");
+	ret = of_property_read_u32_array(node, "ctrl", (u32 *)ctrl_data, 2);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Could not read ctrl property\n");
+		return -EINVAL;
+	}
+
+	writel(readl(base + ctrl_data->offset) | BIT(ctrl_data->set_bit),
+		base + ctrl_data->offset);
+
+	dev_info(&pdev->dev, "Initialized USB PHY\n");
 
 	return 0;
 }
 
-static const struct of_device_id ast_phy_dt_ids[] = {
+static const struct of_device_id aspeed_usb_phy_dt_ids[] = {
 	{
 		.compatible = "aspeed,ast2600-usb-phy",
 	},
 };
 
-static struct platform_driver ast_phy_driver = {
-	.probe		= ast_phy_probe,
+static struct platform_driver aspeed_usb_phy_driver = {
+	.probe		= aspeed_usb_phy_probe,
 	.driver		= {
 		.name	= KBUILD_MODNAME,
-		.of_match_table	= ast_phy_dt_ids,
+		.of_match_table	= aspeed_usb_phy_dt_ids,
 	},
 };
-module_platform_driver(ast_phy_driver);
+module_platform_driver(aspeed_usb_phy_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Neal Liu <neal_liu@aspeedtech.com>");
