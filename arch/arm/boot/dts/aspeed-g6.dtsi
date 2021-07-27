@@ -404,12 +404,6 @@
 			status = "disabled";
 		};
 
-		uphy: uphy@1e6a0800 {
-			compatible = "aspeed,ast2600-usb-phy";
-			reg = <0x1e6a0800 0x20>,
-			      <0x1e6a2800 0x10>;
-		};
-
 		udc: udc@1e6a2000 {
 			compatible = "aspeed,ast2600-udc";
 			reg = <0x1e6a2000 0x300>;
@@ -418,6 +412,18 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb2bd_default>;
 			status = "disabled";
+		};
+
+		usb_phya: usb-phya@1e6a0800 {
+			compatible = "aspeed,ast2600-usb-phy";
+			reg = <0x1e6a0800 0x10>;
+			ctrl = <0x0 0xa>;
+		};
+
+		usb_phyb: usb-phyb@1e6a2800 {
+			compatible = "aspeed,ast2600-usb-phy";
+			reg = <0x1e6a2800 0x10>;
+			ctrl = <0x0 0x8>;
 		};
 
 		apb {
