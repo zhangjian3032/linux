@@ -50,7 +50,8 @@
 #define OTP_COMPARE_2	0x24
 #define OTP_COMPARE_3	0x28
 #define OTP_COMPARE_4	0x2c
-
+#define SW_REV_ID0	0x68
+#define SW_REV_ID1	0x6c
 #define RETRY		20
 
 struct aspeed_otp {
@@ -382,6 +383,7 @@ static long otp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	void __user *argp = (void __user *)arg;
 	struct otp_read xfer;
 	struct otp_prog prog;
+	u32 rid[2];
 	int ret = 0;
 
 	switch (cmd) {
@@ -449,6 +451,12 @@ static long otp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case ASPEED_OTP_VER:
 		if (copy_to_user(argp, &ctx->otp_ver, sizeof(u32)))
+			return -EFAULT;
+		break;
+	case ASPEED_OTP_SW_RID:
+		rid[0] = aspeed_otp_read(ctx, SW_REV_ID0);
+		rid[1] = aspeed_otp_read(ctx, SW_REV_ID1);
+		if (copy_to_user(argp, rid, sizeof(u32) * 2))
 			return -EFAULT;
 		break;
 	}
