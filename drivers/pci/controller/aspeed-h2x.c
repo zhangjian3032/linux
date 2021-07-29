@@ -282,12 +282,14 @@ aspeed_h2x_wr_conf(struct pci_bus *bus, unsigned int devfn,
 	u8 byte_en = 0;
 	struct aspeed_pcie *pcie = bus->sysdata;
 
+#ifdef CONFIG_HOTPLUG_PCI
 	if ((where == 0x9a) && (bus->number == 0x0) &&
 		(PCI_SLOT(devfn) == 0x8) && (PCI_FUNC(devfn) == 0x0) &&
 		hotplug_event && (val & PCI_EXP_SLTSTA_ABP)) {
 		hotplug_event = 0;
 		return PCIBIOS_SUCCESSFUL;
 	}
+#endif
 	writel(BIT(4) | readl(pcie->h2x_rc_base), pcie->h2x_rc_base);
 
 	switch (size) {
