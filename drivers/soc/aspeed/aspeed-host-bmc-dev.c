@@ -220,8 +220,8 @@ irqreturn_t aspeed_pci_host_bmc_device_interrupt(int irq, void *dev_id)
 #define BMC_MSI_IDX_BASE	4
 static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-#ifdef CONFIG_IPMI_SI
-	struct si_sm_io *kcs_io = kmalloc(sizeof(struct si_sm_io) * KCS_MAX_PARMS, GFP_KERNEL);
+#if 0
+	struct si_sm_io *kcs_io = kzalloc(sizeof(struct si_sm_io) * KCS_MAX_PARMS, GFP_KERNEL);
 #endif
 	struct uart_8250_port uart[VUART_MAX_PARMS];
 	struct aspeed_pci_bmc_dev *pci_bmc_dev;
@@ -363,19 +363,17 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 		goto out_unreg;
 	}
 
-#ifdef CONFIG_IPMI_SI
+#if 0
 	/* hardcode for fix kcs_addr/kcs_sirq */
 	kcs_ioport[0] = 0x3a0;
 	kcs_ioport[1] = 0x3a8;
 	kcs_ioport[2] = 0x3a2;
 	kcs_ioport[3] = 0x3a4;
-	kcs_sirq[0] = 0x10 + 0x2 - BMC_MSI_IDX_BASE;
-	kcs_sirq[1] = 0x10 + 0x1 - BMC_MSI_IDX_BASE;
-	kcs_sirq[2] = 0x10 + 0xc - BMC_MSI_IDX_BASE;
-	kcs_sirq[3] = 0x10 + 0x7 - BMC_MSI_IDX_BASE;
-
+	kcs_sirq[0] = 0x10 + 0x1 - BMC_MSI_IDX_BASE;
+	kcs_sirq[1] = 0x10 + 0x2 - BMC_MSI_IDX_BASE;
+	kcs_sirq[2] = 0x10 + 0x6 - BMC_MSI_IDX_BASE;
+	kcs_sirq[3] = 0x10 + 0xc - BMC_MSI_IDX_BASE;
 	/* setup IPMI-KCS over PCIe */
-//	memset(kcs_io, 0, sizeof(kcs_io));
 	for (i = 0; i < KCS_MAX_PARMS; i++) {
 		kcs_io[i].addr_source = SI_PCI;
 		kcs_io[i].addr_source_data = pdev;
