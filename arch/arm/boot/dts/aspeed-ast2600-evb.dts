@@ -731,6 +731,26 @@
 	status = "okay";
 };
 
+&pcie_kcs1 {
+	kcs_addr = <0x3a0>;
+	status = "okay";
+};
+
+&pcie_kcs2 {
+	kcs_addr = <0x3a8>;
+	status = "okay";
+};
+
+&pcie_kcs3 {
+	kcs_addr = <0x3a2>;
+	status = "okay";
+};
+
+&pcie_kcs4 {
+	kcs_addr = <0x3a4>;
+	status = "okay";
+};
+
 &espi_ctrl {
 	status = "okay";
 
@@ -969,3 +989,28 @@
 &uart11 {
 	status = "okay";
 };
+
+&vuart1 {
+	virtual;
+	port = <0x3f8>;
+	sirq = <4>;
+	sirq-polarity = <1>;
+	status = "okay";
+};
+
+&vuart3 {
+	virtual;
+	port = <0x3f8>;
+	sirq = <4>;
+	sirq-polarity = <0>;
+	status = "okay";
+};
+
+&vuart4 {
+	virtual;
+	port = <0x2f8>;
+	sirq = <3>;
+	sirq-polarity = <0>;
+	status = "okay";
+};
+
