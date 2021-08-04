@@ -17,8 +17,6 @@
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
 
-#include "../../char/ipmi/ipmi_si.h"
-
 #define ASPEED_PCI_BMC_HOST2BMC_Q1		0x30000
 #define ASPEED_PCI_BMC_HOST2BMC_Q2		0x30010
 #define ASPEED_PCI_BMC_BMC2HOST_Q1		0x30020
@@ -78,12 +76,6 @@ struct aspeed_pci_bmc_dev {
 #define BMC_MULTI_MSI	32
 
 #define DRIVER_NAME "ASPEED BMC DEVICE"
-
-#ifdef CONFIG_IPMI_SI
-#define KCS_MAX_PARMS		4
-static uint16_t kcs_ioport[KCS_MAX_PARMS];
-static uint16_t kcs_sirq[KCS_MAX_PARMS];
-#endif
 
 #define VUART_MAX_PARMS		2
 static uint16_t vuart_ioport[VUART_MAX_PARMS];
@@ -220,9 +212,6 @@ irqreturn_t aspeed_pci_host_bmc_device_interrupt(int irq, void *dev_id)
 #define BMC_MSI_IDX_BASE	4
 static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-#if 0
-	struct si_sm_io *kcs_io = kzalloc(sizeof(struct si_sm_io) * KCS_MAX_PARMS, GFP_KERNEL);
-#endif
 	struct uart_8250_port uart[VUART_MAX_PARMS];
 	struct aspeed_pci_bmc_dev *pci_bmc_dev;
 	struct device *dev = &pdev->dev;
@@ -363,41 +352,6 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 		goto out_unreg;
 	}
 
-#if 0
-	/* hardcode for fix kcs_addr/kcs_sirq */
-	kcs_ioport[0] = 0x3a0;
-	kcs_ioport[1] = 0x3a8;
-	kcs_ioport[2] = 0x3a2;
-	kcs_ioport[3] = 0x3a4;
-	kcs_sirq[0] = 0x10 + 0x1 - BMC_MSI_IDX_BASE;
-	kcs_sirq[1] = 0x10 + 0x2 - BMC_MSI_IDX_BASE;
-	kcs_sirq[2] = 0x10 + 0x6 - BMC_MSI_IDX_BASE;
-	kcs_sirq[3] = 0x10 + 0xc - BMC_MSI_IDX_BASE;
-	/* setup IPMI-KCS over PCIe */
-	for (i = 0; i < KCS_MAX_PARMS; i++) {
-		kcs_io[i].addr_source = SI_PCI;
-		kcs_io[i].addr_source_data = pdev;
-		kcs_io[i].si_type = SI_KCS;
-		kcs_io[i].addr_space = IPMI_MEM_ADDR_SPACE;
-		kcs_io[i].io_setup = ipmi_si_mem_setup;
-		kcs_io[i].addr_data = pci_bmc_dev->message_bar_base + (kcs_ioport[i] << 2);
-		kcs_io[i].dev = &pdev->dev;
-		kcs_io[i].regspacing = 4;
-		kcs_io[i].regsize = 1;
-		kcs_io[i].regshift = 0;
-#ifdef BMC_MULTI_MSI
-		kcs_io[i].irq = pci_irq_vector(pdev, kcs_sirq[i]);
-#else
-		kcs_io[i].irq = pci_irq_vector(pdev, 0);
-#endif
-		if (kcs_io[i].irq)
-			kcs_io[i].irq_setup = ipmi_std_irq_setup;
-
-		rc = ipmi_si_add_smi(&kcs_io[i]);
-		if (rc)
-			dev_err(dev, "cannot setup IPMI-KCS@%xh over PCIe, rc=%d\n", kcs_ioport[i], rc);
-	}
-#endif
 	/* setup VUART */
 	memset(uart, 0, sizeof(uart));
 
