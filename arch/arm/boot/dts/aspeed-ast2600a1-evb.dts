@@ -747,16 +747,16 @@
 	};
 
 	/* Renesas SPD5118 */
-	spd5118_2_0: spd@50,4cc51180000 {
-		reg = <0x50 0x4cc 0x51180000>;
+	spd5118_2_0: spd@52,4cc51180000 {
+		reg = <0x52 0x4cc 0x51180000>;
 		assigned-address = <0x52>;
 		dcr = <0xda>;
 		bcr = <0x6>;
 	};
 
 	/* Renesas SPD5118 */
-	spd5118_2_1: spd@51,4cc51181000 {
-		reg = <0x51 0x4cc 0x51181000>;
+	spd5118_2_1: spd@53,4cc51181000 {
+		reg = <0x53 0x4cc 0x51181000>;
 		assigned-address = <0x53>;
 		dcr = <0xda>;
 		bcr = <0x6>;
