@@ -1929,10 +1929,10 @@ Redo:
 			Direct_Mode = 0;
 		} else {
 			if (ColorDepthIndex > 2) {
-				if ((ast_video->src_fbinfo.x * ast_video->src_fbinfo.y) > (1024 * 768))
-					Direct_Mode = 1;
-				else
+				if ((ast_video->src_fbinfo.x * ast_video->src_fbinfo.y) < (1024 * 768))
 					Direct_Mode = 0;
+				else
+					Direct_Mode = 1;
 			} else {
 				Direct_Mode = 0;
 			}
