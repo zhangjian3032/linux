@@ -1100,6 +1100,20 @@
 					status = "disabled";
 				};
 
+				pcie_snoop: pcie-snoop@80 {
+					compatible = "aspeed,ast2600-lpc-snoop";
+					reg = <0x80 0x80>;
+					interrupts = <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>;
+					status = "disabled";
+				};
+
+				pcie_pcc: pcie-pcc@0 {
+					compatible = "aspeed,ast2600-lpc-pcc";
+					reg = <0x0 0x140>;
+					interrupts = <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>;
+					status = "disabled";
+				};
+
 				pcie_ibt: pcie_ibt@140 {
 					compatible = "aspeed,ast2600-ibt-bmc";
 					reg = <0x140 0x18>;
