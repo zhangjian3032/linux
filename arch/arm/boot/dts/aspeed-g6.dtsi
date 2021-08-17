@@ -1060,7 +1060,7 @@
 				};
 			};
 
-			pcie_lpc: pcie-lpc@1e789000 {
+			pcie_lpc: pcie-lpc@1e789800 {
 				compatible = "aspeed,ast2600-pcie-lpc", "simple-mfd", "syscon";
 				reg = <0x1e789800 0x800>;
 
