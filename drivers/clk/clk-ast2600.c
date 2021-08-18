@@ -86,14 +86,14 @@ union mac_delay_1g {
 		unsigned int tx_delay_2		: 6;	/* bit[11:6] */
 		unsigned int rx_delay_1		: 6;	/* bit[17:12] */
 		unsigned int rx_delay_2		: 6;	/* bit[23:18] */
-		unsigned int rx_clk_inv_1 	: 1;	/* bit[24] */
-		unsigned int rx_clk_inv_2 	: 1;	/* bit[25] */
+		unsigned int rx_clk_inv_1	: 1;	/* bit[24] */
+		unsigned int rx_clk_inv_2	: 1;	/* bit[25] */
 		unsigned int rmii_tx_data_at_falling_1 : 1; /* bit[26] */
 		unsigned int rmii_tx_data_at_falling_2 : 1; /* bit[27] */
 		unsigned int rgmiick_pad_dir	: 1;	/* bit[28] */
-		unsigned int rmii_50m_oe_1 	: 1;	/* bit[29] */
+		unsigned int rmii_50m_oe_1	: 1;	/* bit[29] */
 		unsigned int rmii_50m_oe_2	: 1;	/* bit[30] */
-		unsigned int rgmii_125m_o_sel 	: 1;	/* bit[31] */
+		unsigned int rgmii_125m_o_sel	: 1;	/* bit[31] */
 	} b;
 };
 
@@ -104,9 +104,9 @@ union mac_delay_100_10 {
 		unsigned int tx_delay_2		: 6;	/* bit[11:6] */
 		unsigned int rx_delay_1		: 6;	/* bit[17:12] */
 		unsigned int rx_delay_2		: 6;	/* bit[23:18] */
-		unsigned int rx_clk_inv_1 	: 1;	/* bit[24] */
-		unsigned int rx_clk_inv_2 	: 1;	/* bit[25] */
-		unsigned int reserved_0 	: 6;	/* bit[31:26] */
+		unsigned int rx_clk_inv_1	: 1;	/* bit[24] */
+		unsigned int rx_clk_inv_2	: 1;	/* bit[25] */
+		unsigned int reserved_0		: 6;	/* bit[31:26] */
 	} b;
 };
 /*
