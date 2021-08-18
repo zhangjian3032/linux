@@ -297,7 +297,7 @@ static struct clk_hw *ast2600_calc_apll(const char *name, u32 val)
 			u32 m = val & 0x1fff;
 			u32 n = (val >> 13) & 0x3f;
 			u32 p = (val >> 19) & 0xf;
-		
+
 			mult = (m + 1);
 			div = (n + 1) * (p + 1);
 		}
@@ -620,7 +620,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	aspeed_g6_clk_data->hws[ASPEED_CLK_HUXCLK] = hw;
 
 	regmap_read(map, 0x04, &val);
-	if((val & GENMASK(23, 16)) >> 16) {
+	if ((val & GENMASK(23, 16)) >> 16) {
 		//A1 use mpll for fit 200Mhz
 		regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(14, 11), BIT(11));
 
@@ -629,7 +629,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 						scu_g6_base + ASPEED_G6_CLK_SELECTION1, 15, 0,
 						&aspeed_g6_clk_lock);
 		if (IS_ERR(hw))
-				return PTR_ERR(hw);
+			return PTR_ERR(hw);
 
 		//ast2600 emmc clk should under 200Mhz
 		hw = clk_hw_register_divider_table(dev, "emmc_extclk", "emmc_extclk_gate", 0,
@@ -645,8 +645,8 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 						scu_g6_base + ASPEED_G6_CLK_SELECTION1, 15, 0,
 						&aspeed_g6_clk_lock);
 		if (IS_ERR(hw))
-				return PTR_ERR(hw);
-		
+			return PTR_ERR(hw);
+
 		//ast2600 emmc clk should under 200Mhz
 		hw = clk_hw_register_divider_table(dev, "emmc_extclk",
 						"emmc_extclk_gate", 0,
@@ -662,20 +662,20 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	clk_hw_register_fixed_rate(NULL, "hclk", NULL, 0, 200000000);
 
 	regmap_read(map, 0x310, &val);
-	if(val & BIT(8)) {
+	if (val & BIT(8)) {
 		/* SD/SDIO clock divider and gate */
 		hw = clk_hw_register_gate(dev, "sd_extclk_gate", "apll", 0,
 						scu_g6_base + ASPEED_G6_CLK_SELECTION4, 31, 0,
 						&aspeed_g6_clk_lock);
 		if (IS_ERR(hw))
-				return PTR_ERR(hw);
+			return PTR_ERR(hw);
 	} else {
 		/* SD/SDIO clock divider and gate */
 		hw = clk_hw_register_gate(dev, "sd_extclk_gate", "hclk", 0,
 						scu_g6_base + ASPEED_G6_CLK_SELECTION4, 31, 0,
 						&aspeed_g6_clk_lock);
 		if (IS_ERR(hw))
-				return PTR_ERR(hw);
+			return PTR_ERR(hw);
 	}
 
 	regmap_read(map, 0x14, &val);
