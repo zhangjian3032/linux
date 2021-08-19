@@ -257,13 +257,34 @@ static const struct clk_div_table ast2600_uart_div_table[] = {
 	{ 0 }
 };
 
-static const char * const eclk_parent_names[] = {
-	"mpll",
-	"hpll",
-	"dpll",
+/* For hpll/dpll/epll/mpll */
+static struct clk_hw *ast2600_calc_hpll(const char *name, u32 val)
+{
+	unsigned int mult, div;
+	u32 hwstrap = readl(scu_g6_base + ASPEED_G6_STRAP1);
+
+	if (val & BIT(24)) {
+		/* Pass through mode */
+		mult = div = 1;
+	} else {
+		/* F = 25Mhz * [(M + 2) / (n + 1)] / (p + 1) */
+		u32 m = val  & 0x1fff;
+		u32 n = (val >> 13) & 0x3f;
+		u32 p = (val >> 19) & 0xf;
+
+		if (hwstrap & BIT(10))
+			m = 0x5F;
+		else {
+			if (hwstrap & BIT(8))
+				m = 0xBF;
+		}
+		mult = (m + 1) / (n + 1);
+		div = (p + 1);
+	}
+	return clk_hw_register_fixed_factor(NULL, name, "clkin", 0,
+			mult, div);
 };
 
-/* For dpll/epll/mpll */
 static struct clk_hw *ast2600_calc_pll(const char *name, u32 val)
 {
 	unsigned int mult, div;
@@ -313,42 +334,7 @@ static struct clk_hw *ast2600_calc_apll(const char *name, u32 val)
 
 			mult = (2 - od) * (m + 2);
 			div = n + 1;
-		}	
-	}
-	return clk_hw_register_fixed_factor(NULL, name, "clkin", 0,
-			mult, div);
-};
-
-static struct clk_hw *ast2600_calc_hpll(const char *name, u32 val)
-{
-	unsigned int mult, div;
-	u32 hwstrap = readl(scu_g6_base + ASPEED_G6_STRAP1);
-	/* 
-	HPLL Numerator (M) = fix 0x5F when SCU500[10]=1
-						 fix 0xBF when SCU500[10]=0 and SCU500[8]=1
-	SCU200[12:0] (default 0x8F) when SCU510[10]=0 and SCU510[8]=0 
-	HPLL Denumerator (N) =	SCU200[18:13] (default 0x2)
-	HPLL Divider (P)	 =	SCU200[22:19] (default 0x0)
-	HPLL Bandwidth Adj (NB) =  fix 0x2F when SCU500[10]=1
-							   fix 0x5F when SCU500[10]=0 and SCU500[8]=1
-	SCU204[11:0] (default 0x31) when SCU500[10]=0 and SCU500[8]=0 
-	*/
-	if (val & BIT(24)) {
-		/* Pass through mode */
-		mult = div = 1;
-	} else {
-		/* F = 25Mhz * [(M + 2) / (n + 1)] / (p + 1) */
-		u32 m = val  & 0x1fff;
-		u32 n = (val >> 13) & 0x3f;
-		u32 p = (val >> 19) & 0xf;
-		if(hwstrap & BIT(10))
-			m = 0x5F;
-		else {
-			if(hwstrap & BIT(8))
-				m = 0xBF; /* default 0xBF */
 		}
-		mult = (m + 1) / (n + 1);
-		div = (p + 1);
 	}
 	return clk_hw_register_fixed_factor(NULL, name, "clkin", 0,
 			mult, div);
@@ -902,7 +888,7 @@ static int __init aspeed_g6_clk_init(void)
 
 core_initcall(aspeed_g6_clk_init);
 
-static u32 ast2600_a0_axi_ahb_div_table[] = {
+static const u32 ast2600_a0_axi_ahb_div_table[] = {
 	2, 2, 3, 4,
 };
 
@@ -914,7 +900,7 @@ static u32 ast2600_a1_axi_ahb_div1_tbl[] = {
 	3, 4, 6, 8,
 };
 
-static u32 ast2600_a1_axi_ahb_default_table[] = {
+static const u32 ast2600_a1_axi_ahb200_tbl[] = {
 	3, 4, 3, 4, 2, 2, 2, 2,
 };
 
@@ -951,11 +937,11 @@ static void __init aspeed_g6_cc(struct regmap *map)
 	if ((chip_id & CHIP_REVISION_ID) >> 16) {
 		//ast2600a1
 		if (val & BIT(16)) {
-			ast2600_a1_axi_ahb_div1_tbl[0] = ast2600_a1_axi_ahb_default_table[(val >> 8) & 0x7] * 2;
+			ast2600_a1_axi_ahb_div1_tbl[0] = ast2600_a1_axi_ahb200_tbl[(val >> 8) & 0x7] * 2;
 			axi_div = 1;
 			ahb_div = ast2600_a1_axi_ahb_div1_tbl[divbits];
 		} else {
-			ast2600_a1_axi_ahb_div0_tbl[0] = ast2600_a1_axi_ahb_default_table[(val >> 8) & 0x7];
+			ast2600_a1_axi_ahb_div0_tbl[0] = ast2600_a1_axi_ahb200_tbl[(val >> 8) & 0x7];
 			axi_div = 2;
 			ahb_div = ast2600_a1_axi_ahb_div0_tbl[divbits];
 		}
@@ -1174,8 +1160,8 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 	regmap_write(map, ASPEED_MAC34_CLK_DLY_10M, reg_10.w);
 
 	/* A0/A1 need change to RSA clock = HPLL/3, A2/A3 have been set at Rom Code */
-	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, BIT(19), BIT(19));	
-	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(27, 26), (2 << 26));	
+	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, BIT(19), BIT(19));
+	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(27, 26), (2 << 26));
 
 	aspeed_g6_cc(map);
 	aspeed_g6_clk_data->num = ASPEED_G6_NUM_CLKS;
