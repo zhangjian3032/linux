@@ -556,7 +556,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	struct aspeed_reset *ar;
 	struct regmap *map;
 	struct clk_hw *hw;
-	u32 val, div, mult;
+	u32 val;
 	int i, ret;
 
 	map = syscon_node_to_regmap(dev->of_node);
@@ -581,29 +581,6 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		dev_err(dev, "could not register reset controller\n");
 		return ret;
 	}
-
-
-	//uxclk
-	regmap_read(map, ASPEED_UARTCLK_FROM_UXCLK, &val);
-	div = ((val >> 8) & 0x3ff) * 2;
-	mult = val & 0xff;
-
-	hw = clk_hw_register_fixed_factor(dev, "uxclk", "uartx", 0,
-			mult, div);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_UXCLK] = hw;
-
-	//huxclk
-	regmap_read(map, 0x33c, &val);
-	div = ((val >> 8) & 0x3ff) * 2;
-	mult = val & 0xff;
-
-	hw = clk_hw_register_fixed_factor(dev, "huxclk", "uartx", 0,
-			mult, div);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_HUXCLK] = hw;
 
 	regmap_read(map, 0x04, &val);
 	if ((val & GENMASK(23, 16)) >> 16) {
@@ -831,7 +808,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 				aspeed_g6_gates[ASPEED_CLK_GATE_UART1CLK + i].parent_name = "uxclk";
 		}
 		if(i == 4)
-			aspeed_g6_gates[ASPEED_CLK_GATE_UART1CLK + i].parent_name = "uart";
+			aspeed_g6_gates[ASPEED_CLK_GATE_UART1CLK + i].parent_name = "uart5";
 		if((i > 5) & (i != 4)) {
 			regmap_read(map, 0x314, &val);
 			if(val & BIT(i))
@@ -908,6 +885,7 @@ static void __init aspeed_g6_cc(struct regmap *map)
 {
 	struct clk_hw *hw;
 	u32 val, freq, div, divbits, chip_id, axi_div, ahb_div;
+	u32 mult;
 
 	clk_hw_register_fixed_rate(NULL, "clkin", NULL, 0, 25000000);
 
@@ -970,32 +948,20 @@ static void __init aspeed_g6_cc(struct regmap *map)
 	hw = clk_hw_register_fixed_rate(NULL, "usb-phy-40m", NULL, 0, 40000000);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_USBPHY_40M] = hw;
 
-	//uart5 
+	/* uart5 clock selection */
 	regmap_read(map, ASPEED_G6_MISC_CTRL, &val);
 	if (val & UART_DIV13_EN)
-		div = 0x2;
+		div = 13;
 	else
-		div = 0;
+		div = 1;
 	regmap_read(map, ASPEED_G6_CLK_SELECTION2, &val);
 	if (val & BIT(14))
-		div |= 0x1;
+		freq = 192000000;
+	else
+		freq = 24000000;
+	freq = freq / div;
 
-	switch(div) {
-		case 0:
-			freq = 24000000;
-			break;
-		case 1:
-			freq = 192000000;
-			break;
-		case 2:
-			freq = 24000000/13;
-			break;
-		case 3:
-			freq = 192000000/13;
-			break;
-	}
-
-	aspeed_g6_clk_data->hws[ASPEED_CLK_UART] = clk_hw_register_fixed_rate(NULL, "uart", NULL, 0, freq);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_UART5] = clk_hw_register_fixed_rate(NULL, "uart5", NULL, 0, freq);
 
 	/* UART1~13 clock div13 setting except uart5 */
 	regmap_read(map, ASPEED_G6_CLK_SELECTION5, &val);
@@ -1014,6 +980,22 @@ static void __init aspeed_g6_cc(struct regmap *map)
 			aspeed_g6_clk_data->hws[ASPEED_CLK_UARTX] = clk_hw_register_fixed_factor(NULL, "uartx", "ahb", 0, 1, 1);
 			break;
 	}
+
+	/* uxclk */
+	regmap_read(map, ASPEED_UARTCLK_FROM_UXCLK, &val);
+	div = ((val >> 8) & 0x3ff) * 2;
+	mult = val & 0xff;
+
+	hw = clk_hw_register_fixed_factor(NULL, "uxclk", "uartx", 0, mult, div);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_UXCLK] = hw;
+
+	/* huxclk */
+	regmap_read(map, 0x33c, &val);
+	div = ((val >> 8) & 0x3ff) * 2;
+	mult = val & 0xff;
+
+	hw = clk_hw_register_fixed_factor(NULL, "huxclk", "uartx", 0, mult, div);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_HUXCLK] = hw;
 
 	//* i3c clock */
 	regmap_read(map, ASPEED_G6_CLK_SELECTION5, &val);
