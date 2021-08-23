@@ -14,7 +14,9 @@
 #include <linux/regmap.h>
 #include "edac_module.h"
 
+
 #define DRV_NAME "aspeed-edac"
+
 
 #define ASPEED_MCR_PROT        0x00 /* protection key register */
 #define ASPEED_MCR_CONF        0x04 /* configuration register */
@@ -33,7 +35,9 @@
 #define ASPEED_MCR_INTR_CTRL_CNT_UNREC GENMASK(15, 12)
 #define ASPEED_MCR_INTR_CTRL_ENABLE  (BIT(0) | BIT(1))
 
+
 static struct regmap *aspeed_regmap;
+
 
 static int regmap_reg_write(void *context, unsigned int reg, unsigned int val)
 {
@@ -49,6 +53,7 @@ static int regmap_reg_write(void *context, unsigned int reg, unsigned int val)
 
 	return 0;
 }
+
 
 static int regmap_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
@@ -305,15 +310,11 @@ static int init_csrows(struct mem_ctl_info *mci)
 	int rc;
 
 	/* retrieve info about physical memory from device tree */
-#ifdef CONFIG_MACH_ASPEED_G4
-	np = of_find_node_by_path("/memory@40000000");
-#else
-	np = of_find_node_by_path("/memory@80000000");
-#endif
+	np = of_find_node_by_name(NULL, "memory");
 	if (!np) {
 		dev_err(mci->pdev, "dt: missing /memory node\n");
 		return -ENODEV;
-	};
+	}
 
 	rc = of_address_to_resource(np, 0, &r);
 
@@ -322,12 +323,9 @@ static int init_csrows(struct mem_ctl_info *mci)
 	if (rc) {
 		dev_err(mci->pdev, "dt: failed requesting resource for /memory node\n");
 		return rc;
-	};
+	}
 
 	dev_dbg(mci->pdev, "dt: /memory node resources: first page r.start=0x%x, resource_size=0x%x, PAGE_SHIFT macro=0x%x\n",
-		r.start, resource_size(&r), PAGE_SHIFT);
-
-	printk("dt: /memory node resources: first page r.start=0x%x, resource_size=0x%x, PAGE_SHIFT macro=0x%x\n",
 		r.start, resource_size(&r), PAGE_SHIFT);
 
 	csrow->first_page = r.start >> PAGE_SHIFT;
@@ -354,19 +352,11 @@ static int aspeed_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct edac_mc_layer layers[2];
 	struct mem_ctl_info *mci;
-	struct device_node *np;
-	struct resource *res;
 	void __iomem *regs;
+	//u32 reg04;
 	int rc;
 
-	/* setup regmap */
-	np = dev->of_node;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOENT;
-
-	regs = devm_ioremap_resource(dev, res);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
@@ -454,12 +444,15 @@ static int aspeed_remove(struct platform_device *pdev)
 	return 0;
 }
 
+
 static const struct of_device_id aspeed_of_match[] = {
 	{ .compatible = "aspeed,ast2400-sdram-edac" },
 	{ .compatible = "aspeed,ast2500-sdram-edac" },
-	{ .compatible = "aspeed,ast2600-sdram-edac" },	
+	{ .compatible = "aspeed,ast2600-sdram-edac" },
 	{},
 };
+
+MODULE_DEVICE_TABLE(of, aspeed_of_match);
 
 static struct platform_driver aspeed_driver = {
 	.driver		= {
@@ -469,22 +462,9 @@ static struct platform_driver aspeed_driver = {
 	.probe		= aspeed_probe,
 	.remove		= aspeed_remove
 };
-
-
-static int __init aspeed_init(void)
-{
-	return platform_driver_register(&aspeed_driver);
-}
-
-static void __exit aspeed_exit(void)
-{
-	platform_driver_unregister(&aspeed_driver);
-}
-
-module_init(aspeed_init);
-module_exit(aspeed_exit);
+module_platform_driver(aspeed_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Stefan Schaeckeler <sschaeck@cisco.com>");
-MODULE_DESCRIPTION("Aspeed EDAC driver");
+MODULE_DESCRIPTION("Aspeed BMC SoC EDAC driver");
 MODULE_VERSION("1.0");
