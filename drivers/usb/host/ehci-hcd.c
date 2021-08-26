@@ -639,7 +639,8 @@ static int ehci_run (struct usb_hcd *hcd)
 	 * Skip this check on startup.
 	 */
 	if (ehci->is_aspeed)
-		rc = 0;
+		rc = ehci_handshake(ehci, &ehci->regs->command, CMD_RUN,
+				    1, 100 * 1000);
 	else
 		rc = ehci_handshake(ehci, &ehci->regs->status, STS_HALT,
 				    0, 100 * 1000);
