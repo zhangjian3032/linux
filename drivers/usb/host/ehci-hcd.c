@@ -636,10 +636,13 @@ static int ehci_run (struct usb_hcd *hcd)
 	msleep(5);
 
 	/* For Aspeed, STS_HALT also depends on ASS/PSS status.
-	 * Skip this check temporarily.
+	 * Skip this check on startup.
 	 */
-//	rc = ehci_handshake(ehci, &ehci->regs->status, STS_HALT, 0, 100 * 1000);
-	rc = 0;
+	if (ehci->is_aspeed)
+		rc = 0;
+	else
+		rc = ehci_handshake(ehci, &ehci->regs->status, STS_HALT,
+				    0, 100 * 1000);
 
 	up_write(&ehci_cf_port_reset_rwsem);
 
