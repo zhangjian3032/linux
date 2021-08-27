@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright 2020 Aspeed Technology Inc.
+ */
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -83,7 +87,7 @@ struct aspeed_udma_chan {
 struct aspeed_udma {
 	struct device *dev;
 	u8 __iomem *regs;
-	u32 irq;
+	int irq;
 	struct aspeed_udma_chan tx_chs[UDMA_MAX_CHANNEL];
 	struct aspeed_udma_chan rx_chs[UDMA_MAX_CHANNEL];
 	spinlock_t lock;
@@ -132,15 +136,13 @@ static u32 aspeed_udma_get_tx_rptr(u32 ch_no)
 
 static u32 aspeed_udma_get_rx_wptr(u32 ch_no)
 {
-	return readl(udma->regs + UDMA_CHX_RX_WR_PTR(ch_no));	
+	return readl(udma->regs + UDMA_CHX_RX_WR_PTR(ch_no));
 }
 
 static void aspeed_udma_set_ptr(u32 ch_no, u32 ptr, bool is_tx)
 {
 	writel(ptr, udma->regs +
-			((is_tx) ? 
-			UDMA_CHX_TX_WR_PTR(ch_no) :
-			UDMA_CHX_RX_RD_PTR(ch_no)));
+	       ((is_tx) ? UDMA_CHX_TX_WR_PTR(ch_no) : UDMA_CHX_RX_RD_PTR(ch_no)));
 }
 
 void aspeed_udma_set_tx_wptr(u32 ch_no, u32 wptr)
@@ -234,8 +236,7 @@ static int aspeed_udma_request_chan(u32 ch_no, dma_addr_t addr,
 		writel(reg, udma->regs + UDMA_CHX_TX_CTRL(ch_no));
 
 		writel(addr, udma->regs + UDMA_CHX_TX_BUF_BASE(ch_no));
-	}
-	else {
+	} else {
 		reg = readl(udma->regs + UDMA_RX_DMA_INT_EN);
 		if (reg & (0x1 << ch_no)) {
 			retval = -EBUSY;
