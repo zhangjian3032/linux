@@ -283,8 +283,10 @@ static long aspeed_espi_oob_dma_desc_put_tx(struct file *fp,
 	regmap_read(espi_ctrl->map, ESPI_OOB_TX_DMA_RD_PTR, &rptr);
 	regmap_read(espi_ctrl->map, ESPI_OOB_TX_DMA_WR_PTR, &wptr);
 
-	if (((wptr + 1) % espi_oob->dma.tx_desc_num) == rptr)
-		return -EBUSY;
+	if (((wptr + 1) % espi_oob->dma.tx_desc_num) == rptr) {
+		rc = -EBUSY;
+		goto free_n_out;
+	}
 
 	d = &espi_oob->dma.tx_desc[wptr];
 	d->cyc = hdr->cyc;
