@@ -1396,7 +1396,7 @@
 		clock-names = "ref-clk", "hclk";
 		clock-sel-hclk;
 		resets = <&syscon ASPEED_RESET_PECI>;
-		clock-frequency = <1000000>;
+		clock-frequency = <12000>;
 		rd-sampling-point = <8>;
 		cmd-timeout-ms = <1000>;
 		64byte-mode;
