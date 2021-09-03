@@ -464,6 +464,9 @@ static const struct v4l2_dv_timings_cap aspeed_video_timings_cap = {
 	},
 };
 
+static const char * const compress_mode_str[] = {"DCT Only",
+	"DCT VQ mix 2-color", "DCT VQ mix 4-color"};
+
 static unsigned int debug;
 
 static void aspeed_video_init_jpeg_table(u32 *table, bool yuv420)
@@ -1077,8 +1080,6 @@ err_mem:
 
 static void aspeed_video_update_regs(struct aspeed_video *video)
 {
-	static const char * const compress_mode_str[] = {"DCT Only",
-		"DCT VQ mix 2-color", "DCT VQ mix 4-color"};
 	u32 comp_ctrl =	FIELD_PREP(VE_COMP_CTRL_DCT_LUM, video->jpeg_quality) |
 		FIELD_PREP(VE_COMP_CTRL_DCT_CHR, video->jpeg_quality | 0x10) |
 		FIELD_PREP(VE_COMP_CTRL_EN_HQ, video->hq_mode) |
@@ -1795,14 +1796,49 @@ static const struct vb2_ops aspeed_video_vb2_ops = {
 static int aspeed_video_debugfs_show(struct seq_file *s, void *data)
 {
 	struct aspeed_video *v = s->private;
+	u32 val08;
 
 	seq_puts(s, "\n");
+
+	val08 = aspeed_video_read(v, VE_CTRL);
+	seq_puts(s, "Caputre:\n");
+	if (FIELD_GET(VE_CTRL_DIRECT_FETCH, val08)) {
+		seq_printf(s, "  %-20s:\tDirect fetch\n", "Mode");
+		seq_printf(s, "  %-20s:\t%s\n", "VGA bpp mode",
+			   FIELD_GET(VE_CTRL_INT_DE, val08) ? "16" : "32");
+	} else {
+		seq_printf(s, "  %-20s:\tSync\n", "Mode");
+		seq_printf(s, "  %-20s:\t%s\n", "Video source",
+			   FIELD_GET(VE_CTRL_SOURCE, val08) ?
+			   "external" : "internal");
+		seq_printf(s, "  %-20s:\t%s\n", "DE source",
+			   FIELD_GET(VE_CTRL_INT_DE, val08) ?
+			   "internal" : "external");
+		seq_printf(s, "  %-20s:\t%s\n", "Cursor overlay",
+			   FIELD_GET(VE_CTRL_AUTO_OR_CURSOR, val08) ?
+			   "Without" : "With");
+	}
 
 	seq_printf(s, "  %-20s:\t%s\n", "Signal",
 		   v->v4l2_input_status ? "Unlock" : "Lock");
 	seq_printf(s, "  %-20s:\t%d\n", "Width", v->pix_fmt.width);
 	seq_printf(s, "  %-20s:\t%d\n", "Height", v->pix_fmt.height);
 	seq_printf(s, "  %-20s:\t%d\n", "FRC", v->frame_rate);
+
+	seq_puts(s, "\n");
+
+	seq_puts(s, "Compression:\n");
+	seq_printf(s, "  %-20s:\t%s\n", "Format",
+		   v->partial_jpeg ? "Aspeed" : "JPEG");
+	seq_printf(s, "  %-20s:\t%s\n", "Subsampling",
+		   v->yuv420 ? "420" : "444");
+	seq_printf(s, "  %-20s:\t%d\n", "Quality", v->jpeg_quality);
+	seq_printf(s, "  %-20s:\t%s\n", "HQ Mode",
+		   v->partial_jpeg ? (v->hq_mode ? "on" : "off") : "N/A");
+	seq_printf(s, "  %-20s:\t%d\n", "HQ Quality", v->jpeg_hq_quality);
+	seq_printf(s, "  %-20s:\t%s\n", "Mode",
+		   v->partial_jpeg ? compress_mode_str[v->compression_mode]
+				   : "N/A");
 
 	seq_puts(s, "\n");
 
@@ -1813,7 +1849,6 @@ static int aspeed_video_debugfs_show(struct seq_file *s, void *data)
 	seq_printf(s, "    %-18s:\t%d\n", "Min", v->perf.duration_min);
 	seq_printf(s, "    %-18s:\t%d\n", "Max", v->perf.duration_max);
 	seq_printf(s, "  %-20s:\t%d\n", "FPS", 1000/(v->perf.totaltime/v->sequence));
-
 
 	return 0;
 }
