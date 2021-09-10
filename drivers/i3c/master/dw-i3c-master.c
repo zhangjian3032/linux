@@ -1490,6 +1490,23 @@ static int dw_i3c_master_reattach_i3c_dev(struct i3c_dev_desc *dev,
 	return 0;
 }
 
+static int scl_rate_to_speed_index(unsigned long scl_rate)
+{
+	switch (scl_rate) {
+	case I3C_BUS_SDR1_SCL_RATE:
+		return 1;
+	case I3C_BUS_SDR2_SCL_RATE:
+		return 2;
+	case I3C_BUS_SDR3_SCL_RATE:
+		return 3;
+	case I3C_BUS_SDR4_SCL_RATE:
+		return 4;
+	case I3C_BUS_TYP_I3C_SCL_RATE:
+	default:
+		return 0;
+	}
+}
+
 static int dw_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 {
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
@@ -1511,6 +1528,10 @@ static int dw_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 	master->addrs[pos] = addr;
 	i3c_dev_set_master_data(dev, data);
 
+	if (master->base.jdec_spd) {
+		dev->info.max_write_ds = dev->info.max_read_ds =
+			scl_rate_to_speed_index(m->bus.scl_rate.i3c);
+	}
 
 	return 0;
 }
@@ -1537,7 +1558,7 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	unsigned int nrxwords = 0, ntxwords = 0;
 	struct dw_i3c_xfer *xfer;
-	int i, ret = 0;
+	int speed, i, ret = 0;
 
 	if (!i2c_nxfers)
 		return 0;
@@ -1562,6 +1583,8 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 
 	data->index = dw_i3c_master_sync_hw_dat(master, dev->addr);
 
+	speed = (master->base.bus.scl_rate.i2c == I3C_BUS_I2C_FM_PLUS_SCL_RATE) ? 1 : 0;
+
 	for (i = 0; i < i2c_nxfers; i++) {
 		struct dw_i3c_cmd *cmd = &xfer->cmds[i];
 
@@ -1570,6 +1593,7 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 
 		cmd->cmd_lo = COMMAND_PORT_TID(i) |
 			      COMMAND_PORT_DEV_INDEX(data->index) |
+			      COMMAND_PORT_SPEED(speed) |
 			      COMMAND_PORT_ROC;
 
 		if (i2c_xfers[i].flags & I2C_M_RD) {
