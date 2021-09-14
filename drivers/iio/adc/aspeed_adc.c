@@ -23,6 +23,7 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/driver.h>
+#include <linux/iio/sysfs.h>
 #include <linux/iopoll.h>
 
 #define ASPEED_RESOLUTION_BITS		10
@@ -328,8 +329,67 @@ static int aspeed_adc_reg_access(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static ssize_t vref_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct aspeed_adc_data *data = iio_priv(indio_dev);
+
+	return sprintf(buf, "%d\n", data->vref);
+}
+
+static ssize_t vref_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t len)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct aspeed_adc_data *data = iio_priv(indio_dev);
+	int vref;
+	u32 adc_engine_control_reg_val =
+		readl(data->base + ASPEED_REG_ENGINE_CONTROL) &
+		~ASPEED_ADC_REF_VOLTAGE;
+
+	if (kstrtoint(buf, 0, &vref) || !vref)
+		return -EINVAL;
+
+	if (vref == 2500)
+		writel(adc_engine_control_reg_val |
+				ASPEED_ADC_REF_VOLTAGE_2500mV,
+			data->base + ASPEED_REG_ENGINE_CONTROL);
+	else if (vref == 1200)
+		writel(adc_engine_control_reg_val |
+				ASPEED_ADC_REF_VOLTAGE_1200mV,
+			data->base + ASPEED_REG_ENGINE_CONTROL);
+	else if ((vref >= 1550) && (vref <= 2700))
+		writel(adc_engine_control_reg_val |
+				ASPEED_ADC_REF_VOLTAGE_EXT_HIGH,
+			data->base + ASPEED_REG_ENGINE_CONTROL);
+	else if ((vref >= 900) && (vref <= 1650))
+		writel(adc_engine_control_reg_val |
+				ASPEED_ADC_REF_VOLTAGE_EXT_LOW,
+			data->base + ASPEED_REG_ENGINE_CONTROL);
+	else {
+		dev_err(data->dev, "Vref not support");
+		return -EOPNOTSUPP;
+	}
+	data->vref = vref;
+	return len;
+}
+
+static IIO_DEVICE_ATTR_RW(vref, 0);
+
+static struct attribute *aspeed_adc_attributes[] = {
+	&iio_dev_attr_vref.dev_attr.attr,
+	NULL,
+};
+static const struct attribute_group aspeed_adc_attrs_group = {
+	.attrs = aspeed_adc_attributes,
+};
+
 static const struct iio_info aspeed_adc_iio_info = {
 	.read_raw = aspeed_adc_read_raw,
+	.attrs = &aspeed_adc_attrs_group,
 	.write_raw = aspeed_adc_write_raw,
 	.debugfs_reg_access = aspeed_adc_reg_access,
 };
