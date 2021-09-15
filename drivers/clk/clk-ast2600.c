@@ -575,7 +575,11 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 
 	regmap_read(map, 0x04, &val);
 	if ((val & GENMASK(23, 16)) >> 16) {
-		//A1 use mpll for fit 200Mhz
+		/* After A1 (including A1, A2 and A3), use mpll for fit 200Mhz.
+		 * hpll is 12.G and 200MHz cannot be gotten by setting SCU300[14:12].
+		 * mpll is 400MHz and 200MHz can be gotten by setting SCU300[14:12]
+		 * to 3b'000.
+		 */
 		regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(14, 11), BIT(11));
 
 		/* EMMC ext clock divider */
@@ -634,7 +638,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 
 	regmap_read(map, 0x14, &val);
 	if (((val & GENMASK(23, 16)) >> 16) >= 2) {
-		/* A2 clock divisor is different from A1/A0 */
+		/* A2 and A3 clock divisor is different from A1 and A0 */
 		hw = clk_hw_register_divider_table(dev, "sd_extclk", "sd_extclk_gate",
 					0, scu_g6_base + ASPEED_G6_CLK_SELECTION4, 28, 3, 0,
 					ast2600_sd_div_a2_table,
