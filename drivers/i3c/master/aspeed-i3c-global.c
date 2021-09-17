@@ -6,15 +6,10 @@
  * Based on a work from: Ryan Chen <ryan_chen@aspeedtech.com>
  */
 #include <linux/clk.h>
-#include <linux/irq.h>
-#include <linux/irqchip.h>
-#include <linux/irqchip/chained_irq.h>
-#include <linux/irqdomain.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
-#include <linux/of_irq.h>
 #include <linux/io.h>
 #include <linux/reset.h>
 #include <linux/delay.h>
