@@ -1723,7 +1723,7 @@
 		reg = <0x0 0x1000>;
 		compatible = "aspeed,ast2600-i3c-global";
 		resets = <&syscon ASPEED_RESET_I3C>;
-		ni3cs = <6>;
+		num-i3cs = <6>;
 		pull-up-resistors = <2000 2000 2000 2000 2000 2000>;
 	};
 
