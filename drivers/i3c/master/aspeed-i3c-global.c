@@ -1,8 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2021 ASPEED Technology Inc.
+ *  Aspeed I2C Interrupt Controller.
  *
- * Author: Ryan Chen <ryan_chen@aspeedtech.com>
+ *  Copyright (C) 2012-2017 ASPEED Technology Inc.
+ *  Copyright 2017 IBM Corporation
+ *  Copyright 2017 Google, Inc.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
  */
 #include <linux/clk.h>
 #include <linux/irq.h>
@@ -144,7 +149,6 @@ static int __init aspeed_i3c_global_init(void)
 }
 postcore_initcall(aspeed_i3c_global_init);
 
-MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
-MODULE_AUTHOR("Dylan Hung <dylan_hung@aspeedtech.com>");
+MODULE_AUTHOR("Ryan Chen");
 MODULE_DESCRIPTION("ASPEED I3C Global Driver");
 MODULE_LICENSE("GPL v2");
