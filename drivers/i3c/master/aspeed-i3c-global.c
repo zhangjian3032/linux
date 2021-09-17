@@ -15,33 +15,28 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 
-#define I3C_GLOBAL_REG0(x)		(0x10 + (x * 0x10))
-#define  SDK_PULLUP_EN_MASK		GENMASK(29, 28)
-#define  SDA_PULLUP_EN_2K		(0x1 << 28)
-#define  SDA_PULLUP_EN_750		(0x2 << 28)
-#define  SDA_PULLUP_EN_545		(0x3 << 28)
+#define I3CG_REG0(x)			((x * 0x10) + 0x10)
+#define I3CG_REG0_SDA_PULLUP_EN_MASK	GENMASK(29, 28)
+#define I3CG_REG0_SDA_PULLUP_EN_2K	(0x1 << 28)
+#define I3CG_REG0_SDA_PULLUP_EN_750	(0x2 << 28)
+#define I3CG_REG0_SDA_PULLUP_EN_545	(0x3 << 28)
 
-#define I3C_GLOBAL_REG1(x)		(0x14 + (x * 0x10))
-union i3c_global_reg1 {
-	uint32_t value;
-	struct {
-		unsigned int i2c_mode : 1;	/* bit[0] */
-		unsigned int test_mode : 1;	/* bit[1] */
-		unsigned int act_mode : 2;	/* bit[ 3: 2] */
-		unsigned int pending_int : 4;	/* bit[ 7: 4] */
-#define DEF_SLV_STATIC_ADDR		0x74
-		unsigned int sa : 7;		/* bit[14: 8] */
-		unsigned int sa_en : 1;		/* bit[15] */
-#define DEF_SLV_INST_ID			0x4
-		unsigned int inst_id : 4;	/* bit[19:16] */
-		unsigned int rsvd : 12;		/* bit[31:20] */
-	} fields;
-};
-
+#define I3CG_REG1(x)			((x * 0x10) + 0x14)
+#define I3CG_REG1_I2C_MODE		BIT(0)
+#define I3CG_REG1_TEST_MODE		BIT(1)
+#define I3CG_REG1_ACT_MODE_MASK		GENMASK(3, 2)
+#define I3CG_REG1_ACT_MODE(x)		(((x) << 2) & I3CG_REG1_ACT_MODE_MASK)
+#define I3CG_REG1_PENDING_INT_MASK	GENMASK(7, 4)
+#define I3CG_REG1_PENDING_INT(x)	(((x) << 4) & I3CG_REG1_PENDING_INT_MASK)
+#define I3CG_REG1_SA_MASK		GENMASK(14, 8)
+#define I3CG_REG1_SA(x)			(((x) << 8) & I3CG_REG1_SA_MASK)
+#define I3CG_REG1_SA_EN			BIT(15)
+#define I3CG_REG1_INST_ID_MASK		GENMASK(19, 16)
+#define I3CG_REG1_INST_ID(x)		(((x) << 16) & I3CG_REG1_INST_ID_MASK)
 
 struct aspeed_i3c_global {
-	void __iomem		*base;
-	struct reset_control	*rst;
+	void __iomem *regs;
+	struct reset_control *rst;
 };
 
 static const struct of_device_id aspeed_i3c_of_match[] = {
@@ -49,79 +44,78 @@ static const struct of_device_id aspeed_i3c_of_match[] = {
 	{},
 };
 
+static u32 pullup_resistor_ohm_to_reg(u32 ohm)
+{
+	switch (ohm) {
+	case 545:
+		return I3CG_REG0_SDA_PULLUP_EN_545;
+	case 750:
+		return I3CG_REG0_SDA_PULLUP_EN_750;
+	case 2000:
+	default:
+		return I3CG_REG0_SDA_PULLUP_EN_2K;
+	}
+}
+
 static int aspeed_i3c_global_probe(struct platform_device *pdev)
 {
-	struct aspeed_i3c_global *i3c_global;
+	struct aspeed_i3c_global *i3cg;
 	struct device_node *node = pdev->dev.of_node;
-	union i3c_global_reg1 reg1;
-	u32 reg0, num_of_i3cs;
-	u32 *pullup_r_conf;
+	u32 reg0, reg1, num_i3cs;
+	u32 *pullup_resistors;
 	int i, ret;
 
-	i3c_global = kzalloc(sizeof(*i3c_global), GFP_KERNEL);
-	if (!i3c_global)
+	i3cg = kzalloc(sizeof(*i3cg), GFP_KERNEL);
+	if (!i3cg)
 		return -ENOMEM;
 
-	i3c_global->base = of_iomap(node, 0);
-	if (!i3c_global->base)
+	i3cg->regs = of_iomap(node, 0);
+	if (!i3cg->regs)
 		return -ENOMEM;
 
-	i3c_global->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(i3c_global->rst)) {
+	i3cg->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+	if (IS_ERR(i3cg->rst)) {
 		dev_err(&pdev->dev,
 			"missing or invalid reset controller device tree entry");
-		return PTR_ERR(i3c_global->rst);
+		return PTR_ERR(i3cg->rst);
 	}
 
-	reset_control_assert(i3c_global->rst);
+	reset_control_assert(i3cg->rst);
 	udelay(3);
-	reset_control_deassert(i3c_global->rst);
+	reset_control_deassert(i3cg->rst);
 
-	ret = of_property_read_u32(pdev->dev.of_node, "ni3cs", &num_of_i3cs);
+	ret = of_property_read_u32(pdev->dev.of_node, "num-i3cs", &num_i3cs);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "unable to get number of i3c devices");
+		dev_err(&pdev->dev, "unable to get number of i3c controllers");
 		return -ENOMEM;
 	}
 
-	pullup_r_conf = kmalloc(sizeof(u32) * num_of_i3cs, GFP_KERNEL);
-	if (!pullup_r_conf)
+	pullup_resistors = kcalloc(num_i3cs, sizeof(u32), GFP_KERNEL);
+	if (!pullup_resistors)
 		return -ENOMEM;
 
 	ret = of_property_read_u32_array(pdev->dev.of_node, "pull-up-resistors",
-					 pullup_r_conf, num_of_i3cs);
+					 pullup_resistors, num_i3cs);
 	if (ret < 0) {
 		dev_warn(&pdev->dev,
 			 "use 2K Ohm SDA pull up resistor by default");
-		for (i = 0; i < num_of_i3cs; i++)
-			pullup_r_conf[i] = 2000;
 	}
 
-	reg1.value = 0;
-	reg1.fields.inst_id = DEF_SLV_INST_ID;
-	reg1.fields.sa = DEF_SLV_STATIC_ADDR;
-	reg1.fields.pending_int = 0xc;
-	reg1.fields.act_mode = 0x1;
+	reg1 = I3CG_REG1_ACT_MODE(1) | I3CG_REG1_PENDING_INT(0xc) |
+	       I3CG_REG1_SA(0x74);
 
-	for (i = 0; i < num_of_i3cs; i++) {
-		reg0 = readl(i3c_global->base + I3C_GLOBAL_REG0(i));
-		reg0 &= SDK_PULLUP_EN_MASK;
-		switch (pullup_r_conf[i]) {
-		case 750:
-			reg0 |= SDA_PULLUP_EN_750;
-			break;
-		case 545:
-			reg0 |= SDA_PULLUP_EN_545;
-			break;
-		case 2000:
-		default:
-			reg0 |= SDA_PULLUP_EN_2K;
-			break;
-		}
-		writel(reg0, i3c_global->base + I3C_GLOBAL_REG0(i));
-		writel(reg1.value, i3c_global->base + I3C_GLOBAL_REG1(i));
+	for (i = 0; i < num_i3cs; i++) {
+		reg0 = readl(i3cg->regs + I3CG_REG0(i));
+		reg0 &= ~I3CG_REG0_SDA_PULLUP_EN_MASK;
+		reg0 |= pullup_resistor_ohm_to_reg(pullup_resistors[i]);
+		writel(reg0, i3cg->regs + I3CG_REG0(i));
+
+		reg1 &= ~I3CG_REG1_INST_ID_MASK;
+		reg1 |= I3CG_REG1_INST_ID(i);
+		writel(reg1, i3cg->regs + I3CG_REG1(i));
 	}
 
-	kfree(pullup_r_conf);
+	kfree(pullup_resistors);
 
 	return 0;
 }
