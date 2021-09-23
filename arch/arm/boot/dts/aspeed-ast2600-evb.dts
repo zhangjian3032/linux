@@ -237,22 +237,6 @@
 	status = "okay";
 };
 
-&vuart1 {
-	virtual;
-	port = <0x3e8>;
-	sirq = <4>;
-	sirq-polarity = <1>;
-	status = "okay";
-};
-
-&vuart2 {
-	virtual;
-	port = <0x2e8>;
-	sirq = <3>;
-	sirq-polarity = <1>;
-	status = "okay";
-};
-
 &vuart3 {
 	virtual;
 	port = <0x3f8>;
