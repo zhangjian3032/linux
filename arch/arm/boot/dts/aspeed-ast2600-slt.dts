@@ -355,82 +355,82 @@
 			&pinctrl_tach14_default
 			&pinctrl_tach15_default>;
 	fan@0 {
-		aspeed,tach-ch = <0x00>;
+		reg = <0x00>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@1 {
-		aspeed,tach-ch = <0x01>;
+		reg = <0x01>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@2 {
-		aspeed,tach-ch = <0x02>;
+		reg = <0x02>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@3 {
-		aspeed,tach-ch = <0x03>;
+		reg = <0x03>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@4 {
-		aspeed,tach-ch = <0x04>;
+		reg = <0x04>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@5 {
-		aspeed,tach-ch = <0x05>;
+		reg = <0x05>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@6 {
-		aspeed,tach-ch = <0x06>;
+		reg = <0x06>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@7 {
-		aspeed,tach-ch = <0x07>;
+		reg = <0x07>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@8 {
-		aspeed,tach-ch = <0x08>;
+		reg = <0x08>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@9 {
-		aspeed,tach-ch = <0x09>;
+		reg = <0x09>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@10 {
-		aspeed,tach-ch = <0x0a>;
+		reg = <0x0a>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@11 {
-		aspeed,tach-ch = <0x0b>;
+		reg = <0x0b>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@12 {
-		aspeed,tach-ch = <0x0c>;
+		reg = <0x0c>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@13 {
-		aspeed,tach-ch = <0x0d>;
+		reg = <0x0d>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@14 {
-		aspeed,tach-ch = <0x0e>;
+		reg = <0x0e>;
 		aspeed,pulse-pr = <2>;
 	};
 
 	fan@15 {
-		aspeed,tach-ch = <0x0f>;
+		reg = <0x0f>;
 		aspeed,pulse-pr = <2>;
 	};
 };

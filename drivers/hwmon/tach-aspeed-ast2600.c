@@ -311,7 +311,7 @@ static int aspeed_tach_create_fan(struct device *dev, struct device_node *child,
 	u32 tach_channel;
 	int ret, count;
 
-	ret = of_property_read_u32(child, "aspeed,tach-ch", &tach_channel);
+	ret = of_property_read_u32(child, "reg", &tach_channel);
 	if (ret)
 		return ret;
 
