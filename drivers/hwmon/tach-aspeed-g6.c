@@ -65,6 +65,12 @@
  *********************************************************/
 #define DEFAULT_FAN_MIN_RPM 1000
 #define DEFAULT_FAN_PULSE_PR 2
+/*
+ * Add this value to avoid CPU consuming a lot of resources in waiting rpm
+ * updating. Assume the max rpm of fan is 60000, the period of updating tach
+ * value will equal to (1000000 * 2 * 60) / (2 * max_rpm) = 1000.
+ */
+#define RPM_POLLING_PERIOD_US 1000
 
 struct aspeed_tacho_channel_params {
 	int limited_inverse;
@@ -184,8 +190,8 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 			     TACHO_ENABLE, TACHO_ENABLE);
 	ret = regmap_read_poll_timeout(
 		priv->regmap, ASPEED_TACHO_STS_CH(fan_tach_ch), val,
-		(val & TACHO_FULL_MEASUREMENT) && (val & TACHO_VALUE_UPDATE), 0,
-		usec);
+		(val & TACHO_FULL_MEASUREMENT) && (val & TACHO_VALUE_UPDATE),
+		RPM_POLLING_PERIOD_US, usec);
 
 	/* return -ETIMEDOUT if we didn't get an answer. */
 	if (ret)
