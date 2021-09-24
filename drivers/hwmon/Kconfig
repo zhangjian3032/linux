@@ -366,11 +366,6 @@ config SENSORS_ASPEED_CHASSIS
 	help
 	  Driver for CHASSIS Driver
 
-config SENSORS_TACH_ASPEED_G6
-	tristate "ASPEED g6 Tachometer"
-	help
-	  This driver provides support for ASPEED AST2600 Tach controllers.
-
 config SENSORS_ASPEED
 	tristate "ASPEED AST2400/AST2500 PWM and Fan tach driver"
 	depends on THERMAL || THERMAL=n
@@ -1604,6 +1599,14 @@ config SENSORS_SMM665
 
 	  This driver can also be built as a module. If so, the module will
 	  be called smm665.
+
+config SENSORS_TACH_ASPEED_AST2600
+	tristate "ASPEED ast2600 Tachometer support"
+	help
+	  This driver provides support for Aspeed ast2600 Tachometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called tach-aspeed-ast2600.
 
 config SENSORS_ADC128D818
 	tristate "Texas Instruments ADC128D818"
