@@ -1574,10 +1574,6 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto unmap;
 
-	ret = i2c_add_adapter(&i2c_bus->adap);
-	if (ret < 0)
-		goto free_irq;
-
 	if (of_property_read_bool(pdev->dev.of_node, "smbus-alert")) {
 		i2c_bus->alert_enable = 1;
 		i2c_bus->ara = i2c_setup_smbus_alert(&i2c_bus->adap, &i2c_bus->alert_data);
@@ -1595,6 +1591,10 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 	dev_info(i2c_bus->dev, "NEW-I2C: %s [%d]: adapter [%d khz] mode [%d]\n",
 		 pdev->dev.of_node->name, i2c_bus->adap.nr, i2c_bus->bus_frequency / 1000,
 		 i2c_bus->mode);
+
+	ret = i2c_add_adapter(&i2c_bus->adap);
+	if (ret < 0)
+		goto free_irq;
 
 	return 0;
 
