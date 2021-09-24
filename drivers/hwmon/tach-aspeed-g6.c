@@ -121,7 +121,7 @@ static u32 aspeed_get_fan_tach_sample_period(struct aspeed_tach_data *priv,
 	u32 tach_period_us;
 	u8 pulse_pr = priv->tacho_channel[fan_tach_ch].pulse_pr;
 	u32 min_rpm = priv->tacho_channel[fan_tach_ch].min_rpm;
-	/* 
+	/*
 	 * min(Tach input clock) = (PulsePR * minRPM) / 60
 	 * max(Tach input period) = 60 / (PulsePR * minRPM)
 	 * Tach sample period > 2 * max(Tach input period) = (2*60) / (PulsePR * minRPM)
@@ -173,6 +173,7 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 				      u8 fan_tach_ch)
 {
 	u32 raw_data, tach_div, clk_source, usec, val;
+	u64 rpm;
 	int ret;
 
 	usec = priv->tacho_channel[fan_tach_ch].sample_period;
@@ -208,7 +209,10 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 	if (tach_div == 0)
 		return -EDOM;
 
-	return ((clk_source / tach_div) * 60);
+	rpm = (u64)clk_source * 60;
+	do_div(rpm, tach_div);
+
+	return rpm;
 }
 
 static ssize_t show_rpm(struct device *dev, struct device_attribute *attr,
@@ -331,6 +335,7 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 	struct device *hwmon;
 	struct clk *clk;
 	int ret;
+
 	np = dev->parent->of_node;
 	dev_info(dev, "tach probe start\n");
 
