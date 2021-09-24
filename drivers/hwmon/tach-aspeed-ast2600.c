@@ -93,34 +93,6 @@ struct aspeed_tach_data {
 	const struct attribute_group *groups[2];
 };
 
-static int regmap_aspeed_tach_reg_write(void *context, unsigned int reg,
-					unsigned int val)
-{
-	void __iomem *regs = (void __iomem *)context;
-
-	writel(val, regs + reg);
-	return 0;
-}
-
-static int regmap_aspeed_tach_reg_read(void *context, unsigned int reg,
-				       unsigned int *val)
-{
-	void __iomem *regs = (void __iomem *)context;
-
-	*val = readl(regs + reg);
-	return 0;
-}
-
-static const struct regmap_config aspeed_tach_regmap_config = {
-	.reg_bits = 32,
-	.val_bits = 32,
-	.reg_stride = 4,
-	.max_register = 0x100,
-	.reg_write = regmap_aspeed_tach_reg_write,
-	.reg_read = regmap_aspeed_tach_reg_read,
-	.fast_io = true,
-};
-
 static u32 aspeed_get_fan_tach_sample_period(struct aspeed_tach_data *priv,
 					     u8 fan_tach_ch)
 {
