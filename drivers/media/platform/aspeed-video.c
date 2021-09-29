@@ -532,16 +532,14 @@ static void aspeed_video_write(struct aspeed_video *video, u32 reg, u32 val)
 		readl(video->base + reg));
 }
 
-static void update_perf(struct aspeed_video *v)
+static void update_perf(struct aspeed_video_perf *p)
 {
-	v->perf.duration =
-		ktime_to_ms(ktime_sub(ktime_get(),  v->perf.last_sample));
-	v->perf.totaltime += v->perf.duration;
+	p->duration =
+		ktime_to_ms(ktime_sub(ktime_get(),  p->last_sample));
+	p->totaltime += p->duration;
 
-	if (!v->perf.duration_max || v->perf.duration > v->perf.duration_max)
-		v->perf.duration_max = v->perf.duration;
-	if (!v->perf.duration_min || v->perf.duration < v->perf.duration_min)
-		v->perf.duration_min = v->perf.duration;
+	p->duration_max = max(p->duration, p->duration_max);
+	p->duration_min = min(p->duration, p->duration_min);
 }
 
 static int aspeed_video_start_frame(struct aspeed_video *video)
@@ -723,7 +721,7 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 		u32 frame_size = aspeed_video_read(video,
 						   VE_JPEG_COMP_SIZE_READ_BACK);
 
-		update_perf(video);
+		update_perf(&video->perf);
 
 		spin_lock(&video->lock);
 		clear_bit(VIDEO_FRAME_INPRG, &video->flags);
@@ -1719,6 +1717,8 @@ static int aspeed_video_start_streaming(struct vb2_queue *q,
 
 	dprintk(LOG_TRACE, "%s\n", __func__);
 	video->sequence = 0;
+	video->perf.duration_max = 0;
+	video->perf.duration_min = 0xffffffff;
 
 	aspeed_video_update_regs(video);
 
@@ -1796,23 +1796,24 @@ static int aspeed_video_debugfs_show(struct seq_file *s, void *data)
 {
 	struct aspeed_video *v = s->private;
 
-	seq_printf(s, "%10s|%21s|%10s\n",
-		   "Signal", "Resolution", "FRC");
-	seq_printf(s, "%10s|%10s%11s|%10s\n",
-		   "", "Width", "Height", "");
-	seq_printf(s, "%10s|%10d%11d|%10d\n",
-		   v->v4l2_input_status ? "Unlock" : "Lock",
-		   v->pix_fmt.width, v->pix_fmt.height, v->frame_rate);
+	seq_puts(s, "\n");
+
+	seq_printf(s, "  %-20s:\t%s\n", "Signal",
+		   v->v4l2_input_status ? "Unlock" : "Lock");
+	seq_printf(s, "  %-20s:\t%d\n", "Width", v->pix_fmt.width);
+	seq_printf(s, "  %-20s:\t%d\n", "Height", v->pix_fmt.height);
+	seq_printf(s, "  %-20s:\t%d\n", "FRC", v->frame_rate);
 
 	seq_puts(s, "\n");
 
-	seq_printf(s, "%10s|%21s|%10s\n",
-		   "Frame#", "Frame Duration", "FPS");
-	seq_printf(s, "%10s|%7s%7s%7s|%10s\n",
-		   "", "Now", "Min", "Max", "");
-	seq_printf(s, "%10d|%7d%7d%7d|%10d\n",
-		   v->sequence, v->perf.duration, v->perf.duration_min,
-		   v->perf.duration_max, 1000/(v->perf.totaltime/v->sequence));
+	seq_puts(s, "Performance:\n");
+	seq_printf(s, "  %-20s:\t%d\n", "Frame#", v->sequence);
+	seq_printf(s, "  %-20s:\n", "Frame Duration(ms)");
+	seq_printf(s, "    %-18s:\t%d\n", "Now", v->perf.duration);
+	seq_printf(s, "    %-18s:\t%d\n", "Min", v->perf.duration_min);
+	seq_printf(s, "    %-18s:\t%d\n", "Max", v->perf.duration_max);
+	seq_printf(s, "  %-20s:\t%d\n", "FPS", 1000/(v->perf.totaltime/v->sequence));
+
 
 	return 0;
 }
