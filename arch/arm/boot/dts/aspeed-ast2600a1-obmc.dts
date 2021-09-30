@@ -831,6 +831,18 @@
 	status = "okay";
 };
 
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&uart_routing {
+	status = "okay";
+};
+
 &gpio0 {
 	gpio-line-names =
 	/*A0 - A7*/	"", "", "", "", "", "", "", "",

@@ -253,6 +253,18 @@
 	status = "okay";
 };
 
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&uart_routing {
+	status = "okay";
+};
+
 &adc0 {
 	vref = <2500>;
 	status = "okay";
