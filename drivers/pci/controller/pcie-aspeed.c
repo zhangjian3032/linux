@@ -63,6 +63,7 @@
 #define PCIE_LINK_5G			BIT(17)
 #define PCIE_LINK_2_5G			BIT(16)
 
+#ifdef CONFIG_PCI_MSI
 static DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_HOST_IRQS);
 
 /* MSI functions */
@@ -235,7 +236,7 @@ static int aspeed_pcie_msi_map(struct irq_domain *domain, unsigned int irq,
 
 	return 0;
 }
-
+#endif
 /**
  * aspeed_pcie_intx_map - Set the handler for the INTx and mark IRQ as valid
  * @domain: IRQ domain
@@ -282,8 +283,9 @@ static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
 	struct device *dev = pcie->dev;
 	struct device_node *node = dev->of_node;
 	struct device_node *pcie_intc_node;
+#ifdef CONFIG_PCI_MSI
 	int i = 0;
-
+#endif
 	/* Setup INTx */
 	pcie_intc_node = of_get_next_child(node, NULL);
 	if (!pcie_intc_node) {
@@ -304,6 +306,7 @@ static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
 		return -ENODEV;
 	}
 
+#ifdef CONFIG_PCI_MSI
 	/* MSI Domain operations */
 	pcie->msi_domain_ops.map = aspeed_pcie_msi_map;
 	pcie->aspeed_pcie_msi_chip.setup_irq = aspeed_pcie_msi_setup_irq;
@@ -333,7 +336,7 @@ static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
 		//enable all msi interrupt
 		aspeed_h2x_msi_enable(pcie);
 	}
-
+#endif
 	return 0;
 }
 
