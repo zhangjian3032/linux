@@ -439,19 +439,20 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 				(((((clk_div_reg >> 16) & 0xff) + 2) * 10) / 2);
 		base_clk4 = (i2c_bus->apb_clk * 10) /
 				(((((clk_div_reg >> 24) & 0xff) + 2) * 10) / 2);
-		if (i2c_bus->bus_frequency <= (base_clk1 / 10)) {
+
+		if ((i2c_bus->apb_clk / i2c_bus->bus_frequency) <= 32) {
+			baseclk_idx = 0;
+			divisor = DIV_ROUND_UP(i2c_bus->apb_clk, i2c_bus->bus_frequency);
+		} else if ((base_clk1 / i2c_bus->bus_frequency) <= 10) {
 			baseclk_idx = 1;
 			divisor = DIV_ROUND_UP(base_clk1, i2c_bus->bus_frequency);
-		} else if ((i2c_bus->bus_frequency > (base_clk1 / 10)) &&
-			   (i2c_bus->bus_frequency <= (base_clk2 / 10))) {
+		} else if ((base_clk2 / i2c_bus->bus_frequency) <= 10) {
 			baseclk_idx = 2;
 			divisor = DIV_ROUND_UP(base_clk2, i2c_bus->bus_frequency);
-		} else if ((i2c_bus->bus_frequency > (base_clk2 / 10)) &&
-			   (i2c_bus->bus_frequency <= (base_clk3 / 10))) {
+		} else if ((base_clk3 / i2c_bus->bus_frequency) <= 10) {
 			baseclk_idx = 3;
 			divisor = DIV_ROUND_UP(base_clk3, i2c_bus->bus_frequency);
-		} else if ((i2c_bus->bus_frequency > (base_clk3 / 10)) &&
-			   (i2c_bus->bus_frequency <= (base_clk4 / 10))) {
+		} else {
 			baseclk_idx = 4;
 			divisor = DIV_ROUND_UP(base_clk4, i2c_bus->bus_frequency);
 			inc = 0;
@@ -461,9 +462,6 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 				baseclk_idx++;
 			}
 			divisor += inc;
-		} else {
-			baseclk_idx = 0;
-			divisor = DIV_ROUND_UP(i2c_bus->apb_clk, i2c_bus->bus_frequency);
 		}
 		baseclk_idx &= 0xf;
 		scl_low = ((divisor >> 1) - 1) & 0xf;
