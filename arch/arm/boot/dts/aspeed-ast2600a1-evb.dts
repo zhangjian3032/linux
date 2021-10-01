@@ -707,8 +707,6 @@
 #if 1
 &video {
 	status = "okay";
-
-	compatible = "aspeed,ast2600-video";
 	memory-region = <&video_engine_memory>;
 };
 #else
