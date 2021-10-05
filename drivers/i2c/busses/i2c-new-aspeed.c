@@ -443,13 +443,13 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 		if ((i2c_bus->apb_clk / i2c_bus->bus_frequency) <= 32) {
 			baseclk_idx = 0;
 			divisor = DIV_ROUND_UP(i2c_bus->apb_clk, i2c_bus->bus_frequency);
-		} else if ((base_clk1 / i2c_bus->bus_frequency) <= 10) {
+		} else if ((base_clk1 / i2c_bus->bus_frequency) <= 32) {
 			baseclk_idx = 1;
 			divisor = DIV_ROUND_UP(base_clk1, i2c_bus->bus_frequency);
-		} else if ((base_clk2 / i2c_bus->bus_frequency) <= 10) {
+		} else if ((base_clk2 / i2c_bus->bus_frequency) <= 32) {
 			baseclk_idx = 2;
 			divisor = DIV_ROUND_UP(base_clk2, i2c_bus->bus_frequency);
-		} else if ((base_clk3 / i2c_bus->bus_frequency) <= 10) {
+		} else if ((base_clk3 / i2c_bus->bus_frequency) <= 32) {
 			baseclk_idx = 3;
 			divisor = DIV_ROUND_UP(base_clk3, i2c_bus->bus_frequency);
 		} else {
@@ -1349,7 +1349,7 @@ static int aspeed_new_i2c_master_xfer(struct i2c_adapter *adap,
 static void aspeed_new_i2c_init(struct aspeed_new_i2c_bus *i2c_bus)
 {
 	struct platform_device *pdev = to_platform_device(i2c_bus->dev);
-	u32 fun_ctrl = AST_I2CC_BUS_AUTO_RELEASE | AST_I2CC_MASTER_EN;
+	u32 fun_ctrl = AST_I2CC_MASTER_RETRY(1) | AST_I2CC_BUS_AUTO_RELEASE | AST_I2CC_MASTER_EN;
 
 	/* I2C Reset */
 	writel(0, i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
@@ -1586,13 +1586,13 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 		writel(AST_I2CM_PKT_DONE | AST_I2CM_BUS_RECOVER, i2c_bus->reg_base + AST_I2CM_IER);
 	}
 
-	dev_info(i2c_bus->dev, "NEW-I2C: %s [%d]: adapter [%d khz] mode [%d]\n",
-		 pdev->dev.of_node->name, i2c_bus->adap.nr, i2c_bus->bus_frequency / 1000,
-		 i2c_bus->mode);
-
 	ret = i2c_add_adapter(&i2c_bus->adap);
 	if (ret < 0)
 		goto free_irq;
+
+	dev_info(i2c_bus->dev, "NEW-I2C: %s [%d]: adapter [%d khz] mode [%d]\n",
+		 pdev->dev.of_node->name, i2c_bus->adap.nr, i2c_bus->bus_frequency / 1000,
+		 i2c_bus->mode);
 
 	return 0;
 
