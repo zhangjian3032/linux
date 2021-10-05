@@ -467,7 +467,7 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 		scl_low = ((divisor >> 1) - 1) & 0xf;
 		scl_high = (divisor - scl_low - 2) & 0xf;
 		/* Divisor : Base Clock : tCKHighMin : tCK High : tCK Low  */
-		data = ((scl_high - 1) << 20) | (scl_high << 16) | (scl_low << 12) | (baseclk_idx);
+		data = ((scl_high) << 20) | (scl_high << 16) | (scl_low << 12) | (baseclk_idx);
 	} else {
 		for (i = 0; i < ARRAY_SIZE(aspeed_old_i2c_timing_table); i++) {
 			if ((i2c_bus->apb_clk / aspeed_old_i2c_timing_table[i].divisor) <
@@ -1349,7 +1349,7 @@ static int aspeed_new_i2c_master_xfer(struct i2c_adapter *adap,
 static void aspeed_new_i2c_init(struct aspeed_new_i2c_bus *i2c_bus)
 {
 	struct platform_device *pdev = to_platform_device(i2c_bus->dev);
-	u32 fun_ctrl = AST_I2CC_MASTER_RETRY(1) | AST_I2CC_BUS_AUTO_RELEASE | AST_I2CC_MASTER_EN;
+	u32 fun_ctrl = AST_I2CC_BUS_AUTO_RELEASE | AST_I2CC_MASTER_EN;
 
 	/* I2C Reset */
 	writel(0, i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
