@@ -52,6 +52,7 @@
 #define OTP_COMPARE_4	0x2c
 #define SW_REV_ID0	0x68
 #define SW_REV_ID1	0x6c
+#define SEC_KEY_NUM	0x78
 #define RETRY		20
 
 struct aspeed_otp {
@@ -262,7 +263,7 @@ static int otp_prog_bit(struct aspeed_otp *ctx, u32 value, u32 prog_address, u32
 			break;
 		}
 	}
-
+	otp_soak(ctx, 0);
 	return pass;
 }
 
@@ -383,7 +384,7 @@ static long otp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	void __user *argp = (void __user *)arg;
 	struct otp_read xfer;
 	struct otp_prog prog;
-	u32 rid[2];
+	u32 reg_read[2];
 	int ret = 0;
 
 	switch (cmd) {
@@ -454,9 +455,14 @@ static long otp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		break;
 	case ASPEED_OTP_SW_RID:
-		rid[0] = aspeed_otp_read(ctx, SW_REV_ID0);
-		rid[1] = aspeed_otp_read(ctx, SW_REV_ID1);
-		if (copy_to_user(argp, rid, sizeof(u32) * 2))
+		reg_read[0] = aspeed_otp_read(ctx, SW_REV_ID0);
+		reg_read[1] = aspeed_otp_read(ctx, SW_REV_ID1);
+		if (copy_to_user(argp, reg_read, sizeof(u32) * 2))
+			return -EFAULT;
+		break;
+	case ASPEED_SEC_KEY_NUM:
+		reg_read[0] = aspeed_otp_read(ctx, SEC_KEY_NUM);
+		if (copy_to_user(argp, reg_read, sizeof(u32)))
 			return -EFAULT;
 		break;
 	}
