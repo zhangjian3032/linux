@@ -11,12 +11,14 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/sysfs.h>
+#include <linux/delay.h>
 
 #define MQ_MSGBUF_SIZE		256
 #define MQ_QUEUE_SIZE		4
 #define MQ_QUEUE_NEXT(x)	(((x) + 1) & (MQ_QUEUE_SIZE - 1))
 
 #define IBI_STATUS_LAST_FRAG	BIT(24)
+#define PID_MANUF_ID_ASPEED	0x03f6
 
 struct mq_msg {
 	int len;
@@ -54,6 +56,29 @@ static void i3c_ibi_mqueue_callback(struct i3c_device *dev,
 
 	/* if last fragment, notidy and update pointers */
 	if (status & IBI_STATUS_LAST_FRAG) {
+		/* check pending-read-notification */
+		if (IS_MDB_PENDING_READ_NOTIFY(msg->buf[0])) {
+			struct i3c_priv_xfer xfers[1] = {
+				{
+					.rnw = true,
+					.len = MQ_MSGBUF_SIZE,
+					.data.in = msg->buf,
+				},
+			};
+
+			/*
+			 * Aspeed slave devices need for additional delay for
+			 * preparing the pending data
+			 */
+			if (I3C_PID_MANUF_ID(dev->desc->info.pid) ==
+			    PID_MANUF_ID_ASPEED) {
+				mdelay(10);
+			}
+			i3c_device_do_priv_xfers(dev, xfers, 1);
+
+			msg->len = xfers[0].len;
+		}
+
 		spin_lock(&mq->lock);
 		mq->in = MQ_QUEUE_NEXT(mq->in);
 		mq->curr = &mq->queue[mq->in];
