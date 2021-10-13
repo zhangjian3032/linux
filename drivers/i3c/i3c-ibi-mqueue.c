@@ -199,3 +199,23 @@ int i3c_ibi_mqueue_remove(struct i3c_device *i3cdev)
 
 	return 0;
 }
+
+static const struct i3c_device_id i3c_ibi_mqueue_ids[] = {
+	I3C_CLASS(I3C_DCR_GENERIC_DEVICE, (void *)0),
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(i3c, i3c_ibi_mqueue_ids);
+
+static struct i3c_driver ibi_mqueue_driver = {
+	.driver = {
+		.name = "i3c-ibi-mqueue",
+	},
+	.probe = i3c_ibi_mqueue_probe,
+	.remove = i3c_ibi_mqueue_remove,
+	.id_table = i3c_ibi_mqueue_ids,
+};
+module_i3c_driver(ibi_mqueue_driver);
+
+MODULE_AUTHOR("Dylan Hung <dylan_hung@aspeedtech.com>");
+MODULE_DESCRIPTION("I3C IBI mqueue driver");
+MODULE_LICENSE("GPL v2");

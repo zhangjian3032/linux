@@ -1582,12 +1582,6 @@ i3c_master_register_new_i3c_devs(struct i3c_master_controller *master)
 		if (ret)
 			dev_err(&master->dev,
 				"Failed to add I3C device (err = %d)\n", ret);
-
-#ifdef CONFIG_I3C_IBI_MQUEUE
-		if (of_device_is_compatible(desc->dev->dev.of_node,
-					    "i3c-ibi-mqueue"))
-			i3c_ibi_mqueue_probe(desc->dev);
-#endif
 	}
 }
 
