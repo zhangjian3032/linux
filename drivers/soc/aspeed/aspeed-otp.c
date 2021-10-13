@@ -461,7 +461,7 @@ static long otp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		break;
 	case ASPEED_SEC_KEY_NUM:
-		reg_read[0] = aspeed_otp_read(ctx, SEC_KEY_NUM);
+		reg_read[0] = aspeed_otp_read(ctx, SEC_KEY_NUM) & 3;
 		if (copy_to_user(argp, reg_read, sizeof(u32)))
 			return -EFAULT;
 		break;
