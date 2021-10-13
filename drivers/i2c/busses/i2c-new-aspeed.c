@@ -555,7 +555,7 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 	int i = 0;
 
 	sts &= ~(AST_I2CS_PKT_DONE | AST_I2CS_PKT_ERROR);
-	writel(AST_I2CS_PKT_DONE, i2c_bus->reg_base + AST_I2CS_ISR);
+
 	switch (sts) {
 	case 0:
 		cmd = SLAVE_TRIGGER_CMD;
@@ -778,6 +778,8 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 			readl(i2c_bus->reg_base + AST_I2CS_ISR));
 		break;
 	}
+
+	writel(AST_I2CS_PKT_DONE, i2c_bus->reg_base + AST_I2CS_ISR);
 }
 
 static void aspeed_i2c_slave_byte_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
