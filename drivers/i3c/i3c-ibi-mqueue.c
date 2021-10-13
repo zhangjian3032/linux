@@ -201,7 +201,9 @@ int i3c_ibi_mqueue_remove(struct i3c_device *i3cdev)
 }
 
 static const struct i3c_device_id i3c_ibi_mqueue_ids[] = {
-	I3C_CLASS(I3C_DCR_GENERIC_DEVICE, (void *)0),
+	I3C_DEVICE(0x3f6, 0x8000, (void *)0),
+	I3C_DEVICE(0x3f6, 0x8001, (void *)0),
+	I3C_DEVICE(0x3f6, 0x0503, (void *)0),
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(i3c, i3c_ibi_mqueue_ids);
