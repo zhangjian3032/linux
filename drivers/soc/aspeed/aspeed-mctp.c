@@ -695,6 +695,7 @@ static int aspeed_mctp_g6_rx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct a
 	u32 *rx_buffer;
 	u32 *header_dw;
 	int recv_length;
+	int temp_rx_recv_idx;
 	int ret;
 
 	aspeed_mctp_writel(aspeed_mctp, MCTP_HW_READ_PT_UPDATE, ASPEED_MCTP_RX_WRITE_PT);
@@ -719,6 +720,7 @@ static int aspeed_mctp_g6_rx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct a
 	if (aspeed_mctp->rx_first_loop) {
 		int wrap_around = 0;
 
+		temp_rx_recv_idx = aspeed_mctp->rx_recv_idx;
 		header_dw = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
 		while (*header_dw == 0) {
 			MCTP_DBUG("first loop header_dw == 0");
@@ -727,6 +729,10 @@ static int aspeed_mctp_g6_rx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct a
 			if (aspeed_mctp->rx_recv_idx >= aspeed_mctp->rx_cmd_num)
 				wrap_around = 1;
 			aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_cmd_num;
+			if (temp_rx_recv_idx == aspeed_mctp->rx_recv_idx) {
+				MCTP_DBUG("Failed to find valid packet");
+				break;
+			}
 			header_dw = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
 		}
 		if (wrap_around) {
@@ -735,11 +741,16 @@ static int aspeed_mctp_g6_rx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct a
 			aspeed_mctp->rx_cmd_num -= 4;
 		}
 	} else {
+		temp_rx_recv_idx = aspeed_mctp->rx_recv_idx;
 		header_dw = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
 		while (*header_dw == 0) {
 			MCTP_DBUG("header_dw == 0");
 			aspeed_mctp->rx_recv_idx++;
 			aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_cmd_num;
+			if (temp_rx_recv_idx == aspeed_mctp->rx_recv_idx) {
+				MCTP_DBUG("Failed to find valid packet");
+				break;
+			}
 			header_dw = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
 		}
 	}
