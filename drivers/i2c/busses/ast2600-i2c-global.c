@@ -41,20 +41,14 @@ struct aspeed_i2c_base_clk {
 	unsigned long	base_freq;
 };
 
-/* assign 4 base clock
- * [31:24] base clk4 : 1M for 100KHz
- * [23:16] base clk3 : 4M for 400KHz
- * [15:08] base clk2 : 10M for 1MHz
- * [00:07] base clk1 : 40M for 4MHz
- */
 #define BASE_CLK_COUNT 4
 
 static const struct aspeed_i2c_base_clk i2c_base_clk[BASE_CLK_COUNT] = {
 	/* name	target_freq */
 	{  "base_clk3",	40000000 },	/* 40M */
-	{  "base_clk2",	34000000 },	/* 34M */
-	{  "base_clk1",	10000000 },	/* 10M */
-	{  "base_clk0",	3000000 },	/* 3M */
+	{  "base_clk2",	10000000 },	/* 10M */
+	{  "base_clk1",	3250000 },	/* 33M */
+	{  "base_clk0",	1000000 },	/* 1M */
 };
 
 static u32 aspeed_i2c_ic_get_new_clk_divider(unsigned long base_clk, struct device_node *node)

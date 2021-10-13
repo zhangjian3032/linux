@@ -107,9 +107,6 @@
 
 #define AST_I2CM_RX_DMA_EN			BIT(9)
 #define AST_I2CM_TX_DMA_EN			BIT(8)
-#define AST_I2CM_RX_BUFF_EN			BIT(7)
-#define AST_I2CM_TX_BUFF_EN			BIT(6)
-
 /* Command Bit */
 #define AST_I2CM_RX_BUFF_EN			BIT(7)
 #define AST_I2CM_TX_BUFF_EN			BIT(6)
@@ -451,7 +448,7 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 			divisor = DIV_ROUND_UP(base_clk2, i2c_bus->bus_frequency);
 		} else if ((base_clk3 / i2c_bus->bus_frequency) <= 32) {
 			baseclk_idx = 3;
-			divisor = DIV_ROUND_UP(base_clk3, i2c_bus->bus_frequency);
+			divisor = base_clk3 / i2c_bus->bus_frequency;
 		} else {
 			baseclk_idx = 4;
 			divisor = DIV_ROUND_UP(base_clk4, i2c_bus->bus_frequency);
@@ -525,6 +522,7 @@ static u8 aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 	}
 
 	writel(ctrl, i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
+#ifdef CONFIG_I2C_SLAVE
 	if (ctrl & AST_I2CC_SLAVE_EN) {
 		u32 cmd = SLAVE_TRIGGER_CMD;
 
@@ -543,7 +541,7 @@ static u8 aspeed_new_i2c_recover_bus(struct aspeed_new_i2c_bus *i2c_bus)
 		}
 		writel(cmd, i2c_bus->reg_base + AST_I2CS_CMD_STS);
 	}
-
+#endif
 	return ret;
 }
 
@@ -1032,7 +1030,9 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 	switch (sts) {
 	case AST_I2CM_PKT_ERROR:
 		dev_dbg(i2c_bus->dev, "M : ERROR only\n");
-		fallthrough;
+		i2c_bus->cmd_err = -EAGAIN;
+		complete(&i2c_bus->cmd_complete);
+		break;
 	case AST_I2CM_PKT_ERROR | AST_I2CM_TX_NAK: /* a0 fix for issue */
 		fallthrough;
 	case AST_I2CM_PKT_ERROR | AST_I2CM_TX_NAK | AST_I2CM_NORMAL_STOP:
@@ -1331,8 +1331,7 @@ static int aspeed_new_i2c_master_xfer(struct i2c_adapter *adap,
 	timeout = wait_for_completion_timeout(&i2c_bus->cmd_complete, i2c_bus->adap.timeout);
 	if (timeout == 0) {
 		int isr = readl(i2c_bus->reg_base + AST_I2CM_ISR);
-
-		dev_dbg(i2c_bus->dev, "timeout\n");
+		dev_dbg(i2c_bus->dev, "timeout isr[%x]\n", isr);
 		if (isr) {
 			dev_dbg(i2c_bus->dev, "recovery situation isr %x\n", isr);
 			aspeed_new_i2c_recover_bus(i2c_bus);
