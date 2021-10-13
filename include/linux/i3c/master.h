@@ -683,14 +683,6 @@ int i3c_master_unregister_slave(struct i3c_master_controller *master);
 int i3c_master_send_sir(struct i3c_master_controller *master,
 			struct i3c_slave_payload *payload);
 /*
- * IBI message queue driver API
- */
-#ifdef CONFIG_I3C_IBI_MQUEUE
-int i3c_ibi_mqueue_probe(struct i3c_device *i3cdev);
-int i3c_ibi_mqueue_remove(struct i3c_device *i3cdev);
-#endif	/* end of "#ifdef CONFIG_I3C_IBI_MQUEUE" */
-
-/*
  * Slave message queue driver API
  */
 #ifdef CONFIG_I3C_SLAVE_MQUEUE
