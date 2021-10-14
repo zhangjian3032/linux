@@ -127,7 +127,7 @@ static ssize_t i3c_ibi_mqueue_bin_read(struct file *filp, struct kobject *kobj,
 	return ret;
 }
 
-int i3c_ibi_mqueue_probe(struct i3c_device *i3cdev)
+static int i3c_ibi_mqueue_probe(struct i3c_device *i3cdev)
 {
 	struct device *dev = &i3cdev->dev;
 	struct mq_queue *mq;
@@ -191,7 +191,7 @@ int i3c_ibi_mqueue_probe(struct i3c_device *i3cdev)
 	return 0;
 }
 
-int i3c_ibi_mqueue_remove(struct i3c_device *i3cdev)
+static int i3c_ibi_mqueue_remove(struct i3c_device *i3cdev)
 {
 	struct mq_queue *mq = dev_get_drvdata(&i3cdev->dev);
 
