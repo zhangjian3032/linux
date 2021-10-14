@@ -295,7 +295,7 @@ static int i3cdev_attach(struct device *dev, void *dummy)
 	struct i3c_device *i3c;
 	int res;
 
-	if (dev->type == &i3c_masterdev_type || dev->driver)
+	if (dev->type == &i3c_masterdev_type)
 		return 0;
 
 	i3c = dev_to_i3cdev(dev);
