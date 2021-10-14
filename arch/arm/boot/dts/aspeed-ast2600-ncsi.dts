@@ -125,7 +125,13 @@
 };
 
 &sgpiom0 {
-        status = "okay";
+	status = "okay";
+	ngpios = <128>;
+};
+
+&sgpiom1 {
+	status = "okay";
+	ngpios = <80>;
 };
 
 &jtag1 {
