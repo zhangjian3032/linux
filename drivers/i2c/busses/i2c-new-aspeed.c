@@ -780,6 +780,7 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 	}
 
 	writel(AST_I2CS_PKT_DONE, i2c_bus->reg_base + AST_I2CS_ISR);
+	readl(i2c_bus->reg_base + AST_I2CS_ISR);
 }
 
 static void aspeed_i2c_slave_byte_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
@@ -829,6 +830,7 @@ static void aspeed_i2c_slave_byte_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 st
 	}
 	writel(cmd, i2c_bus->reg_base + AST_I2CS_CMD_STS);
 	writel(sts, i2c_bus->reg_base + AST_I2CS_ISR);
+	readl(i2c_bus->reg_base + AST_I2CS_ISR);
 }
 
 static int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
