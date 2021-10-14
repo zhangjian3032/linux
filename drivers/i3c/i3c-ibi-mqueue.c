@@ -12,6 +12,7 @@
 #include <linux/spinlock.h>
 #include <linux/sysfs.h>
 #include <linux/delay.h>
+#include "internals.h"
 
 #define MQ_MSGBUF_SIZE		256
 #define MQ_QUEUE_SIZE		4
@@ -129,14 +130,12 @@ static ssize_t i3c_ibi_mqueue_bin_read(struct file *filp, struct kobject *kobj,
 int i3c_ibi_mqueue_probe(struct i3c_device *i3cdev)
 {
 	struct device *dev = &i3cdev->dev;
-	struct i3c_master_controller *master =
-		container_of(dev, struct i3c_master_controller, dev);
 	struct mq_queue *mq;
 	struct i3c_ibi_setup ibireq = {};
 	int ret, i;
 	void *buf;
 
-	if (master->secondary)
+	if (dev->type == &i3c_masterdev_type)
 		return -ENOTSUPP;
 
 	mq = devm_kzalloc(dev, sizeof(*mq), GFP_KERNEL);
