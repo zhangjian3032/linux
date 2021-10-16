@@ -568,8 +568,8 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 		writel(cmd, i2c_bus->reg_base + AST_I2CS_CMD_STS);
 		break;
 	case AST_I2CS_SLAVE_MATCH:
-	dev_dbg(i2c_bus->dev, "S : Sw\n");
-	i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+		dev_dbg(i2c_bus->dev, "S : Sw\n");
+		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
 		break;
 
 	case AST_I2CS_SLAVE_MATCH | AST_I2CS_STOP:
@@ -779,8 +779,11 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 		break;
 	}
 
-	writel(AST_I2CS_PKT_DONE, i2c_bus->reg_base + AST_I2CS_ISR);
-	readl(i2c_bus->reg_base + AST_I2CS_ISR);
+	if (cmd)
+		writel(AST_I2CS_PKT_DONE, i2c_bus->reg_base + AST_I2CS_ISR);
+
+	dev_dbg(i2c_bus->dev, "cmd %x, s_irq[%x] sts[%x]\n", cmd, readl(i2c_bus->reg_base + AST_I2CS_ISR), readl(i2c_bus->reg_base + AST_I2CC_STS_AND_BUFF));
+
 }
 
 static void aspeed_i2c_slave_byte_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 sts)
@@ -840,7 +843,7 @@ static int aspeed_new_i2c_slave_irq(struct aspeed_new_i2c_bus *i2c_bus)
 
 	if (!(sts & ier))
 		return 0;
-	dev_dbg(i2c_bus->dev, "slave irq sts %x\n", sts);
+	dev_dbg(i2c_bus->dev, "slave irq sts %x sts [%x]\n", sts, readl(i2c_bus->reg_base + AST_I2CC_STS_AND_BUFF));
 
 	sts &= ~(AST_I2CS_ADDR_INDICATE_MASK | AST_I2CS_SLAVE_PENDING);
 
@@ -1335,6 +1338,7 @@ static int aspeed_new_i2c_master_xfer(struct i2c_adapter *adap,
 	timeout = wait_for_completion_timeout(&i2c_bus->cmd_complete, i2c_bus->adap.timeout);
 	if (timeout == 0) {
 		int isr = readl(i2c_bus->reg_base + AST_I2CM_ISR);
+
 		dev_dbg(i2c_bus->dev, "timeout isr[%x]\n", isr);
 		if (isr) {
 			dev_dbg(i2c_bus->dev, "recovery situation isr %x\n", isr);
