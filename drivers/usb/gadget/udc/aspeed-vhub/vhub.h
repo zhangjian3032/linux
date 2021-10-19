@@ -195,7 +195,6 @@
 #define VHUB_DSC1_IN_SPID_MDATA		(3 << 14)
 #define VHUB_DSC1_IN_SET_LEN(x)		((x) & 0xfff)
 #define VHUB_DSC1_IN_LEN(x)		((x) & 0xfff)
-#define VHUB_DSC1_OUT_LEN(x)		((x) & 0x7ff)
 
 /****************************************
  *                                      *

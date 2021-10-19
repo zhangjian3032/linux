@@ -258,7 +258,7 @@ static void ast_vhub_ep0_do_receive(struct ast_vhub_ep *ep, struct ast_vhub_req 
 	}
 
 	/* HW return wrong data len */
-	if (len != remain) {
+	if (len < ep->ep.maxpacket && len != remain) {
 		EPDBG(ep, "using expected data len instead\n");
 		len = remain;
 	}

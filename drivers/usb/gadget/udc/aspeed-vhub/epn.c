@@ -276,10 +276,7 @@ static void ast_vhub_epn_handle_ack_desc(struct ast_vhub_ep *ep)
 		ep->epn.d_last = (d_num + 1) & (AST_VHUB_DESCS_COUNT - 1);
 
 		/* Grab len out of descriptor */
-		if (ep->epn.is_in)
-			len = VHUB_DSC1_IN_LEN(le32_to_cpu(desc->w1));
-		else
-			len = VHUB_DSC1_OUT_LEN(le32_to_cpu(desc->w1));
+		len = VHUB_DSC1_IN_LEN(le32_to_cpu(desc->w1));
 
 		EPVDBG(ep, " desc %d len=%d req=%p (act=%d)\n",
 		       d_num, len, req, req ? req->active : 0);
@@ -666,7 +663,7 @@ static int ast_vhub_epn_enable(struct usb_ep* u_ep,
 	      usb_endpoint_num(desc), maxpacket);
 
 	/* Can we use DMA descriptor mode ? */
-	ep->epn.desc_mode = ep->epn.descs;
+	ep->epn.desc_mode = ep->epn.descs && ep->epn.is_in;
 	if (ep->epn.desc_mode)
 		memset(ep->epn.descs, 0, 8 * AST_VHUB_DESCS_COUNT);
 
