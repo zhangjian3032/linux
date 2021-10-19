@@ -165,7 +165,7 @@ static int ast_vhub_dev_status(struct ast_vhub_dev *d,
 
 	DDBG(d, "GET_STATUS(dev)\n");
 
-	st0 = d->gadget.is_selfpowered << USB_DEVICE_SELF_POWERED;
+	st0 = d->gadget.is_selfpowered;
 	if (d->wakeup_en)
 		st0 |= 1 << USB_DEVICE_REMOTE_WAKEUP;
 
@@ -470,6 +470,19 @@ static int ast_vhub_udc_stop(struct usb_gadget *gadget)
 	return 0;
 }
 
+static int ast_vhub_udc_set_selfpowered(struct usb_gadget *gadget,
+					int is_selfpowered)
+{
+	struct ast_vhub_dev *d = to_ast_dev(gadget);
+	unsigned long flags;
+
+	spin_lock_irqsave(&d->vhub->lock, flags);
+	d->gadget.is_selfpowered = (is_selfpowered != 0);
+	spin_unlock_irqrestore(&d->vhub->lock, flags);
+
+	return 0;
+}
+
 static const struct usb_gadget_ops ast_vhub_udc_ops = {
 	.get_frame	= ast_vhub_udc_get_frame,
 	.wakeup		= ast_vhub_udc_wakeup,
@@ -477,6 +490,7 @@ static const struct usb_gadget_ops ast_vhub_udc_ops = {
 	.udc_start	= ast_vhub_udc_start,
 	.udc_stop	= ast_vhub_udc_stop,
 	.match_ep	= ast_vhub_udc_match_ep,
+	.set_selfpowered = ast_vhub_udc_set_selfpowered,
 };
 
 void ast_vhub_dev_suspend(struct ast_vhub_dev *d)
