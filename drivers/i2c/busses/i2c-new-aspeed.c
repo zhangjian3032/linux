@@ -211,7 +211,7 @@
 
 #define ASPEED_I2C_DMA_SIZE		4096
 
-#define SLAVE_TRIGGER_CMD       (AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN | AST_I2CS_AUTO_NAK_EN)
+#define SLAVE_TRIGGER_CMD       (AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN)
 
 struct ast_i2c_timing_table {
 	u32 divisor;
