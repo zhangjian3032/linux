@@ -597,7 +597,9 @@ static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 		u32 *rx_cmd_header;
 		u32 mctp_ctrl;
 
-		for (i = 0; i < aspeed_mctp->rx_fifo_num + 20; i++) {
+		aspeed_mctp->rx_recv_idx = 0;
+		aspeed_mctp->rx_reboot = 1;
+		for (i = 0; i < aspeed_mctp->rx_fifo_num; i++) {
 			rx_cmd_header = (u32 *)(aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * i));
 			*rx_cmd_header = 0;
 			rx_cmd_desc[i] = (u32)aspeed_mctp->rx_pool_dma + (aspeed_mctp->rx_fifo_size * i);
@@ -706,15 +708,26 @@ static int aspeed_mctp_g6_rx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct a
 		return 0;
 	}
 
-	// when reboot first round, drop old data.
+	/*
+	 * When system reboot, mctp packets may be placed to the wrong descriptor offset (0~3)
+	 * because the mctp hardware fetches 4 descriptors at once from desc_addr.
+	 * Therefore, search the rx pool to get the correct location.
+	 */
+	temp_rx_recv_idx = aspeed_mctp->rx_recv_idx;
 	while (aspeed_mctp->rx_reboot) {
 		header_dw = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
 		if (*header_dw != 0) {
 			aspeed_mctp->rx_reboot = 0;
+			MCTP_DBUG("Runaway RX packet found %d -> %d",
+				temp_rx_recv_idx, aspeed_mctp->rx_recv_idx);
 			break;
 		}
 		aspeed_mctp->rx_recv_idx++;
 		aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_cmd_num;
+		if (temp_rx_recv_idx == aspeed_mctp->rx_recv_idx) {
+			MCTP_DBUG("Failed to find valid packet");
+			break;
+		}
 	}
 
 	if (aspeed_mctp->rx_first_loop) {
@@ -792,6 +805,7 @@ static int aspeed_mctp_g6a3_rx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct
 	u32 *rx_buffer;
 	u32 *header_dw;
 	int recv_length;
+	int temp_rx_recv_idx;
 	int ret;
 
 	aspeed_mctp_writel(aspeed_mctp, MCTP_HW_READ_PT_UPDATE, ASPEED_MCTP_RX_WRITE_PT);
@@ -802,9 +816,35 @@ static int aspeed_mctp_g6a3_rx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct
 		return 0;
 	}
 
-	vdm = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_idx);
+	/*
+	 * When system reboot, mctp packets may be placed to the wrong descriptor offset (0~3)
+	 * because the mctp hardware fetches 4 descriptors at once from desc_addr.
+	 * Therefore, search the rx pool to get the correct location.
+	 */
+	temp_rx_recv_idx = aspeed_mctp->rx_recv_idx;
+	while (aspeed_mctp->rx_reboot) {
+		header_dw = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size *
+						    aspeed_mctp->rx_recv_idx);
+		if (*header_dw != 0) {
+			MCTP_DBUG("Runaway RX packet found %d -> %d",
+				temp_rx_recv_idx, aspeed_mctp->rx_recv_idx);
+			aspeed_mctp->rx_reboot = 0;
+			break;
+		}
+		aspeed_mctp->rx_recv_idx++;
+		aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_fifo_num;
+		if (temp_rx_recv_idx == aspeed_mctp->rx_recv_idx) {
+			MCTP_DBUG("Failed to find valid packet");
+			return -EAGAIN;
+		}
+	}
+
+	vdm = aspeed_mctp->rx_pool +
+	      (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
 	header_dw = (u32 *)vdm;
-	rx_buffer = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_idx) + sizeof(struct pcie_vdm_header);
+	rx_buffer = aspeed_mctp->rx_pool +
+		    (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx) +
+		    sizeof(struct pcie_vdm_header);
 
 	recv_length = (vdm->length * 4) + vdm->pad_len;
 	mctp_xfer->header = *vdm;
@@ -816,7 +856,9 @@ static int aspeed_mctp_g6a3_rx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct
 	ret = copy_to_user(buf, mctp_xfer, sizeof(struct aspeed_mctp_xfer));
 	if (ret)
 		return ret;
-
+	*header_dw = 0;
+	aspeed_mctp->rx_recv_idx++;
+	aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_fifo_num;
 	aspeed_mctp->rx_idx++;
 	aspeed_mctp->rx_idx %= aspeed_mctp->rx_fifo_num;
 	aspeed_mctp_writel(aspeed_mctp, aspeed_mctp->rx_idx, ASPEED_MCTP_RX_READ_PT);
