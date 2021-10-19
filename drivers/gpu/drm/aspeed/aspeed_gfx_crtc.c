@@ -25,24 +25,29 @@ drm_pipe_to_aspeed_gfx(struct drm_simple_display_pipe *pipe)
 
 static void aspeed_gfx_set_clock_source(struct aspeed_gfx *priv, int mode_width)
 {
-	regmap_update_bits(priv->scu, 0x300, CLK_SOURCE_MASK, 0x0);
-	regmap_update_bits(priv->scu, 0x308, CLK_DIV_MASK, 0x0);
+	regmap_update_bits(priv->scu, SCU_CLK_SEL, CLK_SOURCE_MASK, 0x0);
+	regmap_update_bits(priv->scu, SCU_CLK_SEL3, CLK_DIV_MASK, 0x0);
 
 	switch (mode_width) {
 	case 1024:
 		/* hpll div 16 = 75Mhz */
-		regmap_update_bits(priv->scu, 0x300, CLK_SOURCE_MASK, (BIT(10)|BIT(9)|BIT(8)));
-		regmap_update_bits(priv->scu, 0x308, CLK_DIV_MASK, (BIT(16)|BIT(15)|BIT(13)|BIT(12)));
+		regmap_update_bits(priv->scu, SCU_CLK_SEL,
+		CLK_SOURCE_MASK, (BIT(10)|BIT(9)|BIT(8)));
+		regmap_update_bits(priv->scu, SCU_CLK_SEL3,
+		CLK_DIV_MASK, (BIT(16)|BIT(15)|BIT(13)|BIT(12)));
 		break;
 	case 1280:
 		/* dp div2 = 135Mhz */
-		regmap_update_bits(priv->scu, 0x300, CLK_SOURCE_MASK, BIT(10));
-		regmap_update_bits(priv->scu, 0x308, CLK_DIV_MASK, BIT(12));
+		regmap_update_bits(priv->scu, SCU_CLK_SEL,
+		CLK_SOURCE_MASK, BIT(10));
+		regmap_update_bits(priv->scu, SCU_CLK_SEL3,
+		CLK_DIV_MASK, BIT(12));
 		break;
 	case 800:
 	default:
 		/* usb 40Mhz */
-		regmap_update_bits(priv->scu, 0x300, CLK_SOURCE_MASK, BIT(9));
+		regmap_update_bits(priv->scu, SCU_CLK_SEL,
+		CLK_SOURCE_MASK, BIT(9));
 		break;
 	}
 }
@@ -86,12 +91,12 @@ static void aspeed_gfx_enable_controller(struct aspeed_gfx *priv)
 	/* SCU2C: set DAC source for display output to Graphics CRT (GFX) */
 	/* SCU2C: set DP source for display output to Graphics (GFX) */
 	if (priv->version == GFX_AST2600) {
-		regmap_update_bits(priv->scu, 0xc0, CRT_FROM_SOC, CRT_FROM_SOC);
+		regmap_update_bits(priv->scu, SCU_MISC_NEW, CRT_FROM_SOC, CRT_FROM_SOC);
 		if (priv->dp_support)
-			regmap_update_bits(priv->scu, 0xc0, DP_FROM_SOC, DP_FROM_SOC);
+			regmap_update_bits(priv->scu, SCU_MISC_NEW, DP_FROM_SOC, DP_FROM_SOC);
 	}
 	else
-		regmap_update_bits(priv->scu, 0x2c, CRT_FROM_SOC, CRT_FROM_SOC);
+		regmap_update_bits(priv->scu, SCU_MISC_OLD, CRT_FROM_SOC, CRT_FROM_SOC);
 
 	writel(ctrl1 | CRT_CTRL_EN, priv->base + CRT_CTRL1);
 	writel(ctrl2 | CRT_CTRL_DAC_EN, priv->base + CRT_CTRL2);
@@ -106,12 +111,12 @@ static void aspeed_gfx_disable_controller(struct aspeed_gfx *priv)
 	writel(ctrl2 & ~CRT_CTRL_DAC_EN, priv->base + CRT_CTRL2);
 
 	if (priv->version == GFX_AST2600) {
-		regmap_update_bits(priv->scu, 0xc0, CRT_FROM_SOC, 0);
+		regmap_update_bits(priv->scu, SCU_MISC_NEW, CRT_FROM_SOC, 0);
 		if (priv->dp_support)
-			regmap_update_bits(priv->scu, 0xc0, DP_FROM_SOC, 0);
+			regmap_update_bits(priv->scu, SCU_MISC_NEW, DP_FROM_SOC, 0);
 	}
 	else 
-		regmap_update_bits(priv->scu, 0x2c, CRT_FROM_SOC, 0);
+		regmap_update_bits(priv->scu, SCU_MISC_OLD, CRT_FROM_SOC, 0);
 }
 
 static void aspeed_gfx_dp_mode_set(struct aspeed_gfx *priv, int mode_width)
@@ -119,16 +124,16 @@ static void aspeed_gfx_dp_mode_set(struct aspeed_gfx *priv, int mode_width)
 	switch (mode_width) {
 	case 1024:
 		/* hpll div 16 = 75Mhz */
-		regmap_write(priv->dpmcu, 0xde0, DP_1024);
+		regmap_write(priv->dpmcu, DP_RESOLUTION, DP_1024);
 		break;
 	case 1280:
 		/* dp div2 = 135Mhz */
-		regmap_write(priv->dpmcu, 0xde0, DP_1280);
+		regmap_write(priv->dpmcu, DP_RESOLUTION, DP_1280);
 		break;
 	case 800:
 	default:
 		/* usb 40Mhz */
-		regmap_write(priv->dpmcu, 0xde0, DP_800);
+		regmap_write(priv->dpmcu, DP_RESOLUTION, DP_800);
 		break;
 	}
 }
