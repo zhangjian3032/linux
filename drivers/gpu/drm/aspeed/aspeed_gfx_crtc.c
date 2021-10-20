@@ -232,16 +232,10 @@ static void aspeed_gfx_pipe_enable(struct drm_simple_display_pipe *pipe,
 {
 	struct aspeed_gfx *priv = drm_pipe_to_aspeed_gfx(pipe);
 	struct drm_crtc *crtc = &pipe->crtc;
-	struct drm_device *drm = crtc->dev;
-	u32 reg;
-
-	regmap_read(priv->pcie, PCIE_RST_REG, &reg);
-	dev_dbg(drm->dev, "rst reg v %x\n", reg);
 
 	aspeed_gfx_crtc_mode_set_nofb(priv);
 
 	aspeed_gfx_enable_controller(priv);
-
 	drm_crtc_vblank_on(crtc);
 }
 
