@@ -13,6 +13,7 @@ struct aspeed_gfx {
 	struct regmap			*scu;
 	struct regmap			*dp;
 	struct regmap			*dpmcu;
+	struct regmap			*pcie;
 	u8						dp_support;
 
 	struct drm_simple_display_pipe	pipe;
@@ -65,18 +66,20 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define OSD_COLOR7		0xF8 /* OSD Color Palette Index 13 & 12 */
 #define OSD_COLOR8		0xFC /* OSD Color Palette Index 15 & 14 */
 
-#define DP_MCU_SOURCE	0xb8  /* DPMCUB8 dp source */
-#define DP_RESOLUTION	0xde0  /* DPMCUDE0 dp resolution */
+#define DP_MCU_SOURCE		0xb8  /* DPMCUB8 dp source */
+#define DP_RESOLUTION		0xde0  /* DPMCUDE0 dp resolution */
 
-#define SCU_MISC_OLD	0x2C  /* SCUC0 MISC. control register (AST2500) */
-#define SCU_MISC_NEW	0xC0  /* SCUC0 MISC. control register (AST2600) */
-#define SCU_DP_STATUS	0x100 /* SCU100 VGA function handshake */
+#define SCU_MISC_OLD		0x2C  /* SCUC0 MISC. control register (AST2500) */
+#define SCU_MISC_NEW		0xC0  /* SCUC0 MISC. control register (AST2600) */
+#define SCU_DP_STATUS		0x100 /* SCU100 VGA function handshake */
 #define SCU_CLK_SEL		0x300 /* SCU300 clock selection register */
 #define SCU_CLK_SEL3		0x308 /* SCU308 clock selection register set 3 */
 #define SCU_INT_REG		0x560 /* SCU560 scu interrupt control and status */
 
+#define PCIE_RST_REG		0xC4 /* pcie rst status */
+
 #define DP_EXECUTE		0x2E /* DP Status */
-#define CLK_SOURCE_MASK	(BIT(10)|BIT(9)|BIT(8)) /* CLK Source Mask SCU300[10:8] */
+#define CLK_SOURCE_MASK		(BIT(10)|BIT(9)|BIT(8)) /* CLK Source Mask SCU300[10:8] */
 #define CLK_DIV_MASK		0x3F000 /* CLK Divided Mask SCU308[17:12]*/
 
 #define DP_800			0x01050020 /* 800 x 600 60Hz */
@@ -84,23 +87,24 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define DP_1280			0x010e0020 /* 1280 x 1024 75Hz */
 
 #define DP_CP_NAME		"aspeed,ast2600-displayport"
-#define DP_MCU_CP_NAME	"aspeed,ast2600-displayport-mcu"
+#define DP_MCU_CP_NAME		"aspeed,ast2600-displayport-mcu"
+#define PCIE_NAME		"aspeed,ast2600-pcie-ep"
 
 #define DP_FROM_SOC		BIT(18)
-#define CRT_FROM_SOC	BIT(16)
+#define CRT_FROM_SOC		BIT(16)
 
 #define DP_CONTROL_FROM_SOC	(BIT(24)|BIT(28))
 
 #define DP_FROM_SOC		BIT(18)
-#define CRT_FROM_SOC	BIT(16)
+#define CRT_FROM_SOC		BIT(16)
 
 #define PCIE_PERST_L_T_H	BIT(18)
 #define PCIE_PERST_H_T_L	BIT(19)
 
 #define STS_PERST_STATUS	(PCIE_PERST_L_T_H|PCIE_PERST_H_T_L)
-#define STS_PERST_EN	(BIT(2)|BIT(3))
 
 #define DP_CONTROL_FROM_SOC	(BIT(24)|BIT(28))
+#define PCIE_NOT_RST		BIT(19)
 
 /* CTRL1 */
 #define CRT_CTRL_EN			BIT(0)
@@ -149,7 +153,7 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define CRT_THROD_HIGH(x)		((x) << 8)
 
 /* Default Threshold Seting */
-#define CRT_THROD_VAL	(CRT_THROD_LOW(0x1E) | CRT_THROD_HIGH(0x12))
+#define CRT_THROD_VAL		(CRT_THROD_LOW(0x1E) | CRT_THROD_HIGH(0x12))
 #define G5_CRT_THROD_VAL	(CRT_THROD_LOW(0x24) | CRT_THROD_HIGH(0x3C))
 #define G6_CRT_THROD_VAL	(CRT_THROD_LOW(0x50) | CRT_THROD_HIGH(0x70))
 

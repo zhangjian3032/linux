@@ -235,8 +235,13 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	}
 	clk_prepare_enable(priv->clk);
 
-	if (priv->version == GFX_AST2600) {
+	priv->pcie = syscon_regmap_lookup_by_compatible(PCIE_NAME);
+	if (IS_ERR(priv->pcie)) {
+		dev_err(&pdev->dev, "failed to find PCIE regmap\n");
+		return PTR_ERR(priv->dpmcu);
+	}
 
+	if (priv->version == GFX_AST2600) {
 		/* check AST DP is executed or not*/
 		ret = regmap_read(priv->scu, SCU_DP_STATUS, &reg);
 
@@ -255,9 +260,17 @@ static int aspeed_gfx_load(struct drm_device *drm)
 				return PTR_ERR(priv->dpmcu);
 			}
 
-			/* change the dp setting is coming from soc display */
-			regmap_update_bits(priv->dp, DP_MCU_SOURCE,
-			DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
+			/* check pcie rst status */
+			regmap_read(priv->pcie, PCIE_RST_REG, &reg);
+			dev_dbg(drm->dev, "drv rst reg v %x\n", reg);
+
+			/* host vga is off */
+			if (!(reg & PCIE_NOT_RST)) {
+				dev_dbg(drm->dev, "dp source is come from soc");
+				/* change the dp setting is coming from soc display */
+				regmap_update_bits(priv->dp, DP_MCU_SOURCE,
+				DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
+			}
 		} else {
 			priv->dp_support = 0x0;
 			priv->dp = NULL;
