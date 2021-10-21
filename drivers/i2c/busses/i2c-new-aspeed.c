@@ -1239,6 +1239,7 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 static int aspeed_new_i2c_master_irq(struct aspeed_new_i2c_bus *i2c_bus)
 {
 	u32 sts = readl(i2c_bus->reg_base + AST_I2CM_ISR);
+	u32 ctrl = 0;
 
 	dev_dbg(i2c_bus->dev, "M sts %x\n", sts);
 	if (!i2c_bus->alert_enable)
@@ -1247,6 +1248,9 @@ static int aspeed_new_i2c_master_irq(struct aspeed_new_i2c_bus *i2c_bus)
 	if (AST_I2CM_BUS_RECOVER_FAIL & sts) {
 		dev_dbg(i2c_bus->dev, "M clear isr: AST_I2CM_BUS_RECOVER_FAIL= %x\n", sts);
 		writel(AST_I2CM_BUS_RECOVER_FAIL, i2c_bus->reg_base + AST_I2CM_ISR);
+		ctrl = readl(i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
+		writel(0, i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
+		writel(ctrl, i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
 		i2c_bus->cmd_err = -EPROTO;
 		complete(&i2c_bus->cmd_complete);
 		return 1;
