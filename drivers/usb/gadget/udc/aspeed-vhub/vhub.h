@@ -402,6 +402,7 @@ struct ast_vhub {
 
 	/* Upstream bus speed captured at bus reset */
 	unsigned int			speed;
+	u8				current_config;
 };
 
 /* Standard request handlers result codes */

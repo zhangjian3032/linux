@@ -72,6 +72,18 @@ static const struct usb_device_descriptor ast_vhub_dev_desc = {
 	.bNumConfigurations	= 1,
 };
 
+static const struct usb_qualifier_descriptor ast_vhub_qual_desc = {
+	.bLength = 0xA,
+	.bDescriptorType = USB_DT_DEVICE_QUALIFIER,
+	.bcdUSB = cpu_to_le16(0x0200),
+	.bDeviceClass = USB_CLASS_HUB,
+	.bDeviceSubClass = 0,
+	.bDeviceProtocol = 0,
+	.bMaxPacketSize0 = 64,
+	.bNumConfigurations = 1,
+	.bRESERVED = 0,
+};
+
 /* Patches to the above when forcing USB1 mode */
 static void ast_vhub_patch_dev_desc_usb1(struct usb_device_descriptor *desc)
 {
@@ -298,9 +310,11 @@ static int ast_vhub_rep_desc(struct ast_vhub_ep *ep,
 		BUILD_BUG_ON(dsize > sizeof(ast_vhub_dev_desc));
 		BUILD_BUG_ON(USB_DT_DEVICE_SIZE >= AST_VHUB_EP0_MAX_PACKET);
 		break;
+	case USB_DT_OTHER_SPEED_CONFIG:
 	case USB_DT_CONFIG:
 		dsize = AST_VHUB_CONF_DESC_SIZE;
 		memcpy(ep->buf, &ast_vhub_conf_desc, dsize);
+		((u8 *)ep->buf)[1] = desc_type;
 		BUILD_BUG_ON(dsize > sizeof(ast_vhub_conf_desc));
 		BUILD_BUG_ON(AST_VHUB_CONF_DESC_SIZE >= AST_VHUB_EP0_MAX_PACKET);
 		break;
@@ -309,6 +323,10 @@ static int ast_vhub_rep_desc(struct ast_vhub_ep *ep,
 		memcpy(ep->buf, &ast_vhub_hub_desc, dsize);
 		BUILD_BUG_ON(dsize > sizeof(ast_vhub_hub_desc));
 		BUILD_BUG_ON(AST_VHUB_HUB_DESC_SIZE >= AST_VHUB_EP0_MAX_PACKET);
+		break;
+	case USB_DT_DEVICE_QUALIFIER:
+		dsize = sizeof(ast_vhub_qual_desc);
+		memcpy(ep->buf, &ast_vhub_qual_desc, dsize);
 		break;
 	default:
 		return std_req_stall;
@@ -393,10 +411,9 @@ enum std_req_rc ast_vhub_std_hub_request(struct ast_vhub_ep *ep,
 
 		/* GET/SET_CONFIGURATION */
 	case DeviceRequest | USB_REQ_GET_CONFIGURATION:
-		return ast_vhub_simple_reply(ep, 1);
+		return ast_vhub_simple_reply(ep, vhub->current_config);
 	case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
-		if (wValue != 1)
-			return std_req_stall;
+		vhub->current_config = wValue;
 		return std_req_complete;
 
 		/* GET_DESCRIPTOR */
@@ -404,6 +421,8 @@ enum std_req_rc ast_vhub_std_hub_request(struct ast_vhub_ep *ep,
 		switch (wValue >> 8) {
 		case USB_DT_DEVICE:
 		case USB_DT_CONFIG:
+		case USB_DT_DEVICE_QUALIFIER:
+		case USB_DT_OTHER_SPEED_CONFIG:
 			return ast_vhub_rep_desc(ep, wValue >> 8,
 						 wLength);
 		case USB_DT_STRING:
