@@ -657,7 +657,7 @@
 				interrupts-extended = <&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_RCRST_LO_TO_HI>;
 				interrupt-names = "pcie";
 				pcie_rc;
-				resets = <&syscon ASPEED_RESET_RC_MCTP>;
+				resets = <&syscon ASPEED_RESET_RC_MCTP>, <&syscon ASPEED_RESET_DEV_MCTP>;
 				aspeed,scu = <&syscon>;
 				aspeed,pcieh = <&pcie>;
 				status = "disabled";
