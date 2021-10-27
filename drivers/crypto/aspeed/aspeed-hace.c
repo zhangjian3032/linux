@@ -226,6 +226,9 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	}
 
 	// 8-byte aligned
+	crypto_engine->cipher_ctx = dma_alloc_coherent(&pdev->dev,
+				    PAGE_SIZE,
+				    &crypto_engine->cipher_ctx_dma, GFP_KERNEL);
 	crypto_engine->cipher_addr = dma_alloc_coherent(&pdev->dev, ASPEED_CRYPTO_SRC_DMA_BUF_LEN,
 				     &crypto_engine->cipher_dma_addr, GFP_KERNEL);
 
@@ -263,7 +266,7 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	printk("ASPEED Crypto Accelerator successfully registered \n");
+	dev_info(dev, "ASPEED Crypto Accelerator successfully registered\n");
 
 	return 0;
 }

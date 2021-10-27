@@ -192,11 +192,11 @@ struct aspeed_engine_crypto {
 	spinlock_t			lock;
 	aspeed_hace_fn_t		resume;
 	unsigned long			flags;
-
 	struct crypto_async_request	*areq;
+	void				*cipher_ctx;
+	dma_addr_t			cipher_ctx_dma;
 	void				*cipher_addr; //g6 src
 	dma_addr_t			cipher_dma_addr; //g6 src
-
 	//dst dma addr in G6 gcm dec mode, the last 16 bytes indicate tag
 	void				*dst_sg_addr;
 	dma_addr_t			dst_sg_dma_addr; //g6
@@ -207,15 +207,15 @@ struct aspeed_cipher_ctx {
 	struct aspeed_hace_dev		*hace_dev;
 	aspeed_hace_fn_t		start;
 	int 				key_len;
-	int 				enc_cmd;
-	int 				src_nents;
-	int 				dst_nents;
-	int				src_sg_len;
-	int				dst_sg_len;
-	void				*cipher_key;
-	dma_addr_t			cipher_key_dma;
-
+	u8				key[AES_MAX_KEYLENGTH];
+	u8				sub_key[16]; // for aes gcm
 	struct crypto_skcipher		*aes; // for caculating gcm(aes) subkey
+};
+
+struct aspeed_cipher_reqctx {
+	int enc_cmd;
+	int src_nents;
+	int dst_nents;
 };
 
 struct aspeed_gcm_subkey_result {
