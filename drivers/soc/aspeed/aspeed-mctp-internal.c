@@ -258,6 +258,7 @@ struct aspeed_mctp_info {
 	int pcie_irq;
 	int mctp_version;
 	struct reset_control *reset;
+	struct reset_control *reset_ep;
 	u32 dram_base;
 
 	/* mctp tx info */
@@ -1315,16 +1316,28 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		}
 	}
 
-	aspeed_mctp->reset = devm_reset_control_get(&pdev->dev, NULL);
+	aspeed_mctp->reset = devm_reset_control_get_by_index(&pdev->dev, 0);
 	if (IS_ERR(aspeed_mctp->reset)) {
 		dev_err(&pdev->dev, "can't get mctp reset\n");
 		return PTR_ERR(aspeed_mctp->reset);
 	}
 
+	if (rc_f) {
+		aspeed_mctp->reset_ep = devm_reset_control_get_by_index(&pdev->dev, 1);
+		if (IS_ERR(aspeed_mctp->reset_ep)) {
+			dev_err(&pdev->dev, "can't get mctp reset\n");
+			return PTR_ERR(aspeed_mctp->reset_ep);
+		}
+	}
+
 //scu init
 	if (aspeed_mctp->mctp_version == ASPEED_MCTP_2600 || aspeed_mctp->mctp_version == ASPEED_MCTP_2600A3) {
-		if (rc_f || aspeed_mctp_readl(aspeed_mctp, ASPEED_MCTP_TX_DESC_ADDR) == 0) {
-			pr_info("aspeed_mctp: reset.\n");
+		if (rc_f) {
+			reset_control_assert(aspeed_mctp->reset);
+			reset_control_assert(aspeed_mctp->reset_ep);
+			reset_control_deassert(aspeed_mctp->reset);
+			reset_control_deassert(aspeed_mctp->reset_ep);
+		} else if (aspeed_mctp_readl(aspeed_mctp, ASPEED_MCTP_TX_DESC_ADDR) == 0) {
 			reset_control_assert(aspeed_mctp->reset);
 			reset_control_deassert(aspeed_mctp->reset);
 		}
