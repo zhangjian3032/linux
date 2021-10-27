@@ -592,7 +592,7 @@
 			};
 
 			pcie: pcie@1e6ed200 {
-				compatible = "aspeed,ast2600-pcie";
+				compatible = "aspeed,ast2600-pcie", "syscon";
 				reg = <0x1e6ed200 0x100>;
 				device_type = "pci";
 				bus-range = <0x00 0xff>;
@@ -647,6 +647,7 @@
 				interrupt-names = "mctp", "pcie";
 				resets = <&syscon ASPEED_RESET_DEV_MCTP>;
 				aspeed,scu = <&syscon>;
+				aspeed,pcieh = <&pcie_ep>;
 				status = "disabled";
 			};
 
@@ -658,6 +659,7 @@
 				pcie_rc;
 				resets = <&syscon ASPEED_RESET_RC_MCTP>;
 				aspeed,scu = <&syscon>;
+				aspeed,pcieh = <&pcie>;
 				status = "disabled";
 			};
 
