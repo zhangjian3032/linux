@@ -45,7 +45,7 @@ struct aspeed_i2c_base_clk {
 
 static const struct aspeed_i2c_base_clk i2c_base_clk[BASE_CLK_COUNT] = {
 	/* name	target_freq */
-	{  "base_clk3",	40000000 },	/* 40M */
+	{  "base_clk3",	20000000 },	/* 20M */
 	{  "base_clk2",	10000000 },	/* 10M */
 	{  "base_clk1",	3250000 },	/* 33M */
 	{  "base_clk0",	1000000 },	/* 1M */

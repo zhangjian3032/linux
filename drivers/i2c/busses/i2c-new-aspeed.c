@@ -464,7 +464,7 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 		scl_high = ((divisor >> 1) - 1) & 0xf;
 		scl_low = (divisor - scl_high - 2) & 0xf;
 		/* Divisor : Base Clock : tCKHighMin : tCK High : tCK Low  */
-		data = ((scl_high) << 20) | (scl_high << 16) | (scl_low << 12) | (baseclk_idx);
+		data = ((scl_high - 1) << 20) | (scl_high << 16) | (scl_low << 12) | (baseclk_idx);
 	} else {
 		for (i = 0; i < ARRAY_SIZE(aspeed_old_i2c_timing_table); i++) {
 			if ((i2c_bus->apb_clk / aspeed_old_i2c_timing_table[i].divisor) <
