@@ -1113,7 +1113,10 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 		ast_ctrl->chips[target_cs].max_clk_freq =
 			desc->mem->spi->max_speed_hz;
 
-		ret = info->calibrate(ast_ctrl, target_cs);
+		if (!of_property_read_bool(ast_ctrl->dev->of_node,
+			"timing-calibration-disabled")) {
+			ret = info->calibrate(ast_ctrl, target_cs);
+		}
 
 		dev_info(dev, "read bus width: %d [0x%08x]\n",
 			 op_tmpl.data.buswidth,
