@@ -760,6 +760,14 @@
 	status = "okay";
 };
 
+&i2c14 {
+	status = "okay";
+};
+
+&i2c15 {
+	status = "okay";
+};
+
 &kcs1 {
 	kcs_addr = <0xca0>;
 	status = "okay";
