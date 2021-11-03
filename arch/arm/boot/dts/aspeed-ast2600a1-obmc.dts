@@ -118,14 +118,6 @@
 };
 
 &mctp0 {
-	tx-payload-bytes= <64>;
-	rx-payload-bytes= <64>;
-	status = "okay";
-};
-
-&mctp1 {
-	tx-payload-bytes= <64>;
-	rx-payload-bytes= <64>;
 	status = "okay";
 };
 
