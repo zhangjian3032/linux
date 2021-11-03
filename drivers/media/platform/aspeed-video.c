@@ -642,9 +642,15 @@ static void aspeed_video_on(struct aspeed_video *video)
 	if (test_bit(VIDEO_CLOCKS_ON, &video->flags))
 		return;
 
+	reset_control_assert(video->reset);
+	udelay(100);
+
 	/* Turn on the relevant clocks */
 	clk_enable(video->vclk);
 	clk_enable(video->eclk);
+
+	mdelay(10);
+	reset_control_deassert(video->reset);
 
 	set_bit(VIDEO_CLOCKS_ON, &video->flags);
 }
