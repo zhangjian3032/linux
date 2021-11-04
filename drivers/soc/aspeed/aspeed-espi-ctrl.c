@@ -147,7 +147,6 @@ static int aspeed_espi_ctrl_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-
 	espi_ctrl->perif = aspeed_espi_perif_alloc(dev, espi_ctrl);
 	if (IS_ERR(espi_ctrl->perif)) {
 		dev_err(dev, "failed to allocate peripheral channel\n");
@@ -171,6 +170,8 @@ static int aspeed_espi_ctrl_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to allocate flash channel\n");
 		return PTR_ERR(espi_ctrl->flash);
 	}
+
+	regmap_update_bits(espi_ctrl->map, ESPI_CTRL2, BIT(30), 0);
 
 	regmap_write(espi_ctrl->map, ESPI_SYSEVT_INT_T0, 0x0);
 	regmap_write(espi_ctrl->map, ESPI_SYSEVT_INT_T1, 0x0);
