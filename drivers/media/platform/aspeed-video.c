@@ -86,11 +86,8 @@
 #define  VE_SEQ_CTRL_CAP_BUSY		BIT(16)
 #define  VE_SEQ_CTRL_COMP_BUSY		BIT(18)
 
-#ifdef CONFIG_MACH_ASPEED_G4
-#define  VE_SEQ_CTRL_JPEG_MODE		BIT(8)	/* AST2400 */
-#else
-#define  VE_SEQ_CTRL_JPEG_MODE		BIT(13)	/* AST2500/2600 */
-#endif
+#define AST2500_VE_SEQ_CTRL_JPEG_MODE	BIT(13)
+#define AST2400_VE_SEQ_CTRL_JPEG_MODE	BIT(8)
 
 #define VE_CTRL				0x008
 #define  VE_CTRL_HSYNC_POL		BIT(0)
@@ -155,11 +152,8 @@
 #define  VE_COMP_CTRL_HQ_DCT_CHR	GENMASK(26, 22)
 #define  VE_COMP_CTRL_HQ_DCT_LUM	GENMASK(31, 27)
 
-#define VE_CB_ADDR			0x06C
-
-#define VE_OFFSET_COMP_STREAM		0x078
-
-#define VE_JPEG_COMP_SIZE_READ_BACK	0x084
+#define AST2400_VE_COMP_SIZE_READ_BACK	0x078
+#define AST2600_VE_COMP_SIZE_READ_BACK	0x084
 
 #define VE_SRC_LR_EDGE_DET		0x090
 #define  VE_SRC_LR_EDGE_DET_LEFT	GENMASK(11, 0)
@@ -247,6 +241,12 @@ struct aspeed_video_perf {
 #define to_aspeed_video_buffer(x) \
 	container_of((x), struct aspeed_video_buffer, vb)
 
+struct aspeed_video_config {
+	u8 version;
+	u32 jpeg_mode;
+	u32 comp_size_read;
+};
+
 /**
  * struct aspeed_video - driver data
  *
@@ -286,6 +286,8 @@ struct aspeed_video {
 	struct video_device vdev;
 	struct mutex video_lock;	/* v4l2 and videobuf2 lock */
 
+	struct aspeed_video_config config;
+
 	wait_queue_head_t wait;
 	spinlock_t lock;		/* buffer list lock */
 	struct delayed_work res_work;
@@ -315,6 +317,24 @@ struct aspeed_video {
 };
 
 #define to_aspeed_video(x) container_of((x), struct aspeed_video, v4l2_dev)
+
+static const struct aspeed_video_config ast2400_config = {
+	.version = 4,
+	.jpeg_mode = AST2400_VE_SEQ_CTRL_JPEG_MODE,
+	.comp_size_read = AST2400_VE_COMP_SIZE_READ_BACK,
+};
+
+static const struct aspeed_video_config ast2500_config = {
+	.version = 5,
+	.jpeg_mode = AST2500_VE_SEQ_CTRL_JPEG_MODE,
+	.comp_size_read = AST2400_VE_COMP_SIZE_READ_BACK,
+};
+
+static const struct aspeed_video_config ast2600_config = {
+	.version = 6,
+	.jpeg_mode = AST2500_VE_SEQ_CTRL_JPEG_MODE,
+	.comp_size_read = AST2600_VE_COMP_SIZE_READ_BACK,
+};
 
 static const u32 aspeed_video_jpeg_header[ASPEED_VIDEO_JPEG_HEADER_SIZE] = {
 	0xe0ffd8ff, 0x464a1000, 0x01004649, 0x60000101, 0x00006000, 0x0f00feff,
@@ -732,7 +752,7 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 		struct aspeed_video_buffer *buf;
 		bool empty = false;
 		u32 frame_size = aspeed_video_read(video,
-						   VE_JPEG_COMP_SIZE_READ_BACK);
+						   video->config.comp_size_read);
 
 		update_perf(&video->perf);
 
@@ -1115,7 +1135,7 @@ static void aspeed_video_update_regs(struct aspeed_video *video)
 
 	if (!video->partial_jpeg) {
 		comp_ctrl &= ~FIELD_PREP(VE_COMP_CTRL_EN_HQ, video->hq_mode);
-		seq_ctrl |= VE_SEQ_CTRL_JPEG_MODE;
+		seq_ctrl |= video->config.jpeg_mode;
 	}
 
 	if (video->yuv420)
@@ -1124,23 +1144,24 @@ static void aspeed_video_update_regs(struct aspeed_video *video)
 	if (video->jpeg.virt)
 		aspeed_video_update_jpeg_table(video->jpeg.virt, video->yuv420);
 
-#ifdef CONFIG_MACH_ASPEED_G4
-	switch (video->compression_mode) {
-	case 0:	//DCT only
-		comp_ctrl |= VE_COMP_CTRL_VQ_DCT_ONLY;
-		break;
-	case 1:	//DCT VQ mix 2-color
-		comp_ctrl &= ~(VE_COMP_CTRL_VQ_4COLOR | VE_COMP_CTRL_VQ_DCT_ONLY);
-		break;
-	case 2:	//DCT VQ mix 4-color
-		comp_ctrl |= VE_COMP_CTRL_VQ_4COLOR;
-		break;
+	if (video->config.version == 4) {
+		switch (video->compression_mode) {
+		case 0:	//DCT only
+			comp_ctrl |= VE_COMP_CTRL_VQ_DCT_ONLY;
+			break;
+		case 1:	//DCT VQ mix 2-color
+			comp_ctrl &= ~(VE_COMP_CTRL_VQ_4COLOR |
+				     VE_COMP_CTRL_VQ_DCT_ONLY);
+			break;
+		case 2:	//DCT VQ mix 4-color
+			comp_ctrl |= VE_COMP_CTRL_VQ_4COLOR;
+			break;
+		}
 	}
-#endif
 
 	/* Set control registers */
 	aspeed_video_update(video, VE_SEQ_CTRL,
-			    VE_SEQ_CTRL_JPEG_MODE | VE_SEQ_CTRL_YUV420,
+			    video->config.jpeg_mode | VE_SEQ_CTRL_YUV420,
 			    seq_ctrl);
 	aspeed_video_update(video, VE_CTRL, VE_CTRL_FRC, ctrl);
 	aspeed_video_update(video, VE_COMP_CTRL,
@@ -1524,13 +1545,14 @@ static int aspeed_video_set_ctrl(struct v4l2_ctrl *ctrl)
 		if (test_bit(VIDEO_STREAMING, &video->flags))
 			aspeed_video_update_regs(video);
 		break;
-#ifdef CONFIG_MACH_ASPEED_G4
 	case V4L2_CID_ASPEED_COMPRESSION_MODE:
+		if (video->config.version > 4)
+			return -EINVAL;
+
 		video->compression_mode = ctrl->val;
 		if (test_bit(VIDEO_STREAMING, &video->flags))
 			aspeed_video_update_regs(video);
 		break;
-#endif
 	case V4L2_CID_ASPEED_HQ_MODE:
 		video->hq_mode = ctrl->val;
 		if (test_bit(VIDEO_STREAMING, &video->flags))
@@ -1563,7 +1585,6 @@ static const struct v4l2_ctrl_config aspeed_ctrl_format = {
 	.def = false,
 };
 
-#ifdef CONFIG_MACH_ASPEED_G4
 static const struct v4l2_ctrl_config aspeed_ctrl_compression_mode = {
 	.ops = &aspeed_video_ctrl_ops,
 	.id = V4L2_CID_ASPEED_COMPRESSION_MODE,
@@ -1574,7 +1595,6 @@ static const struct v4l2_ctrl_config aspeed_ctrl_compression_mode = {
 	.step = 1,
 	.def = 0,
 };
-#endif
 
 static const struct v4l2_ctrl_config aspeed_ctrl_HQ_mode = {
 	.ops = &aspeed_video_ctrl_ops,
@@ -1920,9 +1940,8 @@ static int aspeed_video_setup_video(struct aspeed_video *video)
 			       V4L2_JPEG_CHROMA_SUBSAMPLING_420, mask,
 			       V4L2_JPEG_CHROMA_SUBSAMPLING_444);
 	v4l2_ctrl_new_custom(hdl, &aspeed_ctrl_format, NULL);
-#ifdef CONFIG_MACH_ASPEED_G4
-	v4l2_ctrl_new_custom(hdl, &aspeed_ctrl_compression_mode, NULL);
-#endif
+	if (video->config.version == 4)
+		v4l2_ctrl_new_custom(hdl, &aspeed_ctrl_compression_mode, NULL);
 	v4l2_ctrl_new_custom(hdl, &aspeed_ctrl_HQ_mode, NULL);
 	v4l2_ctrl_new_custom(hdl, &aspeed_ctrl_HQ_jpeg_quality, NULL);
 
@@ -2058,8 +2077,18 @@ err_unprepare_eclk:
 	return rc;
 }
 
+static const struct of_device_id aspeed_video_of_match[] = {
+	{ .compatible = "aspeed,ast2400-video-engine", .data = &ast2400_config },
+	{ .compatible = "aspeed,ast2500-video-engine", .data = &ast2500_config },
+	{ .compatible = "aspeed,ast2600-video-engine", .data = &ast2600_config },
+	{}
+};
+MODULE_DEVICE_TABLE(of, aspeed_video_of_match);
+
 static int aspeed_video_probe(struct platform_device *pdev)
 {
+	const struct aspeed_video_config *config;
+	const struct of_device_id *match;
 	int rc;
 	struct resource *res;
 	struct aspeed_video *video =
@@ -2083,6 +2112,13 @@ static int aspeed_video_probe(struct platform_device *pdev)
 	if (IS_ERR(video->base))
 		return PTR_ERR(video->base);
 
+	match = of_match_node(aspeed_video_of_match, pdev->dev.of_node);
+	if (!match)
+		return -EINVAL;
+
+	config = match->data;
+	video->config = *config;
+
 	rc = aspeed_video_init(video);
 	if (rc)
 		return rc;
@@ -2095,6 +2131,8 @@ static int aspeed_video_probe(struct platform_device *pdev)
 	}
 
 	aspeed_video_debugfs_create(video);
+
+	dev_info(video->dev, "compatible for g%d\n", config->version);
 
 	return 0;
 }
@@ -2127,14 +2165,6 @@ static int aspeed_video_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id aspeed_video_of_match[] = {
-	{ .compatible = "aspeed,ast2400-video-engine" },
-	{ .compatible = "aspeed,ast2500-video-engine" },
-	{ .compatible = "aspeed,ast2600-video-engine" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, aspeed_video_of_match);
 
 static struct platform_driver aspeed_video_driver = {
 	.driver = {
