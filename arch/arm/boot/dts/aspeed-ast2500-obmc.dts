@@ -52,6 +52,10 @@
 	};
 };
 
+&mctp {
+	status = "okay";
+};
+
 &adc {
 	status = "okay";
 
