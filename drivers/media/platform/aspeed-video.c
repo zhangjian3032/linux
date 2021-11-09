@@ -32,15 +32,9 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-dma-contig.h>
 #include <linux/videodev2.h>
-
-#define ASPEED_CID_CUSTOM_BASE			(V4L2_CID_USER_BASE | 0xf000)
-#define V4L2_CID_ASPEED_FORMAT			(ASPEED_CID_CUSTOM_BASE  + 1)
-#define V4L2_CID_ASPEED_COMPRESSION_MODE	(ASPEED_CID_CUSTOM_BASE  + 2)
-#define V4L2_CID_ASPEED_HQ_MODE			(ASPEED_CID_CUSTOM_BASE  + 3)
-#define V4L2_CID_ASPEED_HQ_JPEG_QUALITY		(ASPEED_CID_CUSTOM_BASE  + 4)
+#include <uapi/linux/aspeed-video.h>
 
 #define ASPEED_VIDEO_V4L2_MIN_BUF_REQ 3
-
 
 #define DEVICE_NAME			"aspeed-video"
 
@@ -65,7 +59,7 @@
 
 #define VE_MAX_SRC_BUFFER_SIZE		0x8ca000 /* 1920 * 1200, 32bpp */
 #define VE_JPEG_HEADER_SIZE		0x006000 /* 512 * 12 * 4 */
-#define VE_BCD_BUFF_SIZE		0x10000 /* (1920/8) * (1200/8) */
+#define VE_BCD_BUFF_SIZE		0x9000 /* (1920/8) * (1200/8) */
 
 #define VE_PROTECTION_KEY		0x000
 #define  VE_PROTECTION_KEY_UNLOCK	0x1a038aa8
@@ -262,6 +256,8 @@ struct aspeed_video_config {
 /**
  * struct aspeed_video - driver data
  *
+ * @res_work:		holds the delayed_work for res-detection if unlock
+ * @buffers:		holds the list of buffer queued from user
  * @flags:		holds the state of video
  * @sequence:		holds the last number of frame completed
  * @max_compressed_size:holds max compressed stream's size
@@ -273,8 +269,8 @@ struct aspeed_video_config {
  * @hq_mode:		a flag raised if HQ is enabled. Only for VIDEO_FMT_ASPEED
  * @frame_rate:		holds the frame_rate
  * @jpeg_quality:	holds jpeq's quality (0~11)
- * @jpeg_hq_quality:	holds hq's quality (0~11) only if hq_mode enabled
- * @compression_mode:	holds jpeg compression mode
+ * @jpeg_hq_quality:	holds hq's quality (1~12) only if hq_mode enabled
+ * @compression_scheme:	holds image coding scheme of aspeed jpeg
  * @frame_bottom:	end position of video data in vertical direction
  * @frame_left:		start position of video data in horizontal direction
  * @frame_right:	end position of video data in horizontal direction
@@ -318,7 +314,7 @@ struct aspeed_video {
 	unsigned int frame_rate;
 	unsigned int jpeg_quality;
 	unsigned int jpeg_hq_quality;
-	unsigned int compression_mode;
+	unsigned int compression_scheme;
 
 	unsigned int frame_bottom;
 	unsigned int frame_left;
@@ -481,7 +477,7 @@ static const struct v4l2_dv_timings_cap aspeed_video_timings_cap = {
 	},
 };
 
-static const char * const compress_mode_str[] = {"DCT Only",
+static const char * const compress_scheme_str[] = {"DCT Only",
 	"DCT VQ mix 2-color", "DCT VQ mix 4-color"};
 static const char * const format_str[] = {"Standard JPEG",
 	"Aspeed JPEG", "Partial JPEG"};
@@ -716,6 +712,24 @@ static void aspeed_video_irq_res_change(struct aspeed_video *video, ulong delay)
 	schedule_delayed_work(&video->res_work, delay);
 }
 
+static void aspeed_video_swap_src_buf(struct aspeed_video *v)
+{
+	if (v->format == VIDEO_FMT_STANDARD)
+		return;
+
+	/* Reset bcd buffer to have a full frame update every 8 frames.  */
+	if (IS_ALIGNED(v->sequence, 8))
+		memset((u8 *)v->bcd.virt, 0x00, VE_BCD_BUFF_SIZE);
+
+	if (v->sequence & 0x01) {
+		aspeed_video_write(v, VE_SRC0_ADDR, v->srcs[1].dma);
+		aspeed_video_write(v, VE_SRC1_ADDR, v->srcs[0].dma);
+	} else {
+		aspeed_video_write(v, VE_SRC0_ADDR, v->srcs[0].dma);
+		aspeed_video_write(v, VE_SRC1_ADDR, v->srcs[1].dma);
+	}
+}
+
 /*
  * Interrupts that we don't use but have to explicitly ignore because the
  * hardware asserts them even when they're disabled in the VE_INTERRUPT_CTRL
@@ -767,7 +781,7 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 
 	if (sts & VE_INTERRUPT_COMP_COMPLETE) {
 		struct aspeed_video_buffer *buf;
-		bool empty = false;
+		bool empty = true;
 		u32 frame_size = aspeed_video_read(video,
 						   video->config.comp_size_read);
 
@@ -782,12 +796,13 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 			vb2_set_plane_payload(&buf->vb.vb2_buf, 0, frame_size);
 
 			/*
-			 * partial_jpeg requires continuous update.
+			 * aspeed_jpeg requires continuous update.
 			 * On the contrary, standard jpeg can keep last buffer
 			 * to always have the latest result.
 			 */
 			if (video->format == VIDEO_FMT_STANDARD &&
 			    list_is_last(&buf->link, &video->buffers)) {
+				empty = false;
 				v4l2_warn(&video->v4l2_dev, "skip to keep last frame updated\n");
 			} else {
 				buf->vb.vb2_buf.timestamp = ktime_get_ns();
@@ -798,8 +813,7 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 				list_del(&buf->link);
 				empty = list_empty(&video->buffers);
 			}
-		} else
-			empty = true;
+		}
 		spin_unlock(&video->lock);
 
 		aspeed_video_update(video, VE_SEQ_CTRL,
@@ -812,15 +826,7 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 				   VE_INTERRUPT_COMP_COMPLETE);
 		sts &= ~VE_INTERRUPT_COMP_COMPLETE;
 
-		// swap src buffer if partial_jpeg
-		if (video->format != VIDEO_FMT_STANDARD) {
-			u32 src0, src1;
-
-			src0 = aspeed_video_read(video, VE_SRC0_ADDR);
-			src1 = aspeed_video_read(video, VE_SRC1_ADDR);
-			aspeed_video_write(video, VE_SRC0_ADDR, src1);
-			aspeed_video_write(video, VE_SRC1_ADDR, src0);
-		}
+		aspeed_video_swap_src_buf(video);
 
 		if (test_bit(VIDEO_STREAMING, &video->flags) && !empty)
 			aspeed_video_start_frame(video);
@@ -972,7 +978,7 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
 						      res_check(video),
 						      MODE_DETECT_TIMEOUT);
 		if (!rc) {
-			v4l2_dbg(1, debug, &video->v4l2_dev, "Timed out; first mode detect\n");
+			v4l2_warn(&video->v4l2_dev, "Timed out; first mode detect\n");
 			clear_bit(VIDEO_RES_DETECT, &video->flags);
 			return;
 		}
@@ -986,7 +992,7 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
 						      MODE_DETECT_TIMEOUT);
 		clear_bit(VIDEO_RES_DETECT, &video->flags);
 		if (!rc) {
-			v4l2_dbg(1, debug, &video->v4l2_dev, "Timed out; second mode detect\n");
+			v4l2_warn(&video->v4l2_dev, "Timed out; second mode detect\n");
 			return;
 		}
 
@@ -1105,9 +1111,9 @@ static void aspeed_video_set_resolution(struct aspeed_video *video)
 			goto err_mem;
 
 		v4l2_dbg(1, debug, &video->v4l2_dev, "src buf0 addr(%#x) size(%d)\n",
-			video->srcs[0].dma, video->srcs[0].size);
+			 video->srcs[0].dma, video->srcs[0].size);
 		v4l2_dbg(1, debug, &video->v4l2_dev, "src buf1 addr(%#x) size(%d)\n",
-			video->srcs[1].dma, video->srcs[1].size);
+			 video->srcs[1].dma, video->srcs[1].size);
 		aspeed_video_write(video, VE_SRC0_ADDR, video->srcs[0].dma);
 		aspeed_video_write(video, VE_SRC1_ADDR, video->srcs[1].dma);
 	}
@@ -1123,12 +1129,13 @@ err_mem:
 
 static void aspeed_video_update_regs(struct aspeed_video *video)
 {
+	u8 jpeg_hq_quality = clamp((int)video->jpeg_hq_quality - 1, 0,
+				   ASPEED_VIDEO_JPEG_NUM_QUALITIES - 1);
 	u32 comp_ctrl =	FIELD_PREP(VE_COMP_CTRL_DCT_LUM, video->jpeg_quality) |
 		FIELD_PREP(VE_COMP_CTRL_DCT_CHR, video->jpeg_quality | 0x10) |
 		FIELD_PREP(VE_COMP_CTRL_EN_HQ, video->hq_mode) |
-		FIELD_PREP(VE_COMP_CTRL_HQ_DCT_LUM, video->jpeg_hq_quality) |
-		FIELD_PREP(VE_COMP_CTRL_HQ_DCT_CHR, video->jpeg_hq_quality |
-			   0x10);
+		FIELD_PREP(VE_COMP_CTRL_HQ_DCT_LUM, jpeg_hq_quality) |
+		FIELD_PREP(VE_COMP_CTRL_HQ_DCT_CHR, jpeg_hq_quality | 0x10);
 	u32 ctrl = 0;
 	u32 seq_ctrl = 0;
 
@@ -1136,11 +1143,12 @@ static void aspeed_video_update_regs(struct aspeed_video *video)
 	v4l2_dbg(1, debug, &video->v4l2_dev, "jpeg format(%s) subsample(%s)\n",
 		 format_str[video->format],
 		 video->yuv420 ? "420" : "444");
-	v4l2_dbg(1, debug, &video->v4l2_dev, "compression quality(%d) hq(%s) hq_quality(%d)\n",
-		 video->jpeg_quality, video->hq_mode ? "on" : "off",
-		 video->jpeg_hq_quality);
-	v4l2_dbg(1, debug, &video->v4l2_dev, "compression mode(%s)\n",
-		 compress_mode_str[video->compression_mode]);
+	v4l2_dbg(1, debug, &video->v4l2_dev, "compression quality(%d)\n",
+		 video->jpeg_quality);
+	v4l2_dbg(1, debug, &video->v4l2_dev, "hq_mode(%s) hq_quality(%d)\n",
+		 video->hq_mode ? "on" : "off", video->jpeg_hq_quality);
+	v4l2_dbg(1, debug, &video->v4l2_dev, "compression scheme(%s)\n",
+		 compress_scheme_str[video->compression_scheme]);
 
 	if (video->format == VIDEO_FMT_ASPEED)
 		aspeed_video_update(video, VE_BCD_CTRL, 0, VE_BCD_CTRL_EN_BCD);
@@ -1162,7 +1170,7 @@ static void aspeed_video_update_regs(struct aspeed_video *video)
 		aspeed_video_update_jpeg_table(video->jpeg.virt, video->yuv420);
 
 	if (video->config.version == 4) {
-		switch (video->compression_mode) {
+		switch (video->compression_scheme) {
 		case 0:	//DCT only
 			comp_ctrl |= VE_COMP_CTRL_VQ_DCT_ONLY;
 			break;
@@ -1278,10 +1286,12 @@ static int aspeed_video_querycap(struct file *file, void *fh,
 static int aspeed_video_enum_format(struct file *file, void *fh,
 				    struct v4l2_fmtdesc *f)
 {
+	struct aspeed_video *video = video_drvdata(file);
+
 	if (f->index)
 		return -EINVAL;
 
-	f->pixelformat = V4L2_PIX_FMT_JPEG;
+	f->pixelformat = video->pix_fmt.pixelformat;
 
 	return 0;
 }
@@ -1292,6 +1302,29 @@ static int aspeed_video_get_format(struct file *file, void *fh,
 	struct aspeed_video *video = video_drvdata(file);
 
 	f->fmt.pix = video->pix_fmt;
+
+	return 0;
+}
+
+static int aspeed_video_set_format(struct file *file, void *fh,
+				   struct v4l2_format *f)
+{
+	struct aspeed_video *video = video_drvdata(file);
+
+	if (vb2_is_busy(&video->queue))
+		return -EBUSY;
+
+	switch (f->fmt.pix.pixelformat) {
+	case V4L2_PIX_FMT_JPEG:
+		video->format = VIDEO_FMT_STANDARD;
+		break;
+	case V4L2_PIX_FMT_AJPG:
+		video->format = VIDEO_FMT_ASPEED;
+		break;
+	default:
+		return -EINVAL;
+	}
+	video->pix_fmt.pixelformat = f->fmt.pix.pixelformat;
 
 	return 0;
 }
@@ -1513,7 +1546,7 @@ static const struct v4l2_ioctl_ops aspeed_video_ioctl_ops = {
 
 	.vidioc_enum_fmt_vid_cap = aspeed_video_enum_format,
 	.vidioc_g_fmt_vid_cap = aspeed_video_get_format,
-	.vidioc_s_fmt_vid_cap = aspeed_video_get_format,
+	.vidioc_s_fmt_vid_cap = aspeed_video_set_format,
 	.vidioc_try_fmt_vid_cap = aspeed_video_get_format,
 
 	.vidioc_reqbufs = vb2_ioctl_reqbufs,
@@ -1562,16 +1595,11 @@ static int aspeed_video_set_ctrl(struct v4l2_ctrl *ctrl)
 		if (test_bit(VIDEO_STREAMING, &video->flags))
 			aspeed_video_update_regs(video);
 		break;
-	case V4L2_CID_ASPEED_FORMAT:
-		video->format = ctrl->val;
-		if (test_bit(VIDEO_STREAMING, &video->flags))
-			aspeed_video_update_regs(video);
-		break;
-	case V4L2_CID_ASPEED_COMPRESSION_MODE:
+	case V4L2_CID_ASPEED_COMPRESSION_SCHEME:
 		if (video->config.version > 4)
 			return -EINVAL;
 
-		video->compression_mode = ctrl->val;
+		video->compression_scheme = ctrl->val;
 		if (test_bit(VIDEO_STREAMING, &video->flags))
 			aspeed_video_update_regs(video);
 		break;
@@ -1596,21 +1624,10 @@ static const struct v4l2_ctrl_ops aspeed_video_ctrl_ops = {
 	.s_ctrl = aspeed_video_set_ctrl,
 };
 
-static const struct v4l2_ctrl_config aspeed_ctrl_format = {
+static const struct v4l2_ctrl_config aspeed_ctrl_compression_scheme = {
 	.ops = &aspeed_video_ctrl_ops,
-	.id = V4L2_CID_ASPEED_FORMAT,
-	.name = "Aspeed JPEG Format",
-	.type = V4L2_CTRL_TYPE_INTEGER,
-	.min = VIDEO_FMT_STANDARD,
-	.max = VIDEO_FMT_MAX,
-	.step = 1,
-	.def = VIDEO_FMT_STANDARD,
-};
-
-static const struct v4l2_ctrl_config aspeed_ctrl_compression_mode = {
-	.ops = &aspeed_video_ctrl_ops,
-	.id = V4L2_CID_ASPEED_COMPRESSION_MODE,
-	.name = "Aspeed Compression Mode",
+	.id = V4L2_CID_ASPEED_COMPRESSION_SCHEME,
+	.name = "Aspeed Compression SCHEME",
 	.type = V4L2_CTRL_TYPE_INTEGER,
 	.min = 0,
 	.max = 2,
@@ -1634,10 +1651,10 @@ static const struct v4l2_ctrl_config aspeed_ctrl_HQ_jpeg_quality = {
 	.id = V4L2_CID_ASPEED_HQ_JPEG_QUALITY,
 	.name = "Aspeed HQ Quality",
 	.type = V4L2_CTRL_TYPE_INTEGER,
-	.min = 0,
-	.max = ASPEED_VIDEO_JPEG_NUM_QUALITIES - 1,
+	.min = 1,
+	.max = ASPEED_VIDEO_JPEG_NUM_QUALITIES,
 	.step = 1,
-	.def = 0,
+	.def = 1,
 };
 
 static void aspeed_video_resolution_work(struct work_struct *work)
@@ -1873,12 +1890,14 @@ static int aspeed_video_debugfs_show(struct seq_file *s, void *data)
 	seq_printf(s, "  %-20s:\t%s\n", "Subsampling",
 		   v->yuv420 ? "420" : "444");
 	seq_printf(s, "  %-20s:\t%d\n", "Quality", v->jpeg_quality);
-	seq_printf(s, "  %-20s:\t%s\n", "HQ Mode",
-		   (v->format == VIDEO_FMT_ASPEED) ? (v->hq_mode ? "on" : "off") : "N/A");
-	seq_printf(s, "  %-20s:\t%d\n", "HQ Quality", v->jpeg_hq_quality);
-	seq_printf(s, "  %-20s:\t%s\n", "Mode",
-		   (v->format == VIDEO_FMT_ASPEED) ?
-		   compress_mode_str[v->compression_mode] : "N/A");
+	if (v->format == VIDEO_FMT_ASPEED) {
+		seq_printf(s, "  %-20s:\t%s\n", "HQ Mode",
+			   v->hq_mode ? "on" : "off");
+		seq_printf(s, "  %-20s:\t%d\n", "HQ Quality",
+			   v->hq_mode ? v->jpeg_hq_quality : 0);
+		seq_printf(s, "  %-20s:\t%s\n", "Coding Scheme",
+			   compress_scheme_str[v->compression_scheme]);
+	}
 
 	seq_puts(s, "\n");
 
@@ -1950,7 +1969,7 @@ static int aspeed_video_setup_video(struct aspeed_video *video)
 		return rc;
 	}
 
-	v4l2_ctrl_handler_init(hdl, 6);
+	v4l2_ctrl_handler_init(hdl, 5);
 	v4l2_ctrl_new_std(hdl, &aspeed_video_ctrl_ops,
 			  V4L2_CID_JPEG_COMPRESSION_QUALITY, 0,
 			  ASPEED_VIDEO_JPEG_NUM_QUALITIES - 1, 1, 0);
@@ -1958,9 +1977,8 @@ static int aspeed_video_setup_video(struct aspeed_video *video)
 			       V4L2_CID_JPEG_CHROMA_SUBSAMPLING,
 			       V4L2_JPEG_CHROMA_SUBSAMPLING_420, mask,
 			       V4L2_JPEG_CHROMA_SUBSAMPLING_444);
-	v4l2_ctrl_new_custom(hdl, &aspeed_ctrl_format, NULL);
 	if (video->config.version == 4)
-		v4l2_ctrl_new_custom(hdl, &aspeed_ctrl_compression_mode, NULL);
+		v4l2_ctrl_new_custom(hdl, &aspeed_ctrl_compression_scheme, NULL);
 	v4l2_ctrl_new_custom(hdl, &aspeed_ctrl_HQ_mode, NULL);
 	v4l2_ctrl_new_custom(hdl, &aspeed_ctrl_HQ_jpeg_quality, NULL);
 
@@ -2117,6 +2135,7 @@ static int aspeed_video_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	video->frame_rate = 30;
+	video->jpeg_hq_quality = 1;
 	video->dev = &pdev->dev;
 	spin_lock_init(&video->lock);
 	mutex_init(&video->video_lock);
