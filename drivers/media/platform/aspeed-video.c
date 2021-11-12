@@ -1090,8 +1090,7 @@ static void aspeed_video_set_resolution(struct aspeed_video *video)
 
 		if (!aspeed_video_alloc_buf(video, &video->srcs[0], size))
 			goto err_mem;
-		if (video->format != VIDEO_FMT_STANDARD &&
-		    !aspeed_video_alloc_buf(video, &video->srcs[1], size))
+		if (!aspeed_video_alloc_buf(video, &video->srcs[1], size))
 			goto err_mem;
 
 		v4l2_dbg(1, debug, &video->v4l2_dev, "src buf0 addr(%#x) size(%d)\n",
