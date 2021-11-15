@@ -36,13 +36,6 @@ static void aspeed_gfx_set_clock_source(struct aspeed_gfx *priv, int mode_width)
 		regmap_update_bits(priv->scu, SCU_CLK_SEL3,
 		CLK_DIV_MASK, (BIT(16)|BIT(15)|BIT(13)|BIT(12)));
 		break;
-	case 1280:
-		/* dp div2 = 135Mhz */
-		regmap_update_bits(priv->scu, SCU_CLK_SEL,
-		CLK_SOURCE_MASK, BIT(10));
-		regmap_update_bits(priv->scu, SCU_CLK_SEL3,
-		CLK_DIV_MASK, BIT(12));
-		break;
 	case 800:
 	default:
 		/* usb 40Mhz */
@@ -135,10 +128,6 @@ static void aspeed_gfx_dp_mode_set(struct aspeed_gfx *priv, int mode_width)
 	case 1024:
 		/* hpll div 16 = 75Mhz */
 		regmap_write(priv->dpmcu, DP_RESOLUTION, DP_1024);
-		break;
-	case 1280:
-		/* dp div2 = 135Mhz */
-		regmap_write(priv->dpmcu, DP_RESOLUTION, DP_1280);
 		break;
 	case 800:
 	default:

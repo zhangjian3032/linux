@@ -84,7 +84,6 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 
 #define DP_800			0x01050020 /* 800 x 600 60Hz */
 #define DP_1024			0x010a0020 /* 1024 x 768 70Hz */
-#define DP_1280			0x010e0020 /* 1280 x 1024 75Hz */
 
 #define DP_CP_NAME		"aspeed,ast2600-displayport"
 #define DP_MCU_CP_NAME		"aspeed,ast2600-displayport-mcu"

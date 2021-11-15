@@ -15,14 +15,9 @@ static int aspeed_gfx_get_modes(struct drm_connector *connector)
 	int mode_count = 0;
 
 	if (priv->version == GFX_AST2600) {
-
-		mode_count = drm_add_modes_noedid(connector, 1280, 1024);
-		drm_set_preferred_mode(connector, 1024, 768);
-
+		mode_count = drm_add_modes_noedid(connector, 1024, 768);
 	} else {
-
 		mode_count = drm_add_modes_noedid(connector, 800, 600);
-
 	}
 
 	return mode_count;
