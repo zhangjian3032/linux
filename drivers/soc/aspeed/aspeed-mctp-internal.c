@@ -17,6 +17,7 @@
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/io.h>
+#include <linux/pci.h>
 #include <linux/mfd/syscon.h>
 #include <asm/uaccess.h>
 
@@ -172,6 +173,13 @@
 
 #define G6_TX_DATA_ADDR(x)		((((x) >> 2) & 0x1fffffff) << 2)
 #define G6_TX_DESC_VALID		(0x1)
+
+/* PCI address definitions */
+#define PCI_DEV_NUM_MASK	GENMASK(4, 0)
+#define PCI_BUS_NUM_SHIFT	5
+#define PCI_BUS_NUM_MASK	GENMASK(12, PCI_BUS_NUM_SHIFT)
+#define GET_PCI_DEV_NUM(x)	((x) & PCI_DEV_NUM_MASK)
+#define GET_PCI_BUS_NUM(x)	((((x) & PCI_BUS_NUM_MASK) >> PCI_BUS_NUM_SHIFT) + 1)
 
 struct aspeed_mctp_cmd_desc {
 	unsigned int desc0;
@@ -330,7 +338,12 @@ static int aspeed_mctp_g6_tx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct a
 	int needs_fifo;
 	u32 hw_read_pt;
 	u32 ctrl_cmd = 0;
+	u32 reg;
+	u16 bdf;
 
+	reg = readl(aspeed_mctp->pci_bdf_regs + 0xc4);
+	reg = reg & (PCI_BUS_NUM_MASK | PCI_DEV_NUM_MASK);
+	bdf = PCI_DEVID(GET_PCI_BUS_NUM(reg), GET_PCI_DEV_NUM(reg));
 	byte_length = vdm_header1->length * 4 - vdm_header1->pad_len;
 
 	MCTP_DBUG("xfer byte_length = %ld, padding len = %d\n", byte_length, vdm_header1->pad_len);
@@ -409,7 +422,7 @@ static int aspeed_mctp_g6_tx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct a
 		aspeed_mctp->tx_idx %= MCTP_G6_TX_FIFO_NUM;
 
 		//ast2600 support vdm header transfer
-		vdm_header1->pcie_req_id = (readl(aspeed_mctp->pci_bdf_regs + 0xc4) & 0x1fff) << 3;
+		vdm_header1->pcie_req_id = bdf;
 		memcpy(tx_buff1, vdm_header1, sizeof(struct pcie_vdm_header));
 		if (copy_from_user(tx_buff1 + sizeof(struct pcie_vdm_header), mctp_xfer->xfer_buff, byte_length))
 			return -EFAULT;
@@ -426,7 +439,7 @@ static int aspeed_mctp_g6_tx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct a
 		vdm_header1->eom = 0;
 		vdm_header1->length = aspeed_mctp->tx_payload / 4;
 		vdm_header1->pad_len = 0;
-		vdm_header1->pcie_req_id = (readl(aspeed_mctp->pci_bdf_regs + 0xc4) & 0x1fff) << 3;
+		vdm_header1->pcie_req_id = bdf;
 
 		vdm_header2->som = 0;
 		vdm_header2->pkt_seq++;
