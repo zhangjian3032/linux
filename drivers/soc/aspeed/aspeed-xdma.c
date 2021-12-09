@@ -34,6 +34,9 @@
 #define SCU_AST2600_MISC_CTRL			0x0c0
 #define  SCU_AST2600_MISC_CTRL_XDMA_BMC		 BIT(8)
 
+#define SCU_AST2600_DEBUG_CTRL			0x0c8
+#define  DEBUG_CTRL_XDMA_DISABLE		 BIT(2)
+
 #define SCU_AST2500_PCIE_CONF			0x180
 #define SCU_AST2600_PCIE_CONF			0xc20
 #define  SCU_PCIE_CONF_VGA_EN			 BIT(0)
@@ -53,11 +56,6 @@
 #define SCU_AST2500_BMC_CLASS_REV		0x19c
 #define SCU_AST2600_BMC_CLASS_REV		0xc68
 #define  SCU_BMC_CLASS_REV_XDMA			 0xff000001
-
-#define SDMC_REMAP                             0x008
-#define  SDMC_AST2500_REMAP_PCIE                BIT(16)
-#define  SDMC_AST2500_REMAP_XDMA                BIT(17)
-#define  SDMC_AST2600_REMAP_XDMA                BIT(18)
 
 #define XDMA_CMDQ_SIZE				PAGE_SIZE
 #define XDMA_NUM_CMDS				\
@@ -195,7 +193,6 @@ struct aspeed_xdma_chip {
 	u32 scu_bmc_class;
 	u32 scu_misc_ctrl;
 	u32 scu_pcie_conf;
-	u32 sdmc_remap;
 	unsigned int queue_entry_size;
 	struct aspeed_xdma_regs regs;
 	struct aspeed_xdma_status_bits status_bits;
@@ -575,9 +572,8 @@ static ssize_t aspeed_xdma_write(struct file *file, const char __user *buf,
 	if (len != sizeof(op))
 		return -EINVAL;
 
-	rc = copy_from_user(&op, buf, len);
-	if (rc)
-		return rc;
+	if (copy_from_user(&op, buf, len))
+		return -EFAULT;
 
 	if (!op.len || op.len > client->size ||
 	    op.direction > ASPEED_XDMA_DIRECTION_UPSTREAM)
@@ -838,10 +834,15 @@ static int aspeed_xdma_init_scu(struct aspeed_xdma *ctx, struct device *dev)
 		regmap_update_bits(scu, ctx->chip->scu_pcie_conf, bmc | vga,
 				   selection);
 
-		if (ctx->chip->scu_misc_ctrl)
+		if (ctx->chip->scu_misc_ctrl) {
 			regmap_update_bits(scu, ctx->chip->scu_misc_ctrl,
 					   SCU_AST2600_MISC_CTRL_XDMA_BMC,
 					   SCU_AST2600_MISC_CTRL_XDMA_BMC);
+
+			/* Allow XDMA to be used on AST2600 */
+			regmap_update_bits(scu, SCU_AST2600_DEBUG_CTRL,
+					   DEBUG_CTRL_XDMA_DISABLE, 0);
+		}
 	} else {
 		dev_warn(dev, "Unable to configure PCIe: %ld; continuing.\n",
 			 PTR_ERR(scu));
@@ -910,7 +911,6 @@ static int aspeed_xdma_iomap(struct aspeed_xdma *ctx,
 static int aspeed_xdma_probe(struct platform_device *pdev)
 {
 	int rc;
-	struct regmap *sdmc;
 	struct aspeed_xdma *ctx;
 	struct reserved_mem *mem;
 	struct device *dev = &pdev->dev;
@@ -1022,13 +1022,6 @@ static int aspeed_xdma_probe(struct platform_device *pdev)
 		dev_err(ctx->dev, "Failed to add memory to genalloc pool.\n");
 		goto err_pool_scu_clk;
 	}
-
-	sdmc = syscon_regmap_lookup_by_phandle(dev->of_node, "sdmc");
-	if (!IS_ERR(sdmc))
-		regmap_update_bits(sdmc, SDMC_REMAP, ctx->chip->sdmc_remap,
-				   ctx->chip->sdmc_remap);
-	else
-		dev_err(dev, "Unable to configure memory controller.\n");
 
 	rc = aspeed_xdma_init_scu(ctx, dev);
 	if (rc)
@@ -1151,7 +1144,6 @@ static const struct aspeed_xdma_chip aspeed_ast2500_xdma_chip = {
 	.scu_bmc_class = SCU_AST2500_BMC_CLASS_REV,
 	.scu_misc_ctrl = 0,
 	.scu_pcie_conf = SCU_AST2500_PCIE_CONF,
-	.sdmc_remap = SDMC_AST2500_REMAP_PCIE | SDMC_AST2500_REMAP_XDMA,
 	.queue_entry_size = XDMA_AST2500_QUEUE_ENTRY_SIZE,
 	.regs = {
 		.bmc_cmdq_addr = XDMA_AST2500_BMC_CMDQ_ADDR,
@@ -1175,7 +1167,6 @@ static const struct aspeed_xdma_chip aspeed_ast2600_xdma_chip = {
 	.scu_bmc_class = SCU_AST2600_BMC_CLASS_REV,
 	.scu_misc_ctrl = SCU_AST2600_MISC_CTRL,
 	.scu_pcie_conf = SCU_AST2600_PCIE_CONF,
-	.sdmc_remap = SDMC_AST2600_REMAP_XDMA,
 	.queue_entry_size = XDMA_AST2600_QUEUE_ENTRY_SIZE,
 	.regs = {
 		.bmc_cmdq_addr = XDMA_AST2600_BMC_CMDQ_ADDR,
@@ -1217,5 +1208,5 @@ static struct platform_driver aspeed_xdma_driver = {
 module_platform_driver(aspeed_xdma_driver);
 
 MODULE_AUTHOR("Eddie James");
-MODULE_DESCRIPTION("Aspeed XDMA Engine Driver");
+MODULE_DESCRIPTION("ASPEED XDMA Engine Driver");
 MODULE_LICENSE("GPL v2");
