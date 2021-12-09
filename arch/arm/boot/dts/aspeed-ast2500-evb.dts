@@ -153,6 +153,11 @@
 	};
 };
 
+&sgpio {
+	status = "okay";
+	ngpios = <80>;
+};
+
 &i2c7 {
 	status = "okay";
 
