@@ -368,7 +368,7 @@
 
 			sgpio: sgpio@1e780200 {
 				#gpio-cells = <2>;
-				compatible = "aspeed,ast2500-sgpiom";
+				compatible = "aspeed,ast2500-sgpio";
 				gpio-controller;
 				interrupts = <40>;
 				reg = <0x1e780200 0x0100>;
