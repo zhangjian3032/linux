@@ -9,7 +9,7 @@
 #include <linux/uaccess.h>
 
 #define DRIVER_NAME			"host-xdma"
-#define BUF_SIZE			16777216
+#define BUF_SIZE			1048576
 
 #define PCI_VENDOR_ID_ASPEED		0x1a03
 #define PCI_DEVICE_ID_ASPEED_VGA	0x2402
