@@ -836,6 +836,10 @@
 };
 #endif
 
+&uphyb {
+	status = "okay";
+};
+
 #if 0
 &gfx {
 	status = "okay";
