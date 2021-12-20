@@ -509,6 +509,12 @@ static const struct file_operations otp_fops = {
 	.release =		otp_release,
 };
 
+static const struct of_device_id aspeed_otp_of_matches[] = {
+	{ .compatible = "aspeed,ast2600-otp" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, aspeed_otp_of_matches);
+
 static int aspeed_otp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -578,10 +584,6 @@ static int aspeed_otp_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id aspeed_otp_of_matches[] = {
-	{ .compatible = "aspeed,ast2600-otp" },
-};
 
 static struct platform_driver aspeed_otp_driver = {
 	.probe = aspeed_otp_probe,
