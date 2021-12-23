@@ -1491,8 +1491,11 @@ static int aspeed_video_set_dv_timings(struct file *file, void *fh,
 	struct aspeed_video *video = video_drvdata(file);
 
 	if (timings->bt.width == video->active_timings.width &&
-	    timings->bt.height == video->active_timings.height)
+	    timings->bt.height == video->active_timings.height) {
+		v4l2_info(&video->v4l2_dev, "%s: skip update for identical timings(%dx%d)\n",
+			  __func__, timings->bt.width, timings->bt.height);
 		return 0;
+	}
 
 	if (vb2_is_busy(&video->queue))
 		return -EBUSY;
@@ -1699,6 +1702,7 @@ static void aspeed_video_resolution_work(struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct aspeed_video *video = container_of(dwork, struct aspeed_video,
 						  res_work);
+	bool is_res_chg = false;
 
 	aspeed_video_on(video);
 
@@ -1712,8 +1716,17 @@ static void aspeed_video_resolution_work(struct work_struct *work)
 
 	aspeed_video_get_resolution(video);
 
-	if (video->detected_timings.width != video->active_timings.width ||
-	    video->detected_timings.height != video->active_timings.height) {
+	if (video->v4l2_input_status) {
+		v4l2_info(&video->v4l2_dev, "%s: res-detection failed\n", __func__);
+		goto done;
+	}
+
+	is_res_chg = memcmp(&video->active_timings, &video->detected_timings,
+			    sizeof(video->active_timings));
+	video->active_timings = video->detected_timings;
+	aspeed_video_set_resolution(video);
+
+	if (is_res_chg) {
 		static const struct v4l2_event ev = {
 			.type = V4L2_EVENT_SOURCE_CHANGE,
 			.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
