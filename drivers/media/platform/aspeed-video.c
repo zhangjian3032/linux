@@ -164,9 +164,14 @@
 
 #define VE_MODE_DETECT_STATUS		0x098
 #define  VE_MODE_DETECT_H_PERIOD	GENMASK(11, 0)
+#define  VE_MODE_DETECT_EXTSRC_ADC	BIT(12)
+#define  VE_MODE_DETECT_H_STABLE	BIT(13)
+#define  VE_MODE_DETECT_V_STABLE	BIT(14)
 #define  VE_MODE_DETECT_V_LINES		GENMASK(27, 16)
 #define  VE_MODE_DETECT_STATUS_VSYNC	BIT(28)
 #define  VE_MODE_DETECT_STATUS_HSYNC	BIT(29)
+#define  VE_MODE_DETECT_VSYNC_RDY	BIT(30)
+#define  VE_MODE_DETECT_HSYNC_RDY	BIT(31)
 
 #define VE_SYNC_STATUS			0x09c
 #define  VE_SYNC_STATUS_HSYNC		GENMASK(11, 0)
@@ -982,6 +987,15 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
 			return;
 		}
 
+		mds = aspeed_video_read(video, VE_MODE_DETECT_STATUS);
+		if (!(mds & VE_MODE_DETECT_H_STABLE) ||
+		    !(mds & VE_MODE_DETECT_V_STABLE) ||
+		    (mds & VE_MODE_DETECT_EXTSRC_ADC)) {
+			v4l2_dbg(1, debug, &video->v4l2_dev, "detect status(%#x) unstable, try again\n",
+				 mds);
+			continue;
+		}
+
 		aspeed_video_check_and_set_polarity(video);
 
 		aspeed_video_enable_mode_detect(video);
@@ -1264,8 +1278,8 @@ static void aspeed_video_init_regs(struct aspeed_video *video)
 	aspeed_video_write(video, VE_MODE_DETECT,
 			   FIELD_PREP(VE_MODE_DT_HOR_TOLER, 2) |
 			   FIELD_PREP(VE_MODE_DT_VER_TOLER, 2) |
-			   FIELD_PREP(VE_MODE_DT_HOR_STABLE, 15) |
-			   FIELD_PREP(VE_MODE_DT_VER_STABLE, 15) |
+			   FIELD_PREP(VE_MODE_DT_HOR_STABLE, 6) |
+			   FIELD_PREP(VE_MODE_DT_VER_STABLE, 6) |
 			   FIELD_PREP(VE_MODE_DT_EDG_THROD, 0x65));
 
 	aspeed_video_write(video, VE_BCD_CTRL, 0);
@@ -1491,11 +1505,8 @@ static int aspeed_video_set_dv_timings(struct file *file, void *fh,
 	struct aspeed_video *video = video_drvdata(file);
 
 	if (timings->bt.width == video->active_timings.width &&
-	    timings->bt.height == video->active_timings.height) {
-		v4l2_info(&video->v4l2_dev, "%s: skip update for identical timings(%dx%d)\n",
-			  __func__, timings->bt.width, timings->bt.height);
+	    timings->bt.height == video->active_timings.height)
 		return 0;
-	}
 
 	if (vb2_is_busy(&video->queue))
 		return -EBUSY;
