@@ -1052,3 +1052,7 @@
 &ibt {
 	status = "okay";
 };
+
+&mbox {
+	status = "okay";
+};
