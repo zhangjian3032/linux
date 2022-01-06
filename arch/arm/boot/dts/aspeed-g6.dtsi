@@ -1666,7 +1666,7 @@
 		interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 		bus-frequency = <100000>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_i2c1_default>;
+		pinctrl-0 = <&pinctrl_si2c1_default>;
 		buff-mode;
 		status = "disabled";
 	};
@@ -1681,7 +1681,7 @@
 		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 		bus-frequency = <100000>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_i2c2_default>;
+		pinctrl-0 = <&pinctrl_si2c2_default>;
 		buff-mode;
 		status = "disabled";
 	};
@@ -1696,7 +1696,7 @@
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 		bus-frequency = <100000>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_i2c3_default>;
+		pinctrl-0 = <&pinctrl_si2c3_default>;
 		buff-mode;
 		status = "disabled";
 	};
@@ -1711,7 +1711,7 @@
 		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
 		bus-frequency = <100000>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_i2c4_default>;
+		pinctrl-0 = <&pinctrl_si2c4_default>;
 		buff-mode;
 		status = "disabled";
 	};
