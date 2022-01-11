@@ -612,6 +612,7 @@ static void aspeed_mctp_ctrl_init(struct aspeed_mctp_info *aspeed_mctp)
 		u32 mctp_ctrl;
 
 		aspeed_mctp->rx_recv_idx = 0;
+		aspeed_mctp->rx_first_loop = 1;
 		aspeed_mctp->rx_reboot = 1;
 		for (i = 0; i < aspeed_mctp->rx_fifo_num; i++) {
 			rx_cmd_header = (u32 *)(aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * i));
@@ -821,6 +822,7 @@ static int aspeed_mctp_g6a3_rx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct
 	int recv_length;
 	int temp_rx_recv_idx;
 	int ret;
+	u32 residual_cmds;
 
 	aspeed_mctp_writel(aspeed_mctp, MCTP_HW_READ_PT_UPDATE, ASPEED_MCTP_RX_WRITE_PT);
 	hw_read_pt = aspeed_mctp_readl(aspeed_mctp, ASPEED_MCTP_RX_WRITE_PT) & MCTP_HW_READ_PT_NUM_MASK;
@@ -842,6 +844,11 @@ static int aspeed_mctp_g6a3_rx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct
 		if (*header_dw != 0) {
 			MCTP_DBUG("Runaway RX packet found %d -> %d",
 				temp_rx_recv_idx, aspeed_mctp->rx_recv_idx);
+			residual_cmds = abs(aspeed_mctp->rx_recv_idx - temp_rx_recv_idx);
+			aspeed_mctp_writel(aspeed_mctp,
+					   aspeed_mctp->rx_fifo_num -
+						   residual_cmds,
+					   ASPEED_MCTP_RX_DESC_NUM);
 			aspeed_mctp->rx_reboot = 0;
 			break;
 		}
@@ -874,8 +881,14 @@ static int aspeed_mctp_g6a3_rx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct
 	aspeed_mctp->rx_recv_idx++;
 	aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_fifo_num;
 	aspeed_mctp->rx_idx++;
-	aspeed_mctp->rx_idx %= aspeed_mctp->rx_fifo_num;
-	aspeed_mctp_writel(aspeed_mctp, aspeed_mctp->rx_idx, ASPEED_MCTP_RX_READ_PT);
+	aspeed_mctp->rx_idx %=
+		aspeed_mctp_readl(aspeed_mctp, ASPEED_MCTP_RX_DESC_NUM);
+	aspeed_mctp_writel(aspeed_mctp, aspeed_mctp->rx_idx,
+			   ASPEED_MCTP_RX_READ_PT);
+	if (!aspeed_mctp->rx_idx && aspeed_mctp->rx_first_loop) {
+		aspeed_mctp->rx_first_loop = false;
+		aspeed_mctp_writel(aspeed_mctp, aspeed_mctp->rx_fifo_num, ASPEED_MCTP_RX_DESC_NUM);
+	}
 
 	return 0;
 }
