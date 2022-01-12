@@ -122,12 +122,15 @@ static void aspeed_gfx_setup_mode_config(struct drm_device *drm)
 	drm->mode_config.min_width = 0;
 	drm->mode_config.min_height = 0;
 
-	if (priv->version == GFX_AST2600) {
+	switch (priv->flags & CLK_MASK) {
+	case CLK_G6:
 		drm->mode_config.max_width = 1024;
 		drm->mode_config.max_height = 768;
-	} else {
+		break;
+	default:
 		drm->mode_config.max_width = 800;
 		drm->mode_config.max_height = 600;
+		break;
 	}
 
 	drm->mode_config.funcs = &aspeed_gfx_mode_config_funcs;
@@ -139,43 +142,38 @@ static irqreturn_t aspeed_host_irq_handler(int irq, void *data)
 	struct aspeed_gfx *priv = drm->dev_private;
 	u32 reg;
 
-	regmap_read(priv->scu, SCU_INT_REG, &reg);
-	dev_dbg(drm->dev, "reg v %x\n", reg);
+	regmap_read(priv->scu, priv->pcie_int_reg, &reg);
 
 	if (reg & STS_PERST_STATUS) {
-
 		if (reg & PCIE_PERST_L_T_H) {
 			dev_dbg(drm->dev, "pcie active.\n");
-			if (priv->version == GFX_AST2600) {
-				if (priv->dp_support) {
-					/*Change the DP back to host*/
-					regmap_update_bits(priv->dp,
-					DP_MCU_SOURCE, DP_CONTROL_FROM_SOC, 0);
-					dev_dbg(drm->dev, "dp set at 0 int L_T_H.\n");
-					regmap_update_bits(priv->scu,
-					SCU_MISC_NEW, DP_FROM_SOC, 0);
-				}
+			if (priv->dp_support) {
+				/*Change the DP back to host*/
+				regmap_update_bits(priv->dp,
+				DP_SOURCE, DP_CONTROL_FROM_SOC, 0);
+				dev_dbg(drm->dev, "dp set at 0 int L_T_H.\n");
+				regmap_update_bits(priv->scu,
+				priv->dac_reg, DP_FROM_SOC, 0);
 			}
+
 			/*Change the CRT back to host*/
-			regmap_update_bits(priv->scu, SCU_MISC_NEW,
+			regmap_update_bits(priv->scu, priv->dac_reg,
 			CRT_FROM_SOC, 0);
 		} else if (reg & PCIE_PERST_H_T_L) {
 			dev_dbg(drm->dev, "pcie de-active.\n");
-			if (priv->version == GFX_AST2600) {
-				if (priv->dp_support) {
-					/*Change the DP back to soc*/
-					regmap_update_bits(priv->dp, DP_MCU_SOURCE,
-					DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
-					dev_dbg(drm->dev, "dp set at 11 int H_T_L.\n");
-					regmap_update_bits(priv->scu, SCU_MISC_NEW,
-					DP_FROM_SOC, DP_FROM_SOC);
-				}
+			if (priv->dp_support) {
+				/*Change the DP into soc*/
+				regmap_update_bits(priv->dp, DP_SOURCE,
+				DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
+				dev_dbg(drm->dev, "dp set at 11 int H_T_L.\n");
+				regmap_update_bits(priv->scu, priv->dac_reg,
+				DP_FROM_SOC, DP_FROM_SOC);
 			}
-			/*Change the CRT back to soc*/
-			regmap_update_bits(priv->scu, SCU_MISC_NEW,
+
+			/*Change the CRT into soc*/
+			regmap_update_bits(priv->scu, priv->dac_reg,
 			CRT_FROM_SOC, CRT_FROM_SOC);
 		}
-
 		return IRQ_HANDLED;
 	}
 
@@ -314,7 +312,7 @@ static int aspeed_gfx_load(struct drm_device *drm)
 			if (!(reg & PCIE_NOT_RST)) {
 				dev_dbg(drm->dev, "dp source is come from soc");
 				/* change the dp setting is coming from soc display */
-				regmap_update_bits(priv->dp, DP_MCU_SOURCE,
+				regmap_update_bits(priv->dp, DP_SOURCE,
 				DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
 			}
 		} else {
@@ -385,7 +383,7 @@ static void aspeed_gfx_unload(struct drm_device *drm)
 
 	/* change the dp setting is coming from host side */
 	if (priv->dp_support)
-		regmap_update_bits(priv->dp, DP_MCU_SOURCE, DP_CONTROL_FROM_SOC, 0);
+		regmap_update_bits(priv->dp, DP_SOURCE, DP_CONTROL_FROM_SOC, 0);
 
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
