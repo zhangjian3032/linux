@@ -161,11 +161,6 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define CRT_THROD_LOW(x)		(x)
 #define CRT_THROD_HIGH(x)		((x) << 8)
 
-/* Default Threshold Seting */
-#define CRT_THROD_VAL		(CRT_THROD_LOW(0x1E) | CRT_THROD_HIGH(0x12))
-#define G5_CRT_THROD_VAL	(CRT_THROD_LOW(0x24) | CRT_THROD_HIGH(0x3C))
-#define G6_CRT_THROD_VAL	(CRT_THROD_LOW(0x50) | CRT_THROD_HIGH(0x70))
-
 /* SCU control */
 #define G4_DISABLE_D2_PLL		BIT(4)
 #define G4_40_CLK			0x46314

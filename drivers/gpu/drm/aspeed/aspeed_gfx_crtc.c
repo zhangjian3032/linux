@@ -202,13 +202,7 @@ static void aspeed_gfx_crtc_mode_set_nofb(struct aspeed_gfx *priv)
 	 * Threshold: FIFO thresholds of refill and stop (16 byte chunks
 	 * per line, rounded up)
 	 */
-	if(priv->version == GFX_AST2600) {
-		writel(G6_CRT_THROD_VAL, priv->base + CRT_THROD);
-	} else if(priv->version == GFX_AST2500) {
-		writel(G5_CRT_THROD_VAL, priv->base + CRT_THROD);
-	} else {
-		writel(CRT_THROD_VAL, priv->base + CRT_THROD);
-	}
+	writel(priv->throd_val, priv->base + CRT_THROD);
 
 	/* set the dp mode index */
 	if (priv->dp_support)
