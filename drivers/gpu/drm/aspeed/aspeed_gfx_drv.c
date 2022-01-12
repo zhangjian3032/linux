@@ -58,6 +58,54 @@
  * which is available under NDA from ASPEED.
  */
 
+struct aspeed_gfx_config {
+	u32 dac_reg;		/* DAC register in SCU */
+	u32 int_clear_reg;	/* Interrupt clear register */
+	u32 vga_scratch_reg;	/* VGA scratch register in SCU */
+	u32 throd_val;		/* Default Threshold Seting */
+	u32 scan_line_max;	/* Max memory size of one scan line */
+	u32 gfx_flags;		/* Flags for gfx chip caps */
+	u32 pcie_int_reg;	/* pcie interrupt */
+};
+
+static const struct aspeed_gfx_config ast2400_config = {
+	.dac_reg = 0x2c,
+	.int_clear_reg = 0x60,
+	.vga_scratch_reg = 0x50,
+	.throd_val = CRT_THROD_LOW(0x1e) | CRT_THROD_HIGH(0x12),
+	.scan_line_max = 64,
+	.gfx_flags = CLK_G4,
+	.pcie_int_reg = 0x18,
+};
+
+static const struct aspeed_gfx_config ast2500_config = {
+	.dac_reg = 0x2c,
+	.int_clear_reg = 0x60,
+	.vga_scratch_reg = 0x50,
+	.throd_val = CRT_THROD_LOW(0x24) | CRT_THROD_HIGH(0x3c),
+	.scan_line_max = 128,
+	.gfx_flags = 0,
+	.pcie_int_reg = 0x18,
+};
+
+static const struct aspeed_gfx_config ast2600_config = {
+	.dac_reg = 0xc0,
+	.int_clear_reg = 0x68,
+	.vga_scratch_reg = 0x50,
+	.throd_val = CRT_THROD_LOW(0x50) | CRT_THROD_HIGH(0x70),
+	.scan_line_max = 128,
+	.gfx_flags = RESET_G6 | CLK_G6,
+	.pcie_int_reg = 0x560,
+};
+
+static const struct of_device_id aspeed_gfx_match[] = {
+	{ .compatible = "aspeed,ast2400-gfx", .data = &ast2400_config },
+	{ .compatible = "aspeed,ast2500-gfx", .data = &ast2500_config },
+	{ .compatible = "aspeed,ast2600-gfx", .data = &ast2600_config },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, aspeed_gfx_match);
+
 static const struct drm_mode_config_funcs aspeed_gfx_mode_config_funcs = {
 	.fb_create		= drm_gem_fb_create,
 	.output_poll_changed = drm_fb_helper_output_poll_changed,
@@ -154,17 +202,12 @@ static irqreturn_t aspeed_gfx_irq_handler(int irq, void *data)
 	return IRQ_NONE;
 }
 
-static const struct of_device_id aspeed_gfx_match[] = {
-	{ .compatible = "aspeed,ast2500-gfx",  .data = (void *) GFX_AST2500},
-	{ .compatible = "aspeed,ast2600-gfx",  .data = (void *) GFX_AST2600},
-	{ }
-};
-
 static int aspeed_gfx_load(struct drm_device *drm)
 {
 	struct platform_device *pdev = to_platform_device(drm->dev);
-	const struct of_device_id *dev_id;	
 	struct aspeed_gfx *priv;
+	const struct aspeed_gfx_config *config;
+	const struct of_device_id *match;
 	struct resource *res;
 	int ret;
 	u32 reg = 0;
@@ -179,12 +222,20 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-
-	dev_id = of_match_device(aspeed_gfx_match, &pdev->dev);
-	if (!dev_id)
+	match = of_match_device(aspeed_gfx_match, &pdev->dev);
+	if (!match)
 		return -EINVAL;
+	config = match->data;
 
-	priv->version = (int)dev_id->data;
+	priv->dac_reg = config->dac_reg;
+	priv->int_clr_reg = config->int_clear_reg;
+	priv->vga_scratch_reg = config->vga_scratch_reg;
+	priv->throd_val = config->throd_val;
+	priv->scan_line_max = config->scan_line_max;
+	priv->flags = config->gfx_flags;
+	priv->pcie_int_reg = config->pcie_int_reg;
+
+	priv->version = 3;
 	priv->scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
 	if (IS_ERR(priv->scu)) {
 		dev_err(&pdev->dev, "failed to find SCU regmap\n");
