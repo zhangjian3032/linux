@@ -78,31 +78,25 @@ static int aspeed_gfx_set_pixel_fmt(struct aspeed_gfx *priv, u32 *bpp)
 
 static void aspeed_gfx_enable_controller(struct aspeed_gfx *priv)
 {
-	struct drm_crtc *crtc = &priv->pipe.crtc;
-	struct drm_device *drm = crtc->dev;
 	u32 ctrl1 = readl(priv->base + CRT_CTRL1);
 	u32 ctrl2 = readl(priv->base + CRT_CTRL2);
-	u32 reg;
 
-	regmap_read(priv->pcie, PCIE_RST_REG, &reg);
-	dev_dbg(drm->dev, "rst reg v %x\n", reg);
-
-	/* host vga is turned off */
-	if (!(reg & PCIE_NOT_RST)) {
-		/* set DAC source for display output to Graphics CRT (GFX) */
-		/* set DP source for display output to Graphics (GFX) */
-		if (priv->version == GFX_AST2600) {
-			regmap_update_bits(priv->scu, SCU_MISC_NEW, CRT_FROM_SOC, CRT_FROM_SOC);
+	/* change the display source is coming from soc display */
+	if (priv->pcie_advance) {
+		if (!priv->pcie_active) {
+			regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, CRT_FROM_SOC);
 			if (priv->dp_support) {
-				regmap_update_bits(priv->scu, SCU_MISC_NEW,
+				regmap_update_bits(priv->scu, priv->dac_reg,
 				DP_FROM_SOC, DP_FROM_SOC);
 			}
-		} else
-			regmap_update_bits(priv->scu, SCU_MISC_OLD, CRT_FROM_SOC, CRT_FROM_SOC);
+		}
+	} else {
+		regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, CRT_FROM_SOC);
 	}
 
 	writel(ctrl1 | CRT_CTRL_EN, priv->base + CRT_CTRL1);
 	writel(ctrl2 | CRT_CTRL_DAC_EN, priv->base + CRT_CTRL2);
+
 }
 
 static void aspeed_gfx_disable_controller(struct aspeed_gfx *priv)
@@ -217,7 +211,6 @@ static void aspeed_gfx_pipe_enable(struct drm_simple_display_pipe *pipe,
 	struct drm_crtc *crtc = &pipe->crtc;
 
 	aspeed_gfx_crtc_mode_set_nofb(priv);
-
 	aspeed_gfx_enable_controller(priv);
 	drm_crtc_vblank_on(crtc);
 }

@@ -190,14 +190,117 @@ static irqreturn_t aspeed_gfx_irq_handler(int irq, void *data)
 
 	if (reg & CRT_CTRL_VERTICAL_INTR_STS) {
 		drm_crtc_handle_vblank(&priv->pipe.crtc);
-		if(priv->version == GFX_AST2600)
-			writel(CRT_CTRL_VERTICAL_INTR_STS, priv->base + CRT_STATUS);
-		else
-			writel(reg, priv->base + CRT_CTRL1);
+		writel(reg, priv->base + priv->int_clr_reg);
 		return IRQ_HANDLED;
 	}
 
 	return IRQ_NONE;
+}
+
+static int aspeed_pcie_active_detect(struct drm_device *drm)
+{
+	struct aspeed_gfx *priv = drm->dev_private;
+	u32 reg = 0;
+
+	/* map pcie ep resource */
+	priv->pcie_ep = syscon_regmap_lookup_by_compatible("aspeed,ast2500-pcie-ep");
+	if (IS_ERR(priv->pcie_ep)) {
+		priv->pcie_ep = syscon_regmap_lookup_by_compatible("aspeed,ast2600-pcie-ep");
+		if (IS_ERR(priv->pcie_ep)) {
+			dev_err(drm->dev, "failed to find pcie_ep regmap\n");
+			return PTR_ERR(priv->pcie_ep);
+		}
+	}
+
+	/* check pcie rst status */
+	regmap_read(priv->pcie_ep, PCIE_LINK_REG, &reg);
+	dev_dbg(drm->dev, "g6 drv link reg v %x\n", reg);
+
+	/* host vga is on or not */
+	if (reg & PCIE_LINK_STATUS)
+		priv->pcie_active = 0x1;
+	else
+		priv->pcie_active = 0x0;
+
+	return 0;
+}
+
+static int aspeed_adaptor_detect(struct drm_device *drm)
+{
+	struct aspeed_gfx *priv = drm->dev_private;
+	u32 reg = 0;
+
+	switch (priv->flags & CLK_MASK) {
+	case CLK_G6:
+		/* check AST DP is executed or not*/
+		regmap_read(priv->scu, SCU_DP_STATUS, &reg);
+		if (((reg>>8) & DP_EXECUTE) == DP_EXECUTE) {
+			priv->dp_support = 0x1;
+
+			priv->dp = syscon_regmap_lookup_by_compatible(DP_CP_NAME);
+			if (IS_ERR(priv->dp)) {
+				dev_err(drm->dev, "failed to find DP regmap\n");
+				return PTR_ERR(priv->dp);
+			}
+
+			priv->dpmcu = syscon_regmap_lookup_by_compatible(DP_MCU_CP_NAME);
+			if (IS_ERR(priv->dpmcu)) {
+				dev_err(drm->dev, "failed to find DP MCU regmap\n");
+				return PTR_ERR(priv->dpmcu);
+			}
+
+			/* change the dp setting is coming from soc display */
+			if (!priv->pcie_active) {
+				regmap_update_bits(priv->dp, DP_SOURCE,
+				DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
+			}
+		}
+		break;
+	default:
+		priv->dp_support = 0x0;
+		priv->dp = NULL;
+		priv->dpmcu = NULL;
+		break;
+	}
+	return 0;
+}
+
+static int aspeed_gfx_reset(struct drm_device *drm)
+{
+	struct platform_device *pdev = to_platform_device(drm->dev);
+	struct aspeed_gfx *priv = drm->dev_private;
+
+	switch (priv->flags & RESET_MASK) {
+	case RESET_G6:
+		priv->rst_crt = devm_reset_control_get(&pdev->dev, "crt");
+		if (IS_ERR(priv->rst_crt)) {
+			dev_err(&pdev->dev,
+				"missing or invalid crt reset controller device tree entry");
+			return PTR_ERR(priv->rst_crt);
+		}
+		reset_control_deassert(priv->rst_crt);
+
+		priv->rst_engine = devm_reset_control_get(&pdev->dev, "engine");
+		if (IS_ERR(priv->rst_engine)) {
+			dev_err(&pdev->dev,
+				"missing or invalid engine reset controller device tree entry");
+			return PTR_ERR(priv->rst_engine);
+		}
+		reset_control_deassert(priv->rst_engine);
+		break;
+
+	default:
+		priv->rst_crt = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+		if (IS_ERR(priv->rst_crt)) {
+			dev_err(&pdev->dev,
+				"missing or invalid reset controller device tree entry");
+			return PTR_ERR(priv->rst_crt);
+		}
+		reset_control_deassert(priv->rst_crt);
+		break;
+	}
+
+	return 0;
 }
 
 static int aspeed_gfx_load(struct drm_device *drm)
@@ -205,10 +308,10 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	struct platform_device *pdev = to_platform_device(drm->dev);
 	struct aspeed_gfx *priv;
 	const struct aspeed_gfx_config *config;
+	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
 	struct resource *res;
 	int ret;
-	u32 reg = 0;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -234,10 +337,24 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	priv->pcie_int_reg = config->pcie_int_reg;
 
 	priv->version = 3;
-	priv->scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
+
+	/* add pcie detect after ast2400 */
+	if (priv->flags != CLK_G4)
+		priv->pcie_advance = 1;
+
+	priv->scu = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(priv->scu)) {
-		dev_err(&pdev->dev, "failed to find SCU regmap\n");
-		return PTR_ERR(priv->scu);
+		priv->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2400-scu");
+		if (IS_ERR(priv->scu)) {
+			priv->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2500-scu");
+			if (IS_ERR(priv->scu)) {
+				priv->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2600-scu");
+				if (IS_ERR(priv->scu)) {
+					dev_err(&pdev->dev, "failed to find SCU regmap\n");
+					return PTR_ERR(priv->scu);
+				}
+			}
+		}
 	}
 
 	ret = of_reserved_mem_device_init(drm->dev);
@@ -253,23 +370,12 @@ static int aspeed_gfx_load(struct drm_device *drm)
 		return ret;
 	}
 
-	priv->crt_rst = devm_reset_control_get(&pdev->dev, "crt");
-	if (IS_ERR(priv->crt_rst)) {
+	ret = aspeed_gfx_reset(drm);
+	if (ret) {
 		dev_err(&pdev->dev,
-			"missing or invalid crt reset controller device tree entry");
-		return PTR_ERR(priv->crt_rst);
+			"missing or invalid reset controller device tree entry");
+		return ret;
 	}
-
-	reset_control_deassert(priv->crt_rst);
-
-	priv->engine_rst = devm_reset_control_get(&pdev->dev, "engine");
-	if (IS_ERR(priv->engine_rst)) {
-		dev_err(&pdev->dev,
-			"missing or invalid engine reset controller device tree entry");
-		return PTR_ERR(priv->engine_rst);
-	}
-
-	reset_control_deassert(priv->engine_rst);
 
 	priv->clk = devm_clk_get(drm->dev, NULL);
 	if (IS_ERR(priv->clk)) {
@@ -279,47 +385,20 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	}
 	clk_prepare_enable(priv->clk);
 
-	priv->pcie = syscon_regmap_lookup_by_compatible(PCIE_NAME);
-	if (IS_ERR(priv->pcie)) {
-		dev_err(&pdev->dev, "failed to find PCIE regmap\n");
-		return PTR_ERR(priv->dpmcu);
+	if (priv->pcie_advance) {
+		ret = aspeed_pcie_active_detect(drm);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"missing or invalid pcie-ep controller device tree entry");
+			return ret;
+		}
 	}
 
-	if (priv->version == GFX_AST2600) {
-		/* check AST DP is executed or not*/
-		ret = regmap_read(priv->scu, SCU_DP_STATUS, &reg);
-
-		if (((reg>>8) & DP_EXECUTE) == DP_EXECUTE) {
-			priv->dp_support = 0x1;
-
-			priv->dp = syscon_regmap_lookup_by_compatible(DP_CP_NAME);
-			if (IS_ERR(priv->dp)) {
-				dev_err(&pdev->dev, "failed to find DP regmap\n");
-				return PTR_ERR(priv->dp);
-			}
-
-			priv->dpmcu = syscon_regmap_lookup_by_compatible(DP_MCU_CP_NAME);
-			if (IS_ERR(priv->dpmcu)) {
-				dev_err(&pdev->dev, "failed to find DP MCU regmap\n");
-				return PTR_ERR(priv->dpmcu);
-			}
-
-			/* check pcie rst status */
-			regmap_read(priv->pcie, PCIE_RST_REG, &reg);
-			dev_dbg(drm->dev, "drv rst reg v %x\n", reg);
-
-			/* host vga is off */
-			if (!(reg & PCIE_NOT_RST)) {
-				dev_dbg(drm->dev, "dp source is come from soc");
-				/* change the dp setting is coming from soc display */
-				regmap_update_bits(priv->dp, DP_SOURCE,
-				DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
-			}
-		} else {
-			priv->dp_support = 0x0;
-			priv->dp = NULL;
-			priv->dpmcu = NULL;
-		}
+	ret = aspeed_adaptor_detect(drm);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"missing or invalid adaptor controller device tree entry");
+		return ret;
 	}
 
 	/* Sanitize control registers */
@@ -327,6 +406,8 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	writel(0, priv->base + CRT_CTRL2);
 
 	aspeed_gfx_setup_mode_config(drm);
+	if (ret < 0)
+		return ret;
 
 	ret = drm_vblank_init(drm, 1);
 	if (ret < 0) {
@@ -353,21 +434,26 @@ static int aspeed_gfx_load(struct drm_device *drm)
 		return ret;
 	}
 
-	/* Special watch the host power up / down */
-	ret = devm_request_irq(drm->dev, platform_get_irq(pdev, 1),
-				   aspeed_host_irq_handler,
-				   IRQF_SHARED, "aspeed host active", drm);
-	if (ret < 0) {
-		dev_err(drm->dev, "Failed to install HOST active handler\n");
-		return ret;
-	}
+	/* install pcie reset detect */
+	if (of_property_read_bool(np, "pcie-reset-detect") && priv->pcie_advance) {
 
-	ret = devm_request_irq(drm->dev, platform_get_irq(pdev, 2),
-				   aspeed_host_irq_handler,
-				   IRQF_SHARED, "aspeed host deactive", drm);
-	if (ret < 0) {
-		dev_err(drm->dev, "Failed to install HOST de-active handler\n");
-		return ret;
+		dev_dbg(drm->dev, "hook pcie reset.\n");
+
+		/* Special watch the host power up / down */
+		ret = devm_request_irq(drm->dev, platform_get_irq(pdev, 1),
+					   aspeed_host_irq_handler,
+					   IRQF_SHARED, "aspeed host active", drm);
+		if (ret < 0) {
+			dev_err(drm->dev, "Failed to install HOST active handler\n");
+			return ret;
+		}
+		ret = devm_request_irq(drm->dev, platform_get_irq(pdev, 2),
+					   aspeed_host_irq_handler,
+					   IRQF_SHARED, "aspeed host deactive", drm);
+		if (ret < 0) {
+			dev_err(drm->dev, "Failed to install HOST de-active handler\n");
+			return ret;
+		}
 	}
 
 	drm_mode_config_reset(drm);
@@ -417,10 +503,14 @@ static ssize_t dac_mux_store(struct device *dev, struct device_attribute *attr,
 	u32 val;
 	int rc;
 
-	if(priv->version == GFX_AST2600)
-		rc = regmap_update_bits(priv->scu, SCU_MISC_NEW, BIT(16), val << 16);
-	else 
-		rc = regmap_update_bits(priv->scu, SCU_MISC_OLD, BIT(16), val << 16);
+	rc = kstrtou32(buf, 0, &val);
+	if (rc)
+		return rc;
+
+	if (val > 3)
+		return -EINVAL;
+
+	rc = regmap_update_bits(priv->scu, priv->dac_reg, 0x30000, val << 16);
 	if (rc < 0)
 		return 0;
 
@@ -434,10 +524,7 @@ static ssize_t dac_mux_show(struct device *dev, struct device_attribute *attr, c
 	u32 reg;
 	int rc;
 
-	if(priv->version == GFX_AST2600)
-		rc = regmap_read(priv->scu, SCU_MISC_NEW, &reg);
-	else 
-		rc = regmap_read(priv->scu, SCU_MISC_OLD, &reg);
+	rc = regmap_read(priv->scu, priv->dac_reg, &reg);
 
 	if (rc)
 		return rc;
@@ -454,10 +541,7 @@ vga_pw_show(struct device *dev, struct device_attribute *attr, char *buf)
 	u32 reg;
 	int rc;
 
-	if(priv->version == GFX_AST2600)
-		rc = regmap_read(priv->scu, 0xe00, &reg);
-	else
-		rc = regmap_read(priv->scu, 0x50, &reg);
+	rc = regmap_read(priv->scu, priv->vga_scratch_reg, &reg);
 	if (rc)
 		return rc;
 

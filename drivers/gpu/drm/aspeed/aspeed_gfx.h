@@ -8,12 +8,12 @@ struct aspeed_gfx {
 	void __iomem			*base;
 	int					version;
 	struct clk			*clk;
-	struct reset_control		*crt_rst;
-	struct reset_control		*engine_rst;
+	struct reset_control		*rst_crt;
+	struct reset_control		*rst_engine;
 	struct regmap			*scu;
 	struct regmap			*dp;
 	struct regmap			*dpmcu;
-	struct regmap			*pcie;
+	struct regmap			*pcie_ep;
 	u8				dp_support;
 	u8				pcie_advance;
 	u8				pcie_active;
