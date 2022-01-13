@@ -262,19 +262,22 @@
 				status = "disabled";
 			};
 
+			pcie_ep:pcie_ep@1e6ed000 {
+				compatible = "aspeed,ast2500-pcie-ep", "syscon";
+				reg = <0x1e6ed000 0x100>;
+			};
+
 			gfx: display@1e6e6000 {
 				compatible = "aspeed,ast2500-gfx", "syscon";
 				reg = <0x1e6e6000 0x1000>;
 				reg-io-width = <4>;
 				clocks = <&syscon ASPEED_CLK_GATE_D1CLK>;
 				resets = <&syscon ASPEED_RESET_CRT1>;
+				syscon = <&syscon>;
+				interrupts-extended = <&vic 0x19>,
+				<&scu_ic ASPEED_AST2500_SCU_IC_PCIE_RESET_LO_TO_HI>,
+				<&scu_ic ASPEED_AST2500_SCU_IC_PCIE_RESET_HI_TO_LO>;
 				status = "disabled";
-				interrupts = <0x19>;
-			};
-
-			pcie_ep:pcie_ep@1e6ed000 {
-				compatible = "aspeed,ast2600-pcie-ep", "syscon";
-				reg = <0x1e6ed000 0x100>;
 			};
 
 			xdma: xdma@1e6e7000 {
