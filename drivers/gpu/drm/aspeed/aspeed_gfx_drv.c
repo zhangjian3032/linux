@@ -336,8 +336,6 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	priv->flags = config->gfx_flags;
 	priv->pcie_int_reg = config->pcie_int_reg;
 
-	priv->version = 3;
-
 	/* add pcie detect after ast2400 */
 	if (priv->flags != CLK_G4)
 		priv->pcie_advance = 1;

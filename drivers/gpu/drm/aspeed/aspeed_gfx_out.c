@@ -14,10 +14,13 @@ static int aspeed_gfx_get_modes(struct drm_connector *connector)
 	struct aspeed_gfx *priv = container_of(connector, struct aspeed_gfx, connector);
 	int mode_count = 0;
 
-	if (priv->version == GFX_AST2600) {
+	switch (priv->flags & CLK_MASK) {
+	case CLK_G6:
 		mode_count = drm_add_modes_noedid(connector, 1024, 768);
-	} else {
+		break;
+	default:
 		mode_count = drm_add_modes_noedid(connector, 800, 600);
+		break;
 	}
 
 	return mode_count;

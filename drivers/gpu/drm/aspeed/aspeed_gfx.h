@@ -6,7 +6,6 @@
 
 struct aspeed_gfx {
 	void __iomem			*base;
-	int					version;
 	struct clk			*clk;
 	struct reset_control		*rst_crt;
 	struct reset_control		*rst_engine;
@@ -29,12 +28,6 @@ struct aspeed_gfx {
 	struct drm_simple_display_pipe	pipe;
 	struct drm_connector		connector;
 	struct drm_fbdev_cma		*fbdev;
-};
-
-enum aspeed_gfx_version {
-	GFX_AST2400,
-	GFX_AST2500,
-	GFX_AST2600,
 };
 
 int aspeed_gfx_create_pipe(struct drm_device *drm);

@@ -23,24 +23,32 @@ drm_pipe_to_aspeed_gfx(struct drm_simple_display_pipe *pipe)
 	return container_of(pipe, struct aspeed_gfx, pipe);
 }
 
-static void aspeed_gfx_set_clock_source(struct aspeed_gfx *priv, int mode_width)
+static void aspeed_gfx_set_g4_clock(struct aspeed_gfx *priv)
 {
-	regmap_update_bits(priv->scu, SCU_CLK_SEL, CLK_SOURCE_MASK, 0x0);
-	regmap_update_bits(priv->scu, SCU_CLK_SEL3, CLK_DIV_MASK, 0x0);
+	/* turn on d2 pll for soc disply at ast2400 */
+	regmap_update_bits(priv->scu, priv->dac_reg, G4_DISABLE_D2_PLL, 0);
+	/* apply 800 x 600 @ 60 for soc disply at ast2400 */
+	writel(G4_40_CLK, priv->base + CRT_MISC);
+}
+
+static void aspeed_gfx_set_g6_clock_source(struct aspeed_gfx *priv, int mode_width)
+{
+	regmap_update_bits(priv->scu, G6_CLK_SOURCE, G6_CLK_SOURCE_MASK, 0x0);
+	regmap_update_bits(priv->scu, G6_CLK_SEL3, G6_CLK_DIV_MASK, 0x0);
 
 	switch (mode_width) {
 	case 1024:
 		/* hpll div 16 = 75Mhz */
-		regmap_update_bits(priv->scu, SCU_CLK_SEL,
-		CLK_SOURCE_MASK, (BIT(10)|BIT(9)|BIT(8)));
-		regmap_update_bits(priv->scu, SCU_CLK_SEL3,
-		CLK_DIV_MASK, (BIT(16)|BIT(15)|BIT(13)|BIT(12)));
+		regmap_update_bits(priv->scu, G6_CLK_SOURCE,
+		G6_CLK_SOURCE_MASK, G6_CLK_SOURCE_HPLL);
+		regmap_update_bits(priv->scu, G6_CLK_SEL3,
+		G6_CLK_DIV_MASK, G6_CLK_DIV_16);
 		break;
 	case 800:
 	default:
 		/* usb 40Mhz */
-		regmap_update_bits(priv->scu, SCU_CLK_SEL,
-		CLK_SOURCE_MASK, BIT(9));
+		regmap_update_bits(priv->scu, G6_CLK_SOURCE,
+		G6_CLK_SOURCE_MASK, G6_CLK_SOURCE_USB);
 		break;
 	}
 }
@@ -107,13 +115,26 @@ static void aspeed_gfx_disable_controller(struct aspeed_gfx *priv)
 	writel(ctrl1 & ~CRT_CTRL_EN, priv->base + CRT_CTRL1);
 	writel(ctrl2 & ~CRT_CTRL_DAC_EN, priv->base + CRT_CTRL2);
 
-	if (priv->version == GFX_AST2600) {
-		regmap_update_bits(priv->scu, SCU_MISC_NEW, CRT_FROM_SOC, 0);
-		if (priv->dp_support)
-			regmap_update_bits(priv->scu, SCU_MISC_NEW, DP_FROM_SOC, 0);
+	/* Set display source for display output to pcie host display */
+	regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, 0);
+	if (priv->dp_support) {
+		regmap_update_bits(priv->scu, priv->dac_reg,
+		DP_FROM_SOC, 0);
 	}
-	else 
-		regmap_update_bits(priv->scu, SCU_MISC_OLD, CRT_FROM_SOC, 0);
+}
+
+static void aspeed_gfx_set_clk(struct aspeed_gfx *priv, int mode_width)
+{
+	switch (priv->flags & CLK_MASK) {
+	case CLK_G4:
+		aspeed_gfx_set_g4_clock(priv);
+		break;
+	case CLK_G6:
+		aspeed_gfx_set_g6_clock_source(priv, mode_width);
+		break;
+	default:
+		break;
+	}
 }
 
 static void aspeed_gfx_dp_mode_set(struct aspeed_gfx *priv, int mode_width)
@@ -141,14 +162,13 @@ static void aspeed_gfx_crtc_mode_set_nofb(struct aspeed_gfx *priv)
 	if (err)
 		return;
 
+	aspeed_gfx_set_clk(priv, m->hdisplay);
+
 #if 0
 	/* TODO: we have only been able to test with the 40MHz USB clock. The
 	 * clock is fixed, so we cannot adjust it here. */
 	clk_set_rate(priv->pixel_clk, m->crtc_clock * 1000);
 #endif
-
-	if (priv->version == GFX_AST2600)
-		aspeed_gfx_set_clock_source(priv, m->hdisplay);
 
 	ctrl1 = readl(priv->base + CRT_CTRL1);
 	ctrl1 &= ~(CRT_CTRL_INTERLACED |
@@ -183,11 +203,7 @@ static void aspeed_gfx_crtc_mode_set_nofb(struct aspeed_gfx *priv)
 	 * Terminal Count: memory size of one scan line
 	 */
 	d_offset = m->hdisplay * bpp / 8;
-
-	if(priv->version == GFX_AST2400)
-		t_count = (m->hdisplay * bpp + 63) / 64;
-	else
-		t_count = (m->hdisplay * bpp + 127) / 128;
+	t_count = DIV_ROUND_UP(m->hdisplay * bpp, priv->scan_line_max);
 
 	writel(CRT_DISP_OFFSET(d_offset) | CRT_TERM_COUNT(t_count),
 			priv->base + CRT_OFFSET);
