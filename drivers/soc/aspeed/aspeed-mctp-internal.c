@@ -789,26 +789,34 @@ static int aspeed_mctp_g6_rx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct a
 
 	vdm = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
 	header_dw = (u32 *)vdm;
-	rx_buffer = aspeed_mctp->rx_pool + (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx) + sizeof(struct pcie_vdm_header);
+	if (*header_dw != 0) {
+		rx_buffer =
+			aspeed_mctp->rx_pool +
+			(aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx) +
+			sizeof(struct pcie_vdm_header);
 
-	recv_length = (vdm->length * 4) + vdm->pad_len;
-	mctp_xfer->header = *vdm;
+		recv_length = (vdm->length * 4) + vdm->pad_len;
+		mctp_xfer->header = *vdm;
 
-	ret = copy_to_user(mctp_xfer->xfer_buff, rx_buffer, recv_length);
-	if (ret)
-		return ret;
+		ret = copy_to_user(mctp_xfer->xfer_buff, rx_buffer, recv_length);
+		if (ret)
+			return ret;
 
-	ret = copy_to_user(buf, mctp_xfer, sizeof(struct aspeed_mctp_xfer));
-	if (ret)
-		return ret;
+		ret = copy_to_user(buf, mctp_xfer, sizeof(struct aspeed_mctp_xfer));
+		if (ret)
+			return ret;
 
-	*header_dw = 0;
-	aspeed_mctp->rx_recv_idx++;
-	aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_cmd_num;
+		*header_dw = 0;
+		aspeed_mctp->rx_recv_idx++;
+		aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_cmd_num;
 
-	aspeed_mctp->rx_idx++;
-	aspeed_mctp->rx_idx %= aspeed_mctp->rx_fifo_num;
-	aspeed_mctp_writel(aspeed_mctp, aspeed_mctp->rx_idx, ASPEED_MCTP_RX_READ_PT);
+		aspeed_mctp->rx_idx++;
+		aspeed_mctp->rx_idx %= aspeed_mctp->rx_fifo_num;
+		aspeed_mctp_writel(aspeed_mctp, aspeed_mctp->rx_idx, ASPEED_MCTP_RX_READ_PT);
+	} else {
+		MCTP_DBUG("Failed to find valid packet");
+		return -EAGAIN;
+	}
 
 	return 0;
 }
@@ -863,31 +871,38 @@ static int aspeed_mctp_g6a3_rx_xfer(struct aspeed_mctp_info *aspeed_mctp, struct
 	vdm = aspeed_mctp->rx_pool +
 	      (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx);
 	header_dw = (u32 *)vdm;
-	rx_buffer = aspeed_mctp->rx_pool +
-		    (aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx) +
-		    sizeof(struct pcie_vdm_header);
+	if (*header_dw != 0) {
+		rx_buffer = aspeed_mctp->rx_pool +
+			(aspeed_mctp->rx_fifo_size * aspeed_mctp->rx_recv_idx) +
+			sizeof(struct pcie_vdm_header);
 
-	recv_length = (vdm->length * 4) + vdm->pad_len;
-	mctp_xfer->header = *vdm;
+		recv_length = (vdm->length * 4) + vdm->pad_len;
+		mctp_xfer->header = *vdm;
 
-	ret = copy_to_user(mctp_xfer->xfer_buff, rx_buffer, recv_length);
-	if (ret)
-		return ret;
+		ret = copy_to_user(mctp_xfer->xfer_buff, rx_buffer, recv_length);
+		if (ret)
+			return ret;
 
-	ret = copy_to_user(buf, mctp_xfer, sizeof(struct aspeed_mctp_xfer));
-	if (ret)
-		return ret;
-	*header_dw = 0;
-	aspeed_mctp->rx_recv_idx++;
-	aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_fifo_num;
-	aspeed_mctp->rx_idx++;
-	aspeed_mctp->rx_idx %=
-		aspeed_mctp_readl(aspeed_mctp, ASPEED_MCTP_RX_DESC_NUM);
-	aspeed_mctp_writel(aspeed_mctp, aspeed_mctp->rx_idx,
-			   ASPEED_MCTP_RX_READ_PT);
-	if (!aspeed_mctp->rx_idx && aspeed_mctp->rx_first_loop) {
-		aspeed_mctp->rx_first_loop = false;
-		aspeed_mctp_writel(aspeed_mctp, aspeed_mctp->rx_fifo_num, ASPEED_MCTP_RX_DESC_NUM);
+		ret = copy_to_user(buf, mctp_xfer, sizeof(struct aspeed_mctp_xfer));
+		if (ret)
+			return ret;
+		*header_dw = 0;
+		aspeed_mctp->rx_recv_idx++;
+		aspeed_mctp->rx_recv_idx %= aspeed_mctp->rx_fifo_num;
+		aspeed_mctp->rx_idx++;
+		aspeed_mctp->rx_idx %=
+			aspeed_mctp_readl(aspeed_mctp, ASPEED_MCTP_RX_DESC_NUM);
+		aspeed_mctp_writel(aspeed_mctp, aspeed_mctp->rx_idx,
+				ASPEED_MCTP_RX_READ_PT);
+		if (!aspeed_mctp->rx_idx && aspeed_mctp->rx_first_loop) {
+			aspeed_mctp->rx_first_loop = false;
+			aspeed_mctp_writel(aspeed_mctp,
+					   aspeed_mctp->rx_fifo_num,
+					   ASPEED_MCTP_RX_DESC_NUM);
+		}
+	} else {
+		MCTP_DBUG("Failed to find valid packet");
+		return -EAGAIN;
 	}
 
 	return 0;
