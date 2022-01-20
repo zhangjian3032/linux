@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * File Name     : video_engines.h
  * Description   : AST2600 video  engines
@@ -10,7 +10,6 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
- 
 #ifndef __VIDEO_ENGINE_H__
 #define __VIDEO_ENGINE_H__
 
@@ -18,9 +17,9 @@
 #include "hardware_engines.h"
 
 
-#define VIDEO_STREAM_BUFFER_SIZE 	 (0x400000) //4M
-#define VIDEO_CAPTURE_BUFFER_SIZE    (0xA00000) //10M
-#define VIDEO_JPEG_TABLE_SIZE	       (0x100000) //1M
+#define VIDEO_STREAM_BUFFER_SIZE	(0x400000) //4M
+#define VIDEO_CAPTURE_BUFFER_SIZE	(0xA00000) //10M
+#define VIDEO_JPEG_TABLE_SIZE		(0x100000) //1M
 
 #define SCU_VIDEO_ENGINE_BIT						BIT(6)
 #define SCU_VIDEO_CAPTURE_STOP_CLOCK_BIT			BIT(3)
@@ -76,8 +75,8 @@
 #define AST_VIDEO_INT_STS		0x308		/* Video interrupt status */
 #define AST_VIDEO_MODE_DETECT	0x30C		/* Video Mode Detection Parameter Register */
 
-#define AST_VIDEO_CRC1 			0x320		/* Primary CRC Parameter Register */
-#define AST_VIDEO_CRC2 			0x324		/* Second CRC Parameter Register */
+#define AST_VIDEO_CRC1			0x320		/* Primary CRC Parameter Register */
+#define AST_VIDEO_CRC2			0x324		/* Second CRC Parameter Register */
 #define AST_VIDEO_DATA_TRUNCA	0x328		/* Video Data Truncation Register */
 
 #define AST_VIDEO_E_SCRATCH_34C	0x34C		/* Video Scratch Remap Read Back */
@@ -104,7 +103,7 @@
 #define VIDEO_CAPTURE_BUSY					(1 << 16)
 #define VIDEO_HALT_ENG_TRIGGER			(1 << 12)
 #define VIDEO_COMPRESS_FORMAT_MASK		(3 << 10)
-#define VIDEO_GET_COMPRESS_FORMAT		(x)		((x >> 10) & 0x3)   // 0 YUV444
+#define VIDEO_GET_COMPRESS_FORMAT(x)		((x >> 10) & 0x3)   // 0 YUV444
 #define VIDEO_COMPRESS_FORMAT(x)			(x << 10)	// 0 YUV444
 #define YUV420		1
 
@@ -238,17 +237,17 @@
 #define VIDEO_MODE_DETECT_WDT			(1 << 0)
 
 /***********************************************************************/
-typedef struct tagVideoMem {
+struct VideoMem {
 	u32	phy;
-	void*	pVirt;
-	u32 	size;
-}videoMem;
+	void *pVirt;
+	u32 size;
+};
 
-typedef struct tagVideoEngineMem{
-	videoMem	captureBuf0;
-	videoMem captureBuf1;
-	videoMem jpegTable;
-}VideoEngineMem;
+struct VideoEngineMem {
+	struct VideoMem captureBuf0;
+	struct VideoMem captureBuf1;
+	struct VideoMem jpegTable;
+};
 
 struct ast_capture_mode {
 	u8	engine_idx;					//set 0: engine 0, engine 1
@@ -265,30 +264,30 @@ struct ast_compression_mode {
 
 
 /***********************************************************************/
-typedef struct {
-	u16	HorizontalActive;
-	u16	VerticalActive;
-	u16	RefreshRateIndex;
-	u32    PixelClock;
-} INTERNAL_MODE;
+struct INTERNAL_MODE {
+	u16 HorizontalActive;
+	u16 VerticalActive;
+	u16 RefreshRateIndex;
+	u32 PixelClock;
+};
 
 
 
 // ioctl functions
-void ioctl_get_video_engine_config(VideoConfig  *pVideoConfig, AstRVAS *pAstRVAS);
-void ioctl_set_video_engine_config(VideoConfig  *pVideoConfig, AstRVAS *pAstRVAS);
-void ioctl_get_video_engine_data(MultiJpegConfig *pArrayMJConfig, AstRVAS *pAstRVAS,  u32 dwPhyStreamAddress);
+void ioctl_get_video_engine_config(struct VideoConfig  *pVideoConfig, struct AstRVAS *pAstRVAS);
+void ioctl_set_video_engine_config(struct VideoConfig  *pVideoConfig, struct AstRVAS *pAstRVAS);
+void ioctl_get_video_engine_data(struct MultiJpegConfig *pArrayMJConfig, struct AstRVAS *pAstRVAS,  u32 dwPhyStreamAddress);
 
 //local functions
 irqreturn_t ast_video_isr(int this_irq, void *dev_id);
-int video_engine_reserveMem(AstRVAS *pAstRVAS);
-void enable_video_interrupt(AstRVAS *pAstRVAS);
-void disable_video_interrupt(AstRVAS *pAstRVAS);
-void video_set_Window(AstRVAS *pAstRVAS);
-int free_video_engine_memory(AstRVAS *pAstRVAS);
-void video_ctrl_init(AstRVAS *pAstRVAS);
-void video_engine_rc4Reset(AstRVAS *pAstRVAS);
-void set_direct_mode (AstRVAS *pAstRVAS);
+int video_engine_reserveMem(struct AstRVAS *pAstRVAS);
+void enable_video_interrupt(struct AstRVAS *pAstRVAS);
+void disable_video_interrupt(struct AstRVAS *pAstRVAS);
+void video_set_Window(struct AstRVAS *pAstRVAS);
+int free_video_engine_memory(struct AstRVAS *pAstRVAS);
+void video_ctrl_init(struct AstRVAS *pAstRVAS);
+void video_engine_rc4Reset(struct AstRVAS *pAstRVAS);
+void set_direct_mode(struct AstRVAS *pAstRVAS);
 
 
 #endif // __VIDEO_ENGINE_H__

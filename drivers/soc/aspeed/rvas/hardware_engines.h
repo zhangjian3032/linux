@@ -1,16 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file is part of the ASPEED Linux Device Driver for ASPEED Baseboard Management Controller.
  * Refer to the README file included with this package for driver version and adapter compatibility.
  *
  * Copyright (C) 2019-2021 ASPEED Technology Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it under the terms of version 2
- * of the GNU General Public License as published by the Free Software Foundation.
- * This program is distributed in the hope that it will be useful. ALL EXPRESS OR IMPLIED CONDITIONS,
- * REPRESENTATIONS AND WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
- * PURPOSE, OR NON-INFRINGEMENT, ARE DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD TO BE
- * LEGALLY INVALID. See the GNU General Public License for more details, a copy of which can be found in
- * the file COPYING included with this package.
  */
 
 #ifndef __HARDWAREENGINES_H__
@@ -22,16 +15,16 @@
 #define MAX_NUM_CONTEXT				(8)
 #define MAX_NUM_MEM_TBL				(24)//each context has 3
 
-#define MAX_DESC_SIZE 				(PAGE_SIZE) // (0x400)
+#define MAX_DESC_SIZE				(PAGE_SIZE) // (0x400)
 
-#define ENGINE_TIMEOUT_IN_SECONDS 		(3)
+#define ENGINE_TIMEOUT_IN_SECONDS		(3)
 #define TFE_TIMEOUT_IN_MS			(750)
 #define DESCRIPTOR_SIZE				(16)
 #define TILE_SIZE				(32)
 #define MAX_LMEM_BUCKET_SIZE			(0x80)
 
-#define EIGHT_BYTE_ALIGMENT_MASK		(0xfffffff7)
-#define SIXTEEN_BYTE_ALIGMENT_MASK		(0x8)
+#define EIGHT_BYTE_ALIGNMENT_MASK		(0xfffffff7)
+#define SIXTEEN_BYTE_ALIGNMENT_MASK		(0x8)
 #define TFCTL_DESCRIPTOR_IN_DDR_MASK		(0xffffff7f)
 #define BSCMD_MASK				(0xffff0f37)
 
@@ -45,7 +38,7 @@
 
 
 //SCU
-#define SCU000_Protection_Key_Register (0x000)
+#define SCU000_Protection_Key_Register	(0x000)
 #define SCU040_Module_Reset_Control_Register_Set_1 (0x040)
 #define SCU044_Module_Reset_Control_Clear_Register_1 (0x044)
 #define SCU080_Clock_Stop_Control_Register_Set_1 (0x080)
@@ -55,17 +48,19 @@
 #define SCU0C0_Misc1_Ctrl (0x0C0)
 #define SCU0D0_Misc3_Ctrl (0x0D0)
 //SCU418
-#define VGAVS_ENBL 			(1<<31)
-#define VGAHS_ENBL 			(1<<30)
+#define VGAVS_ENBL			(1<<31)
+#define VGAHS_ENBL			(1<<30)
 //SCU0C0
-#define VGA_CRT_DISBL 		(1<<6)
+#define VGA_CRT_DISBL			(1<<6)
 //SCU0D0
-#define PWR_OFF_VDAC 		(1<<3)
+#define PWR_OFF_VDAC			(1<<3)
 
-#define SCU_UNLOCK_PWD									(0x1688A8A8)
-#define SCU_RVAS_ENGINE_BIT							BIT(9)
-#define SCU_RVAS_STOP_CLOCK_BIT						BIT(25)
+#define SCU_UNLOCK_PWD			(0x1688A8A8)
+#define SCU_RVAS_ENGINE_BIT		BIT(9)
+#define SCU_RVAS_STOP_CLOCK_BIT		BIT(25)
 
+//MCR -edac
+#define MCR_CONF	0x04 /* configuration register */
 
 //DP
 #define DPTX_Configuration_Register			(0x100)
@@ -168,16 +163,16 @@
 #define GRC_FIQ_MASK				(0x000003ff)
 #define GRC_IRQ_MASK				(0x000003ff)
 #define GRC_INT_STS_MASK			(0x000003ff)
-#define GRCSTS_XCUR_POS  			(1<<9)
-#define GRCSTS_XCUR_DDR  			(1<<8)
-#define GRCSTS_XCUR_CTL  			(1<<7)
-#define GRCSTS_PLT_RAM   			(1<<6)
-#define GRCSTS_XCRTC     			(1<<5)
-#define GRCSTS_CRTC  	 			(1<<4)
-#define GRCSTS_GCTL      			(1<<3)
-#define GRCSTS_SEQ       			(1<<2)
-#define GRCSTS_ATTR1     			(1<<1)
-#define GRCSTS_ATTR0     			(1<<0)
+#define GRCSTS_XCUR_POS				(1<<9)
+#define GRCSTS_XCUR_DDR				(1<<8)
+#define GRCSTS_XCUR_CTL				(1<<7)
+#define GRCSTS_PLT_RAM				(1<<6)
+#define GRCSTS_XCRTC				(1<<5)
+#define GRCSTS_CRTC				(1<<4)
+#define GRCSTS_GCTL				(1<<3)
+#define GRCSTS_SEQ				(1<<2)
+#define GRCSTS_ATTR1				(1<<1)
+#define GRCSTS_ATTR0				(1<<0)
 #define SNOOP_RESTART (GRCSTS_XCUR_CTL|GRCSTS_XCRTC|GRCSTS_CRTC|GRCSTS_GCTL)
 
 //snoop TSE
@@ -193,23 +188,23 @@
 #define TSCMD_VGA_MODE_BIT			(1)
 #define TSCMD_TSE_ENBL_BIT			(0)
 #define TSSTS_FIFO_OVFL				(1<<5)
-#define TSSTS_FONT 					(1<<4)
-#define TSSTS_ATTR 					(1<<3)
-#define TSSTS_ASCII 				(1<<2)
-#define TSSTS_TC_SCREEN1 			(1<<1)
-#define TSSTS_TC_SCREEN0 			(1<<0)
-#define TSSTS_ALL					(0x3f)
+#define TSSTS_FONT				(1<<4)
+#define TSSTS_ATTR				(1<<3)
+#define TSSTS_ASCII				(1<<2)
+#define TSSTS_TC_SCREEN1			(1<<1)
+#define TSSTS_TC_SCREEN0			(1<<0)
+#define TSSTS_ALL				(0x3f)
 
 
 
-#define TSE_INTR_COUNT				(0xCB700) 	//50MHz clock ~1/60 sec
-//#define TSE_INTR_COUNT			(0x196E00) 	//50MHz clock ~1/30 sec
-#define TIMER_INTR_COUNT			(0x65000) 	// 25MHz clock ~1/60 sec
+#define TSE_INTR_COUNT				(0xCB700)	//50MHz clock ~1/60 sec
+//#define TSE_INTR_COUNT			(0x196E00)	//50MHz clock ~1/30 sec
+#define TIMER_INTR_COUNT			(0x65000)	// 25MHz clock ~1/60 sec
 
 //Timer
 /* Register byte offsets */
 // AST2600 Timer registers
-#define TIMER_STATUS_BIT( x )       (1 << ((x) - 1))
+#define TIMER_STATUS_BIT(x)			(1 << ((x) - 1))
 
 #define OFFSET_TIMER1         0x00                      /* * timer 1 offset */
 #define OFFSET_TIMER2         0x10                      /* * timer 2 offset */
@@ -253,9 +248,9 @@
 
 //vga memory information
 #define SCU500						(0x500)
-#define DDR_SIZE_CONFIG_BITS    	(0x3)
-#define VGA_MEM_SIZE_CONFIG_BITS 	(0x3)
-#define VGA_MEM_SIZE_CONFIG_BIT_POS (13)
+#define DDR_SIZE_CONFIG_BITS				(0x3)
+#define VGA_MEM_SIZE_CONFIG_BITS			(0x3)
+#define VGA_MEM_SIZE_CONFIG_BIT_POS			(13)
 #define DDR_BASE					(0x80000000)
 
 
@@ -264,69 +259,70 @@
 #define VGACR9F_REG					(0x9F)
 
 
-typedef struct tagContextTable {
-	struct inode* pin;
-	struct file* pf;
-	SnoopAggregate sa;
+struct ContextTable {
+	struct inode *pin;
+	struct file *pf;
+	struct SnoopAggregate sa;
 	u64 aqwSnoopMap[NUM_SNOOP_ROWS];
-	RVASContext rc;
-	EventMap emEventWaiting;
-	EventMap emEventReceived;
+	void *rc;
+	struct EventMap emEventWaiting;
+	struct EventMap emEventReceived;
 	u32 dwEventWaitInMs;
 	void *desc_virt;
 	u32 desc_phy;
-} ContextTable;
+};
 
-typedef struct tagMemoryMapTable {
-	struct file* pf;
+struct MemoryMapTable {
+	struct file *pf;
 	void *pvVirtualAddr;
 	u32 dwPhysicalAddr;
 	u32 dwLength;
 	u8 byDmaAlloc;
 	u8 byReserved[3];
-} MemoryMapTable;
+};
 
-typedef union tagEmDwordUnion {
-	EventMap em;
+union EmDwordUnion {
+	struct EventMap em;
 	u32 dw;
-} EmDwordUnion;
+};
 
-typedef struct tagDescriptor {
+struct Descriptor {
 	u32 dw0General;
 	u32 dw1FetchWidthLine;
 	u32 dw2SourceAddr;
 	u32 dw3DestinationAddr;
-} Descriptor;
+};
 
-typedef struct tagBSEAggregateRegister {
+struct BSEAggregateRegister {
 	u32 dwBSCR;
 	u32 dwBSDBS;
 	u32 adwBSBPS[3];
-} BSEAggregateRegister;
+};
 
-typedef enum tagSkipByteMode {
+enum SkipByteMode {
 	NoByteSkip = 0, SkipOneByte = 1, SkipTwoByte = 2, SkipThreeByte = 3
-} SkipByteMode;
+};
 
-typedef enum tagStartBytePosition {
+enum StartBytePosition {
 	StartFromByte0 = 0,
 	StartFromByte1 = 1,
 	StartFromByte2 = 2,
 	StartFromByte3 = 3
-} StartBytePosition;
+};
 
-typedef struct tagVGAMemInfo {
+struct VGAMemInfo {
 	u32 dwVGASize;
+	u32 dwDRAMSize;
 	u32 dwFBPhysStart;
-} VGAMemInfo;
+};
 
-typedef struct tagVideoDataBufferInfo {
+struct VideoDataBufferInfo {
 	u32 dwSize;
 	u32 dwPhys;
 	u32 dwVirt;
-} VideoDataBufferInfo;
+};
 
-typedef enum tagColorMode {
+enum ColorMode {
 	MODE_EGA = 0x0, //4bpp eg. mode 12/6A
 	MODE_VGA = 0x1, //mode 13
 	MODE_BPP15 = 0x2,
@@ -334,46 +330,46 @@ typedef enum tagColorMode {
 	MODE_BPP32 = 0x4,
 	MODE_TEXT = 0xE,
 	MODE_CGA = 0xF
-} ColorMode;
+};
 
-typedef struct tagModeInfo {
+struct ModeInfo {
 	u8 byColorMode;
 	u8 byRefreshRateIndex;
 	u8 byModeID;
 	u8 byScanLines;
-} ModeInfo;
+};
 
-typedef struct tagNewModeInfoHeader {
+struct NewModeInfoHeader {
 	u8 byReserved;
 	u8 byDisplayInfo;
 	u8 byColorDepth;
 	u8 byMhzPixelClock;
-} NewModeInfoHeader;
+};
 
-typedef struct tagDisplayEnd {
+struct DisplayEnd {
 	u16 HDE;
 	u16 VDE;
-} DisplayEnd;
+};
 
-typedef struct tagResolution {
+struct Resolution {
 	u16 wWidth;
 	u16 wHeight;
-} Resolution;
+};
 
-typedef struct tagVideo_OsSleepStruct {
+struct Video_OsSleepStruct {
 	wait_queue_head_t queue;
 	struct timer_list tim;
-	volatile u8 Timeout;
-} Video_OsSleepStruct;
+	u8 Timeout;
+};
 
-typedef struct tagEngineInfo {
+struct EngineInfo {
 	struct semaphore sem;
-	Video_OsSleepStruct wait;
+	struct Video_OsSleepStruct wait;
 	u8 finished;
-} EngineInfo;
+};
 
 
-typedef struct tagAstRVAS {
+struct AstRVAS {
 	struct miscdevice *rvas_dev;
 	void *pdev;
 	int irq_fge;	//FrameGrabber IRQ number
@@ -383,122 +379,122 @@ typedef struct tagAstRVAS {
 	u32 grce_reg_base;
 	u32 video_reg_base;
 	struct regmap *scu;
-   struct reset_control *rvas_reset;
-   struct reset_control *video_engine_reset;
-	VGAMemInfo FBInfo;
+	struct reset_control *rvas_reset;
+	struct reset_control *video_engine_reset;
+	struct VGAMemInfo FBInfo;
 	u64 accrued_sm[SNOOP_MAP_QWORD_COUNT];
-	SnoopAggregate accrued_sa;
-	VideoGeometry current_vg;
+	struct SnoopAggregate accrued_sa;
+	struct VideoGeometry current_vg;
 	u32 snoop_stride;
 	u32 tse_tsicr;
-	EngineInfo tfe_engine;
-	EngineInfo bse_engine;
-	EngineInfo ldma_engine;
-	EngineInfo video_engine;
+	struct EngineInfo tfe_engine;
+	struct EngineInfo bse_engine;
+	struct EngineInfo ldma_engine;
+	struct EngineInfo video_engine;
 	struct semaphore mem_sem;
 	struct semaphore context_sem;
-	Video_OsSleepStruct video_wait;
-	u8 video_intr_occured;
+	struct Video_OsSleepStruct video_wait;
+	u8 video_intr_occurred;
 	u8 timer_irq_requested;
 	u8 reserved[2];
-	ContextTable *ppctContextTable[MAX_NUM_CONTEXT];
+	struct ContextTable *ppctContextTable[MAX_NUM_CONTEXT];
 	u32 dwMemoryTableSize;
 	u32 dwScreenOffset;
-	MemoryMapTable *ppmmtMemoryTable[MAX_NUM_MEM_TBL];
+	struct MemoryMapTable *ppmmtMemoryTable[MAX_NUM_MEM_TBL];
 	struct completion  video_compression_complete;
 	struct completion  video_capture_complete;
-	struct clk 			*vclk;
-	struct clk 			*eclk;
-	struct clk			*rvasclk;
-} AstRVAS;
+	struct clk *vclk;
+	struct clk *eclk;
+	struct clk *rvasclk;
+};
 
 //
 // IOCTL function
 //
-void ioctl_get_video_geometry(RvasIoctl *ri, AstRVAS *ast_rvas);
-void ioctl_wait_for_video_event(RvasIoctl *ri, AstRVAS *ast_rvas);
-void ioctl_get_grc_register(RvasIoctl *ri, AstRVAS *ast_rvas);
-void ioctl_read_snoop_map(RvasIoctl *ri, AstRVAS *ast_rvas);
-void ioctl_read_snoop_aggregate(RvasIoctl *ri, AstRVAS *ast_rvas);
-void ioctl_set_tse_tsicr(RvasIoctl *ri, AstRVAS *ast_rvas);
-void ioctl_get_tse_tsicr(RvasIoctl *ri, AstRVAS *ast_rvas);
-void ioctl_reset_video_engine(RvasIoctl *ri, AstRVAS *ast_rvas);
+void ioctl_get_video_geometry(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
+void ioctl_wait_for_video_event(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
+void ioctl_get_grc_register(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
+void ioctl_read_snoop_map(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
+void ioctl_read_snoop_aggregate(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
+void ioctl_set_tse_tsicr(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
+void ioctl_get_tse_tsicr(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
+void ioctl_reset_video_engine(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
 
 
-void ioctl_fetch_video_tiles(RvasIoctl *ri, AstRVAS *ast_rvas);
-void ioctl_fetch_video_slices(RvasIoctl *ri, AstRVAS *ast_rvas);
-void ioctl_run_length_encode_data(RvasIoctl *ri, AstRVAS *ast_rvas);
-void ioctl_fetch_text_data(RvasIoctl *ri, AstRVAS *ast_rvas);
-void ioctl_fetch_mode_13_data(RvasIoctl *ri, AstRVAS *ast_rvas);
-u32 get_phy_fb_start_address(AstRVAS *ast_rvas);
-bool video_geometry_change(AstRVAS *ast_rvas, u32 dwGRCEStatus);
-void update_video_geometry(AstRVAS *ast_rvas);
+void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
+void ioctl_fetch_video_slices(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
+void ioctl_run_length_encode_data(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
+void ioctl_fetch_text_data(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
+void ioctl_fetch_mode_13_data(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
+u32 get_phy_fb_start_address(struct AstRVAS *ast_rvas);
+bool video_geometry_change(struct AstRVAS *ast_rvas, u32 dwGRCEStatus);
+void update_video_geometry(struct AstRVAS *ast_rvas);
 //interrupts
-void enable_grce_tse_interrupt(AstRVAS *ast_rvas);
-void disable_grce_tse_interrupt(AstRVAS *ast_rvas);
-u32 clear_tse_interrupt(AstRVAS *ast_rvas);
-bool clear_ldma_interrupt(AstRVAS *ast_rvas);
-bool clear_tfe_interrupt(AstRVAS *ast_rvas);
-bool clear_bse_interrupt(AstRVAS *ast_rvas);
-u32 get_screen_offset(AstRVAS *ast_rvas);
+void enable_grce_tse_interrupt(struct AstRVAS *ast_rvas);
+void disable_grce_tse_interrupt(struct AstRVAS *ast_rvas);
+u32 clear_tse_interrupt(struct AstRVAS *ast_rvas);
+bool clear_ldma_interrupt(struct AstRVAS *ast_rvas);
+bool clear_tfe_interrupt(struct AstRVAS *ast_rvas);
+bool clear_bse_interrupt(struct AstRVAS *ast_rvas);
+u32 get_screen_offset(struct AstRVAS *ast_rvas);
 //
-void setup_lmem(AstRVAS *ast_rvas);
+void setup_lmem(struct AstRVAS *ast_rvas);
 //
 // helper functions
 //
 
-BSEAggregateRegister setUp_bse_bucket(u8* abyBitIndexes, u8 byTotalBucketCount,
-        u8 byBSBytesPerPixel, u32 dwFetchWidthPixels, u32 dwFetchHeight);
-void prepare_bse_descriptor(Descriptor* pDAddress, u32 dwSourceAddress,
-        u32 dwDestAddress, bool bNotLastEntry, u16 wStride, u8 bytesPerPixel,
-        u32 dwFetchWidthPixels, u32 dwFetchHeight,
-        bool bInterrupt);
+struct BSEAggregateRegister setUp_bse_bucket(u8 *abyBitIndexes, u8 byTotalBucketCount,
+	u8 byBSBytesPerPixel, u32 dwFetchWidthPixels, u32 dwFetchHeight);
+void prepare_bse_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
+	u32 dwDestAddress, bool bNotLastEntry, u16 wStride, u8 bytesPerPixel,
+	u32 dwFetchWidthPixels, u32 dwFetchHeight,
+	bool bInterrupt);
 
-void prepare_tfe_descriptor(Descriptor* pDAddress, u32 dwSourceAddress,
-        u32 dwDestAddress, bool bNotLastEntry, u8 bCheckSum,
-        bool bEnabledRLE, u16 wStride, u8 bytesPerPixel, u32 dwFetchWidthPixels,
-        u32 dwFetchHeight, SelectedByteMode sbm,
-        bool bRLEOverFLow, bool bInterrupt);
-void prepare_tfe_text_descriptor(Descriptor* pDAddress, u32 dwSourceAddress,
-        u32 dwDestAddress, bool bEnabledRLE, u32 dwFetchWidth,
-        u32 dwFetchHeight, DataProccessMode dpm, bool bRLEOverFLow,
-        bool bInterrupt);
-void prepare_ldma_descriptor(Descriptor* pDAddress, u32 dwSourceAddress,
-        u32 dwDestAddress, u32 dwLDMASize, u8 byNotLastEntry);
+void prepare_tfe_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
+	u32 dwDestAddress, bool bNotLastEntry, u8 bCheckSum,
+	bool bEnabledRLE, u16 wStride, u8 bytesPerPixel, u32 dwFetchWidthPixels,
+	u32 dwFetchHeight, enum SelectedByteMode sbm,
+	bool bRLEOverFLow, bool bInterrupt);
+void prepare_tfe_text_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
+	u32 dwDestAddress, bool bEnabledRLE, u32 dwFetchWidth,
+	u32 dwFetchHeight, enum DataProccessMode dpm, bool bRLEOverFLow,
+	bool bInterrupt);
+void prepare_ldma_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
+	u32 dwDestAddress, u32 dwLDMASize, u8 byNotLastEntry);
 
-void OnFetchVideoTileChaining(RvasIoctl* ri);
-void OnFetchVideoTileNoChainingWithRLE(RvasIoctl* ri);
+void OnFetchVideoTileChaining(struct RvasIoctl *ri);
+void OnFetchVideoTileNoChainingWithRLE(struct RvasIoctl *ri);
 void WaitWhileEngineBusy(u32 theAddress);
-u8 get_text_mode_character_per_line(AstRVAS *ast_rvas, u16 wScreenWidth);
-u16 get_text_mode_fetch_lines(AstRVAS *ast_rvas, u16 wScreenHeight);
-void on_fetch_text_data(RvasIoctl* ri, bool bRLEOn, AstRVAS *ast_rvas);
+u8 get_text_mode_character_per_line(struct AstRVAS *ast_rvas, u16 wScreenWidth);
+u16 get_text_mode_fetch_lines(struct AstRVAS *ast_rvas, u16 wScreenHeight);
+void on_fetch_text_data(struct RvasIoctl *ri, bool bRLEOn, struct AstRVAS *ast_rvas);
 
-void reset_snoop_engine(AstRVAS *ast_rvas);
-void set_snoop_engine(bool b_geom_chg, AstRVAS *ast_rvas);
-u64 reinterpret_32bpp_snoop_row_as_24bpp(u64);
-void Convert4BppMapTo3Bpp(u64*, u32);
-void convert_snoop_map(AstRVAS *ast_rvas);
-void update_all_snoop_context(AstRVAS *ast_rvas);
-void get_snoop_map_data(AstRVAS *ast_rvas);
-void get_snoop_aggregate(AstRVAS *ast_rvas);
+void reset_snoop_engine(struct AstRVAS *ast_rvas);
+void set_snoop_engine(bool b_geom_chg, struct AstRVAS *ast_rvas);
+u64 reinterpret_32bpp_snoop_row_as_24bpp(u64 theSnoopRow);
 
-void sleep_on_ldma_busy(AstRVAS *ast_rvas, u32 dwAddress);
-bool sleep_on_tfe_busy(AstRVAS *ast_rvas, u32 dwTFEDescriptorAddr,
-        u32 dwTFEControlR, u32 dwTFERleLimitor, u32 *pdwRLESize,
-        u32 *pdwCheckSum);
+void convert_snoop_map(struct AstRVAS *ast_rvas);
+void update_all_snoop_context(struct AstRVAS *ast_rvas);
+void get_snoop_map_data(struct AstRVAS *ast_rvas);
+void get_snoop_aggregate(struct AstRVAS *ast_rvas);
 
-bool sleep_on_tfe_text_busy(AstRVAS *ast_rvas, u32 dwTFEDescriptorAddr,
-        u32 dwTFEControlR, u32 dwTFERleLimitor, u32 *pdwRLESize,
-        u32 *pdwCheckSum);
+void sleep_on_ldma_busy(struct AstRVAS *ast_rvas, u32 dwAddress);
+bool sleep_on_tfe_busy(struct AstRVAS *ast_rvas, u32 dwTFEDescriptorAddr,
+	u32 dwTFEControlR, u32 dwTFERleLimitor, u32 *pdwRLESize,
+	u32 *pdwCheckSum);
 
-bool sleep_on_bse_busy(AstRVAS *ast_rvas, u32 dwBSEDescriptorAddr,
-        BSEAggregateRegister aBSEAR, u32 size);
+bool sleep_on_tfe_text_busy(struct AstRVAS *ast_rvas, u32 dwTFEDescriptorAddr,
+	u32 dwTFEControlR, u32 dwTFERleLimitor, u32 *pdwRLESize,
+	u32 *pdwCheckSum);
 
-void enable_grce_tse_interrupt(AstRVAS *ast_rvas);
-void disable_grce_tse_interrupt(AstRVAS *ast_rvas);
+bool sleep_on_bse_busy(struct AstRVAS *ast_rvas, u32 dwBSEDescriptorAddr,
+	struct BSEAggregateRegister aBSEAR, u32 size);
 
-void disable_interrupts(AstRVAS*ast_rvas);
-void enable_interrupts(AstRVAS*ast_rvas);
+void enable_grce_tse_interrupt(struct AstRVAS *ast_rvas);
+void disable_grce_tse_interrupt(struct AstRVAS *ast_rvas);
 
-bool host_suspended(AstRVAS *pAstRVAS);
+void disable_interrupts(struct AstRVAS *ast_rvas);
+void enable_interrupts(struct AstRVAS *ast_rvas);
+
+bool host_suspended(struct AstRVAS *pAstRVAS);
 #endif // __HARDWAREENGINES_H__
