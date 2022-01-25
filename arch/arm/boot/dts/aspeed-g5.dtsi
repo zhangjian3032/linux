@@ -521,7 +521,7 @@
 				};
 
 				lpc_pcc: lpc-pcc@0 {
-					compatible = "aspeed,ast2600-lpc-pcc";
+					compatible = "aspeed,ast2500-lpc-pcc";
 					reg = <0x0 0x140>;
 					interrupts = <8>;
 					status = "disabled";
