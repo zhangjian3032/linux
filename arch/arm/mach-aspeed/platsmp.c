@@ -2,6 +2,7 @@
 // Copyright (C) ASPEED Technology Inc.
 // Copyright IBM Corp.
 
+#include <linux/delay.h>
 #include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -9,6 +10,7 @@
 
 #define BOOT_ADDR	0x00
 #define BOOT_SIG	0x04
+#define BOOT_READY	0x08
 
 static struct device_node *secboot_node;
 
@@ -36,6 +38,7 @@ static int aspeed_g6_boot_secondary(unsigned int cpu, struct task_struct *idle)
 static void __init aspeed_g6_smp_prepare_cpus(unsigned int max_cpus)
 {
 	void __iomem *base;
+	u32 ret;
 
 	secboot_node = of_find_compatible_node(NULL, NULL, "aspeed,ast2600-smpmem");
 	if (!secboot_node) {
@@ -49,6 +52,15 @@ static void __init aspeed_g6_smp_prepare_cpus(unsigned int max_cpus)
 		return;
 	}
 	__raw_writel(0xBADABABA, base + BOOT_SIG);
+	
+	ret = __raw_readl(base + BOOT_READY);
+	if (ret != 0XBABECAFE) {
+		// if cpu1 not ready, notify again
+		__raw_writel(0XBABECAFE, base + BOOT_READY);
+		dsb_sev();
+		 /* ensure going to next smp_go loop */
+		mdelay(1);
+	}
 
 	iounmap(base);
 }
