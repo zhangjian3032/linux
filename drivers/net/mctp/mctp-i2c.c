@@ -24,6 +24,8 @@
 #include <linux/if_arp.h>
 #include <net/mctp.h>
 #include <net/mctpdevice.h>
+#include <linux/fs.h>
+#include <linux/cdev.h>
 
 /* byte_count is limited to u8 */
 #define MCTP_I2C_MAXBLOCK 255
@@ -809,6 +811,9 @@ static int mctp_i2c_add_netdev(struct mctp_i2c_client *mcli,
 	char namebuf[30];
 	int rc;
 
+	dev_info(&mcli->client->dev, "Jian debug: Adding netdev for adapter %s\n",
+		 adap->name);
+
 	root = mux_root_adapter(adap);
 	if (root != mcli->client->adapter) {
 		dev_err(&mcli->client->dev,
@@ -938,6 +943,7 @@ static void mctp_i2c_notify_add(struct device *dev)
 	int rc;
 
 	adap = mctp_i2c_get_adapter(dev, &root);
+	pr_info("Jian debug: MCTP I2C notify add name: %s adap: %s root: %s\n", dev_name(dev), adap->name, root->name);
 	if (!adap)
 		return;
 	/* Check for mctp-controller property on the adapter */
@@ -985,6 +991,8 @@ static int mctp_i2c_probe(struct i2c_client *client)
 	struct mctp_i2c_client *mcli = NULL;
 	int rc;
 
+	pr_info("Jian debug: MCTP I2C client probe\n");
+
 	mutex_lock(&driver_clients_lock);
 	mcli = mctp_i2c_new_client(client);
 	if (IS_ERR(mcli)) {
@@ -1026,6 +1034,9 @@ static int mctp_i2c_notifier_call(struct notifier_block *nb,
 {
 	struct device *dev = data;
 
+	pr_info("Jian debug: MCTP I2C notifier call name: %s action: %s\n",
+	 dev_name(dev), action == BUS_NOTIFY_ADD_DEVICE ? "add" : "del");
+
 	switch (action) {
 	case BUS_NOTIFY_ADD_DEVICE:
 		mctp_i2c_notify_add(dev);
@@ -1063,11 +1074,107 @@ static struct i2c_driver mctp_i2c_driver = {
 	.id_table = mctp_i2c_id,
 };
 
+static dev_t dev_num;
+static struct cdev mctp_i2c_cdev;
+static struct class *mctp_i2c_class;
+int major;
+#define MCTP_I2C_IOCTL_NEW_DEVICE 	_IOW('k', 0x1, char *)
+
+static int mctp_i2c_client_search(struct device *dev, void *data)
+{
+	struct i2c_adapter *adap = NULL, *root = NULL;
+	struct mctp_i2c_client *mcli = NULL, *m = NULL;
+	char *name = data;
+	int rc = 0;
+
+	adap = to_i2c_adapter(dev);
+	if (strcmp(name, adap->name) == 0) {
+		pr_info("Jian debug: MCTP I2C client search found\n");
+		adap = mctp_i2c_get_adapter(dev, &root);
+		if (!adap)
+			return rc;
+
+		/* Find an existing mcli for adap's root */
+		mutex_lock(&driver_clients_lock);
+		list_for_each_entry(m, &driver_clients, list) {
+			if (m->client->adapter == root) {
+				mcli = m;
+				break;
+			}
+		}
+
+		if (mcli) {
+			pr_info("Jian debug: MCTP I2C client search found mcli\n");
+			rc = mctp_i2c_add_netdev(mcli, adap);
+			if (rc < 0)
+				dev_warn(dev, "Failed adding mctp-i2c net device\n");
+		}
+		else {
+			pr_info("Jian debug: MCTP I2C client search not found mcli\n");
+		}
+		mutex_unlock(&driver_clients_lock);
+	}
+
+	return rc;
+}
+
+
+static long mctp_i2c_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int rc = 0;
+	char *name;
+
+	switch (cmd) {
+	case MCTP_I2C_IOCTL_NEW_DEVICE:
+		pr_info("Jian debug: MCTP I2C ioctl new device\n");
+		 name = (char *)kmalloc(256, GFP_KERNEL); // Allocate kernel memory for the string
+		if (!name)
+			return -ENOMEM;
+
+		if (copy_from_user(name, (char __user *)arg, 256)) {
+			kfree(name);
+			return -EFAULT;
+		}
+
+		// foreach all i2c adapter, find the one with name
+		// if found, call mctp_i2c_add_netdev
+		// if not found, return error
+		i2c_for_each_dev(name, mctp_i2c_client_search);
+
+		pr_info("IOCTL: Set string: %s\n", name);
+		break;
+	}
+
+	return rc;
+}
+
+static struct file_operations mctp_i2c = {
+	.unlocked_ioctl = mctp_i2c_ioctl,
+};
+
+static void mctp_i2c_char_init(void)
+{
+	major = register_chrdev(0, "mctp-i2c", &mctp_i2c);
+	mctp_i2c_class = class_create(THIS_MODULE, "mctp-i2c");
+	device_create(mctp_i2c_class, NULL, MKDEV(major, 0), NULL, "mctp-i2c");
+	pr_info("MCTP i2c character device registered\n");
+}
+
+static void __exit mctp_i2c_char_exit(void) {
+	unregister_chrdev(major, "mctp-i2c");
+	device_destroy(mctp_i2c_class, MKDEV(major, 0));
+	class_destroy(mctp_i2c_class);
+	pr_info("MCTP i2c character device unregistered\n");
+}
+
 static __init int mctp_i2c_mod_init(void)
 {
 	int rc;
 
-	pr_info("MCTP I2C interface driver\n");
+	pr_info("Jian debug: MCTP I2C interface driver\n");
+
+	mctp_i2c_char_init();
+
 	rc = i2c_add_driver(&mctp_i2c_driver);
 	if (rc < 0)
 		return rc;
@@ -1082,6 +1189,8 @@ static __init int mctp_i2c_mod_init(void)
 static __exit void mctp_i2c_mod_exit(void)
 {
 	int rc;
+
+	mctp_i2c_char_exit();
 
 	rc = bus_unregister_notifier(&i2c_bus_type, &mctp_i2c_notifier);
 	if (rc < 0)
